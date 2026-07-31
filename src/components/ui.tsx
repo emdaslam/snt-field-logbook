@@ -1,0 +1,106 @@
+"use client";
+
+import { type ReactNode, useEffect } from "react";
+
+export function Chip({
+  label,
+  color = "#2563eb",
+  onClick,
+  active,
+}: {
+  label: string;
+  color?: string;
+  onClick?: () => void;
+  active?: boolean;
+}) {
+  return (
+    <span
+      onClick={onClick}
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition ${
+        onClick ? "cursor-pointer" : ""
+      }`}
+      style={{
+        backgroundColor: active === false ? "#f1f5f9" : color + "22",
+        color: active === false ? "#64748b" : color,
+        border: `1px solid ${active === false ? "#e2e8f0" : color + "55"}`,
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
+export function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  wide,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+  wide?: boolean;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [open, onClose]);
+
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 sm:items-center" onClick={onClose}>
+      <div
+        className={`w-full ${wide ? "sm:max-w-2xl" : "sm:max-w-md"} max-h-[92vh] overflow-y-auto rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sticky top-0 flex items-center justify-between border-b border-slate-200 bg-white px-5 py-3.5">
+          <h3 className="text-base font-semibold text-blue-900">{title}</h3>
+          <button onClick={onClose} className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="p-5">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+export function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="mb-3 block">
+      <span className="mb-1 block text-sm font-medium text-slate-700">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+export const inputClass =
+  "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200";
+
+export function PrimaryButton({
+  children,
+  onClick,
+  type = "button",
+  className = "",
+}: {
+  children: ReactNode;
+  onClick?: () => void;
+  type?: "button" | "submit";
+  className?: string;
+}) {
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      className={`rounded-lg bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-900 ${className}`}
+    >
+      {children}
+    </button>
+  );
+}

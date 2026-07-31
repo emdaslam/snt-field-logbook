@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!--
+      HTTPS is enforced by default.
+      To test against a plain-HTTP server on your LAN, uncomment the block below
+      and put your server's IP in it (also set "cleartext": true in capacitor.config.json).
+    -->
+    <base-config cleartextTrafficPermitted="false" />
+
+    <!--
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">192.168.1.50</domain>
+        <domain includeSubdomains="true">10.0.2.2</domain>
+    </domain-config>
+    -->
+</network-security-config>

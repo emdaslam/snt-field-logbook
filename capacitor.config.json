@@ -1,0 +1,10 @@
+{
+  "appId": "in.railway.snt.logbook",
+  "appName": "S&T Field Logbook",
+  "webDir": ".next-mobile",
+  "android": {
+    "backgroundColor": "#1e3a8a",
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false
+  }
+}
