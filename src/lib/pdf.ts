@@ -1,5 +1,7 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { FONT_SIZE_SCALE } from "@/lib/types";
+import type { FontSize } from "@/lib/types";
 
 const NAVY: [number, number, number] = [30, 58, 138];
 const GREEN: [number, number, number] = [5, 95, 70];
@@ -10,12 +12,58 @@ function slug(s: string) {
 }
 
 /**
+ * Collapse whitespace and guarantee a single space around the · and — separators
+ * used across the export builders, so markup adjacency never drops a space.
+ */
+function tidy(s: string) {
+  return s
+    .replace(/\s+/g, " ")
+    .replace(/\s*([·—])\s*/g, " $1 ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+/**
+ * Text of a list item with <br/> converted to line breaks, so an item can
+ * carry a second line (e.g. "Material/Remarks:"). Other inline elements keep
+ * their text on the current line.
+ */
+function liText(el: HTMLElement): string {
+  let out = "";
+  for (const node of Array.from(el.childNodes)) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      out += node.textContent ?? "";
+    } else if (node instanceof HTMLElement) {
+      out += node.tagName === "BR" ? "\n" : (node.textContent ?? "");
+    }
+  }
+  return out
+    .replace(/[ \t]+/g, " ")
+    .replace(/\s*([·—])\s*/g, " $1 ")
+    .replace(/ *\n */g, "\n")
+    .replace(/\n{2,}/g, "\n")
+    .trim();
+}
+
+/** Active app font size, persisted by DataProvider under `snt.fontSize`. */
+function activeFontSize(): FontSize {
+  try {
+    const v = localStorage.getItem("snt.fontSize");
+    if (v === "small" || v === "medium" || v === "large") return v;
+  } catch {
+    /* ignore */
+  }
+  return "medium";
+}
+
+/**
  * Render the HTML produced by the export builders into a real PDF.
  * We control the markup shape (h1 / h2 / p / table / ul>li), so a small
  * DOM walk is enough and avoids pulling in a heavyweight rasteriser.
  */
 function buildPdf(title: string, bodyHtml: string): jsPDF {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const fs = FONT_SIZE_SCALE[activeFontSize()];
   const margin = 40;
   const pageW = doc.internal.pageSize.getWidth();
   const maxW = pageW - margin * 2;
@@ -34,41 +82,47 @@ function buildPdf(title: string, bodyHtml: string): jsPDF {
 
   for (const el of Array.from(root.children)) {
     const tag = el.tagName.toLowerCase();
-    const text = (el.textContent ?? "").replace(/\s+/g, " ").trim();
+    const text = tidy(el.textContent ?? "");
 
     if (tag === "h1") {
-      pageBreak(38);
-      doc.setFont("helvetica", "bold").setFontSize(15).setTextColor(...NAVY);
+      pageBreak(38 * fs);
+      doc.setFont("helvetica", "bold").setFontSize(15 * fs).setTextColor(...NAVY);
       const lines = doc.splitTextToSize(text, maxW) as string[];
       doc.text(lines, margin, y);
-      y += lines.length * 18 + 4;
+      y += lines.length * (18 * fs) + 4;
       doc.setDrawColor(...NAVY).setLineWidth(1.5).line(margin, y, pageW - margin, y);
       y += 14;
     } else if (tag === "h2") {
-      pageBreak(30);
-      doc.setFont("helvetica", "bold").setFontSize(11).setTextColor(...GREEN);
+      pageBreak(30 * fs);
+      doc.setFont("helvetica", "bold").setFontSize(11 * fs).setTextColor(...GREEN);
       const lines = doc.splitTextToSize(text, maxW) as string[];
       doc.text(lines, margin, y);
-      y += lines.length * 14 + 6;
+      y += lines.length * (14 * fs) + 6;
     } else if (tag === "p") {
       if (!text) continue;
-      pageBreak(22);
+      pageBreak(22 * fs);
       const meta = el.className.includes("meta") || el.className.includes("empty");
-      doc.setFont("helvetica", meta ? "italic" : "normal").setFontSize(9);
+      doc.setFont("helvetica", meta ? "italic" : "normal").setFontSize(9 * fs);
       if (meta) doc.setTextColor(...GREY);
       else doc.setTextColor(15, 23, 42);
       const lines = doc.splitTextToSize(text, maxW) as string[];
       doc.text(lines, margin, y);
-      y += lines.length * 12 + 8;
+      y += lines.length * (12 * fs) + 8;
     } else if (tag === "ul") {
       for (const li of Array.from(el.children)) {
-        const t = (li.textContent ?? "").replace(/\s+/g, " ").trim();
-        if (!t) continue;
-        pageBreak(20);
-        doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(15, 23, 42);
-        const lines = doc.splitTextToSize("•  " + t, maxW - 10) as string[];
-        doc.text(lines, margin + 8, y);
-        y += lines.length * 12 + 3;
+        const parts = liText(li as HTMLElement).split("\n").filter((p) => p.trim());
+        if (parts.length === 0) continue;
+        pageBreak(20 * fs);
+        doc.setFont("helvetica", "normal").setFontSize(9 * fs).setTextColor(15, 23, 42);
+        const first = doc.splitTextToSize("•  " + parts[0], maxW - 10) as string[];
+        doc.text(first, margin + 8, y);
+        y += first.length * (12 * fs) + 3;
+        for (const extra of parts.slice(1)) {
+          pageBreak(20 * fs);
+          const lines = doc.splitTextToSize(extra, maxW - 10) as string[];
+          doc.text(lines, margin + 20, y);
+          y += lines.length * (12 * fs) + 3;
+        }
       }
       y += 6;
     } else if (tag === "table") {
@@ -76,19 +130,41 @@ function buildPdf(title: string, bodyHtml: string): jsPDF {
       if (!rows.length) continue;
       const headCells = Array.from(rows[0].querySelectorAll("th"));
       const hasHead = headCells.length > 0;
-      const head = hasHead ? [headCells.map((c) => (c.textContent ?? "").trim())] : undefined;
+      // A fixed-width "date" column (cells marked class="date") keeps dates on
+      // one line instead of wrapping in a proportionally-narrow column.
+      const columnStyles: Record<number, { cellWidth: number }> = {};
+      let dateCol: number | null = null;
+      for (const r of rows) {
+        const marked = r.querySelector("td.date, th.date");
+        if (marked) {
+          dateCol = Array.from(r.querySelectorAll("td, th")).indexOf(marked as Element);
+          break;
+        }
+      }
+      if (dateCol !== null) columnStyles[dateCol] = { cellWidth: 72 };
+      // Explicit per-column widths via data-width on the header row; these let
+      // a report pin narrow date/movement columns and hand the rest to a wide
+      // "Work Done" column instead of letting autoTable squeeze it.
+      if (hasHead) {
+        headCells.forEach((c, i) => {
+          const w = c.getAttribute("data-width");
+          if (w) columnStyles[i] = { cellWidth: Number(w) };
+        });
+      }
+      const head = hasHead ? [headCells.map((c) => tidy(c.textContent ?? ""))] : undefined;
       const bodyRows = (hasHead ? rows.slice(1) : rows).map((r) =>
-        Array.from(r.querySelectorAll("td")).map((c) => (c.textContent ?? "").trim())
+        Array.from(r.querySelectorAll("td")).map((c) => tidy(c.textContent ?? ""))
       );
       autoTable(doc, {
         head,
         body: bodyRows,
         startY: y,
         margin: { left: margin, right: margin },
-        styles: { fontSize: 8, cellPadding: 4, overflow: "linebreak", textColor: [15, 23, 42] },
+        styles: { fontSize: 8 * fs, cellPadding: 4, overflow: "linebreak", textColor: [15, 23, 42] },
         headStyles: { fillColor: [219, 234, 254], textColor: NAVY, fontStyle: "bold" },
         alternateRowStyles: { fillColor: [248, 250, 252] },
         theme: "grid",
+        columnStyles: Object.keys(columnStyles).length ? columnStyles : undefined,
       });
       const last = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable;
       y = (last?.finalY ?? y + 40) + 16;
@@ -113,36 +189,6 @@ function buildPdf(title: string, bodyHtml: string): jsPDF {
     );
   }
   return doc;
-}
-
-/** Original print behaviour: render the report HTML in a window and print it. */
-function printHtml(title: string, bodyHtml: string) {
-  const w = window.open("", "_blank", "width=820,height=1000");
-  if (!w) {
-    alert("Please allow pop-ups for this site to print.");
-    return;
-  }
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>
-  <style>
-    *{box-sizing:border-box}
-    body{font-family:Arial,Helvetica,sans-serif;color:#0f172a;margin:32px}
-    h1{font-size:20px;color:#1e3a8a;border-bottom:3px solid #1e3a8a;padding-bottom:8px}
-    h2{font-size:15px;color:#065f46;margin-top:22px;background:#ecfdf5;padding:6px 10px;border-left:4px solid #059669}
-    .meta{color:#64748b;font-size:12px;margin-bottom:8px}
-    ul{margin:6px 0 12px;padding-left:20px}
-    li{margin:4px 0;font-size:13px;line-height:1.4}
-    .empty{color:#94a3b8;font-style:italic}
-    table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}
-    th,td{border:1px solid #cbd5e1;padding:6px 8px;text-align:left}
-    th{background:#dbeafe;color:#1e3a8a}
-    .footer{margin-top:30px;font-size:10px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:8px}
-    @media print{body{margin:12mm}}
-  </style></head><body>${bodyHtml}
-  <div class="footer">Railway S&amp;T Field Logbook · ${new Date().toLocaleString()}</div>
-  </body></html>`);
-  w.document.close();
-  w.focus();
-  setTimeout(() => w.print(), 400);
 }
 
 function sheet(opts: { label: string; primary?: boolean; run: () => void | Promise<void> }[]) {
@@ -266,8 +312,7 @@ export function exportHtmlAsPdf(title: string, bodyHtml: string) {
   };
 
   sheet([
-    { label: "📤  Share PDF (WhatsApp, Telegram…)", primary: true, run: share },
-    { label: "⬇  Save PDF", run: save },
-    { label: "🖨  Print", run: () => printHtml(title, bodyHtml) },
+    { label: "📤  Share to other apps (WhatsApp, Telegram…)", primary: true, run: share },
+    { label: "⬇  Save file", run: save },
   ]);
 }

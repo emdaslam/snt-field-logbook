@@ -10,7 +10,14 @@ import {
   type ReactNode,
 } from "react";
 import { api, toISODate } from "@/lib/api";
-import { computeInspectionDues, INSPECTION_RULES } from "@/lib/inspections";
+import {
+  computeInspectionDues,
+  computeTagDues,
+  INSPECTION_RULES,
+  tagReminderConfigs,
+} from "@/lib/inspections";
+import { FONT_SIZE_ROOT, type FontSize } from "@/lib/types";
+import { isNative, scheduleDailyReminders } from "@/lib/native";
 import type {
   Station,
   Staff,
@@ -31,7 +38,7 @@ export type Notification = {
   id: string;
   title: string;
   detail: string;
-  kind: "planned" | "due" | "inspection";
+  kind: "planned" | "due" | "inspection" | "tag";
   /** Where tapping the notification should take the user */
   target?: NotificationTarget;
 };
@@ -56,6 +63,9 @@ type Ctx = {
   syncing: boolean;
   lastSynced: Date | null;
   syncError: string | null;
+  // Appearance
+  fontSize: FontSize;
+  setFontSize: (v: FontSize) => void;
   // Scope (mapped staff / stations)
   myStationsOnly: boolean;
   setMyStationsOnly: (v: boolean) => void;
@@ -90,6 +100,40 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [myStationsOnly, setMyStationsOnlyState] = useState(false);
+  const [fontSize, setFontSizeState] = useState<FontSize>("medium");
+
+  const applyFontSize = useCallback((v: FontSize) => {
+    if (typeof document !== "undefined") {
+      document.documentElement.style.fontSize = FONT_SIZE_ROOT[v];
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("snt.fontSize");
+      if (saved === "small" || saved === "large") {
+        setFontSizeState(saved);
+        applyFontSize(saved);
+        return;
+      }
+    } catch {
+      /* ignore */
+    }
+    applyFontSize("medium");
+  }, [applyFontSize]);
+
+  const setFontSize = useCallback(
+    (v: FontSize) => {
+      setFontSizeState(v);
+      applyFontSize(v);
+      try {
+        localStorage.setItem("snt.fontSize", v);
+      } catch {
+        /* ignore */
+      }
+    },
+    [applyFontSize]
+  );
 
   const setMyStationsOnly = useCallback((v: boolean) => {
     setMyStationsOnlyState(v);
@@ -247,19 +291,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const resolveInspStation = (r: {
       inspectionStationId?: number | null;
       inspectionTowardsStationId?: number | null;
+      inspectionSide?: string | null;
       inspectionJointDept?: string | null;
       stationMovement?: string | null;
     }) => {
       const at = stations.find((s) => s.id === r.inspectionStationId);
       const tw = stations.find((s) => s.id === r.inspectionTowardsStationId);
+      const both = r.inspectionSide === "Both";
       return {
         id: at?.id ?? null,
         name: at?.name ?? ((r.stationMovement || "").trim() || "Unspecified station"),
-        towardsId: tw?.id ?? null,
-        towards: tw?.name ?? "Unspecified side",
+        towardsId: both ? null : (tw?.id ?? null),
+        towards: both ? "Both sides" : (tw?.name ?? "Unspecified side"),
       };
     };
-    for (const due of computeInspectionDues(logs, toISODate(new Date()), resolveInspStation)) {
+    for (const due of computeInspectionDues(
+      logs,
+      toISODate(new Date()),
+      resolveInspStation,
+      tagReminderConfigs(tags)
+    )) {
       const rule = INSPECTION_RULES[due.kind];
       notes.push({
         id: "insp-" + due.key,
@@ -280,9 +331,37 @@ export function DataProvider({ children }: { children: ReactNode }) {
         target: due.sourceLogId ? { type: "log", id: due.sourceLogId } : undefined,
       });
     }
+    // Reminders for custom tags with "Remind me" switched on in Settings
+    for (const due of computeTagDues(logs, tags, toISODate(new Date()))) {
+      notes.push({
+        id: "tag-" + due.tagId,
+        title: `${due.tagName} — due ${due.nextDue}`,
+        detail:
+          (due.overdue
+            ? `Overdue by ${Math.abs(due.daysLeft)} day${Math.abs(due.daysLeft) !== 1 ? "s" : ""} (last done ${due.lastDone})`
+            : due.daysLeft === 0
+              ? `Due today (last done ${due.lastDone})`
+              : `Due in ${due.daysLeft} day${due.daysLeft !== 1 ? "s" : ""} (last done ${due.lastDone})`),
+        kind: "tag",
+        target: due.sourceLogId ? { type: "log", id: due.sourceLogId } : undefined,
+      });
+    }
 
     setNotifications(notes);
-  }, [planned, deficiencies, logs, stations]);
+  }, [planned, deficiencies, logs, stations, tags]);
+
+  // Keep the phone's notification panel in sync: four reminders a day
+  // (8:00 / 12:00 / 16:00 / 20:00) but only while something is actually
+  // pending. Only runs on the Android app.
+  useEffect(() => {
+    if (!isNative()) return;
+    scheduleDailyReminders({
+      due: notifications.filter((n) => n.kind === "due").length,
+      planned: notifications.filter((n) => n.kind === "planned").length,
+      inspections: notifications.filter((n) => n.kind === "inspection").length,
+      tags: notifications.filter((n) => n.kind === "tag").length,
+    });
+  }, [notifications]);
 
   const stationName = useCallback(
     (id: number | null) => stations.find((s) => s.id === id)?.name ?? "Unassigned",
@@ -354,6 +433,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         myStationNames,
         inScopeStation,
         inScopeMovement,
+        fontSize,
+        setFontSize,
       }}
     >
       {children}

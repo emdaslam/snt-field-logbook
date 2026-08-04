@@ -4,6 +4,7 @@ import { toISODate } from "@/lib/api";
 
 export function Calendar({
   activeDates,
+  dateTagColors,
   selectedDate,
   focusedDate,
   onSelect,
@@ -12,6 +13,7 @@ export function Calendar({
   setCursor,
 }: {
   activeDates: Set<string>;
+  dateTagColors: Map<string, string[]>;
   selectedDate: string | null;
   focusedDate: string | null;
   onSelect: (d: string | null) => void;
@@ -33,7 +35,7 @@ export function Calendar({
 
   if (collapsed) {
     return (
-      <div className="flex items-center justify-between px-4 py-2 text-sm font-medium text-blue-900">
+      <div className="flex items-center justify-between px-4 py-1.5 text-sm font-medium text-blue-900">
         <span>{monthLabel}</span>
         {focusedDate && (
           <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
@@ -49,31 +51,31 @@ export function Calendar({
   }
 
   return (
-    <div className="px-3 pb-3 pt-1">
-      <div className="mb-2 flex items-center justify-between">
+    <div className="px-2 pb-2 pt-1">
+      <div className="mb-1 flex items-center justify-between">
         <button
           onClick={() => setCursor(new Date(year, month - 1, 1))}
-          className="rounded-full p-1.5 text-blue-800 hover:bg-blue-100"
+          className="rounded-full p-1 text-blue-800 hover:bg-blue-100"
           aria-label="Previous month"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="m15 18-6-6 6-6" />
           </svg>
         </button>
-        <span className="text-sm font-semibold text-blue-900">{monthLabel}</span>
+        <span className="text-[13px] font-semibold text-blue-900">{monthLabel}</span>
         <button
           onClick={() => setCursor(new Date(year, month + 1, 1))}
-          className="rounded-full p-1.5 text-blue-800 hover:bg-blue-100"
+          className="rounded-full p-1 text-blue-800 hover:bg-blue-100"
           aria-label="Next month"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="m9 18 6-6-6-6" />
           </svg>
         </button>
       </div>
-      <div className="grid grid-cols-7 gap-1 text-center">
+      <div className="grid grid-cols-7 gap-0.5 text-center">
         {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
-          <div key={i} className="py-1 text-[11px] font-semibold text-slate-400">
+          <div key={i} className="py-0.5 text-[10px] font-semibold text-slate-400">
             {d}
           </div>
         ))}
@@ -84,11 +86,12 @@ export function Calendar({
           const isSelected = iso === selectedDate;
           const isFocused = iso === focusedDate;
           const hasEntry = activeDates.has(iso);
+          const tagColors = dateTagColors.get(iso) ?? [];
           return (
             <button
               key={i}
               onClick={() => onSelect(isSelected ? null : iso)}
-              className={`relative mx-auto flex h-9 w-9 items-center justify-center rounded-full text-sm transition ${
+              className={`relative mx-auto flex h-7 w-7 items-center justify-center rounded-full text-xs transition ${
                 isToday
                   ? "bg-blue-800 font-bold text-white"
                   : isSelected
@@ -100,7 +103,21 @@ export function Calendar({
             >
               {day}
               {hasEntry && !isToday && !isSelected && (
-                <span className="absolute bottom-1 h-1 w-1 rounded-full bg-emerald-500" />
+                <span className="absolute inset-x-0 bottom-0.5 flex items-center justify-center">
+                  <span className="h-[3px] w-3 rounded-full bg-emerald-500" />
+                </span>
+              )}
+              {tagColors.length > 0 && !isToday && !isSelected && (
+                <span className="absolute inset-x-0 bottom-[7px] flex items-center justify-center gap-[2px]">
+                  {tagColors.slice(0, 3).map((c, j) => (
+                    <span key={j} className="h-1 w-1 rounded-full" style={{ backgroundColor: c }} />
+                  ))}
+                  {tagColors.length > 3 && (
+                    <span className="text-[7px] font-semibold leading-none text-slate-400">
+                      +{tagColors.length - 3}
+                    </span>
+                  )}
+                </span>
               )}
             </button>
           );

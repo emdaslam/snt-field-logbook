@@ -9,6 +9,8 @@ import { SearchView } from "./SearchView";
 import { Settings } from "./Settings";
 import { Notes } from "./Notes";
 import { Reports } from "./Reports";
+import { AttachmentsView } from "./AttachmentsView";
+import { AttachmentPreviewModal } from "./AttachmentPreviewModal";
 import { MonthlyExportModal } from "./MonthlyExportModal";
 import { TomorrowWorkModal } from "./TomorrowWorkModal";
 import { PcdoExportModal } from "./PcdoExportModal";
@@ -16,14 +18,16 @@ import { LogDetailModal } from "./LogDetailModal";
 import { DiaryExportModal } from "./DiaryExportModal";
 import { InspectionExportModal } from "./InspectionExportModal";
 import { DailyLogForm, DeficiencyForm, PlannedWorkForm } from "./Forms";
-import type { DailyLog } from "@/db/schema";
+import { isNative } from "@/lib/native";
+import type { DailyLog, Attachment } from "@/db/schema";
 
-type View = "home" | "tasks" | "search" | "reports" | "notes" | "settings";
+type View = "home" | "tasks" | "search" | "reports" | "notes" | "attachments" | "settings";
 
 export function AppShell() {
   const {
     loading,
     logs,
+    tags,
     deficiencies,
     planned,
     notifications,
@@ -54,6 +58,7 @@ export function AppShell() {
   const [pcdoOpen, setPcdoOpen] = useState(false);
   const [diaryOpen, setDiaryOpen] = useState(false);
   const [inspOpen, setInspOpen] = useState(false);
+  const [exitToast, setExitToast] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
 
   // Close the header dropdowns when tapping anywhere outside them
@@ -79,6 +84,7 @@ export function AppShell() {
   const [logForm, setLogForm] = useState(false);
   const [editLog, setEditLog] = useState<DailyLog | null>(null);
   const [detailLog, setDetailLog] = useState<DailyLog | null>(null);
+  const [selAttachment, setSelAttachment] = useState<Attachment | null>(null);
   const [taskTab, setTaskTab] = useState<"deficiencies" | "planned" | "archive">("deficiencies");
   const [highlightId, setHighlightId] = useState<string | null>(null);
 
@@ -115,7 +121,121 @@ export function AppShell() {
   const [planForm, setPlanForm] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
+  const exitToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastBack = useRef(0);
+
+  // Latest overlay/view state read by the native back-button handler
+  const shellState = useRef({
+    view,
+    detailLog,
+    selAttachment,
+    editLog,
+    logForm,
+    defForm,
+    planForm,
+    fabOpen,
+    drawer,
+    monthlyOpen,
+    tomorrowOpen,
+    pcdoOpen,
+    diaryOpen,
+    inspOpen,
+    notifOpen,
+    exportMenu,
+  });
+  // Keep the snapshot fresh for the back-button handler (runs after commit,
+  // so the handler always sees the latest overlay / view state)
+  useEffect(() => {
+    shellState.current = {
+      view,
+      detailLog,
+      selAttachment,
+      editLog,
+      logForm,
+      defForm,
+      planForm,
+      fabOpen,
+      drawer,
+      monthlyOpen,
+      tomorrowOpen,
+      pcdoOpen,
+      diaryOpen,
+      inspOpen,
+      notifOpen,
+      exportMenu,
+    };
+  });
+
+  // Android back button: close whatever is on screen first (modal / sheet /
+  // drawer / tab), and only exit the app after two presses while on Home.
+  useEffect(() => {
+    if (!isNative()) return;
+    let handle: { remove: () => void } | undefined;
+    (async () => {
+      const { App } = await import("@capacitor/app");
+      handle = await App.addListener("backButton", async () => {
+        const s = shellState.current;
+        const closeTop: (() => void) | undefined = (
+          [
+            [s.detailLog, () => setDetailLog(null)],
+            [s.selAttachment, () => setSelAttachment(null)],
+            [s.editLog, () => setEditLog(null)],
+            [s.logForm, () => setLogForm(false)],
+            [s.defForm, () => setDefForm(false)],
+            [s.planForm, () => setPlanForm(false)],
+            [s.fabOpen, () => setFabOpen(false)],
+            [s.drawer, () => setDrawer(false)],
+            [s.monthlyOpen, () => setMonthlyOpen(false)],
+            [s.tomorrowOpen, () => setTomorrowOpen(false)],
+            [s.pcdoOpen, () => setPcdoOpen(false)],
+            [s.diaryOpen, () => setDiaryOpen(false)],
+            [s.inspOpen, () => setInspOpen(false)],
+            [s.notifOpen, () => setNotifOpen(false)],
+            [s.exportMenu, () => setExportMenu(false)],
+          ] as [boolean, () => void][]
+        ).find(([open]) => open)?.[1];
+
+        if (closeTop) {
+          closeTop();
+          return;
+        }
+        // No overlay: on a non-home tab, go back Home first
+        if (s.view !== "home") {
+          setView("home");
+          return;
+        }
+        // On Home: two presses within 2s exit the app
+        const now = Date.now();
+        if (now - lastBack.current < 2000) {
+          await App.exitApp();
+        } else {
+          lastBack.current = now;
+          setExitToast(true);
+          if (exitToastTimer.current) clearTimeout(exitToastTimer.current);
+          exitToastTimer.current = setTimeout(() => setExitToast(false), 2000);
+        }
+      });
+    })();
+    return () => {
+      handle?.remove();
+    };
+  }, []);
+
   const activeDates = useMemo(() => new Set(logs.map((l) => l.logDate)), [logs]);
+
+  const tagsById = useMemo(() => new Map(tags.map((t) => [t.id, t])), [tags]);
+  const dateTagColors = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const l of logs) {
+      if (!l.tagIds?.length) continue;
+      const colors = l.tagIds
+        .map((id) => tagsById.get(id)?.color)
+        .filter((c): c is string => !!c);
+      if (!colors.length) continue;
+      m.set(l.logDate, [...new Set([...(m.get(l.logDate) ?? []), ...colors])]);
+    }
+    return m;
+  }, [logs, tagsById]);
 
   async function doSync() {
     setSyncing(true);
@@ -129,6 +249,7 @@ export function AppShell() {
     search: "Global Search",
     reports: "Reports",
     notes: "Important Notes",
+    attachments: "Attachments",
     settings: "Settings",
   };
 
@@ -152,22 +273,23 @@ export function AppShell() {
             <path d="M3 12h18M3 6h18M3 18h18" />
           </svg>
         </button>
-        <h1 className="text-sm font-semibold">{titles[view]}</h1>
+        <h1 className="min-w-0 flex-1 truncate text-center text-sm font-semibold">{titles[view]}</h1>
         <div className="flex items-center gap-1">
           {/* Notifications */}
           <div className="relative" ref={notifRef}>
-            <button onClick={() => { setNotifOpen((v) => !v); setExportMenu(false); }} className="relative rounded-lg p-1.5 hover:bg-blue-800" aria-label="Alerts">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0" />
+            <button onClick={() => { setNotifOpen((v) => !v); setExportMenu(false); }} className="relative rounded-lg p-1.5 hover:bg-blue-800" aria-label="Alerts" title="Alerts">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
               </svg>
               {notifications.length > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-400 text-[10px] font-bold text-blue-900">
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-400 px-0.5 text-[10px] font-bold text-blue-900">
                   {notifications.length}
                 </span>
               )}
             </button>
             {notifOpen && (
-              <div className="absolute right-0 top-11 w-72 rounded-xl border border-slate-200 bg-white p-2 text-slate-800 shadow-xl">
+              <div className="absolute right-0 top-full mt-1 max-h-[70vh] w-[min(288px,calc(100vw-88px))] overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 text-slate-800 shadow-xl">
                 <p className="px-2 py-1 text-xs font-bold uppercase text-blue-900">Alerts</p>
                 {notifications.length === 0 && <p className="px-2 py-3 text-sm text-slate-400">No active alerts</p>}
                 {notifications.map((n) => (
@@ -177,7 +299,7 @@ export function AppShell() {
                     className="block w-full rounded-lg px-2 py-1.5 text-left hover:bg-slate-50"
                   >
                     <p className="text-sm font-medium">{n.title}</p>
-                    <p className={`text-xs ${n.kind === "due" ? "text-red-600" : n.kind === "inspection" ? "text-sky-600" : "text-emerald-600"}`}>{n.detail}</p>
+                    <p className={`text-xs ${n.kind === "due" ? "text-red-600" : n.kind === "inspection" ? "text-sky-600" : n.kind === "tag" ? "text-violet-600" : "text-emerald-600"}`}>{n.detail}</p>
                     {n.target && (
                       <p className="mt-0.5 text-[10px] font-medium text-blue-600">Tap to open entry →</p>
                     )}
@@ -194,7 +316,7 @@ export function AppShell() {
               </svg>
             </button>
             {exportMenu && (
-              <div className="absolute right-0 top-11 w-60 rounded-xl border border-slate-200 bg-white p-1.5 text-slate-800 shadow-xl">
+              <div className="absolute right-0 top-full mt-1 w-[min(240px,calc(100vw-88px))] rounded-xl border border-slate-200 bg-white p-1.5 text-slate-800 shadow-xl">
                 <button
                   onClick={() => { setTomorrowOpen(true); setExportMenu(false); }}
                   className="block w-full rounded-lg px-3 py-2.5 text-left text-sm hover:bg-blue-50"
@@ -277,10 +399,12 @@ export function AppShell() {
             <div className="border-b border-slate-200 bg-white shadow-sm">
               <Calendar
                 activeDates={activeDates}
+                dateTagColors={dateTagColors}
                 selectedDate={selectedDate}
                 focusedDate={focusedDate}
                 onSelect={(d) => {
                   setSelectedDate(d);
+                  setFocusedDate(d);
                   if (d) setCalCursor(new Date(Number(d.slice(0, 4)), Number(d.slice(5, 7)) - 1, 1));
                 }}
                 collapsed={calCollapsed}
@@ -322,6 +446,7 @@ export function AppShell() {
             {view === "search" && <SearchView />}
             {view === "reports" && <Reports onOpenMonthly={() => setMonthlyOpen(true)} />}
             {view === "notes" && <Notes />}
+            {view === "attachments" && <AttachmentsView onSelect={setSelAttachment} />}
             {view === "settings" && <Settings />}
           </div>
         )}
@@ -371,6 +496,7 @@ export function AppShell() {
             <div className="mb-6 border-b border-blue-800 pb-4">
               <p className="text-lg font-bold">Railway S&amp;T</p>
               <p className="text-xs text-blue-200">Field Logbook</p>
+              <p className="mt-1 text-[10px] text-blue-300/80">Developed by Aslam, JE/SIG/JMDG</p>
               {currentUser && (
                 <div className="mt-3 rounded-lg bg-blue-800/60 p-2 text-xs">
                   <p className="font-semibold">{currentUser.name}</p>
@@ -378,7 +504,7 @@ export function AppShell() {
                 </div>
               )}
             </div>
-            {(["home", "tasks", "search", "reports", "notes", "settings"] as View[]).map((v) => (
+            {(["home", "tasks", "search", "reports", "notes", "attachments", "settings"] as View[]).map((v) => (
               <button
                 key={v}
                 onClick={() => { setView(v); setDrawer(false); }}
@@ -392,7 +518,9 @@ export function AppShell() {
                     ? "Search"
                     : v === "notes"
                       ? "Important Notes"
-                      : v}
+                      : v === "attachments"
+                        ? "Attachments"
+                        : v}
               </button>
             ))}
           </div>
@@ -426,6 +554,13 @@ export function AppShell() {
       <DiaryExportModal open={diaryOpen} onClose={() => setDiaryOpen(false)} />
       <InspectionExportModal open={inspOpen} onClose={() => setInspOpen(false)} />
       <LogDetailModal log={detailLog} onClose={() => setDetailLog(null)} onEdit={(l) => setEditLog(l)} />
+      <AttachmentPreviewModal attachment={selAttachment} onClose={() => setSelAttachment(null)} />
+
+      {exitToast && (
+        <div className="pointer-events-none fixed bottom-28 left-1/2 z-50 -translate-x-1/2 whitespace-nowrap rounded-full bg-slate-900/90 px-4 py-2 text-xs font-medium text-white shadow-lg">
+          Press back again to exit
+        </div>
+      )}
     </div>
   );
 }

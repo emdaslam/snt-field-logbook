@@ -6,3 +6,15 @@ android/app/build/
 android/local.properties
 android/keystore.properties
 *.keystore
+
+# Build artifacts
+.next/
+.next-mobile/
+out/
+tsconfig.tsbuildinfo
+
+# APK download hosting
+.apk-download/
+
+# Dependencies
+node_modules/

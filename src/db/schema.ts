@@ -39,6 +39,14 @@ export const tags = pgTable("tags", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 100 }).notNull(),
   color: varchar("color", { length: 30 }).default("#3b82f6").notNull(),
+  // When enabled, selecting this tag during a log entry asks for the side
+  // (towards which station) the work was carried out.
+  needsSide: boolean("needs_side").default(false).notNull(),
+  // Per-tag reminder: switchable, with a cycle (periodicity in days) and a
+  // lead time telling how many days before the due date to start warning.
+  remindEnabled: boolean("remind_enabled").default(false).notNull(),
+  remindIntervalDays: integer("remind_interval_days"),
+  remindBeforeDays: integer("remind_before_days"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -47,6 +55,13 @@ export const dailyLogs = pgTable("daily_logs", {
   id: serial("id").primaryKey(),
   logDate: date("log_date").notNull(),
   stationMovement: text("station_movement"),
+  // Non-station movement types: "rest" | "leave" | "cr" (null = a station movement)
+  movementKind: varchar("movement_kind", { length: 10 }),
+  // For leave: CL / LAP / SICK
+  leaveKind: varchar("leave_kind", { length: 10 }),
+  // For CR: the date(s) for which the compensatory rest is availed
+  crFrom: date("cr_from"),
+  crTo: date("cr_to"),
   workDone: text("work_done"),
   ta: numeric("ta", { precision: 12, scale: 2 }),
   // TA claim percentage: 100 / 70 / 30  (100% = 1 full day)
@@ -62,10 +77,16 @@ export const dailyLogs = pgTable("daily_logs", {
   // Footplate inspection: day/night shift, direction, and per-direction train details
   // Footplate & joint inspections run on either a monthly or quarterly cycle
   inspectionPeriodicity: varchar("inspection_periodicity", { length: 20 }),
+  // Custom reminder cycle in days for point oiling / battery distilled water
+  inspectionRemindDays: integer("inspection_remind_days"),
   footplateShift: varchar("footplate_shift", { length: 10 }),
   footplateDirection: varchar("footplate_direction", { length: 10 }),
   footplateUp: jsonb("footplate_up").$type<FootplateDetail | null>(),
   footplateDown: jsonb("footplate_down").$type<FootplateDetail | null>(),
+  // Footplate details per shift — both Day and Night can be recorded together,
+  // and each shift asks its own direction (Up / Down / Both) + train details
+  footplateDay: jsonb("footplate_day").$type<FootplateBlock | null>(),
+  footplateNight: jsonb("footplate_night").$type<FootplateBlock | null>(),
   inspectionSide: varchar("inspection_side", { length: 160 }),
   // Author of this log — private data is only visible to its owner
   ownerStaffId: integer("owner_staff_id"),
@@ -80,6 +101,8 @@ export const dailyLogs = pgTable("daily_logs", {
   discFailure: integer("disc_failure").default(0).notNull(),
   discMaintenance: integer("disc_maintenance").default(0).notNull(),
   tagIds: jsonb("tag_ids").$type<number[]>().default([]).notNull(),
+  // Side (towards station id) recorded per tag that needs one.
+  tagSides: jsonb("tag_sides").$type<Record<number, number>>().default({}).notNull(),
   attachments: jsonb("attachments").$type<Attachment[]>().default([]).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
@@ -148,6 +171,14 @@ export type FootplateDetail = {
   lpName: string;
   alpName: string;
   tmrName: string;
+};
+
+/** One shift (Day or Night) of a footplate inspection: its direction and the
+ * train details for that direction. */
+export type FootplateBlock = {
+  direction: string; // "Up" | "Down" | "Both"
+  up: FootplateDetail | null;
+  down: FootplateDetail | null;
 };
 
 export type Attachment = {

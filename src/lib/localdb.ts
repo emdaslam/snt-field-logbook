@@ -172,6 +172,8 @@ const DEFAULT_TAGS = [
   { name: "maintenance", color: "#0d9488" },
   { name: "footplate", color: "#0891b2" },
   { name: "failures", color: "#dc2626" },
+  { name: "point oiling", color: "#ea580c" },
+  { name: "battery distilled water", color: "#0d9488" },
 ];
 
 const DEFAULT_NOTE_CATEGORIES = [
@@ -216,5 +218,21 @@ export async function seedIfEmpty(): Promise<void> {
       "noteCategories",
       DEFAULT_NOTE_CATEGORIES.map((c, i) => ({ ...c, id: i + 1, createdAt: new Date().toISOString() }))
     );
+  }
+
+  // Top up default tags added after first install (e.g. "point oiling").
+  const tagRows = await readTable<Row>("tags");
+  const have = new Set(tagRows.map((t) => String(t.name).toLowerCase()));
+  const missing = DEFAULT_TAGS.filter((t) => !have.has(t.name.toLowerCase()));
+  if (missing.length > 0) {
+    let auto = tagRows.reduce((m, r) => Math.max(m, Number(r.id) || 0), 0);
+    await writeTable("tags", [
+      ...tagRows,
+      ...missing.map((t) => ({
+        ...t,
+        id: ++auto,
+        createdAt: new Date().toISOString(),
+      })),
+    ]);
   }
 }

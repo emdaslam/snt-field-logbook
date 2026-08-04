@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useData } from "./DataProvider";
 import { Modal, PrimaryButton } from "./ui";
 import { exportInspections } from "./exports";
@@ -13,7 +13,7 @@ import {
   formatInspectionDates,
   type InspectionKind,
 } from "@/lib/inspections";
-import { fmtDate } from "@/lib/api";
+import { fmtDate, footplateTrainList, formatFootplateShifts, formatFootplateSummary } from "@/lib/api";
 
 export function InspectionExportModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { logs, stations, stationName } = useData();
@@ -27,7 +27,9 @@ export function InspectionExportModal({ open, onClose }: { open: boolean; onClos
   const [custom, setCustom] = useState(false);
   const [stationFilter, setStationFilter] = useState<number | "">("");
   const [periodicity, setPeriodicity] = useState<string>("");
-  const [picked, setPicked] = useState<Set<number>>(new Set());
+  // Rows start all-selected; unchecking a row adds it here. New filters simply
+  // don't match the deselected ids, so no effect is needed to re-sync.
+  const [deselected, setDeselected] = useState<Set<number>>(new Set());
 
   const rows = useMemo(
     () =>
@@ -43,13 +45,7 @@ export function InspectionExportModal({ open, onClose }: { open: boolean; onClos
     [logs, kinds, period, stationFilter, periodicity]
   );
 
-  // Select everything whenever the filters change
-  useEffect(() => {
-    setPicked(new Set(rows.map((r) => r.id)));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kinds, period.from, period.to, stationFilter, periodicity, logs.length]);
-
-  const selected = rows.filter((r) => picked.has(r.id));
+  const selected = rows.filter((r) => !deselected.has(r.id));
 
   // Preview grouping: footplate lists train numbers, others merge dates per station
   const grouped = new Map<string, typeof rows>();
@@ -58,7 +54,7 @@ export function InspectionExportModal({ open, onClose }: { open: boolean; onClos
     const prefix = kinds.length > 1 ? `${INSPECTION_RULES[kd].label.replace(" Inspection", "")} · ` : "";
     let k: string;
     if (kd === "footplate") {
-      k = `${prefix}${r.footplateShift ?? "-"} footplate`;
+      k = `${prefix}${formatFootplateShifts(r.footplateShift) || "-"} footplate`;
     } else {
       const at = stationName(r.inspectionStationId);
       k = prefix + (kd === "joint" && r.inspectionJointDept ? `${at} (with ${r.inspectionJointDept})` : at);
@@ -66,19 +62,13 @@ export function InspectionExportModal({ open, onClose }: { open: boolean; onClos
     if (!grouped.has(k)) grouped.set(k, []);
     grouped.get(k)!.push(r);
   }
-  const trainsOf = (r: (typeof rows)[number]) =>
-    [
-      r.footplateUp?.trainNo ? `UP ${r.footplateUp.trainNo}` : "",
-      r.footplateDown?.trainNo ? `DN ${r.footplateDown.trainNo}` : "",
-    ]
-      .filter(Boolean)
-      .join(", ");
+  const trainsOf = (r: (typeof rows)[number]) => footplateTrainList(r);
 
   const toggle = (id: number) => {
-    const n = new Set(picked);
+    const n = new Set(deselected);
     if (n.has(id)) n.delete(id);
     else n.add(id);
-    setPicked(n);
+    setDeselected(n);
   };
 
   return (
@@ -159,11 +149,11 @@ export function InspectionExportModal({ open, onClose }: { open: boolean; onClos
         {rows.length > 0 && (
           <button
             onClick={() =>
-              setPicked(picked.size === rows.length ? new Set() : new Set(rows.map((r) => r.id)))
+              setDeselected(selected.length === rows.length ? new Set(rows.map((r) => r.id)) : new Set())
             }
             className="text-xs font-medium text-blue-600 underline"
           >
-            {picked.size === rows.length ? "Clear all" : "Select all"}
+            {selected.length === rows.length ? "Clear all" : "Select all"}
           </button>
         )}
       </div>
@@ -178,12 +168,12 @@ export function InspectionExportModal({ open, onClose }: { open: boolean; onClos
             <label
               key={r.id}
               className={`flex cursor-pointer items-center gap-2 border-b border-slate-100 px-3 py-2 last:border-0 ${
-                picked.has(r.id) ? "bg-sky-50" : ""
+                !deselected.has(r.id) ? "bg-sky-50" : ""
               }`}
             >
               <input
                 type="checkbox"
-                checked={picked.has(r.id)}
+                checked={!deselected.has(r.id)}
                 onChange={() => toggle(r.id)}
                 className="h-4 w-4 accent-sky-600"
               />
@@ -195,12 +185,13 @@ export function InspectionExportModal({ open, onClose }: { open: boolean; onClos
                 {r.inspectionKind === "footplate"
                   ? trainsOf(r) || "no train no."
                   : stationName(r.inspectionStationId)}
-                {r.inspectionKind !== "footplate" && r.inspectionTowardsStationId
-                  ? ` — towards ${stationName(r.inspectionTowardsStationId)} side`
-                  : ""}
+                {r.inspectionKind !== "footplate" && r.inspectionSide === "Both"
+                  ? " — towards Both sides"
+                  : r.inspectionKind !== "footplate" && r.inspectionTowardsStationId
+                    ? ` — towards ${stationName(r.inspectionTowardsStationId)} side`
+                    : ""}
                 {r.inspectionJointDept ? ` · with ${r.inspectionJointDept}` : ""}
-                {r.footplateShift ? ` · ${r.footplateShift}` : ""}
-                {r.footplateDirection ? ` · ${r.footplateDirection}` : ""}
+                {r.footplateShift ? ` · ${formatFootplateSummary(r)}` : ""}
               </span>
             </label>
           ))

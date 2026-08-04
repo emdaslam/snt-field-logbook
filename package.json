@@ -11,16 +11,20 @@
     "apk:sync": "MOBILE_EXPORT=1 next build && npx cap sync android"
   },
   "dependencies": {
+    "@capacitor-community/file-opener": "^8.0.1",
     "@capacitor/android": "^8.4.2",
+    "@capacitor/app": "^8.1.1",
     "@capacitor/cli": "^8.4.2",
     "@capacitor/core": "^8.4.2",
     "@capacitor/filesystem": "^8.1.2",
+    "@capacitor/local-notifications": "^8.2.1",
     "@capacitor/share": "^8.0.1",
     "dotenv": "17.3.1",
     "drizzle-orm": "0.45.2",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "next": "16.2.6",
+    "pdfjs-dist": "^6.2.108",
     "pg": "8.20.0",
     "react": "19.2.6",
     "react-dom": "19.2.6"

@@ -1,11 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { useData } from "./DataProvider";
 import { Modal, Chip } from "./ui";
-import { api, fmtDate, dayName } from "@/lib/api";
+import { api, fmtDate, dayName, formatFootplateSummary } from "@/lib/api";
 import { isSharedLog } from "@/lib/backup";
 import { INSPECTION_RULES, addDays, type InspectionKind } from "@/lib/inspections";
-import type { DailyLog } from "@/db/schema";
+import { AttachmentPreviewModal } from "./AttachmentPreviewModal";
+import type { DailyLog, Attachment } from "@/db/schema";
+import { FootplateDetailRows } from "./FootplateRows";
 
 export function LogDetailModal({
   log,
@@ -16,7 +19,8 @@ export function LogDetailModal({
   onClose: () => void;
   onEdit: (l: DailyLog) => void;
 }) {
-  const { tags, stationName, refresh } = useData();
+  const { tags, stations, stationName, refresh } = useData();
+  const [preview, setPreview] = useState<Attachment | null>(null);
   if (!log) return null;
 
   const discTotal = log.discSpecialWork + log.discFailure + log.discMaintenance;
@@ -40,7 +44,7 @@ export function LogDetailModal({
           <Row label="Work Done" value={log.workDone} multiline />
           <Row
             label="TA"
-            value={`${((log.taPercent || 100) / 100).toFixed(1)} day  ·  ${log.taPercent || 100}%`}
+            value={`${((log.taPercent ?? 100) / 100).toFixed(1)} day  ·  ${log.taPercent ?? 100}%`}
           />
           {log.inspectionKind && (
             <div className="mb-3 rounded-lg border border-sky-200 bg-sky-50 p-3">
@@ -49,36 +53,27 @@ export function LogDetailModal({
               </p>
               <p className="text-sm text-sky-950">
                 At {log.inspectionStationId ? stationName(log.inspectionStationId) : log.stationMovement || "—"}
-                {log.inspectionKind !== "footplate" && log.inspectionTowardsStationId
-                  ? `, towards ${stationName(log.inspectionTowardsStationId)} side`
-                  : ""}
+                {log.inspectionKind !== "footplate" && log.inspectionSide === "Both"
+                  ? ", towards Both sides"
+                  : log.inspectionKind !== "footplate" && log.inspectionTowardsStationId
+                    ? `, towards ${stationName(log.inspectionTowardsStationId)} side`
+                    : ""}
                 {log.inspectionJointDept ? ` · jointly with ${log.inspectionJointDept}` : ""}
                 {log.inspectionPeriodicity ? ` · ${log.inspectionPeriodicity}` : ""}
               </p>
               {log.footplateShift && (
                 <p className="mt-1 text-sm text-sky-950">
-                  {log.footplateShift} footplate · {log.footplateDirection}
+                  {formatFootplateSummary(log)} footplate
                 </p>
               )}
-              {[
-                ["UP", log.footplateUp] as const,
-                ["DN", log.footplateDown] as const,
-              ].map(([dir, d]) =>
-                d && d.trainNo ? (
-                  <p key={dir} className="mt-1 text-xs text-sky-800">
-                    <strong>{dir}</strong> — Train {d.trainNo}
-                    {d.engineNo ? ` · Engine ${d.engineNo}` : ""}
-                    {d.lpName ? ` · LP ${d.lpName}` : ""}
-                    {d.alpName ? ` · ALP ${d.alpName}` : ""}
-                    {d.tmrName ? ` · TMR ${d.tmrName}` : ""}
-                  </p>
-                ) : null
-              )}
+              <FootplateDetailRows log={log} />
               <p className="mt-0.5 text-xs text-sky-700">
                 Next due{" "}
                 {addDays(
                   log.logDate,
-                  INSPECTION_RULES[log.inspectionKind as InspectionKind]?.intervalDays ?? 30
+                  log.inspectionRemindDays && log.inspectionRemindDays > 0
+                    ? log.inspectionRemindDays
+                    : INSPECTION_RULES[log.inspectionKind as InspectionKind]?.intervalDays ?? 30
                 )}
               </p>
             </div>
@@ -132,28 +127,30 @@ export function LogDetailModal({
           <div className="flex flex-wrap gap-2">
             {log.attachments.map((a, i) =>
               a.type.startsWith("image/") ? (
-                <a key={i} href={a.dataUrl} target="_blank" rel="noopener noreferrer">
+                <button key={i} type="button" onClick={() => setPreview(a)} className="cursor-zoom-in">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={a.dataUrl}
                     alt={a.name}
                     className="h-20 w-20 rounded-lg border border-slate-200 object-cover"
                   />
-                </a>
+                </button>
               ) : (
-                <a
+                <button
                   key={i}
-                  href={a.dataUrl}
-                  download={a.name}
+                  type="button"
+                  onClick={() => setPreview(a)}
                   className="flex h-20 w-20 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-[10px] text-slate-500"
                 >
                   {a.name.slice(0, 12)}
-                </a>
+                </button>
               )
             )}
           </div>
         </div>
       )}
+
+      <AttachmentPreviewModal attachment={preview} onClose={() => setPreview(null)} />
 
       <div className={`mt-4 flex justify-end gap-2 border-t border-slate-200 pt-3 ${shared ? "hidden" : ""}`}>
         <button

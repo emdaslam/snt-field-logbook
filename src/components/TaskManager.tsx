@@ -38,6 +38,7 @@ export function TaskManager({
   const setTab = setTabProp ?? setTabLocal;
   const [editDef, setEditDef] = useState<DeficiencyTask | null>(null);
   const [editPlan, setEditPlan] = useState<PlannedWork | null>(null);
+  const [convertDef, setConvertDef] = useState<DeficiencyTask | null>(null);
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
   useEffect(() => {
     if (!highlightId) return;
@@ -139,6 +140,7 @@ export function TaskManager({
                 </div>
                 <RowActions
                   onEdit={() => setEditDef(d)}
+                  onConvert={() => setConvertDef(d)}
                   onComplete={() => toggleStatus("def", d.id, d.status)}
                   onDelete={async () => {
                     if (confirm("Delete task?")) {
@@ -246,16 +248,34 @@ export function TaskManager({
 
       {editDef && <DeficiencyForm open onClose={() => setEditDef(null)} existing={editDef} />}
       {editPlan && <PlannedWorkForm open onClose={() => setEditPlan(null)} existing={editPlan} />}
+      {convertDef && (
+        <PlannedWorkForm open onClose={() => setConvertDef(null)} convertFrom={convertDef} />
+      )}
     </div>
   );
 }
 
-function RowActions({ onEdit, onComplete, onDelete }: { onEdit: () => void; onComplete: () => void; onDelete: () => void }) {
+function RowActions({
+  onEdit,
+  onConvert,
+  onComplete,
+  onDelete,
+}: {
+  onEdit: () => void;
+  onConvert?: () => void;
+  onComplete: () => void;
+  onDelete: () => void;
+}) {
   return (
-    <div className="mt-2 flex gap-2 border-t border-slate-100 pt-2">
+    <div className="mt-2 flex flex-wrap gap-2 border-t border-slate-100 pt-2">
       <button onClick={onComplete} className="rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100">
         Mark Complete
       </button>
+      {onConvert && (
+        <button onClick={onConvert} className="rounded-md bg-cyan-50 px-2.5 py-1 text-xs font-medium text-cyan-700 hover:bg-cyan-100">
+          Convert to Plan
+        </button>
+      )}
       <button onClick={onEdit} className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200">
         Edit
       </button>

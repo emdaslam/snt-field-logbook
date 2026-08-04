@@ -18,6 +18,7 @@ export function SearchView() {
   const [tagF, setTagF] = useState<number | "">("");
   const [statusF, setStatusF] = useState("");
   const [staffF, setStaffF] = useState<number | "">("");
+  const [attachF, setAttachF] = useState(false);
 
   const results = useMemo(() => {
     const ql = q.toLowerCase();
@@ -35,18 +36,26 @@ export function SearchView() {
       for (const l of logs) {
         if (stationF && !l.stationMovement?.includes(stationName(stationF as number))) continue;
         if (tagF && !l.tagIds.includes(tagF as number)) continue;
+        if (attachF && (!l.attachments || l.attachments.length === 0)) continue;
         if (deptF || prioF || statusF || staffF) continue;
-        const text = `${l.stationMovement ?? ""} ${l.workDone ?? ""}`.toLowerCase();
+        const text = `${l.stationMovement ?? ""} ${l.workDone ?? ""} ${l.attachments
+          ?.map((a) => a.name)
+          .join(" ")}`.toLowerCase();
         if (ql && !text.includes(ql)) continue;
         out.push({
           key: "l" + l.id,
           type: "Log",
           title: l.stationMovement || "Daily Log",
           sub: l.workDone || "No work done",
-          chips: l.tagIds.map((id) => {
-            const t = tags.find((x) => x.id === id);
-            return { label: t?.name ?? "", color: t?.color ?? "#2563eb" };
-          }),
+          chips: [
+            ...l.tagIds.map((id) => {
+              const t = tags.find((x) => x.id === id);
+              return { label: t?.name ?? "", color: t?.color ?? "#2563eb" };
+            }),
+            ...(l.attachments && l.attachments.length
+              ? [{ label: `📎 ${l.attachments.length} attachment${l.attachments.length !== 1 ? "s" : ""}`, color: "#0d9488" }]
+              : []),
+          ],
           date: l.logDate,
         });
       }
@@ -96,7 +105,7 @@ export function SearchView() {
       }
     }
     return out;
-  }, [q, typeF, stationF, deptF, prioF, tagF, statusF, staffF, logs, deficiencies, planned, tags, stationName]);
+  }, [q, typeF, stationF, deptF, prioF, tagF, statusF, staffF, attachF, logs, deficiencies, planned, tags, stationName]);
 
   const selCls = "rounded-full border border-slate-300 bg-white px-2.5 py-1 text-xs text-slate-700";
 
@@ -140,6 +149,12 @@ export function SearchView() {
             <option value="">Any Staff</option>
             {staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
+          <button
+            className={`${selCls} ${attachF ? "border-emerald-500 bg-emerald-50 text-emerald-700" : ""}`}
+            onClick={() => setAttachF((v) => !v)}
+          >
+            📎 Has attachments
+          </button>
         </div>
       </div>
       <div className="space-y-2 p-3">

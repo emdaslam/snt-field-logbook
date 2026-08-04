@@ -14,6 +14,8 @@ import type {
   DailyLog,
   DeficiencyTask,
   PlannedWork,
+  FootplateDetail,
+  FootplateBlock,
 } from "@/db/schema";
 
 const asc = <T extends Record<string, unknown>>(rows: T[], key: keyof T) =>
@@ -74,10 +76,30 @@ export const api = {
 
   tags: {
     list: async () => asc(await ldb.readTable<Tag>("tags"), "name"),
-    create: (b: Partial<Tag>) =>
-      ldb.insert("tags", { name: b.name ?? "", color: b.color ?? "#2563eb" }) as unknown as Promise<Tag>,
+    create: (b: Partial<Tag>) => {
+      // Only persist reminder fields when the caller set them explicitly —
+      // otherwise the tag stays "unconfigured" and inherits the default rules.
+      const row: Record<string, unknown> = {
+        name: b.name ?? "",
+        color: b.color ?? "#2563eb",
+        needsSide: Boolean(b.needsSide),
+      };
+      if (b.remindEnabled !== undefined && b.remindEnabled !== null) {
+        row.remindEnabled = b.remindEnabled;
+        row.remindIntervalDays = b.remindIntervalDays ?? null;
+        row.remindBeforeDays = b.remindBeforeDays ?? null;
+      }
+      return ldb.insert("tags", row) as unknown as Promise<Tag>;
+    },
     update: (b: Partial<Tag>) =>
-      ldb.update("tags", b.id as number, { name: b.name, color: b.color }) as unknown as Promise<Tag>,
+      ldb.update("tags", b.id as number, {
+        name: b.name ?? "",
+        color: b.color ?? "#2563eb",
+        needsSide: Boolean(b.needsSide),
+        remindEnabled: b.remindEnabled ?? false,
+        remindIntervalDays: b.remindIntervalDays ?? null,
+        remindBeforeDays: b.remindBeforeDays ?? null,
+      }) as unknown as Promise<Tag>,
     remove: (id: number) => ldb.remove("tags", id),
   },
 
@@ -265,9 +287,13 @@ function normaliseLog(b: Partial<DailyLog>) {
   return {
     logDate: b.logDate ?? "",
     stationMovement: b.stationMovement ?? null,
+    movementKind: b.movementKind ?? null,
+    leaveKind: b.leaveKind ?? null,
+    crFrom: b.crFrom ?? null,
+    crTo: b.crTo ?? null,
     workDone: b.workDone ?? null,
     ta: null,
-    taPercent: num(b.taPercent, 100) || 100,
+    taPercent: num(b.taPercent, 100),
     ownerStaffId: b.ownerStaffId ?? null,
     pcdoWork: b.pcdoWork ?? null,
     pcdoStationId: b.pcdoStationId ?? null,
@@ -281,12 +307,16 @@ function normaliseLog(b: Partial<DailyLog>) {
     inspectionTowardsStationId: b.inspectionTowardsStationId ?? null,
     inspectionJointDept: b.inspectionJointDept ?? null,
     inspectionPeriodicity: b.inspectionPeriodicity ?? null,
-    inspectionSide: null,
+    inspectionRemindDays: b.inspectionRemindDays ?? null,
+    inspectionSide: b.inspectionSide ?? null,
     footplateShift: b.footplateShift ?? null,
     footplateDirection: b.footplateDirection ?? null,
     footplateUp: b.footplateUp ?? null,
     footplateDown: b.footplateDown ?? null,
+    footplateDay: b.footplateDay ?? null,
+    footplateNight: b.footplateNight ?? null,
     tagIds: b.tagIds ?? [],
+    tagSides: b.tagSides ?? {},
     attachments: b.attachments ?? [],
   };
 }
@@ -302,4 +332,58 @@ export function toISODate(d: Date) {
 export function dayName(d: string | Date) {
   const date = typeof d === "string" ? new Date(d + "T00:00:00") : d;
   return date.toLocaleDateString("en-US", { weekday: "short" });
+}
+
+/** "Day,Night" (stored footplateShift) → "Day + Night" for display. */
+export function formatFootplateShifts(shift: string | null | undefined) {
+  return (shift ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .join(" + ");
+}
+
+function isBlock(b: FootplateBlock | FootplateDetail | null | undefined): b is FootplateBlock {
+  return Boolean(b && typeof b === "object" && "direction" in b);
+}
+
+/** "Day (Both) + Night (Up)" summary of a footplate entry, with legacy fallback. */
+export function formatFootplateSummary(l: {
+  footplateShift?: string | null;
+  footplateDay?: FootplateBlock | null;
+  footplateNight?: FootplateBlock | null;
+  footplateDirection?: string | null;
+}) {
+  const parts: string[] = [];
+  if (isBlock(l.footplateDay) && l.footplateDay.direction)
+    parts.push(`Day (${l.footplateDay.direction})`);
+  if (isBlock(l.footplateNight) && l.footplateNight.direction)
+    parts.push(`Night (${l.footplateNight.direction})`);
+  if (parts.length) return parts.join(" + ");
+  const base = formatFootplateShifts(l.footplateShift);
+  return l.footplateDirection ? `${base} (${l.footplateDirection})` : base;
+}
+
+/** Human-readable train list for a footplate entry (new Day/Night blocks, legacy UP/DN). */
+export function footplateTrainList(l: {
+  footplateDay?: FootplateBlock | FootplateDetail | null;
+  footplateNight?: FootplateBlock | FootplateDetail | null;
+  footplateUp?: FootplateDetail | null;
+  footplateDown?: FootplateDetail | null;
+}) {
+  const parts: string[] = [];
+  const push = (shift: string, b: FootplateBlock | FootplateDetail | null | undefined) => {
+    if (!b) return;
+    if (isBlock(b)) {
+      if (b.up?.trainNo) parts.push(`${shift} UP ${b.up.trainNo}`);
+      if (b.down?.trainNo) parts.push(`${shift} DN ${b.down.trainNo}`);
+    } else if (b.trainNo) {
+      parts.push(`${shift} ${b.trainNo}`);
+    }
+  };
+  push("Day", l.footplateDay);
+  push("Night", l.footplateNight);
+  if (l.footplateUp?.trainNo) parts.push(`UP ${l.footplateUp.trainNo}`);
+  if (l.footplateDown?.trainNo) parts.push(`DN ${l.footplateDown.trainNo}`);
+  return parts.join(", ");
 }

@@ -11,6 +11,7 @@ export function TomorrowWorkModal({ open, onClose }: { open: boolean; onClose: (
   const { deficiencies, planned, stations, stationName, refresh } = useData();
   const [selDef, setSelDef] = useState<Set<number>>(new Set());
   const [selPlan, setSelPlan] = useState<Set<number>>(new Set());
+  const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
 
   const tomorrow = new Date();
@@ -65,7 +66,7 @@ export function TomorrowWorkModal({ open, onClose }: { open: boolean; onClose: (
       .filter((p) => selPlan.has(p.id))
       .map((p) => ({ ...p, selectedForTomorrow: true, plannedDate: p.plannedDate }));
 
-    exportTomorrowsWork(selectedDefs, selectedPlans, stations);
+    exportTomorrowsWork(selectedDefs, selectedPlans, stations, note);
     await refresh();
     setSaving(false);
     onClose();
@@ -135,6 +136,15 @@ export function TomorrowWorkModal({ open, onClose }: { open: boolean; onClose: (
           </label>
         ))}
       </div>
+
+      <h4 className="mb-2 text-xs font-bold uppercase tracking-wide text-blue-900">Note (optional)</h4>
+      <textarea
+        className="mb-4 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+        rows={2}
+        placeholder="Anything to print on the PDF, e.g. tools, safety reminders…"
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+      />
 
       <div className="sticky bottom-0 -mx-5 flex items-center justify-between border-t border-slate-200 bg-white px-5 pt-3">
         <span className="text-sm text-slate-500">{total} item{total !== 1 ? "s" : ""} selected</span>

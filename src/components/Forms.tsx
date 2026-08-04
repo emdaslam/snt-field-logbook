@@ -3,26 +3,34 @@
 import { useState } from "react";
 import { useData } from "./DataProvider";
 import { Modal, Field, inputClass, Chip, PrimaryButton } from "./ui";
-import { api, toISODate } from "@/lib/api";
-import { DEPARTMENTS, PRIORITIES } from "@/lib/types";
+import { api, toISODate, fmtDate } from "@/lib/api";
+import { DEPARTMENTS, PRIORITIES, LEAVE_KINDS, MOVEMENT_TYPES, MOVEMENT_LABEL } from "@/lib/types";
 import {
   kindFromTags,
   INSPECTION_RULES,
   JOINT_DEPARTMENTS,
   PERIODICITIES,
   PERIODIC_KINDS,
-  FOOTPLATE_SHIFTS,
   FOOTPLATE_DIRECTIONS,
   intervalFor,
   addDays,
 } from "@/lib/inspections";
-import type { Attachment, DailyLog, DeficiencyTask, PlannedWork, FootplateDetail } from "@/db/schema";
+import type {
+  Attachment,
+  DailyLog,
+  DeficiencyTask,
+  PlannedWork,
+  FootplateDetail,
+  FootplateBlock,
+} from "@/db/schema";
 
 async function filesToAttachments(files: FileList | null): Promise<Attachment[]> {
   if (!files) return [];
   const out: Attachment[] = [];
   for (const f of Array.from(files)) {
-    if (f.size > 2_000_000) continue; // skip >2MB
+    // Skip very large non-PDF files; PDFs (e.g. scanned manuals) are kept
+    // so they can be stored and opened on this device.
+    if (f.size > 2_000_000 && f.type !== "application/pdf") continue;
     const dataUrl = await new Promise<string>((res) => {
       const r = new FileReader();
       r.onload = () => res(r.result as string);
@@ -42,14 +50,34 @@ export function DailyLogForm({
   onClose: () => void;
   existing?: DailyLog | null;
 }) {
-  const { tags, stations, refresh, currentUser } = useData();
+  const { tags, stations, logs, refresh, currentUser } = useData();
   const [logDate, setLogDate] = useState(existing?.logDate ?? toISODate(new Date()));
   const [movement, setMovement] = useState(existing?.stationMovement ?? "");
+  const [movementKind, setMovementKind] = useState<"station" | "rest" | "leave" | "cr" | "nh">(
+    existing?.movementKind === "rest" ||
+      existing?.movementKind === "leave" ||
+      existing?.movementKind === "cr" ||
+      existing?.movementKind === "nh"
+      ? existing.movementKind
+      : "station"
+  );
+  const [leaveKind, setLeaveKind] = useState(existing?.leaveKind ?? "");
+  const [crFrom, setCrFrom] = useState(existing?.crFrom ?? "");
+  const [crTo, setCrTo] = useState(existing?.crTo ?? "");
   const [workDone, setWorkDone] = useState(existing?.workDone ?? "");
   const [taPercent, setTaPercent] = useState(String(existing?.taPercent ?? 100));
   const [tagIds, setTagIds] = useState<number[]>(existing?.tagIds ?? []);
   const [attachments, setAttachments] = useState<Attachment[]>(existing?.attachments ?? []);
-  const taDays = (Number(taPercent) || 100) / 100;
+  const [inspectionSide, setInspectionSide] = useState(existing?.inspectionSide ?? "");
+  const taTakenOnSameDate = logs.some(
+    (l) => l.logDate === logDate && l.id !== existing?.id && (l.taPercent ?? 0) > 0
+  );
+  const isSpecial = movementKind !== "station";
+  const movementLabel = MOVEMENT_LABEL[movementKind] ?? movementKind;
+  // Rest / Leave / CR and a date that already has a TA claim: no TA for this entry
+  const taLocked = isSpecial || taTakenOnSameDate;
+  const taPercentEffective = taLocked ? "0" : taPercent;
+  const taDays = (Number(taPercentEffective) || 0) / 100;
   const selectedTagNames = tagIds
     .map((id) => tags.find((t) => t.id === id)?.name)
     .filter((n): n is string => Boolean(n));
@@ -59,25 +87,96 @@ export function DailyLogForm({
   const [newStationName, setNewStationName] = useState("");
   const [pcdoOpen, setPcdoOpen] = useState(Boolean(existing?.pcdoWork));
   const [pcdoWork, setPcdoWork] = useState(existing?.pcdoWork ?? "");
+  // PCDO & disconnections need a station even for Rest/Leave/CR/NH entries —
+  // this holds the manually picked station until a real movement station wins.
+  const [pcdoStationOverride, setPcdoStationOverride] = useState<number | null>(
+    existing && existing.pcdoStationId && !stations.some((s) => s.name === existing.stationMovement)
+      ? existing.pcdoStationId
+      : null
+  );
   const [inspectionTowardsId, setInspectionTowardsId] = useState<number | null>(
     existing?.inspectionTowardsStationId ?? null
   );
   const [jointDept, setJointDept] = useState(existing?.inspectionJointDept ?? "");
   const [periodicity, setPeriodicity] = useState(existing?.inspectionPeriodicity ?? "monthly");
-  const [fpShift, setFpShift] = useState(existing?.footplateShift ?? "");
-  const [fpDirection, setFpDirection] = useState(existing?.footplateDirection ?? "");
+  const [fpDay, setFpDay] = useState(
+    (existing?.footplateShift ?? "").split(",").map((s) => s.trim()).includes("Day")
+  );
+  const [fpNight, setFpNight] = useState(
+    (existing?.footplateShift ?? "").split(",").map((s) => s.trim()).includes("Night")
+  );
   const emptyFp: FootplateDetail = { trainNo: "", engineNo: "", lpName: "", alpName: "", tmrName: "" };
-  const [fpUp, setFpUp] = useState<FootplateDetail>(existing?.footplateUp ?? emptyFp);
-  const [fpDown, setFpDown] = useState<FootplateDetail>(existing?.footplateDown ?? emptyFp);
+  const fpBlock = (b: FootplateBlock | null | undefined) => ({
+    direction: (b && "direction" in b && b.direction) || "",
+    up: (b && "direction" in b && b.up) || emptyFp,
+    down: (b && "direction" in b && b.down) || emptyFp,
+  });
+  const dayBlock = fpBlock(existing?.footplateDay);
+  const nightBlock = fpBlock(existing?.footplateNight);
+  const [fpDayDir, setFpDayDir] = useState(dayBlock.direction);
+  const [fpDayUp, setFpDayUp] = useState<FootplateDetail>(dayBlock.up);
+  const [fpDayDn, setFpDayDn] = useState<FootplateDetail>(dayBlock.down);
+  const [fpNightDir, setFpNightDir] = useState(nightBlock.direction);
+  const [fpNightUp, setFpNightUp] = useState<FootplateDetail>(nightBlock.up);
+  const [fpNightDn, setFpNightDn] = useState<FootplateDetail>(nightBlock.down);
   const [discOpen, setDiscOpen] = useState(Boolean(existing?.hasDisconnections));
   const [discSpecialWork, setDiscSpecialWork] = useState(String(existing?.discSpecialWork ?? 0));
   const [discFailure, setDiscFailure] = useState(String(existing?.discFailure ?? 0));
   const [discMaintenance, setDiscMaintenance] = useState(String(existing?.discMaintenance ?? 0));
+  // Side (towards station id) recorded for tags marked "asks for side"
+  const [tagSides, setTagSides] = useState<Record<number, number>>(existing?.tagSides ?? {});
+  const [error, setError] = useState("");
 
-  // PCDO station & date always mirror the log entry
+  // Selecting a station / Rest / Leave / CR / NH. Non-station movements clear the
+  // work done field and force TA to zero (no travel allowance).
+  const selectMovement = (v: string) => {
+    if (v === "rest" || v === "leave" || v === "cr" || v === "nh") {
+      setMovementKind(v);
+      setLeaveKind("");
+      setCrFrom("");
+      setCrTo("");
+      setWorkDone("");
+      setTaPercent("0");
+      setMovement(v === "rest" ? "Rest" : v === "leave" ? "Leave" : v === "cr" ? "CR" : "NH");
+      return;
+    }
+    setMovementKind("station");
+    setMovement(v);
+    setPcdoStationOverride(null);
+    const st = stations.find((s) => s.name === v);
+    if (st && currentUser?.headquartersStationId != null && st.id === currentUser.headquartersStationId) {
+      setTaPercent("0");
+    }
+  };
+
+  const setLeave = (k: string) => {
+    setLeaveKind(k);
+    setMovement(`Leave (${k})`);
+  };
+
+  const setCrDates = (from: string, to: string) => {
+    setCrFrom(from);
+    setCrTo(to);
+    if (from && to) setMovement(`CR (${fmtDate(from)} → ${fmtDate(to)})`);
+    else if (from) setMovement(`CR (from ${fmtDate(from)})`);
+    else if (to) setMovement(`CR (till ${fmtDate(to)})`);
+    else setMovement("CR");
+  };
+
+  // PCDO station mirrors the log entry; when the movement isn't a station
+  // (Rest/Leave/CR/NH) it falls back to the manually picked station below.
   const resolvedStation = stations.find((s) => s.name === movement);
-  const pcdoStationId = resolvedStation?.id ?? null;
+  const isHeadquarters = resolvedStation?.id === currentUser?.headquartersStationId;
+  const pcdoStationId = resolvedStation?.id ?? pcdoStationOverride ?? null;
   const pcdoDate = logDate;
+  const needsSideTags = tags.filter((t) => t.needsSide);
+  const kindIntervalDays = (() => {
+    for (const id of tagIds) {
+      const t = tags.find((x) => x.id === id);
+      if (t && t.remindEnabled && t.remindIntervalDays) return t.remindIntervalDays;
+    }
+    return INSPECTION_RULES[inspectionKind ?? "monthly"].intervalDays;
+  })();
   const discTotal =
     (Number(discSpecialWork) || 0) + (Number(discFailure) || 0) + (Number(discMaintenance) || 0);
 
@@ -86,38 +185,64 @@ export function DailyLogForm({
     if (!name) return;
     const created = await api.stations.create({ name });
     await refresh();
-    setMovement(created.name);
+    selectMovement(created.name);
     setNewStationName("");
     setAddingStation(false);
   }
 
   async function save() {
+    setError("");
+    if (pcdoOpen && !pcdoStationId) {
+      setError("PCDO station not yet selected. Select a station in Station/Movement or pick the PCDO station.");
+      return;
+    }
     setSaving(true);
     const payload = {
       id: existing?.id,
       logDate,
       stationMovement: movement,
-      workDone,
+      movementKind: isSpecial ? movementKind : null,
+      leaveKind: movementKind === "leave" ? leaveKind || null : null,
+      crFrom: movementKind === "cr" ? crFrom || null : null,
+      crTo: movementKind === "cr" ? crTo || null : null,
+      workDone: isSpecial ? null : workDone,
       ta: null,
-      taPercent: Number(taPercent) || 100,
+      taPercent: taLocked ? 0 : Number(taPercent) || 0,
       inspectionKind: inspectionKind,
       inspectionStationId: inspectionKind ? pcdoStationId : null,
       inspectionTowardsStationId:
-        inspectionKind && inspectionKind !== "footplate" ? inspectionTowardsId : null,
+        inspectionKind && inspectionKind !== "footplate" && inspectionSide !== "Both"
+          ? inspectionTowardsId
+          : null,
+      inspectionSide: inspectionKind && inspectionSide === "Both" ? "Both" : null,
       inspectionJointDept: inspectionKind === "joint" ? jointDept || null : null,
       inspectionPeriodicity:
         inspectionKind && PERIODIC_KINDS.includes(inspectionKind) ? periodicity : null,
-      footplateShift: inspectionKind === "footplate" ? fpShift || null : null,
-      footplateDirection: inspectionKind === "footplate" ? fpDirection || null : null,
-      footplateUp:
-        inspectionKind === "footplate" && (fpDirection === "Up" || fpDirection === "Both")
-          ? fpUp
+      // The point oiling / battery cycle is now configured per-tag in Settings
+      inspectionRemindDays: null,
+      footplateShift:
+        inspectionKind === "footplate"
+          ? [fpDay ? "Day" : "", fpNight ? "Night" : ""].filter(Boolean).join(",") || null
           : null,
-      footplateDown:
-        inspectionKind === "footplate" && (fpDirection === "Down" || fpDirection === "Both")
-          ? fpDown
+      footplateDirection: null,
+      footplateUp: null,
+      footplateDown: null,
+      footplateDay:
+        inspectionKind === "footplate" && fpDay
+          ? {
+              direction: fpDayDir,
+              up: fpDayDir === "Up" || fpDayDir === "Both" ? fpDayUp : null,
+              down: fpDayDir === "Down" || fpDayDir === "Both" ? fpDayDn : null,
+            }
           : null,
-      inspectionSide: null,
+      footplateNight:
+        inspectionKind === "footplate" && fpNight
+          ? {
+              direction: fpNightDir,
+              up: fpNightDir === "Up" || fpNightDir === "Both" ? fpNightUp : null,
+              down: fpNightDir === "Down" || fpNightDir === "Both" ? fpNightDn : null,
+            }
+          : null,
       ownerStaffId: existing?.ownerStaffId ?? currentUser?.id ?? null,
       pcdoWork: pcdoOpen ? pcdoWork : null,
       // PCDO station & date always mirror the log entry
@@ -128,6 +253,7 @@ export function DailyLogForm({
       discFailure: discOpen ? Number(discFailure) || 0 : 0,
       discMaintenance: discOpen ? Number(discMaintenance) || 0 : 0,
       tagIds,
+      tagSides,
       attachments,
     };
     if (existing) await api.logs.update(payload);
@@ -146,13 +272,30 @@ export function DailyLogForm({
         <div className="flex gap-2">
           <select
             className={inputClass}
-            value={stations.some((s) => s.name === movement) ? movement : ""}
-            onChange={(e) => setMovement(e.target.value)}
+            value={
+              movementKind === "station"
+                ? stations.some((s) => s.name === movement)
+                  ? movement
+                  : ""
+                : movementKind
+            }
+            onChange={(e) => selectMovement(e.target.value)}
           >
-            <option value="">— Select station —</option>
+            <option value="">— Select movement —</option>
+            <option value="" disabled>
+              — Stations —
+            </option>
             {stations.map((s) => (
               <option key={s.id} value={s.name}>
                 {s.name}
+              </option>
+            ))}
+            <option value="" disabled>
+              — Movements —
+            </option>
+            {MOVEMENT_TYPES.map((m) => (
+              <option key={m.value} value={m.value}>
+                {m.label}
               </option>
             ))}
           </select>
@@ -187,30 +330,112 @@ export function DailyLogForm({
             </button>
           </div>
         )}
+
+        {movementKind === "leave" && (
+          <div className="mt-2 rounded-lg border border-violet-200 bg-violet-50 p-2.5">
+            <p className="mb-1.5 text-xs font-medium text-violet-800">Leave type</p>
+            <div className="flex gap-2">
+              {LEAVE_KINDS.map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setLeave(k)}
+                  className={`flex-1 rounded-lg border px-3 py-1.5 text-sm font-medium ${
+                    leaveKind === k
+                      ? "border-violet-600 bg-white text-violet-800"
+                      : "border-violet-200 text-violet-600"
+                  }`}
+                >
+                  {k}
+                </button>
+              ))}
+            </div>
+            {!leaveKind && (
+              <p className="mt-1.5 text-xs text-amber-600">Select CL, LAP or SICK.</p>
+            )}
+          </div>
+        )}
+
+        {movementKind === "cr" && (
+          <div className="mt-2 rounded-lg border border-sky-200 bg-sky-50 p-2.5">
+            <p className="mb-1.5 text-xs font-medium text-sky-800">CR availed on</p>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="block">
+                <span className="mb-0.5 block text-[11px] text-slate-600">From</span>
+                <input
+                  type="date"
+                  className={inputClass}
+                  value={crFrom}
+                  onChange={(e) => setCrDates(e.target.value, crTo)}
+                />
+              </label>
+              <label className="block">
+                <span className="mb-0.5 block text-[11px] text-slate-600">To</span>
+                <input
+                  type="date"
+                  className={inputClass}
+                  value={crTo}
+                  onChange={(e) => setCrDates(crFrom, e.target.value)}
+                />
+              </label>
+            </div>
+            {!crFrom && !crTo && (
+              <p className="mt-1.5 text-xs text-amber-600">Select the date(s) for which CR is availed.</p>
+            )}
+          </div>
+        )}
       </Field>
-      <Field label="Work Done">
+      <Field label={isSpecial ? "Remarks (optional)" : "Work Done"}>
         <textarea
           className={inputClass}
           rows={4}
           value={workDone}
-          placeholder="Describe the work carried out…"
+          disabled={isSpecial}
+          placeholder={
+            isSpecial
+              ? "No work done for Rest / Leave / CR / NH entries."
+              : "Describe the work carried out…"
+          }
           onChange={(e) => setWorkDone(e.target.value)}
         />
+        {isSpecial && (
+          <span className="mt-1 block text-xs text-slate-500">
+            No work done is recorded for {movementLabel} entries.
+          </span>
+        )}
       </Field>
+      {isSpecial ? (
+        <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+          No TA is claimed for {movementLabel} — assumed <strong>0 day</strong>.
+        </div>
+      ) : (
       <Field label="TA (days)">
         <select
           className={inputClass}
-          value={taPercent}
+          value={taPercentEffective}
+          disabled={taTakenOnSameDate}
           onChange={(e) => setTaPercent(e.target.value)}
         >
           <option value="100">100 % — 1 day</option>
           <option value="70">70 % — 0.7 day</option>
           <option value="30">30 % — 0.3 day</option>
+          <option value="0">0 % — 0 day</option>
         </select>
+        {taTakenOnSameDate && (
+          <span className="mt-1 block text-xs text-amber-600">
+            Only one TA claim is allowed per date — this date already has one.
+          </span>
+        )}
+        {isHeadquarters && (
+          <span className="mt-1 block text-xs text-slate-500">
+            Headquarters station — no travel allowance claimed.
+          </span>
+        )}
         <span className="mt-1 block text-xs text-slate-500">
-          Claiming <strong>{taDays.toFixed(1)} day</strong> at {taPercent}%
+          Claiming <strong>{taDays.toFixed(1)} day</strong> at {taPercentEffective}%
         </span>
       </Field>
+      )}
 
       {/* PCDO — special works */}
       <div className="mb-3 rounded-lg border border-indigo-200 bg-indigo-50/60 p-3">
@@ -244,8 +469,10 @@ export function DailyLogForm({
               <div className="flex flex-wrap gap-x-5 gap-y-1 text-slate-700">
                 <span>
                   Station:{" "}
-                  <strong className={resolvedStation ? "text-slate-900" : "text-amber-600"}>
-                    {resolvedStation ? resolvedStation.name : movement || "not selected above"}
+                  <strong className={pcdoStationId ? "text-slate-900" : "text-amber-600"}>
+                    {pcdoStationId
+                      ? stations.find((x) => x.id === pcdoStationId)?.name
+                      : movement || "not selected above"}
                   </strong>
                 </span>
                 <span>
@@ -253,8 +480,31 @@ export function DailyLogForm({
                 </span>
               </div>
               {!resolvedStation && (
+                <label className="mt-2 block">
+                  <span className="mb-1 block text-xs font-medium text-slate-700">
+                    PCDO station{" "}
+                    <span className="font-normal text-slate-400">
+                      ({movementLabel} entry — pick the station the work was done at)
+                    </span>
+                  </span>
+                  <select
+                    className={inputClass}
+                    value={pcdoStationOverride ?? ""}
+                    onChange={(e) => setPcdoStationOverride(e.target.value ? Number(e.target.value) : null)}
+                  >
+                    <option value="">— Select station —</option>
+                    {stations.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {!pcdoStationId && (
                 <p className="mt-1 text-amber-600">
-                  Select a station in “Station / Movement” above so this work is grouped correctly.
+                  Select a station in “Station / Movement” above (or pick the PCDO station) so this work is
+                  grouped correctly.
                 </p>
               )}
             </div>
@@ -314,6 +564,31 @@ export function DailyLogForm({
             <p className="mt-2 text-xs font-semibold text-amber-900">
               Total disconnections: {discTotal}
             </p>
+            {!resolvedStation && (
+              <label className="mt-2 block">
+                <span className="mb-1 block text-xs font-medium text-slate-700">
+                  Disconnection station{" "}
+                  <span className="font-normal text-slate-500">(shared with the PCDO station above)</span>
+                </span>
+                <select
+                  className={inputClass}
+                  value={pcdoStationOverride ?? ""}
+                  onChange={(e) => setPcdoStationOverride(e.target.value ? Number(e.target.value) : null)}
+                >
+                  <option value="">— Select station —</option>
+                  {stations.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+                {!pcdoStationOverride && (
+                  <span className="mt-1 block text-xs text-amber-600">
+                    Pick a station so these disconnections are grouped correctly in the PCDO export.
+                  </span>
+                )}
+              </label>
+            )}
           </>
         )}
       </div>
@@ -326,14 +601,59 @@ export function DailyLogForm({
               label={t.name}
               color={t.color}
               active={tagIds.includes(t.id)}
-              onClick={() =>
-                setTagIds((prev) =>
-                  prev.includes(t.id) ? prev.filter((x) => x !== t.id) : [...prev, t.id]
-                )
-              }
+              onClick={() => {
+                if (tagIds.includes(t.id)) {
+                  setTagIds((prev) => prev.filter((x) => x !== t.id));
+                  setTagSides((prev) => {
+                    const next = { ...prev };
+                    delete next[t.id];
+                    return next;
+                  });
+                } else {
+                  setTagIds((prev) => [...prev, t.id]);
+                }
+              }}
             />
           ))}
         </div>
+        {tagIds.length > 0 && needsSideTags.length > 0 && (
+          <div className="mt-2 space-y-3">
+            {needsSideTags
+              .filter((t) => tagIds.includes(t.id))
+              .map((t) => (
+                <label key={t.id} className="block">
+                  <span className="mb-1 block text-xs font-medium text-slate-700">
+                    {t.name} — towards which side?
+                  </span>
+                  <select
+                    className={inputClass}
+                    value={tagSides[t.id] ?? ""}
+                    onChange={(e) =>
+                      setTagSides((prev) => ({
+                        ...prev,
+                        [t.id]: e.target.value ? Number(e.target.value) : 0,
+                      }))
+                    }
+                  >
+                    <option value="">— Select side —</option>
+                    <option value="0">Both sides</option>
+                    {stations
+                      .filter((st) => st.id !== resolvedStation?.id)
+                      .map((st) => (
+                        <option key={st.id} value={st.id}>
+                          {st.name} side
+                        </option>
+                      ))}
+                  </select>
+                  {!tagSides[t.id] && (
+                    <span className="mt-1 block text-xs text-amber-600">
+                      Select the side this work was done towards.
+                    </span>
+                  )}
+                </label>
+              ))}
+          </div>
+        )}
       </Field>
       {inspectionKind && (
         <div className="mb-3 rounded-lg border border-sky-200 bg-sky-50/70 p-3">
@@ -342,8 +662,10 @@ export function DailyLogForm({
           </p>
           <p className="mt-1 text-xs text-sky-800">
             Done at{" "}
-            <strong className={resolvedStation ? "" : "text-amber-600"}>
-              {resolvedStation ? resolvedStation.name : movement || "no station selected above"}
+            <strong className={pcdoStationId ? "" : "text-amber-600"}>
+              {pcdoStationId
+                ? stations.find((x) => x.id === pcdoStationId)?.name
+                : movement || "no station selected above"}
             </strong>{" "}
             — taken from this log entry.
           </p>
@@ -355,10 +677,19 @@ export function DailyLogForm({
             </span>
             <select
               className={inputClass}
-              value={inspectionTowardsId ?? ""}
-              onChange={(e) => setInspectionTowardsId(e.target.value ? Number(e.target.value) : null)}
+              value={inspectionSide === "Both" ? "__both__" : inspectionTowardsId ?? ""}
+              onChange={(e) => {
+                if (e.target.value === "__both__") {
+                  setInspectionTowardsId(null);
+                  setInspectionSide("Both");
+                } else {
+                  setInspectionSide("");
+                  setInspectionTowardsId(e.target.value ? Number(e.target.value) : null);
+                }
+              }}
             >
               <option value="">— Select side —</option>
+              <option value="__both__">Both sides</option>
               {stations
                 .filter((st) => st.id !== resolvedStation?.id)
                 .map((st) => (
@@ -395,52 +726,62 @@ export function DailyLogForm({
           {inspectionKind === "footplate" && (
             <>
               <label className="mt-2 block">
-                <span className="mb-1 block text-xs font-medium text-slate-700">Day or Night?</span>
+                <span className="mb-1 block text-xs font-medium text-slate-700">
+                  Day or Night? <span className="font-normal text-slate-400">(select both if applicable)</span>
+                </span>
                 <div className="flex gap-2">
-                  {FOOTPLATE_SHIFTS.map((sh) => (
-                    <button
-                      key={sh}
-                      type="button"
-                      onClick={() => setFpShift(sh)}
-                      className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium ${
-                        fpShift === sh
-                          ? "border-cyan-600 bg-cyan-50 text-cyan-800"
-                          : "border-slate-300 text-slate-600"
-                      }`}
-                    >
-                      {sh === "Day" ? "☀ Day" : "🌙 Night"}
-                    </button>
-                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setFpDay((v) => !v)}
+                    className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium ${
+                      fpDay
+                        ? "border-cyan-600 bg-cyan-50 text-cyan-800"
+                        : "border-slate-300 text-slate-600"
+                    }`}
+                  >
+                    ☀ Day
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFpNight((v) => !v)}
+                    className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium ${
+                      fpNight
+                        ? "border-cyan-600 bg-cyan-50 text-cyan-800"
+                        : "border-slate-300 text-slate-600"
+                    }`}
+                  >
+                    🌙 Night
+                  </button>
                 </div>
               </label>
 
-              {fpShift && (
-                <label className="mt-2 block">
-                  <span className="mb-1 block text-xs font-medium text-slate-700">Direction</span>
-                  <div className="flex gap-2">
-                    {FOOTPLATE_DIRECTIONS.map((dir) => (
-                      <button
-                        key={dir}
-                        type="button"
-                        onClick={() => setFpDirection(dir)}
-                        className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium ${
-                          fpDirection === dir
-                            ? "border-cyan-600 bg-cyan-50 text-cyan-800"
-                            : "border-slate-300 text-slate-600"
-                        }`}
-                      >
-                        {dir}
-                      </button>
-                    ))}
-                  </div>
-                </label>
+              {!fpDay && !fpNight && (
+                <span className="mt-1 block text-xs text-amber-600">
+                  Select Day and/or Night — you can record both in one entry.
+                </span>
               )}
 
-              {(fpDirection === "Up" || fpDirection === "Both") && (
-                <TrainDetails label="UP Train Details" value={fpUp} onChange={setFpUp} />
+              {fpDay && (
+                <ShiftDetails
+                  label="☀ Day"
+                  direction={fpDayDir}
+                  setDirection={setFpDayDir}
+                  up={fpDayUp}
+                  setUp={setFpDayUp}
+                  down={fpDayDn}
+                  setDown={setFpDayDn}
+                />
               )}
-              {(fpDirection === "Down" || fpDirection === "Both") && (
-                <TrainDetails label="DN Train Details" value={fpDown} onChange={setFpDown} />
+              {fpNight && (
+                <ShiftDetails
+                  label="🌙 Night"
+                  direction={fpNightDir}
+                  setDirection={setFpNightDir}
+                  up={fpNightUp}
+                  setUp={setFpNightUp}
+                  down={fpNightDn}
+                  setDown={setFpNightDn}
+                />
               )}
             </>
           )}
@@ -471,28 +812,34 @@ export function DailyLogForm({
           )}
 
           {inspectionKind === "footplate" ? (
-            resolvedStation && fpShift && fpDirection ? (
+            resolvedStation && (fpDay || fpNight) ? (
               <p className="mt-1.5 text-xs text-sky-800">
-                <strong>{fpShift}</strong> footplate ({fpDirection}) at{" "}
-                <strong>{resolvedStation.name}</strong> · {periodicity} cycle — next due{" "}
+                <strong>
+                  {[fpDay ? "Day" : "", fpNight ? "Night" : ""].filter(Boolean).join(" + ")}
+                </strong>{" "}
+                footplate at <strong>{resolvedStation.name}</strong> · {periodicity} cycle — next due{" "}
                 <strong>{addDays(logDate, intervalFor(inspectionKind, periodicity))}</strong>.
               </p>
             ) : (
               <p className="mt-1.5 text-xs text-amber-600">
-                Select the station above, then Day/Night and the direction.
+                Select the station above, then Day and/or Night.
               </p>
             )
-          ) : resolvedStation && inspectionTowardsId ? (
+          ) : pcdoStationId && (inspectionSide === "Both" || inspectionTowardsId) ? (
             <p className="mt-1.5 text-xs text-sky-800">
-              At <strong>{resolvedStation.name}</strong> towards{" "}
-              <strong>{stations.find((x) => x.id === inspectionTowardsId)?.name}</strong> side
+              At <strong>{stations.find((x) => x.id === pcdoStationId)?.name}</strong> towards{" "}
+              <strong>
+                {inspectionSide === "Both"
+                  ? "Both sides"
+                  : `${stations.find((x) => x.id === inspectionTowardsId)?.name} side`}
+              </strong>
               {inspectionKind === "joint" && jointDept ? ` with ${jointDept}` : ""} · recurs every{" "}
-              {INSPECTION_RULES[inspectionKind].intervalDays} days — next due{" "}
-              <strong>{addDays(logDate, INSPECTION_RULES[inspectionKind].intervalDays)}</strong>.
+              {kindIntervalDays} days — next due{" "}
+              <strong>{addDays(logDate, kindIntervalDays)}</strong>.
             </p>
           ) : (
             <p className="mt-1.5 text-xs text-amber-600">
-              Select the station above and the side here so this inspection is tracked.
+              Select the station and the side here so this inspection is tracked.
             </p>
           )}
         </div>
@@ -531,6 +878,7 @@ export function DailyLogForm({
         </div>
       </Field>
       <div className="mt-4 flex justify-end">
+        {error && <p className="mr-3 text-sm font-medium text-red-600">{error}</p>}
         <PrimaryButton onClick={save}>{saving ? "Saving…" : "Save Log"}</PrimaryButton>
       </div>
     </Modal>
@@ -638,16 +986,24 @@ export function PlannedWorkForm({
   open,
   onClose,
   existing,
+  convertFrom,
 }: {
   open: boolean;
   onClose: () => void;
   existing?: PlannedWork | null;
+  /** When set, the form starts pre-filled from a deficiency and converts it
+   * into a planned work (the deficiency is marked Complete on save). */
+  convertFrom?: DeficiencyTask | null;
 }) {
   const { stations, refresh, currentUser } = useData();
-  const [title, setTitle] = useState(existing?.title ?? "");
-  const [description, setDescription] = useState(existing?.description ?? "");
-  const [plannedDate, setPlannedDate] = useState(existing?.plannedDate ?? toISODate(new Date()));
-  const [stationId, setStationId] = useState<number | null>(existing?.stationId ?? null);
+  const [title, setTitle] = useState(existing?.title ?? convertFrom?.title ?? "");
+  const [description, setDescription] = useState(existing?.description ?? convertFrom?.description ?? "");
+  const [plannedDate, setPlannedDate] = useState(
+    existing?.plannedDate ?? convertFrom?.dueDate ?? toISODate(new Date())
+  );
+  const [stationId, setStationId] = useState<number | null>(
+    existing?.stationId ?? convertFrom?.stationId ?? null
+  );
   const [materialRemarks, setMaterialRemarks] = useState(existing?.materialRemarks ?? "");
   const [saving, setSaving] = useState(false);
 
@@ -664,13 +1020,28 @@ export function PlannedWorkForm({
     };
     if (existing) await api.planned.update(payload);
     else await api.planned.create(payload);
+    // Converting: the deficiency it came from becomes Complete so the two
+    // records don't both stay open for the same piece of work.
+    if (convertFrom && !existing) {
+      await api.deficiencies.update({ id: convertFrom.id, status: "Completed" });
+    }
     await refresh();
     setSaving(false);
     onClose();
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={existing ? "Edit Planned Work" : "Add Future Planned Work"}>
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={convertFrom ? "Convert Deficiency to Planned Work" : existing ? "Edit Planned Work" : "Add Future Planned Work"}
+    >
+      {convertFrom && (
+        <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          Converting the deficiency “{convertFrom.title}” — saving marks it{" "}
+          <strong>Complete</strong> and creates a planned work.
+        </div>
+      )}
       <Field label="Work Title">
         <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} />
       </Field>
@@ -750,6 +1121,55 @@ function TrainDetails({
           <input className={cls} value={value.tmrName} onChange={set("tmrName")} />
         </label>
       </div>
+    </div>
+  );
+}
+
+function ShiftDetails({
+  label,
+  direction,
+  setDirection,
+  up,
+  setUp,
+  down,
+  setDown,
+}: {
+  label: string;
+  direction: string;
+  setDirection: (v: string) => void;
+  up: FootplateDetail;
+  setUp: (v: FootplateDetail) => void;
+  down: FootplateDetail;
+  setDown: (v: FootplateDetail) => void;
+}) {
+  return (
+    <div className="mt-2 rounded-lg border border-cyan-200 bg-white p-2.5">
+      <p className="mb-2 text-xs font-bold uppercase tracking-wide text-cyan-800">{label}</p>
+      <span className="mb-1 block text-[11px] text-slate-600">Direction</span>
+      <div className="flex gap-2">
+        {FOOTPLATE_DIRECTIONS.map((d) => (
+          <button
+            key={d}
+            type="button"
+            onClick={() => setDirection(d)}
+            className={`flex-1 rounded-lg border px-3 py-1.5 text-sm font-medium ${
+              direction === d
+                ? "border-cyan-600 bg-cyan-50 text-cyan-800"
+                : "border-slate-300 text-slate-600"
+            }`}
+          >
+            {d}
+          </button>
+        ))}
+      </div>
+      {direction === "Up" && <TrainDetails label={`${label} Up Train`} value={up} onChange={setUp} />}
+      {direction === "Down" && <TrainDetails label={`${label} Down Train`} value={down} onChange={setDown} />}
+      {direction === "Both" && (
+        <>
+          <TrainDetails label={`${label} Up Train`} value={up} onChange={setUp} />
+          <TrainDetails label={`${label} Down Train`} value={down} onChange={setDown} />
+        </>
+      )}
     </div>
   );
 }

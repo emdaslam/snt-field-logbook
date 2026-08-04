@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useData } from "./DataProvider";
 import { Chip } from "./ui";
-import { dayName, toISODate } from "@/lib/api";
+import { dayName, toISODate, formatFootplateSummary } from "@/lib/api";
 import { isSharedLog } from "@/lib/backup";
 import type { DailyLog } from "@/db/schema";
 
@@ -283,10 +283,13 @@ export function Timeline({
                           <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
                             🔁 {stationName(log.inspectionStationId)}
                             {log.inspectionKind !== "footplate" &&
-                              ` → ${stationName(log.inspectionTowardsStationId)}`}
+                              (log.inspectionSide === "Both"
+                                ? " → Both sides"
+                                : log.inspectionTowardsStationId
+                                  ? ` → ${stationName(log.inspectionTowardsStationId)} side`
+                                  : "")}
                             {log.inspectionJointDept ? ` · ${log.inspectionJointDept}` : ""}
-                            {log.footplateShift ? ` · ${log.footplateShift}` : ""}
-                            {log.footplateDirection ? ` ${log.footplateDirection}` : ""}
+                            {log.footplateShift ? ` · ${formatFootplateSummary(log)}` : ""}
                           </span>
                         )}
                         {log.attachments.length > 0 && (
@@ -299,6 +302,42 @@ export function Timeline({
                           return t ? <Chip key={id} label={t.name} color={t.color} /> : null;
                         })}
                       </div>
+
+                      {log.attachments.length > 0 && (
+                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                          {log.attachments.slice(0, 4).map((a, i) =>
+                            a.type.startsWith("image/") ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                key={i}
+                                src={a.dataUrl}
+                                alt={a.name}
+                                className="h-9 w-9 rounded-md border border-slate-200 object-cover"
+                              />
+                            ) : a.type === "application/pdf" ? (
+                              <span
+                                key={i}
+                                className="flex max-w-[9rem] items-center gap-1 rounded-md bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-700"
+                              >
+                                <span>PDF</span>
+                                <span className="truncate">{a.name}</span>
+                              </span>
+                            ) : (
+                              <span
+                                key={i}
+                                className="max-w-[7rem] truncate rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600"
+                              >
+                                {a.name}
+                              </span>
+                            )
+                          )}
+                          {log.attachments.length > 4 && (
+                            <span className="text-[10px] text-slate-400">
+                              +{log.attachments.length - 4} more
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </button>
                   );
                 })}

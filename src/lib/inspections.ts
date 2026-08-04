@@ -1,6 +1,14 @@
 import { toISODate } from "./api";
+import type { FootplateBlock } from "@/db/schema";
 
-export type InspectionKind = "monthly" | "quarterly" | "maintenance" | "joint" | "footplate";
+export type InspectionKind =
+  | "monthly"
+  | "quarterly"
+  | "maintenance"
+  | "joint"
+  | "footplate"
+  | "poiling"
+  | "battery";
 
 /** Recurrence interval in days, and how many days ahead to warn. */
 export const INSPECTION_RULES: Record<
@@ -14,6 +22,9 @@ export const INSPECTION_RULES: Record<
   joint: { label: "Joint Inspection", intervalDays: 90, remindBefore: 5, color: "#c026d3" },
   // Footplate follows whichever periodicity the user picks
   footplate: { label: "Footplate Inspection", intervalDays: 30, remindBefore: 5, color: "#0891b2" },
+  // Point oiling & battery distilled water: the user sets the reminder cycle per entry
+  poiling: { label: "Point Oiling", intervalDays: 15, remindBefore: 5, color: "#ea580c" },
+  battery: { label: "Battery Distilled Water", intervalDays: 15, remindBefore: 5, color: "#0d9488" },
 };
 
 /** Joint & footplate inspections may run monthly or quarterly. */
@@ -46,10 +57,48 @@ export function kindFromTagName(name: string): InspectionKind | null {
   // Check "joint" first — a joint inspection may also mention "quarterly"
   if (n.includes("footplate")) return "footplate";
   if (n.includes("joint")) return "joint";
+  // Point oiling & battery distilled water — user-defined reminder cycle
+  if (n.includes("point oiling") || n.includes("oiling")) return "poiling";
+  if (n.includes("battery") || n.includes("distilled water")) return "battery";
   if (n.includes("monthly")) return "monthly";
   if (n.includes("quarterly")) return "quarterly";
   if (n.includes("maintenance")) return "maintenance";
   return null;
+}
+
+/**
+ * Per-tag reminder configuration. A tag whose name matches an inspection kind
+ * (via kindFromTagName) can switch its reminder on/off and override the cycle
+ * length and the "days before due" warning window.
+ */
+export type TagReminderConfig = {
+  enabled: boolean;
+  intervalDays?: number | null;
+  remindBeforeDays?: number | null;
+};
+
+export type TagReminderConfigMap = Partial<Record<InspectionKind, TagReminderConfig>>;
+
+/**
+ * Build a kind→config map from the tag list, so the inspection scheduler can
+ * honour the Settings-page per-tag reminder settings. The first matching tag
+ * for each kind wins (tags are pre-sorted by name). A tag that was never
+ * configured (remindEnabled unset) is skipped, leaving the built-in rule —
+ * reminder on, using the kind's default interval and warning window.
+ */
+export function tagReminderConfigs(tags: { name: string; remindEnabled?: boolean | null; remindIntervalDays?: number | null; remindBeforeDays?: number | null }[]): TagReminderConfigMap {
+  const out: TagReminderConfigMap = {};
+  for (const t of tags) {
+    const kind = kindFromTagName(t.name);
+    if (!kind || out[kind]) continue;
+    if (t.remindEnabled === undefined || t.remindEnabled === null) continue;
+    out[kind] = {
+      enabled: Boolean(t.remindEnabled),
+      intervalDays: t.remindIntervalDays,
+      remindBeforeDays: t.remindBeforeDays,
+    };
+  }
+  return out;
 }
 
 /** Given selected tag names, return the inspection kind implied (first match). */
@@ -79,10 +128,14 @@ export type InspectionRecord = {
   inspectionKind: string | null;
   inspectionStationId?: number | null;
   inspectionTowardsStationId?: number | null;
+  inspectionSide?: string | null;
   inspectionJointDept?: string | null;
   inspectionPeriodicity?: string | null;
+  inspectionRemindDays?: number | null;
   footplateShift?: string | null;
   footplateDirection?: string | null;
+  footplateDay?: FootplateBlock | null;
+  footplateNight?: FootplateBlock | null;
   stationMovement?: string | null;
 };
 
@@ -115,6 +168,21 @@ export type InspectionDue = {
 type Resolved = { id: number | null; name: string; towardsId: number | null; towards: string };
 type StationResolver = (r: InspectionRecord) => Resolved;
 
+function isBlock(b: FootplateBlock | null | undefined): b is FootplateBlock {
+  return Boolean(b && "direction" in b);
+}
+
+/** Footplate schedules are keyed by shift + direction (Day Both ≠ Day Up). */
+function footplateVariant(r: InspectionRecord) {
+  const shift = (r.footplateShift || "").toLowerCase();
+  if (isBlock(r.footplateDay) || isBlock(r.footplateNight)) {
+    const day = (r.footplateDay?.direction || "").toLowerCase();
+    const night = (r.footplateNight?.direction || "").toLowerCase();
+    return `${shift}::d:${day}|n:${night}`;
+  }
+  return `${shift}::${(r.footplateDirection || "").toLowerCase()}`;
+}
+
 function collectLatest(records: InspectionRecord[], resolve: StationResolver) {
   const latest = new Map<
     string,
@@ -128,6 +196,7 @@ function collectLatest(records: InspectionRecord[], resolve: StationResolver) {
       id?: number;
       jointDept?: string | null;
       periodicity?: string | null;
+      intervalDays?: number | null;
     }
   >();
   for (const r of records) {
@@ -141,9 +210,7 @@ function collectLatest(records: InspectionRecord[], resolve: StationResolver) {
     // Footplate has no "towards side" — it is keyed by shift and direction instead,
     // so a Day and a Night run on the same date are two separate schedules.
     const variant =
-      kind === "footplate"
-        ? `${(r.footplateShift || "").toLowerCase()}::${(r.footplateDirection || "").toLowerCase()}`
-        : String(st.towardsId ?? st.towards.toLowerCase());
+      kind === "footplate" ? footplateVariant(r) : String(st.towardsId ?? st.towards.toLowerCase());
     const key = `${kind}::${st.id ?? st.name.toLowerCase()}::${variant}::${dept}::${per}`;
     const prev = latest.get(key);
     if (!prev || r.logDate > prev.date)
@@ -157,6 +224,7 @@ function collectLatest(records: InspectionRecord[], resolve: StationResolver) {
         id: r.id,
         jointDept: r.inspectionJointDept ?? null,
         periodicity: r.inspectionPeriodicity ?? null,
+        intervalDays: r.inspectionRemindDays ?? null,
       });
   }
   return latest;
@@ -169,19 +237,42 @@ const defaultResolver: StationResolver = (r) => ({
   towards: "Unspecified side",
 });
 
+/**
+ * Effective cycle length: a per-entry custom reminder (point oiling / battery
+ * distilled water) wins, then the tag's configured periodicity, then the kind's
+ * rule or the chosen inspection periodicity.
+ */
+function intervalForSchedule(
+  v: {
+    kind: InspectionKind;
+    periodicity?: string | null;
+    intervalDays?: number | null;
+  },
+  cfg?: TagReminderConfig
+) {
+  if (v.intervalDays && v.intervalDays > 0) return v.intervalDays;
+  if (cfg?.intervalDays && cfg.intervalDays > 0) return cfg.intervalDays;
+  return intervalFor(v.kind, v.periodicity);
+}
+
 export function computeInspectionDues(
   records: InspectionRecord[],
   today: string = toISODate(new Date()),
-  resolveStation: StationResolver = defaultResolver
+  resolveStation: StationResolver = defaultResolver,
+  tagConfig?: TagReminderConfigMap
 ): InspectionDue[] {
   const latest = collectLatest(records, resolveStation);
 
   const out: InspectionDue[] = [];
   for (const [key, v] of latest) {
     const rule = INSPECTION_RULES[v.kind];
-    const nextDue = addDays(v.date, intervalFor(v.kind, v.periodicity));
+    const cfg = tagConfig?.[v.kind];
+    if (cfg && !cfg.enabled) continue; // reminder switched off for this tag
+    const remindBefore =
+      cfg?.remindBeforeDays && cfg.remindBeforeDays > 0 ? cfg.remindBeforeDays : rule.remindBefore;
+    const nextDue = addDays(v.date, intervalForSchedule(v, cfg));
     const daysLeft = daysBetween(today, nextDue);
-    if (daysLeft <= rule.remindBefore) {
+    if (daysLeft <= remindBefore) {
       out.push({
         key,
         kind: v.kind,
@@ -206,16 +297,82 @@ export function computeInspectionDues(
 export function computeAllSchedules(
   records: InspectionRecord[],
   today: string = toISODate(new Date()),
-  resolveStation: StationResolver = defaultResolver
+  resolveStation: StationResolver = defaultResolver,
+  tagConfig?: TagReminderConfigMap
 ): InspectionDue[] {
   const latest = collectLatest(records, resolveStation);
   return [...latest.entries()]
     .map(([key, v]) => {
-      const nextDue = addDays(v.date, intervalFor(v.kind, v.periodicity));
+      const cfg = tagConfig?.[v.kind];
+      const nextDue = addDays(v.date, intervalForSchedule(v, cfg));
       const daysLeft = daysBetween(today, nextDue);
       return { key, kind: v.kind, station: v.station, stationId: v.stationId, towards: v.towards, towardsId: v.towardsId, jointDept: v.jointDept, periodicity: v.periodicity, lastDone: v.date, nextDue, daysLeft, overdue: daysLeft < 0, sourceLogId: v.id };
     })
     .sort((a, b) => a.daysLeft - b.daysLeft);
+}
+
+export type TagDue = {
+  tagId: number;
+  tagName: string;
+  color: string;
+  lastDone: string;
+  nextDue: string;
+  daysLeft: number;
+  overdue: boolean;
+  sourceLogId?: number;
+};
+
+/**
+ * Reminders for ANY tag that has one switched on in Settings — not just the
+ * inspection-named ones. Each tag tracks the latest log entry it was used in
+ * and falls due `remindIntervalDays` later; it is reported inside the warning
+ * window (`remindBeforeDays`) or when overdue. Tags whose name matches an
+ * inspection kind are left to the inspection scheduler, which already tracks
+ * them per station/side.
+ */
+export function computeTagDues(
+  records: { id?: number; logDate: string; tagIds?: number[] }[],
+  tags: {
+    id: number;
+    name: string;
+    color: string;
+    remindEnabled?: boolean | null;
+    remindIntervalDays?: number | null;
+    remindBeforeDays?: number | null;
+  }[],
+  today: string = toISODate(new Date())
+): TagDue[] {
+  const latest = new Map<number, { date: string; id?: number }>();
+  for (const l of records) {
+    for (const id of l.tagIds ?? []) {
+      const prev = latest.get(id);
+      if (!prev || l.logDate > prev.date) latest.set(id, { date: l.logDate, id: l.id });
+    }
+  }
+  const out: TagDue[] = [];
+  for (const t of tags) {
+    if (!t.remindEnabled) continue;
+    if (kindFromTagName(t.name)) continue; // handled by the inspection scheduler
+    const last = latest.get(t.id);
+    if (!last) continue;
+    const interval = t.remindIntervalDays && t.remindIntervalDays > 0 ? t.remindIntervalDays : 30;
+    const before = t.remindBeforeDays != null && t.remindBeforeDays >= 0 ? t.remindBeforeDays : 5;
+    const nextDue = addDays(last.date, interval);
+    const daysLeft = daysBetween(today, nextDue);
+    if (daysLeft <= before) {
+      out.push({
+        tagId: t.id,
+        tagName: t.name,
+        color: t.color,
+        lastDone: last.date,
+        nextDue,
+        daysLeft,
+        overdue: daysLeft < 0,
+        sourceLogId: last.id,
+      });
+    }
+  }
+  return out.sort((a, b) => a.daysLeft - b.daysLeft);
 }
 
 /**

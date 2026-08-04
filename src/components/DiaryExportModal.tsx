@@ -7,6 +7,7 @@ import { exportDiary } from "./exports";
 import { PeriodPicker, monthPeriod, type Period } from "./PeriodPicker";
 import { fmtDate } from "@/lib/api";
 import { isSharedLog } from "@/lib/backup";
+import { isSpecialMovement } from "@/lib/types";
 
 export function DiaryExportModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { logs, stations, currentUser } = useData();
@@ -23,13 +24,14 @@ export function DiaryExportModal({ open, onClose }: { open: boolean; onClose: ()
 
   const tally = rows.reduce(
     (a, r) => {
-      const p = r.taPercent || 100;
+      const p = r.taPercent ?? 100;
       if (p === 100) a.p100++;
       else if (p === 70) a.p70++;
       else if (p === 30) a.p30++;
+      else a.p0++;
       return a;
     },
-    { p100: 0, p70: 0, p30: 0 }
+    { p100: 0, p70: 0, p30: 0, p0: 0 }
   );
   const totalDays = tally.p100 + tally.p70 * 0.7 + tally.p30 * 0.3;
 
@@ -69,9 +71,11 @@ export function DiaryExportModal({ open, onClose }: { open: boolean; onClose: ()
                 <tr key={r.id} className="border-t border-slate-100">
                   <td className="whitespace-nowrap px-2 py-1.5">{fmtDate(r.logDate)}</td>
                   <td className="px-2 py-1.5 text-slate-600">
-                    From {hqName ?? "HQ"} to {r.stationMovement || "—"}
+                    {isSpecialMovement(r)
+                      ? r.stationMovement || "—"
+                      : `From ${hqName ?? "HQ"} to ${r.stationMovement || "—"}`}
                   </td>
-                  <td className="px-2 py-1.5 font-medium">{((r.taPercent || 100) / 100).toFixed(1)}</td>
+                  <td className="px-2 py-1.5 font-medium">{((r.taPercent ?? 100) / 100).toFixed(1)}</td>
                   <td className="px-2 py-1.5 text-slate-600">{r.workDone || "-"}</td>
                 </tr>
               ))}
@@ -86,6 +90,7 @@ export function DiaryExportModal({ open, onClose }: { open: boolean; onClose: ()
           <span>Full day: <strong>{tally.p100}</strong></span>
           <span>70%: <strong>{tally.p70}</strong></span>
           <span>30%: <strong>{tally.p30}</strong></span>
+          <span>0% (Rest/Leave/CR/HQ): <strong>{tally.p0}</strong></span>
           <span className="border-l border-emerald-300 pl-5">
             Total TA: <strong>{totalDays.toFixed(1)} day{totalDays === 1 ? "" : "s"}</strong>
           </span>

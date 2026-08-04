@@ -1,6 +1,7 @@
 import { exportHtmlAsPdf } from "@/lib/pdf";
-import { fmtDate, toISODate } from "@/lib/api";
+import { fmtDate, toISODate, formatFootplateShifts, footplateTrainList } from "@/lib/api";
 import { formatInspectionDates } from "@/lib/inspections";
+import { isSpecialMovement } from "@/lib/types";
 import type {
   DeficiencyTask,
   PlannedWork,
@@ -19,6 +20,7 @@ export function exportTomorrowsWork(
   deficiencies: DeficiencyTask[],
   planned: PlannedWork[],
   stations: Station[],
+  note = ""
 ) {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -45,17 +47,21 @@ export function exportTomorrowsWork(
     groups.get(k)!.works.push(w);
   }
 
+  // The date appears only in the heading — individual items carry no dates.
   let body = `<h1>Tomorrow's Work (${label})</h1>`;
+  if (note.trim()) {
+    body += `<p class="meta">Note: ${esc(note.trim())}</p>`;
+  }
   if (groups.size === 0) {
     body += `<p class="empty">No tasks or planned works selected. Tick items in the Task Manager to include them.</p>`;
   }
   for (const [station, g] of groups) {
     body += `<h2>${esc(station)}</h2><ul>`;
     for (const t of g.tasks) {
-      body += `<li><strong>[Deficiency · ${esc(t.department)}]</strong> ${esc(t.title)} <span class="badge" style="background:#b45309">${esc(t.priority)}</span>${t.dueDate ? ` — due ${fmtDate(t.dueDate)}` : ""}${t.description ? `<br/><small>${esc(t.description)}</small>` : ""}</li>`;
+      body += `<li><strong>[Deficiency · ${esc(t.department)}]</strong> ${esc(t.title)} <span class="badge" style="background:#b45309">${esc(t.priority)}</span>${t.description ? `<br/><small>${esc(t.description)}</small>` : ""}</li>`;
     }
     for (const w of g.works) {
-      body += `<li><strong>[Planned Work]</strong> ${esc(w.title)} — ${fmtDate(w.plannedDate)}${w.materialRemarks ? `<br/><small>Material/Remarks: ${esc(w.materialRemarks)}</small>` : ""}</li>`;
+      body += `<li><strong>[Planned Work]</strong> ${esc(w.title)}${w.materialRemarks ? `<br/>Material/Remarks: ${esc(w.materialRemarks)}` : ""}</li>`;
     }
     body += `</ul>`;
   }
@@ -70,7 +76,8 @@ export function exportPcdo(
   period: { from: string; to: string; label: string },
   logs: DailyLog[],
   stations: Station[],
-  stationFilter: number | "" = ""
+  stationFilter: number | "" = "",
+  selectedIds?: Set<number> | null
 ) {
   const stationName = (id: number | null) =>
     stations.find((s) => s.id === id)?.name ?? "Unassigned / General";
@@ -101,6 +108,7 @@ export function exportPcdo(
       const d = l.pcdoDate || l.logDate;
       if (d < period.from || d > period.to) return false;
       if (stationFilter && l.pcdoStationId !== stationFilter) return false;
+      if (selectedIds && !selectedIds.has(l.id)) return false;
       return true;
     })
     .sort((a, b) => (a.pcdoDate || a.logDate).localeCompare(b.pcdoDate || b.logDate));
@@ -137,9 +145,9 @@ export function exportPcdo(
 
   for (const [station, items] of sortedGroups) {
     body += `<h2>${esc(station)} (${items.length})</h2>`;
-    body += `<table><tr><th style="width:110px">Date of PCDO</th><th>Special Work</th></tr>`;
+    body += `<table><tr><th class="date">Date of PCDO</th><th>Special Work</th></tr>`;
     for (const it of items) {
-      body += `<tr><td>${fmtDate(it.pcdoDate || it.logDate)}</td><td>${esc(it.pcdoWork)}</td></tr>`;
+      body += `<tr><td class="date">${fmtDate(it.pcdoDate || it.logDate)}</td><td>${esc(it.pcdoWork)}</td></tr>`;
     }
     body += `</table>`;
   }
@@ -183,10 +191,10 @@ export function exportPcdo(
     for (const [station, rows] of sortedDisc) {
       const t = sum(rows);
       body += `<h2>${esc(station)} — ${t.total} disconnection${t.total !== 1 ? "s" : ""}</h2>`;
-      body += `<table><tr><th style="width:110px">Date</th><th>Special Work</th><th>Failure</th><th>Maintenance</th><th>Total</th></tr>`;
+      body += `<table><tr><th class="date">Date</th><th>Special Work</th><th>Failure</th><th>Maintenance</th><th>Total</th></tr>`;
       for (const r of rows) {
         const rt = r.discSpecialWork + r.discFailure + r.discMaintenance;
-        body += `<tr><td>${fmtDate(r.pcdoDate || r.logDate)}</td><td>${r.discSpecialWork}</td><td>${r.discFailure}</td><td>${r.discMaintenance}</td><td><strong>${rt}</strong></td></tr>`;
+        body += `<tr><td class="date">${fmtDate(r.pcdoDate || r.logDate)}</td><td>${r.discSpecialWork}</td><td>${r.discFailure}</td><td>${r.discMaintenance}</td><td><strong>${rt}</strong></td></tr>`;
       }
       body += `<tr><td><strong>Total</strong></td><td><strong>${t.sw}</strong></td><td><strong>${t.fa}</strong></td><td><strong>${t.mt}</strong></td><td><strong>${t.total}</strong></td></tr>`;
       body += `</table>`;
@@ -214,13 +222,14 @@ export function exportDiary(
     .filter((l) => l.logDate >= period.from && l.logDate <= period.to)
     .sort((a, b) => a.logDate.localeCompare(b.logDate));
 
-  // Tally by claim percentage
-  const tally = { p100: 0, p70: 0, p30: 0 };
+  // Tally by claim percentage (0% covers rest / leave / CR and HQ days)
+  const tally = { p100: 0, p70: 0, p30: 0, p0: 0 };
   for (const r of rows) {
-    const p = r.taPercent || 100;
+    const p = r.taPercent ?? 100;
     if (p === 100) tally.p100++;
     else if (p === 70) tally.p70++;
     else if (p === 30) tally.p30++;
+    else tally.p0++;
   }
   const totalDays = tally.p100 * 1 + tally.p70 * 0.7 + tally.p30 * 0.3;
 
@@ -233,11 +242,12 @@ export function exportDiary(
     body += `<p class="empty">No diary entries in this period.</p>`;
   } else {
     body += `<table>`;
-    body += `<tr><th style="width:92px">Date</th><th style="width:210px">Movement</th><th style="width:58px">TA</th><th>Work Done</th></tr>`;
+    body += `<tr><th data-width="72">Date</th><th data-width="185">Movement</th><th data-width="45">TA</th><th>Work Done</th></tr>`;
     for (const r of rows) {
       const to = r.stationMovement && r.stationMovement.trim() ? r.stationMovement : "—";
-      const days = ((r.taPercent || 100) / 100).toFixed(1);
-      body += `<tr><td>${fmtDate(r.logDate)}</td><td>From ${esc(hqName)} to ${esc(to)}</td><td>${days}</td><td>${esc(r.workDone) || "-"}</td></tr>`;
+      const days = ((r.taPercent ?? 100) / 100).toFixed(1);
+      const movement = isSpecialMovement(r) ? to : `From ${esc(hqName)} to ${esc(to)}`;
+      body += `<tr><td>${fmtDate(r.logDate)}</td><td>${movement}</td><td>${days}</td><td>${esc(r.workDone) || "-"}</td></tr>`;
     }
     body += `</table>`;
 
@@ -247,6 +257,7 @@ export function exportDiary(
     body += `<tr><td>Full day (100%)</td><td>${tally.p100}</td><td>${(tally.p100 * 1).toFixed(1)}</td></tr>`;
     body += `<tr><td>70%</td><td>${tally.p70}</td><td>${(tally.p70 * 0.7).toFixed(1)}</td></tr>`;
     body += `<tr><td>30%</td><td>${tally.p30}</td><td>${(tally.p30 * 0.3).toFixed(1)}</td></tr>`;
+    body += `<tr><td>No TA (0%) — Rest / Leave / CR / HQ</td><td>${tally.p0}</td><td>0.0</td></tr>`;
     body += `<tr><td><strong>Total</strong></td><td><strong>${rows.length}</strong></td><td><strong>${totalDays.toFixed(1)}</strong></td></tr>`;
     body += `</table>`;
     body += `<p class="meta" style="margin-top:10px"><strong>Total TA claimed: ${totalDays.toFixed(1)} day${totalDays === 1 ? "" : "s"}</strong></p>`;
@@ -261,7 +272,7 @@ export function exportDiary(
  *   1. Station inspected (taken from the monthly / quarterly / maintenance tag)
  *   2. The dates on which it was inspected
  */
-type InspKind = "monthly" | "quarterly" | "maintenance" | "joint" | "footplate";
+type InspKind = "monthly" | "quarterly" | "maintenance" | "joint" | "footplate" | "poiling" | "battery";
 
 /**
  * Inspection export. Accepts one or more kinds and renders a section per kind:
@@ -313,12 +324,9 @@ export function exportInspections(
       body += `<table>`;
       body += `<tr><th style="width:120px">Day / Night</th><th>Train No.</th><th style="width:110px">Date</th></tr>`;
       for (const r of rows) {
-        const trains = [
-          r.footplateUp?.trainNo ? `UP ${r.footplateUp.trainNo}` : "",
-          r.footplateDown?.trainNo ? `DN ${r.footplateDown.trainNo}` : "",
-        ].filter(Boolean);
-        body += `<tr><td>${esc(r.footplateShift || "-")} footplate</td><td>${
-          esc(trains.join(", ")) || "-"
+        const trains = footplateTrainList(r);
+        body += `<tr><td>${esc(formatFootplateShifts(r.footplateShift) || "-")} footplate</td><td>${
+          esc(trains) || "-"
         }</td><td>${fmtDate(r.logDate)}</td></tr>`;
       }
       body += `</table>`;
@@ -335,7 +343,7 @@ export function exportInspections(
       groups.get(label)!.push(r.logDate);
     }
     body += `<table>`;
-    body += `<tr><th style="width:45%">Station Inspected</th><th>Dates Inspected</th></tr>`;
+    body += `<tr><th style="width:38%">Station Inspected</th><th>Dates Inspected</th></tr>`;
     for (const [station, dates] of [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
       body += `<tr><td>${esc(station)}</td><td>${esc(formatInspectionDates(dates))}</td></tr>`;
     }

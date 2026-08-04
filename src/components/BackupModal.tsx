@@ -5,6 +5,7 @@ import { Modal, PrimaryButton } from "./ui";
 import { BackupManifest } from "./BackupManifest";
 import { summarizeBackup, formatBytes, type BackupSummary } from "@/lib/backup";
 import { api } from "@/lib/api";
+import { isNative, saveTextFileNative } from "@/lib/native";
 
 type SaveHandle = { createWritable: () => Promise<{ write: (d: string) => Promise<void>; close: () => Promise<void> }> };
 type PickerWindow = Window & {
@@ -100,6 +101,18 @@ export function BackupModal({ open, onClose }: { open: boolean; onClose: () => v
     if (!json) return;
     setBusy(true);
     setError(null);
+    // On the Android app the browser file picker is unreliable — write the file
+    // straight to Documents via the Filesystem plugin and open the share sheet.
+    if (isNative()) {
+      const ok = await saveTextFileNative(filename, json);
+      setStatus(
+        ok
+          ? "Saved — pick “Save to device” / Files in the share sheet to store it."
+          : "Could not save the backup on this device — try “Copy JSON”."
+      );
+      setBusy(false);
+      return;
+    }
     const ok = await saveViaPicker();
     if (!ok) {
       const ok2 = saveViaAnchor();

@@ -11,10 +11,10 @@ import { getPcdoPeriod } from "@/lib/pcdo";
 import { fmtDate } from "@/lib/api";
 import { PrimaryButton } from "./ui";
 import { StatDetailModal, type StatRow } from "./StatDetailModal";
-import { computeAllSchedules, INSPECTION_RULES } from "@/lib/inspections";
+import { computeAllSchedules, INSPECTION_RULES, tagReminderConfigs } from "@/lib/inspections";
 
 export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
-  const { logs, deficiencies, planned, stations, stationName } = useData();
+  const { logs, deficiencies, planned, stations, stationName, tags } = useData();
   const [tomorrowOpen, setTomorrowOpen] = useState(false);
   const [pcdoOpen, setPcdoOpen] = useState(false);
   const [diaryOpen, setDiaryOpen] = useState(false);
@@ -58,8 +58,9 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
       pDefs,
       pPlans,
       logs: pLogs.length,
-      ta: pLogs.reduce((s, l) => s + (l.taPercent || 100) / 100, 0),
+      ta: pLogs.reduce((s, l) => s + (l.taPercent ?? 100) / 100, 0),
       pcdo: pLogs.filter((l) => l.pcdoWork && l.pcdoWork.trim()).length,
+      leaves: pLogs.filter((l) => l.movementKind === "leave").length,
       defPending: pDefs.filter((d) => d.status === "Pending").length,
       defDone: pDefs.filter((d) => d.status === "Completed").length,
       planPending: pPlans.filter((p) => p.status === "Pending").length,
@@ -81,10 +82,13 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
           id: at?.id ?? null,
           name: at?.name ?? ((r.stationMovement || "").trim() || "Unspecified station"),
           towardsId: tw?.id ?? null,
-          towards: tw?.name ?? "Unspecified side",
+          towards:
+            r.inspectionSide === "Both"
+              ? "Both sides"
+              : tw?.name ?? "Unspecified side",
         };
-      }),
-    [logs, stations]
+      }, tagReminderConfigs(tags)),
+    [logs, stations, tags]
   );
 
   return (
@@ -108,7 +112,7 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
                 date: l.logDate,
                 title: l.workDone?.trim() || l.stationMovement?.trim() || "No entry",
                 sub: l.stationMovement ?? undefined,
-                badge: `${((l.taPercent || 100) / 100).toFixed(1)}d`,
+                badge: `${((l.taPercent ?? 100) / 100).toFixed(1)}d`,
               })),
             })
           }
@@ -125,7 +129,7 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
                 date: l.logDate,
                 title: l.stationMovement?.trim() || "—",
                 sub: l.workDone ?? undefined,
-                badge: `${((l.taPercent || 100) / 100).toFixed(1)} day`,
+                badge: `${((l.taPercent ?? 100) / 100).toFixed(1)} day`,
               })),
               footer: `Total: ${stats.ta.toFixed(1)} days`,
             })
@@ -246,6 +250,25 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
             })
           }
         />
+        <Stat
+          label="Leaves"
+          value={stats.leaves}
+          color="#db2777"
+          onClick={() =>
+            setDrill({
+              title: "Leaves",
+              rows: stats.pLogs
+                .filter((l) => l.movementKind === "leave")
+                .map((l) => ({
+                  key: "lv" + l.id,
+                  date: l.logDate,
+                  title: l.stationMovement?.trim() || "Leave",
+                  sub: l.leaveKind ? `Leave type: ${l.leaveKind}` : undefined,
+                })),
+              footer: `Total: ${stats.leaves} leave${stats.leaves === 1 ? "" : "s"}`,
+            })
+          }
+        />
       </div>
 
       {stats.discTotal > 0 && (
@@ -287,7 +310,7 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
                           key: "s" + l.id,
                           date: l.logDate,
                           title: l.workDone?.trim() || "No entry",
-                          badge: `${((l.taPercent || 100) / 100).toFixed(1)}d`,
+                          badge: `${((l.taPercent ?? 100) / 100).toFixed(1)}d`,
                         })),
                     })
                   }
@@ -313,7 +336,7 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-slate-800">
                     {INSPECTION_RULES[d.kind].label} · {d.station}
-                    {d.kind === "footplate" ? "" : ` → towards ${d.towards} side`}
+                    {d.kind === "footplate" ? "" : ` → towards ${d.towards}${d.towards === "Both sides" ? "" : " side"}`}
                     {d.jointDept ? ` (with ${d.jointDept})` : ""}
                   </p>
                   <p className="text-xs text-slate-400">

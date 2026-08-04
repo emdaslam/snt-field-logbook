@@ -8,14 +8,34 @@ import { recentPcdoPeriods } from "@/lib/pcdo";
 import { fmtDate } from "@/lib/api";
 
 export function PcdoExportModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { logs, stations, stationName } = useData();
+  const { logs, stations, stationName, myStationIds } = useData();
   const periods = useMemo(() => recentPcdoPeriods(12), []);
   const [idx, setIdx] = useState(0);
   const [stationFilter, setStationFilter] = useState<number | "">("");
+  // Rows unchecked by the user; everything is selected by default.
+  const [deselected, setDeselected] = useState<Set<number>>(new Set());
 
   const period = periods[idx];
 
-  const entries = logs.filter((l) => {
+  // Disconnections in the same period
+  const resolveStationId = (movement: string | null, pcdoId: number | null) => {
+    if (pcdoId) return pcdoId;
+    const m = stations.find(
+      (s) => movement === s.name || (movement && movement.toLowerCase().includes(s.name.toLowerCase()))
+    );
+    return m ? m.id : null;
+  };
+
+  // The report covers only the current user's mapped stations.
+  const mapped = myStationIds;
+  const inMappedScope = (l: (typeof logs)[number]) => {
+    if (mapped.length === 0) return true;
+    const sid = l.pcdoStationId ?? resolveStationId(l.stationMovement, l.pcdoStationId);
+    return sid != null && mapped.includes(sid);
+  };
+  const baseLogs = mapped.length ? logs.filter(inMappedScope) : logs;
+
+  const entries = baseLogs.filter((l) => {
     if (!l.pcdoWork || !l.pcdoWork.trim()) return false;
     const d = l.pcdoDate || l.logDate;
     if (d < period.from || d > period.to) return false;
@@ -31,15 +51,7 @@ export function PcdoExportModal({ open, onClose }: { open: boolean; onClose: () 
     grouped.get(k)!.push(e);
   }
 
-  // Disconnections in the same period
-  const resolveStationId = (movement: string | null, pcdoId: number | null) => {
-    if (pcdoId) return pcdoId;
-    const m = stations.find(
-      (s) => movement === s.name || (movement && movement.toLowerCase().includes(s.name.toLowerCase()))
-    );
-    return m ? m.id : null;
-  };
-  const discEntries = logs.filter((l) => {
+  const discEntries = baseLogs.filter((l) => {
     if (!l.hasDisconnections) return false;
     if (l.discSpecialWork + l.discFailure + l.discMaintenance <= 0) return false;
     const d = l.pcdoDate || l.logDate;
@@ -56,6 +68,27 @@ export function PcdoExportModal({ open, onClose }: { open: boolean; onClose: () 
     { sw: 0, fa: 0, mt: 0 }
   );
   const discGrand = discTotals.sw + discTotals.fa + discTotals.mt;
+
+  // Only ids still present in the current listing count as deselected, so
+  // switching period/station simply starts everyone selected again.
+  const selectedIds = (() => {
+    const s = new Set<number>();
+    for (const e of entries) if (!deselected.has(e.id)) s.add(e.id);
+    return s;
+  })();
+
+  const toggleRow = (id: number) => {
+    setDeselected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const setAll = (select: boolean) => {
+    setDeselected(new Set(select ? [] : entries.map((e) => e.id)));
+  };
 
   return (
     <Modal open={open} onClose={onClose} title="Export PCDO (Special Works)" wide>
@@ -81,20 +114,35 @@ export function PcdoExportModal({ open, onClose }: { open: boolean; onClose: () 
             value={stationFilter}
             onChange={(e) => setStationFilter(e.target.value ? Number(e.target.value) : "")}
           >
-            <option value="">All stations</option>
-            {stations.map((s) => (
+            <option value="">{mapped.length ? "All my stations" : "All stations"}</option>
+            {(mapped.length ? stations.filter((s) => mapped.includes(s.id)) : stations).map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
               </option>
             ))}
           </select>
+          {mapped.length > 0 && (
+            <span className="mt-1 block text-xs text-slate-500">
+              Only the stations mapped to you are exported.
+            </span>
+          )}
         </Field>
       </div>
 
       <div className="mb-3 rounded-lg bg-indigo-50 px-3 py-2 text-sm text-indigo-900">
         Covering <strong>{fmtDate(period.from)}</strong> to <strong>{fmtDate(period.to)}</strong> ·{" "}
-        {entries.length} special work{entries.length !== 1 ? "s" : ""}
+        {selectedIds.size} of {entries.length} special work{entries.length !== 1 ? "s" : ""} selected
       </div>
+
+      {entries.length > 0 && (
+        <div className="mb-2 flex items-center justify-between text-xs">
+          <span className="text-slate-500">Tick the rows you want in the PDF.</span>
+          <span className="flex gap-3">
+            <button onClick={() => setAll(true)} className="font-medium text-blue-700">Select all</button>
+            <button onClick={() => setAll(false)} className="font-medium text-slate-500">Clear</button>
+          </span>
+        </div>
+      )}
 
       <div className="mb-4 max-h-56 overflow-y-auto rounded-lg border border-slate-200">
         {entries.length === 0 ? (
@@ -109,14 +157,30 @@ export function PcdoExportModal({ open, onClose }: { open: boolean; onClose: () 
                 <p className="bg-slate-50 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-blue-900">
                   {station} ({items.length})
                 </p>
-                {items.map((it) => (
-                  <div key={it.id} className="flex gap-3 px-3 py-2 text-sm">
-                    <span className="w-24 flex-shrink-0 text-xs text-slate-500">
-                      {fmtDate(it.pcdoDate || it.logDate)}
-                    </span>
-                    <span className="min-w-0 flex-1 text-slate-800">{it.pcdoWork}</span>
-                  </div>
-                ))}
+                {items.map((it) => {
+                  const checked = selectedIds.has(it.id);
+                  return (
+                    <label
+                      key={it.id}
+                      className={`flex cursor-pointer gap-3 px-3 py-2 text-sm ${
+                        checked ? "" : "bg-slate-50 opacity-60"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleRow(it.id)}
+                        className="mt-0.5 h-4 w-4 flex-shrink-0 accent-indigo-600"
+                      />
+                      <span className="w-24 flex-shrink-0 text-xs text-slate-500">
+                        {fmtDate(it.pcdoDate || it.logDate)}
+                      </span>
+                      <span className={`min-w-0 flex-1 ${checked ? "text-slate-800" : "line-through text-slate-400"}`}>
+                        {it.pcdoWork}
+                      </span>
+                    </label>
+                  );
+                })}
               </div>
             ))
         )}
@@ -139,8 +203,13 @@ export function PcdoExportModal({ open, onClose }: { open: boolean; onClose: () 
       </div>
 
       <div className="flex justify-end">
-        <PrimaryButton onClick={() => { exportPcdo(period, logs, stations, stationFilter); onClose(); }}>
-          Generate PCDO PDF
+        <PrimaryButton
+          onClick={() => {
+            exportPcdo(period, baseLogs, stations, stationFilter, selectedIds);
+            onClose();
+          }}
+        >
+          Generate PCDO PDF ({selectedIds.size})
         </PrimaryButton>
       </div>
     </Modal>
