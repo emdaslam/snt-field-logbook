@@ -48,7 +48,7 @@ function MonthGrid({
                 if (suppressClick.current) return;
                 onSelect(isSelected ? null : iso);
               }}
-              className={`relative mx-auto flex h-7 w-7 items-center justify-center rounded-full text-xs transition ${
+              className={`relative mx-auto flex h-8 w-8 flex-col items-center justify-center rounded-full text-xs transition ${
                 isToday
                   ? "bg-blue-800 font-bold text-white"
                   : isSelected
@@ -58,21 +58,22 @@ function MonthGrid({
                       : "text-slate-700 hover:bg-blue-50"
               } ${isFocused && !isSelected ? "ring-2 ring-emerald-500" : ""}`}
             >
-              {day}
+              <span className="leading-none">{day}</span>
               {hasEntry && !isToday && !isSelected && (
-                <span className="absolute inset-x-0 bottom-0.5 flex items-center justify-center">
-                  <span className="h-[3px] w-3 rounded-full bg-emerald-500" />
-                </span>
-              )}
-              {tagColors.length > 0 && !isToday && !isSelected && (
-                <span className="absolute inset-x-0 bottom-[7px] flex items-center justify-center gap-[2px]">
-                  {tagColors.slice(0, 3).map((c, j) => (
-                    <span key={j} className="h-1 w-1 rounded-full" style={{ backgroundColor: c }} />
-                  ))}
-                  {tagColors.length > 3 && (
-                    <span className="text-[7px] font-semibold leading-none text-slate-400">
-                      +{tagColors.length - 3}
-                    </span>
+                <span className="mt-[3px] flex items-center justify-center gap-[2px] leading-none">
+                  {tagColors.length > 0 ? (
+                    <>
+                      {tagColors.slice(0, 3).map((c, j) => (
+                        <span key={j} className="h-1 w-1 rounded-full" style={{ backgroundColor: c }} />
+                      ))}
+                      {tagColors.length > 3 && (
+                        <span className="text-[7px] font-semibold leading-none text-slate-400">
+                          +{tagColors.length - 3}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <span className="h-[3px] w-3 rounded-full bg-emerald-500" />
                   )}
                 </span>
               )}

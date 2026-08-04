@@ -5,10 +5,19 @@ import { useData } from "./DataProvider";
 import { Chip } from "./ui";
 import { fmtDate } from "@/lib/api";
 import { DEPARTMENTS, PRIORITIES, STATUSES, DEPARTMENT_COLORS, PRIORITY_COLORS } from "@/lib/types";
+import type { DailyLog, DeficiencyTask, PlannedWork } from "@/db/schema";
 
 type ResultType = "Log" | "Deficiency" | "Planned Work";
 
-export function SearchView() {
+export function SearchView({
+  onOpenLog,
+  onOpenDef,
+  onOpenPlan,
+}: {
+  onOpenLog: (l: DailyLog) => void;
+  onOpenDef: (d: DeficiencyTask) => void;
+  onOpenPlan: (p: PlannedWork) => void;
+}) {
   const { logs, deficiencies, planned, tags, stations, staff, stationName } = useData();
   const [q, setQ] = useState("");
   const [typeF, setTypeF] = useState<ResultType | "">("");
@@ -25,6 +34,7 @@ export function SearchView() {
     type R = {
       key: string;
       type: ResultType;
+      id: number;
       title: string;
       sub: string;
       chips: { label: string; color: string }[];
@@ -45,6 +55,7 @@ export function SearchView() {
         out.push({
           key: "l" + l.id,
           type: "Log",
+          id: l.id,
           title: l.stationMovement || "Daily Log",
           sub: l.workDone || "No work done",
           chips: [
@@ -73,6 +84,7 @@ export function SearchView() {
         out.push({
           key: "d" + d.id,
           type: "Deficiency",
+          id: d.id,
           title: d.title,
           sub: d.description || "",
           chips: [
@@ -94,6 +106,7 @@ export function SearchView() {
         out.push({
           key: "p" + p.id,
           type: "Planned Work",
+          id: p.id,
           title: p.title,
           sub: p.description || "",
           chips: [
@@ -164,7 +177,22 @@ export function SearchView() {
       <div className="space-y-2 p-3">
         <p className="text-xs text-slate-400">{results.length} result{results.length !== 1 ? "s" : ""}</p>
         {results.map((r) => (
-          <div key={r.key} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+          <button
+            key={r.key}
+            onClick={() => {
+              if (r.type === "Log") {
+                const l = logs.find((x) => x.id === r.id);
+                if (l) onOpenLog(l);
+              } else if (r.type === "Deficiency") {
+                const d = deficiencies.find((x) => x.id === r.id);
+                if (d) onOpenDef(d);
+              } else {
+                const p = planned.find((x) => x.id === r.id);
+                if (p) onOpenPlan(p);
+              }
+            }}
+            className="block w-full rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:bg-slate-50 active:bg-slate-100"
+          >
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-semibold uppercase tracking-wide text-blue-700">{r.type}</span>
               {r.date && <span className="text-xs text-slate-400">{fmtDate(r.date)}</span>}
@@ -174,7 +202,7 @@ export function SearchView() {
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {r.chips.filter((c) => c.label).map((c, i) => <Chip key={i} label={c.label} color={c.color} />)}
             </div>
-          </div>
+          </button>
         ))}
       </div>
     </div>

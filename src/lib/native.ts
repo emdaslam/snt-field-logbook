@@ -10,11 +10,10 @@ export function isNative() {
   return Boolean(w.Capacitor?.isNativePlatform?.());
 }
 
-export type ReminderCounts = {
-  due: number;
-  planned: number;
-  inspections: number;
-  tags: number;
+export type ReminderItem = {
+  kind: "planned" | "due" | "inspection" | "tag";
+  title: string;
+  detail: string;
 };
 
 const REMINDER_IDS = [1, 2, 3, 4];
@@ -22,10 +21,12 @@ const REMINDER_IDS = [1, 2, 3, 4];
 /**
  * Request notification permission and schedule up to four daily reminders
  * (8:00 / 12:00 / 16:00 / 20:00) so alerts reach the phone's notification
- * panel even when the app is closed. When nothing is pending the reminders
- * are cancelled — no point disturbing the user with "all caught up".
+ * panel even when the app is closed. The body carries the full list of
+ * pending items (title + detail for each), not just counts. When nothing is
+ * pending the reminders are cancelled — no point disturbing the user with
+ * "all caught up".
  */
-export async function scheduleDailyReminders(counts: ReminderCounts) {
+export async function scheduleDailyReminders(items: ReminderItem[]) {
   if (!isNative()) return;
   try {
     const { LocalNotifications } = await import("@capacitor/local-notifications");
@@ -36,25 +37,20 @@ export async function scheduleDailyReminders(counts: ReminderCounts) {
       if (req.display !== "granted") return;
     }
 
-    const total = counts.due + counts.planned + counts.inspections + counts.tags;
-
-    // Clear yesterday's reminders first so the count is always current
+    // Clear yesterday's reminders first so the content is always current
     await LocalNotifications.cancel({
       notifications: REMINDER_IDS.map((id) => ({ id })),
     });
 
     // Notify four times a day, but only when there is actually something to say.
-    if (total === 0) return;
+    if (items.length === 0) return;
 
-    const parts: string[] = [];
-    if (counts.due) parts.push(`${counts.due} deficiency due`);
-    if (counts.planned) parts.push(`${counts.planned} planned work`);
-    if (counts.inspections) parts.push(`${counts.inspections} inspection reminder`);
-    if (counts.tags) parts.push(`${counts.tags} tag reminder`);
-    const body = `${parts.join(" · ")}. Tap to open the logbook.`;
+    const lines = items.slice(0, 8).map((i) => `• ${i.title} — ${i.detail}`);
+    if (items.length > 8) lines.push(`…and ${items.length - 8} more`);
+    const body = lines.join("\n");
 
     const base = {
-      title: "S&T Field Logbook",
+      title: `S&T Field Logbook — ${items.length} pending`,
       body,
       sound: "default",
       // White bell = status-bar small icon (must be monochrome). The app logo

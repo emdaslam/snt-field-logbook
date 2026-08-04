@@ -352,15 +352,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // Keep the phone's notification panel in sync: four reminders a day
   // (8:00 / 12:00 / 16:00 / 20:00) but only while something is actually
-  // pending. Only runs on the Android app.
+  // pending. Each reminder lists the pending items with their full detail.
+  // Only runs on the Android app.
   useEffect(() => {
     if (!isNative()) return;
-    scheduleDailyReminders({
-      due: notifications.filter((n) => n.kind === "due").length,
-      planned: notifications.filter((n) => n.kind === "planned").length,
-      inspections: notifications.filter((n) => n.kind === "inspection").length,
-      tags: notifications.filter((n) => n.kind === "tag").length,
-    });
+    scheduleDailyReminders(
+      notifications.map((n) => ({ kind: n.kind, title: n.title, detail: n.detail }))
+    );
   }, [notifications]);
 
   const stationName = useCallback(

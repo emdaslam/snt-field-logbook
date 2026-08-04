@@ -20,7 +20,7 @@ import { InspectionExportModal } from "./InspectionExportModal";
 import { DailyLogForm, DeficiencyForm, PlannedWorkForm } from "./Forms";
 import { Onboarding } from "./Onboarding";
 import { isNative } from "@/lib/native";
-import type { DailyLog, Attachment } from "@/db/schema";
+import type { DailyLog, Attachment, DeficiencyTask, PlannedWork } from "@/db/schema";
 
 type View = "home" | "tasks" | "search" | "reports" | "notes" | "attachments" | "settings";
 
@@ -96,6 +96,8 @@ export function AppShell() {
   const [editLog, setEditLog] = useState<DailyLog | null>(null);
   const [detailLog, setDetailLog] = useState<DailyLog | null>(null);
   const [selAttachment, setSelAttachment] = useState<Attachment | null>(null);
+  const [searchDef, setSearchDef] = useState<DeficiencyTask | null>(null);
+  const [searchPlan, setSearchPlan] = useState<PlannedWork | null>(null);
   const [taskTab, setTaskTab] = useState<"deficiencies" | "planned" | "archive">("deficiencies");
   const [highlightId, setHighlightId] = useState<string | null>(null);
 
@@ -140,6 +142,8 @@ export function AppShell() {
     view,
     detailLog,
     selAttachment,
+    searchDef,
+    searchPlan,
     editLog,
     logForm,
     defForm,
@@ -161,6 +165,8 @@ export function AppShell() {
       view,
       detailLog,
       selAttachment,
+      searchDef,
+      searchPlan,
       editLog,
       logForm,
       defForm,
@@ -190,6 +196,8 @@ export function AppShell() {
           [
             [s.detailLog, () => setDetailLog(null)],
             [s.selAttachment, () => setSelAttachment(null)],
+            [s.searchDef, () => setSearchDef(null)],
+            [s.searchPlan, () => setSearchPlan(null)],
             [s.editLog, () => setEditLog(null)],
             [s.logForm, () => setLogForm(false)],
             [s.defForm, () => setDefForm(false)],
@@ -454,7 +462,13 @@ export function AppShell() {
             {view === "tasks" && (
               <TaskManager tab={taskTab} setTab={setTaskTab} highlightId={highlightId} clearHighlight={() => setHighlightId(null)} />
             )}
-            {view === "search" && <SearchView />}
+            {view === "search" && (
+              <SearchView
+                onOpenLog={(l) => setDetailLog(l)}
+                onOpenDef={(d) => setSearchDef(d)}
+                onOpenPlan={(p) => setSearchPlan(p)}
+              />
+            )}
             {view === "reports" && <Reports onOpenMonthly={() => setMonthlyOpen(true)} />}
             {view === "notes" && <Notes />}
             {view === "attachments" && <AttachmentsView onSelect={setSelAttachment} />}
@@ -559,6 +573,8 @@ export function AppShell() {
       {editLog && <DailyLogForm open onClose={() => setEditLog(null)} existing={editLog} />}
       {defForm && <DeficiencyForm open onClose={() => setDefForm(false)} />}
       {planForm && <PlannedWorkForm open onClose={() => setPlanForm(false)} />}
+      {searchDef && <DeficiencyForm open onClose={() => setSearchDef(null)} existing={searchDef} />}
+      {searchPlan && <PlannedWorkForm open onClose={() => setSearchPlan(null)} existing={searchPlan} />}
       <MonthlyExportModal open={monthlyOpen} onClose={() => setMonthlyOpen(false)} />
       <TomorrowWorkModal open={tomorrowOpen} onClose={() => setTomorrowOpen(false)} />
       <PcdoExportModal open={pcdoOpen} onClose={() => setPcdoOpen(false)} />
