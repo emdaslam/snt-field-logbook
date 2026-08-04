@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { toISODate } from "@/lib/api";
 
 export function Calendar({
@@ -27,6 +28,26 @@ export function Calendar({
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
+  // Horizontal swipe flips the month: swipe left = next, right = previous.
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const suppressClick = useRef(false);
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const t = touchStart.current;
+    touchStart.current = null;
+    if (!t || collapsed) return;
+    const dx = e.changedTouches[0].clientX - t.x;
+    const dy = e.changedTouches[0].clientY - t.y;
+    // Require a clear horizontal gesture so vertical scrolling is untouched.
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+      suppressClick.current = true;
+      setCursor(new Date(year, month + (dx < 0 ? 1 : -1), 1));
+      setTimeout(() => (suppressClick.current = false), 120);
+    }
+  };
+
   const cells: (number | null)[] = [];
   for (let i = 0; i < firstDay; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
@@ -51,7 +72,7 @@ export function Calendar({
   }
 
   return (
-    <div className="px-2 pb-2 pt-1">
+    <div className="px-2 pb-2 pt-1" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
       <div className="mb-1 flex items-center justify-between">
         <button
           onClick={() => setCursor(new Date(year, month - 1, 1))}
@@ -90,7 +111,10 @@ export function Calendar({
           return (
             <button
               key={i}
-              onClick={() => onSelect(isSelected ? null : iso)}
+              onClick={() => {
+                if (suppressClick.current) return;
+                onSelect(isSelected ? null : iso);
+              }}
               className={`relative mx-auto flex h-7 w-7 items-center justify-center rounded-full text-xs transition ${
                 isToday
                   ? "bg-blue-800 font-bold text-white"
