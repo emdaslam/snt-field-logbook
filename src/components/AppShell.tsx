@@ -18,6 +18,7 @@ import { LogDetailModal } from "./LogDetailModal";
 import { DiaryExportModal } from "./DiaryExportModal";
 import { InspectionExportModal } from "./InspectionExportModal";
 import { DailyLogForm, DeficiencyForm, PlannedWorkForm } from "./Forms";
+import { Onboarding } from "./Onboarding";
 import { isNative } from "@/lib/native";
 import type { DailyLog, Attachment } from "@/db/schema";
 
@@ -32,6 +33,7 @@ export function AppShell() {
     planned,
     notifications,
     currentUser,
+    stations,
     refresh,
     syncing: autoSyncing,
     lastSynced,
@@ -60,6 +62,15 @@ export function AppShell() {
   const [inspOpen, setInspOpen] = useState(false);
   const [exitToast, setExitToast] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [onboardingDone, setOnboardingDone] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return localStorage.getItem("snt.onboardingDone") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const showOnboarding = !onboardingDone && stations.length === 0;
 
   // Close the header dropdowns when tapping anywhere outside them
   useEffect(() => {
@@ -560,6 +571,20 @@ export function AppShell() {
         <div className="pointer-events-none fixed bottom-28 left-1/2 z-50 -translate-x-1/2 whitespace-nowrap rounded-full bg-slate-900/90 px-4 py-2 text-xs font-medium text-white shadow-lg">
           Press back again to exit
         </div>
+      )}
+
+      {showOnboarding && (
+        <Onboarding
+          onComplete={async () => {
+            try {
+              localStorage.setItem("snt.onboardingDone", "1");
+            } catch {
+              /* storage unavailable */
+            }
+            setOnboardingDone(true);
+            await refresh();
+          }}
+        />
       )}
     </div>
   );
