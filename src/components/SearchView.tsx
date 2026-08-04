@@ -60,7 +60,7 @@ export function SearchView() {
         });
       }
     }
-    if (!typeF || typeF === "Deficiency") {
+    if ((!typeF || typeF === "Deficiency") && !attachF) {
       for (const d of deficiencies) {
         if (stationF && d.stationId !== stationF) continue;
         if (deptF && d.department !== deptF) continue;
@@ -84,7 +84,7 @@ export function SearchView() {
         });
       }
     }
-    if (!typeF || typeF === "Planned Work") {
+    if ((!typeF || typeF === "Planned Work") && !attachF) {
       for (const p of planned) {
         if (stationF && p.stationId !== stationF) continue;
         if (statusF && p.status !== statusF) continue;
@@ -150,7 +150,11 @@ export function SearchView() {
             {staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
           <button
-            className={`${selCls} ${attachF ? "border-emerald-500 bg-emerald-50 text-emerald-700" : ""}`}
+            className={`rounded-full border px-2.5 py-1 text-xs transition ${
+              attachF
+                ? "border-emerald-500 bg-emerald-500 font-semibold text-white shadow-sm"
+                : "border-slate-300 bg-white text-slate-700"
+            }`}
             onClick={() => setAttachF((v) => !v)}
           >
             📎 Has attachments
