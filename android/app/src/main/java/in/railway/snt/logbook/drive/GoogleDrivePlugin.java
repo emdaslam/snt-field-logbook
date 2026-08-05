@@ -17,6 +17,8 @@ import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.common.api.Scope;
 
+import org.json.JSONObject;
+
 import in.railway.snt.logbook.R;
 
 /**
@@ -36,6 +38,25 @@ public class GoogleDrivePlugin extends Plugin {
      * restored via getLastSignedInAccount() sometimes has no email/account.
      */
     private String signedInEmail;
+
+    /**
+     * The sign-in result sometimes returns an account whose email/profile
+     * fields are empty (known Google Sign-In quirk for cached sign-ins). The
+     * ID token always carries the email claim, so it is decoded as a fallback.
+     */
+    private static String emailFromIdToken(String idToken) {
+        if (idToken == null) return null;
+        try {
+            String[] parts = idToken.split("\\.");
+            if (parts.length < 2) return null;
+            byte[] payload = android.util.Base64.decode(parts[1], android.util.Base64.URL_SAFE);
+            JSONObject json = new JSONObject(new String(payload, "UTF-8"));
+            String email = json.optString("email", null);
+            return (email == null || email.isEmpty()) ? null : email;
+        } catch (Exception e) {
+            return null;
+        }
+    }
 
     private boolean configured() {
         String id = getContext().getString(R.string.google_server_client_id);
@@ -83,8 +104,12 @@ public class GoogleDrivePlugin extends Plugin {
         try {
             GoogleSignInAccount account = GoogleSignIn.getSignedInAccountFromIntent(result.getData())
                     .getResult(ApiException.class);
-            if (account.getEmail() != null) {
-                signedInEmail = account.getEmail();
+            String email = account.getEmail();
+            if (email == null) {
+                email = emailFromIdToken(account.getIdToken());
+            }
+            if (email != null) {
+                signedInEmail = email;
             }
             fetchAccessToken(call, account);
         } catch (ApiException e) {
@@ -97,8 +122,14 @@ public class GoogleDrivePlugin extends Plugin {
     @ActivityCallback
     private void authResult(PluginCall call, ActivityResult result) {
         GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(getContext());
-        if (account != null && account.getEmail() != null) {
-            signedInEmail = account.getEmail();
+        if (account != null) {
+            String email = account.getEmail();
+            if (email == null) {
+                email = emailFromIdToken(account.getIdToken());
+            }
+            if (email != null) {
+                signedInEmail = email;
+            }
         }
         if (account == null && signedInEmail == null) {
             call.reject("No Google account selected");
@@ -119,8 +150,13 @@ public class GoogleDrivePlugin extends Plugin {
                     acct = new android.accounts.Account(email, GoogleAuthUtil.GOOGLE_ACCOUNT_TYPE);
                 }
                 if (acct == null) {
+                    final String detail = "account=" + (account != null)
+                            + ", hasAccount=" + (account != null && account.getAccount() != null)
+                            + ", hasEmail=" + (account != null && account.getEmail() != null)
+                            + ", hasIdToken=" + (account != null && account.getIdToken() != null)
+                            + ", storedEmail=" + (signedInEmail != null);
                     getActivity().runOnUiThread(() ->
-                            call.reject("Could not determine the signed-in Google account"));
+                            call.reject("Could not determine the signed-in Google account (" + detail + ")"));
                     return;
                 }
                 final String token = GoogleAuthUtil.getToken(
