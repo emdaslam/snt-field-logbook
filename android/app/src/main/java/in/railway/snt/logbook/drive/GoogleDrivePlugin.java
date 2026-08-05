@@ -1,7 +1,5 @@
 package in.railway.snt.logbook.drive;
 
-import android.content.Intent;
-
 import androidx.activity.result.ActivityResult;
 
 import com.getcapacitor.JSObject;
@@ -32,6 +30,13 @@ public class GoogleDrivePlugin extends Plugin {
 
     private static final String DRIVE_APPDATA_SCOPE = "https://www.googleapis.com/auth/drive.appdata";
 
+    /**
+     * The email of the account chosen during sign-in. It is remembered here
+     * because after Google's scope-consent relaunch (authResult) the account
+     * restored via getLastSignedInAccount() sometimes has no email/account.
+     */
+    private String signedInEmail;
+
     private boolean configured() {
         String id = getContext().getString(R.string.google_server_client_id);
         return id != null && !id.isEmpty() && !id.startsWith("YOUR_");
@@ -58,6 +63,7 @@ public class GoogleDrivePlugin extends Plugin {
             call.reject("Google Drive sync is not configured on this build");
             return;
         }
+        signedInEmail = null;
         startActivityForResult(call, signInClient().getSignInIntent(), "signInResult");
     }
 
@@ -65,7 +71,10 @@ public class GoogleDrivePlugin extends Plugin {
     public void signOut(PluginCall call) {
         signInClient()
                 .signOut()
-                .addOnCompleteListener(task -> call.resolve());
+                .addOnCompleteListener(task -> {
+                    signedInEmail = null;
+                    call.resolve();
+                });
     }
 
     @ActivityCallback
@@ -74,6 +83,9 @@ public class GoogleDrivePlugin extends Plugin {
         try {
             GoogleSignInAccount account = GoogleSignIn.getSignedInAccountFromIntent(result.getData())
                     .getResult(ApiException.class);
+            if (account.getEmail() != null) {
+                signedInEmail = account.getEmail();
+            }
             fetchAccessToken(call, account);
         } catch (ApiException e) {
             call.reject("Google sign-in failed (" + e.getStatusCode() + ")");
@@ -85,7 +97,10 @@ public class GoogleDrivePlugin extends Plugin {
     @ActivityCallback
     private void authResult(PluginCall call, ActivityResult result) {
         GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(getContext());
-        if (account == null) {
+        if (account != null && account.getEmail() != null) {
+            signedInEmail = account.getEmail();
+        }
+        if (account == null && signedInEmail == null) {
             call.reject("No Google account selected");
             return;
         }
@@ -95,9 +110,13 @@ public class GoogleDrivePlugin extends Plugin {
     private void fetchAccessToken(final PluginCall call, final GoogleSignInAccount account) {
         new Thread(() -> {
             try {
-                android.accounts.Account acct = account.getAccount();
-                if (acct == null && account.getEmail() != null) {
-                    acct = new android.accounts.Account(account.getEmail(), GoogleAuthUtil.GOOGLE_ACCOUNT_TYPE);
+                String email = account != null ? account.getEmail() : null;
+                if (email == null) {
+                    email = signedInEmail;
+                }
+                android.accounts.Account acct = account != null ? account.getAccount() : null;
+                if (acct == null && email != null) {
+                    acct = new android.accounts.Account(email, GoogleAuthUtil.GOOGLE_ACCOUNT_TYPE);
                 }
                 if (acct == null) {
                     getActivity().runOnUiThread(() ->
@@ -108,11 +127,12 @@ public class GoogleDrivePlugin extends Plugin {
                         getContext(),
                         acct,
                         "oauth2:" + DRIVE_APPDATA_SCOPE);
+                final String resolvedEmail = email;
                 getActivity().runOnUiThread(() -> {
                     JSObject ret = new JSObject();
                     ret.put("accessToken", token);
-                    ret.put("email", account.getEmail());
-                    ret.put("displayName", account.getDisplayName());
+                    ret.put("email", resolvedEmail);
+                    ret.put("displayName", account != null ? account.getDisplayName() : null);
                     call.resolve(ret);
                 });
             } catch (final UserRecoverableAuthException e) {
