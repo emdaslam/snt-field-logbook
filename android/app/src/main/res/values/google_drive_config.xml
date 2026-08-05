@@ -20,5 +20,5 @@
       Until this is filled in, the Sync section in Settings shows
       "Not configured" and Drive sync stays disabled.
     -->
-    <string name="google_server_client_id">YOUR_WEB_CLIENT_ID.apps.googleusercontent.com</string>
+    <string name="google_server_client_id">cli592035474520-7ud4a7c4ukpcubnk9auoqbhcotnk5ksk.apps.googleusercontent.com</string>
 </resources>
