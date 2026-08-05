@@ -95,9 +95,18 @@ public class GoogleDrivePlugin extends Plugin {
     private void fetchAccessToken(final PluginCall call, final GoogleSignInAccount account) {
         new Thread(() -> {
             try {
+                android.accounts.Account acct = account.getAccount();
+                if (acct == null && account.getEmail() != null) {
+                    acct = new android.accounts.Account(account.getEmail(), GoogleAuthUtil.GOOGLE_ACCOUNT_TYPE);
+                }
+                if (acct == null) {
+                    getActivity().runOnUiThread(() ->
+                            call.reject("Could not determine the signed-in Google account"));
+                    return;
+                }
                 final String token = GoogleAuthUtil.getToken(
                         getContext(),
-                        account.getAccount(),
+                        acct,
                         "oauth2:" + DRIVE_APPDATA_SCOPE);
                 getActivity().runOnUiThread(() -> {
                     JSObject ret = new JSObject();
