@@ -6,12 +6,15 @@ import android.webkit.WebView;
 
 import com.getcapacitor.BridgeActivity;
 
+import in.railway.snt.logbook.drive.GoogleDrivePlugin;
+
 /**
- * Railway S&T Field Logbook — fully offline.
+ * Railway S&T Field Logbook — offline-first.
  *
  * The entire web app is bundled inside the APK (assets/public) and all records
- * are stored in the device's own IndexedDB. The app declares no INTERNET
- * permission, so it cannot reach the network even if it tried.
+ * are stored in the device's own IndexedDB. The app is fully usable without
+ * a network; the only network access is the optional Google Drive sync
+ * (INTERNET permission) that pushes/pulls the backup file on request.
  *
  * PDF reports and JSON backups are written to the device with the Capacitor
  * Filesystem plugin and handed to Android's share sheet via the Share plugin,
@@ -22,6 +25,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        registerPlugin(GoogleDrivePlugin.class);
 
         WebView webView = getBridge().getWebView();
         WebSettings settings = webView.getSettings();

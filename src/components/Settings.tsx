@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useData } from "./DataProvider";
 import { api } from "@/lib/api";
 import { inputClass, PrimaryButton, Chip, Modal, Field } from "./ui";
@@ -8,6 +8,15 @@ import { DEPARTMENTS } from "@/lib/types";
 import { BackupModal } from "./BackupModal";
 import { RestoreModal } from "./RestoreModal";
 import { FONT_SIZES, FONT_SIZE_LABEL } from "@/lib/types";
+import {
+  driveIsConfigured,
+  driveStatus,
+  signInToDrive,
+  signOutFromDrive,
+  syncWithDrive,
+  pullFromDrive,
+  type DriveResult,
+} from "@/lib/drive";
 import type { Staff, Tag } from "@/db/schema";
 
 export function Settings() {
@@ -45,6 +54,9 @@ export function Settings() {
           <p className="text-sm text-slate-400">No current user set. Add staff and mark one as “current user”.</p>
         )}
       </Section>
+
+      {/* Google Drive sync */}
+      <DriveSyncSection />
 
       {/* Stations */}
       <Section title="Manage Stations">
@@ -458,6 +470,149 @@ function TagEditor({ existing, onClose }: { existing: Tag | null; onClose: () =>
         <PrimaryButton onClick={save}>{saving ? "Saving…" : "Save"}</PrimaryButton>
       </div>
     </Modal>
+  );
+}
+
+function DriveSyncSection() {
+  const { refresh } = useData();
+  const [configured, setConfigured] = useState<boolean | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
+  const [lastSynced, setLastSynced] = useState<string | null>(null);
+  const [busy, setBusy] = useState<"signin" | "signout" | "sync" | "import" | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [confirming, setConfirming] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      const c = await driveIsConfigured();
+      if (!live) return;
+      setConfigured(c);
+      setEmail(driveStatus().email);
+      setLastSynced(driveStatus().lastSynced);
+    })();
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  function report(r: DriveResult) {
+    setMsg({ ok: r.ok, text: r.message });
+    setEmail(driveStatus().email);
+    setLastSynced(driveStatus().lastSynced);
+  }
+
+  async function doSignIn() {
+    setBusy("signin");
+    setMsg(null);
+    try {
+      const auth = await signInToDrive();
+      setMsg({ ok: true, text: `Signed in as ${auth.email}.` });
+      setEmail(auth.email);
+    } catch (e) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : "Sign-in failed" });
+    }
+    setBusy(null);
+  }
+
+  async function doSignOut() {
+    setBusy("signout");
+    setMsg(null);
+    report(await signOutFromDrive());
+    setBusy(null);
+  }
+
+  async function doSync() {
+    setBusy("sync");
+    setMsg(null);
+    const r = await syncWithDrive();
+    report(r);
+    if (r.ok && r.imported) await refresh();
+    setBusy(null);
+  }
+
+  async function doImport() {
+    setBusy("import");
+    setMsg(null);
+    const r = await pullFromDrive();
+    report(r);
+    if (r.ok && r.imported) await refresh();
+    setBusy(null);
+  }
+
+  const status = driveStatus();
+
+  return (
+    <Section title="Google Drive Sync">
+      {!status.available && (
+        <p className="text-sm text-slate-500">Drive sync is available in the Android app.</p>
+      )}
+      {status.available && configured === false && (
+        <p className="text-sm text-slate-500">
+          Not configured — this build needs a Google OAuth client ID before Drive sync can work.
+        </p>
+      )}
+      {status.available && configured && (
+        <div className="space-y-2">
+          <p className="text-xs text-slate-500">
+            {email ? `Signed in as ${email}` : "Not signed in yet"}
+            {lastSynced && ` · Last sync ${new Date(lastSynced).toLocaleString()}`}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {!email ? (
+              <PrimaryButton onClick={doSignIn} disabled={busy !== null}>
+                {busy === "signin" ? "Signing in…" : "Sign in with Google"}
+              </PrimaryButton>
+            ) : (
+              <button
+                onClick={doSignOut}
+                disabled={busy !== null}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+              >
+                Sign out
+              </button>
+            )}
+            <PrimaryButton onClick={doSync} disabled={busy !== null} className="bg-emerald-700 hover:bg-emerald-800">
+              {busy === "sync" ? "Syncing…" : "Sync to Drive"}
+            </PrimaryButton>
+            <button
+              onClick={() => setConfirming(true)}
+              disabled={busy !== null}
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+            >
+              Import from Drive
+            </button>
+          </div>
+          {msg && (
+            <p className={`text-xs ${msg.ok ? "text-emerald-600" : "text-red-600"}`}>{msg.text}</p>
+          )}
+          {confirming && (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 p-3">
+              <p className="text-sm text-amber-800">
+                Import replaces the data on this device with the Drive backup.
+              </p>
+              <div className="mt-2 flex gap-2">
+                <button
+                  onClick={() => {
+                    setConfirming(false);
+                    void doImport();
+                  }}
+                  className="rounded-lg bg-amber-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-amber-700"
+                >
+                  Import
+                </button>
+                <button
+                  onClick={() => setConfirming(false)}
+                  className="rounded-lg border border-slate-300 px-4 py-1.5 text-sm font-semibold text-slate-600"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </Section>
   );
 }
 

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Google Drive sync setup (one-time, ~5 minutes):
+
+        1. Go to https://console.cloud.google.com and create a project.
+           From the top search bar, open "APIs & Services" -> "Library" and
+           enable the "Google Drive API".
+        2. Open "APIs & Services" -> "OAuth consent screen", choose External
+           and add your own email as a test user.
+        3. "Credentials" -> "Create credentials" -> "OAuth client ID" ->
+           "Android". Use exactly:
+             Package name: in.railway.snt.logbook
+             SHA-1: 7B:C9:5F:C1:7F:0F:E4:93:52:1B:48:09:54:46:13:48:4E:73:B7:81
+           (that is the debug keystore used for these APK builds; if you sign
+           with a release keystore later, add its SHA-1 too)
+        4. "Create credentials" -> "OAuth client ID" -> "Web application".
+           Copy the WEB client ID (ends in .apps.googleusercontent.com) and
+           paste it below between the tags. Do NOT paste the Android one.
+      Until this is filled in, the Sync section in Settings shows
+      "Not configured" and Drive sync stays disabled.
+    -->
+    <string name="google_server_client_id">YOUR_WEB_CLIENT_ID.apps.googleusercontent.com</string>
+</resources>

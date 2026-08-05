@@ -41,9 +41,11 @@
     <!-- Permissions -->
 
     <!--
-      This app is fully offline. It stores everything on the device and makes
-      no network requests, so no INTERNET permission is declared.
+      This app is offline-first. The only network access is the optional
+      Google Drive sync, so INTERNET is declared for that feature.
     -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.GET_ACCOUNTS" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Attaching photos to daily logs -->
