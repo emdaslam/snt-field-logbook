@@ -153,11 +153,22 @@ public class GoogleDrivePlugin extends Plugin {
                     acct = new android.accounts.Account(email, GoogleAuthUtil.GOOGLE_ACCOUNT_TYPE);
                 }
                 if (acct == null) {
+                    acct = fallbackAccountFromDevice();
+                    if (acct != null) {
+                        email = acct.name;
+                    }
+                }
+                if (acct == null) {
+                    final String idTokenEmail = account != null ? emailFromIdToken(account.getIdToken()) : null;
+                    android.accounts.Account[] googleAccounts = android.accounts.AccountManager.get(getContext())
+                            .getAccountsByType(GoogleAuthUtil.GOOGLE_ACCOUNT_TYPE);
                     final String detail = "account=" + (account != null)
                             + ", hasAccount=" + (account != null && account.getAccount() != null)
                             + ", hasEmail=" + (account != null && account.getEmail() != null)
                             + ", hasIdToken=" + (account != null && account.getIdToken() != null)
-                            + ", storedEmail=" + (signedInEmail != null);
+                            + ", storedEmail=" + (signedInEmail != null)
+                            + ", idTokenEmail=" + idTokenEmail
+                            + ", googleAccounts=" + googleAccounts.length;
                     getActivity().runOnUiThread(() ->
                             call.reject("Could not determine the signed-in Google account (" + detail + ")"));
                     return;
@@ -182,5 +193,24 @@ public class GoogleDrivePlugin extends Plugin {
                         call.reject(e.getMessage() != null ? e.getMessage() : "Could not get Drive access"));
             }
         }).start();
+    }
+
+    /**
+     * Last-resort: the chosen Google account is always registered as an
+     * Android account on the device, so use its name when the sign-in result
+     * does not expose an email. Only unambiguous when there is one Google
+     * account on the device.
+     */
+    private android.accounts.Account fallbackAccountFromDevice() {
+        try {
+            android.accounts.Account[] accounts = android.accounts.AccountManager.get(getContext())
+                    .getAccountsByType(GoogleAuthUtil.GOOGLE_ACCOUNT_TYPE);
+            if (accounts.length == 1) {
+                return accounts[0];
+            }
+        } catch (Exception e) {
+            /* permission or service error - leave null */
+        }
+        return null;
     }
 }
