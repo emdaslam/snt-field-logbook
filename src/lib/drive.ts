@@ -160,7 +160,7 @@ async function findFile(token: string): Promise<{ id: string } | null> {
   const q = encodeURIComponent(`name='${DRIVE_FILE_NAME}'`);
   const url = `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name)&q=${q}`;
   const res = await authorizedFetch(url);
-  if (!res.ok) throw new Error("Could not reach Google Drive");
+  if (!res.ok) throw new Error(`Could not reach Google Drive (${res.status})`);
   const data = (await res.json()) as { files?: { id: string }[] };
   return data.files?.[0] ?? null;
 }
@@ -173,22 +173,36 @@ async function uploadFile(token: string, existingId: string | null, body: string
       body,
       headers: { "Content-Type": "application/json" },
     });
-    if (!res.ok) throw new Error("Upload to Drive failed");
+    if (!res.ok) throw new Error(`Upload to Drive failed (${res.status})`);
     return;
   }
-  const url = "https://www.googleapis.com/upload/drive/v3/files?uploadType=media&fields=id";
+  const boundary = `snt${Date.now().toString(36)}`;
+  const metadata = JSON.stringify({ name: DRIVE_FILE_NAME, parents: ["appDataFolder"] });
+  const multipart = [
+    `--${boundary}`,
+    "Content-Type: application/json; charset=UTF-8",
+    "",
+    metadata,
+    `--${boundary}`,
+    "Content-Type: application/json",
+    "",
+    body,
+    `--${boundary}--`,
+    "",
+  ].join("\r\n");
+  const url = "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id";
   const res = await authorizedFetch(url, {
     method: "POST",
-    body,
-    headers: { "Content-Type": "application/json" },
+    body: multipart,
+    headers: { "Content-Type": `multipart/related; boundary=${boundary}` },
   });
-  if (!res.ok) throw new Error("Upload to Drive failed");
+  if (!res.ok) throw new Error(`Upload to Drive failed (${res.status})`);
 }
 
 async function downloadFile(token: string, id: string): Promise<string> {
   const url = `https://www.googleapis.com/drive/v3/files/${id}?alt=media`;
   const res = await authorizedFetch(url);
-  if (!res.ok) throw new Error("Could not download the Drive backup");
+  if (!res.ok) throw new Error(`Could not download the Drive backup (${res.status})`);
   return res.text();
 }
 
