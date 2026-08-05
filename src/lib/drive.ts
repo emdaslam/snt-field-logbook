@@ -247,13 +247,38 @@ export async function pullFromDrive(): Promise<DriveResult> {
   }
 }
 
-/** Sync to Drive, then import anything newer from Drive. */
+/**
+ * Two-way sync. Last-write-wins using the backup's exportedAt stamp. The
+ * remote copy is never overwritten without proof the local copy is at least
+ * as new: if the local version is unknown (fresh install) or older than the
+ * remote backup, the remote backup is restored first.
+ */
 export async function syncWithDrive(): Promise<DriveResult> {
-  const pushed = await pushToDrive();
-  if (!pushed.ok) return pushed;
-  const pulled = await pullFromDrive();
-  if (pulled.ok) return pulled;
-  return { ok: true, message: pushed.message + " Nothing new to import." };
+  if (!isNative()) return { ok: false, message: "Drive sync works only in the Android app." };
+  try {
+    const auth = await loadAuth();
+    const existing = await findFile(auth.accessToken);
+    if (!existing) {
+      return pushToDrive();
+    }
+    const text = await downloadFile(auth.accessToken, existing.id);
+    const payload = JSON.parse(text) as BackupPayload;
+    const remote = typeof payload.exportedAt === "string" ? payload.exportedAt : null;
+    const local = getVersion();
+    const remoteNewer = !!remote && (local === null || remote > local);
+    if (!remoteNewer) {
+      const pushed = await pushToDrive();
+      if (!pushed.ok) return pushed;
+      return { ok: true, message: pushed.message };
+    }
+    const summary = summarizeBackup(payload);
+    if (!summary.valid) throw new Error("Drive backup looks invalid");
+    await api.backup.import(payload as unknown as Record<string, unknown>);
+    if (remote) setVersion(remote);
+    return { ok: true, imported: true, message: `Imported ${summary.totalRecords} records from Drive.` };
+  } catch (e) {
+    return { ok: false, message: errorMessage(e) };
+  }
 }
 
 export async function signOutFromDrive(): Promise<DriveResult> {
