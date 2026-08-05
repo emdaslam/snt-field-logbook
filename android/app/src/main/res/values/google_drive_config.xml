@@ -17,8 +17,10 @@
         4. "Create credentials" -> "OAuth client ID" -> "Web application".
            Copy the WEB client ID (ends in .apps.googleusercontent.com) and
            paste it below between the tags. Do NOT paste the Android one.
+           The ID is <project-number>-<random>.apps.googleusercontent.com;
+           it must NOT have any prefix (e.g. no "cli" before the number).
       Until this is filled in, the Sync section in Settings shows
       "Not configured" and Drive sync stays disabled.
     -->
-    <string name="google_server_client_id">cli592035474520-7ud4a7c4ukpcubnk9auoqbhcotnk5ksk.apps.googleusercontent.com</string>
+    <string name="google_server_client_id">592035474520-7ud4a7c4ukpcubnk9auoqbhcotnk5ksk.apps.googleusercontent.com</string>
 </resources>
