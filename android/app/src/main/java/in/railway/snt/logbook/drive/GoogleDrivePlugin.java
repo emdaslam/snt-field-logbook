@@ -85,7 +85,10 @@ public class GoogleDrivePlugin extends Plugin {
             return;
         }
         signedInEmail = null;
-        startActivityForResult(call, signInClient().getSignInIntent(), "signInResult");
+        signInClient()
+                .signOut()
+                .addOnCompleteListener(task ->
+                        startActivityForResult(call, signInClient().getSignInIntent(), "signInResult"));
     }
 
     @PluginMethod
