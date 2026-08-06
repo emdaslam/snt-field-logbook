@@ -244,15 +244,12 @@ export function AppShell() {
   const activeDates = useMemo(() => new Set(logs.map((l) => l.logDate)), [logs]);
 
   /**
-   * "Go to date" from the calendar header. The timeline can only show a
-   * continuous range spanning all known entries (plus today and 45 days back).
-   * Picking a date outside that range has nothing to show, so we land on the
-   * nearest boundary date and say so.
+   * The timeline can only show a continuous range spanning all known entries
+   * (plus today and 45 days back). This computes that range as ISO dates.
    */
-  const goToDate = (iso: string) => {
+  const timelineBounds = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const todayIso = toISODate(today);
 
     const all = [
       ...logs.map((l) => l.logDate),
@@ -270,21 +267,44 @@ export function AppShell() {
     const minKnown = all.length ? new Date(all[0] + "T00:00:00") : defaultStart;
     const start = minKnown < defaultStart ? minKnown : defaultStart;
 
-    const startIso = toISODate(start);
-    const endIso = toISODate(end);
+    return { startIso: toISODate(start), endIso: toISODate(end) };
+  };
 
-    let target = iso;
+  /** Clamp an ISO date to the timeline range; announces when it moved. */
+  const clampToRange = (iso: string, announce: boolean): string => {
+    const { startIso, endIso } = timelineBounds();
     if (iso > endIso) {
-      alert("No entry beyond the nearest date");
-      target = endIso;
-    } else if (iso < startIso) {
-      alert("No entry before the earliest date");
-      target = startIso;
+      if (announce) alert("No entry beyond the nearest date");
+      return endIso;
     }
+    if (iso < startIso) {
+      if (announce) alert("No entry before the earliest date");
+      return startIso;
+    }
+    return iso;
+  };
 
+  /**
+   * "Go to date" from the calendar header. Picking a date outside the
+   * timeline range has nothing to show, so we land on the nearest boundary
+   * date and say so.
+   */
+  const goToDate = (iso: string) => {
+    const target = clampToRange(iso, true);
     setSelectedDate(target);
     setFocusedDate(target);
     setCalCursor(new Date(Number(target.slice(0, 4)), Number(target.slice(5, 7)) - 1, 1));
+  };
+
+  /**
+   * After swiping the calendar to another month, point the timeline at that
+   * month's 1st. Out-of-range dates clamp silently to the nearest boundary.
+   */
+  const jumpToMonth = (d: Date) => {
+    const iso = toISODate(new Date(d.getFullYear(), d.getMonth(), 1));
+    const target = clampToRange(iso, false);
+    setSelectedDate(target);
+    setFocusedDate(target);
   };
 
   const tagsById = useMemo(() => new Map(tags.map((t) => [t.id, t])), [tags]);
@@ -475,6 +495,7 @@ export function AppShell() {
                 cursor={calCursor}
                 setCursor={setCalCursor}
                 onGoToDate={goToDate}
+                onMonthJump={jumpToMonth}
               />
               <button
                 onClick={() => setCalCollapsed((v) => !v)}

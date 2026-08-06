@@ -17,6 +17,9 @@ export type ReminderItem = {
 };
 
 const REMINDER_IDS = [1, 2, 3, 4];
+// "No log entry today" nag — separate IDs so they can be cancelled as soon as
+// the user makes today's entry.
+const NO_ENTRY_IDS = [10, 11, 12, 13];
 
 /**
  * Request notification permission and schedule up to four daily reminders
@@ -25,8 +28,15 @@ const REMINDER_IDS = [1, 2, 3, 4];
  * pending items (title + detail for each), not just counts. When nothing is
  * pending the reminders are cancelled — no point disturbing the user with
  * "all caught up".
+ *
+ * When `opts.noEntryToday` is set, four extra reminders (9:00 / 12:00 / 15:00
+ * / 18:00) keep nagging until the user records a log entry for today; they
+ * are cancelled the moment such an entry exists.
  */
-export async function scheduleDailyReminders(items: ReminderItem[]) {
+export async function scheduleDailyReminders(
+  items: ReminderItem[],
+  opts?: { noEntryToday?: boolean }
+) {
   if (!isNative()) return;
   try {
     const { LocalNotifications } = await import("@capacitor/local-notifications");
@@ -39,36 +49,57 @@ export async function scheduleDailyReminders(items: ReminderItem[]) {
 
     // Clear yesterday's reminders first so the content is always current
     await LocalNotifications.cancel({
-      notifications: REMINDER_IDS.map((id) => ({ id })),
+      notifications: [...REMINDER_IDS, ...NO_ENTRY_IDS].map((id) => ({ id })),
     });
 
     // Notify four times a day, but only when there is actually something to say.
-    if (items.length === 0) return;
+    const scheduled = [];
 
-    const lines = items.slice(0, 8).map((i) => `• ${i.title} — ${i.detail}`);
-    if (items.length > 8) lines.push(`…and ${items.length - 8} more`);
-    const body = lines.join("\n");
+    if (items.length > 0) {
+      const lines = items.slice(0, 8).map((i) => `• ${i.title} — ${i.detail}`);
+      if (items.length > 8) lines.push(`…and ${items.length - 8} more`);
+      const body = lines.join("\n");
 
-    const base = {
-      title: `S&T Field Logbook — ${items.length} pending`,
-      body,
-      sound: "default",
-      // White bell = status-bar small icon (must be monochrome). The app logo
-      // is shown as the notification's large icon so it appears on the phone's
-      // notification panel.
-      smallIcon: "ic_stat_notification",
-      largeIcon: "ic_notification_logo",
-      iconColor: "#1e3a8a",
-    };
+      const base = {
+        title: `S&T Field Logbook — ${items.length} pending`,
+        body,
+        sound: "default",
+        // White bell = status-bar small icon (must be monochrome). The app logo
+        // is shown as the notification's large icon so it appears on the phone's
+        // notification panel.
+        smallIcon: "ic_stat_notification",
+        largeIcon: "ic_notification_logo",
+        iconColor: "#1e3a8a",
+      };
 
-    await LocalNotifications.schedule({
-      notifications: [
+      scheduled.push(
         { ...base, id: 1, schedule: { on: { hour: 8, minute: 0 }, repeats: true } },
         { ...base, id: 2, schedule: { on: { hour: 12, minute: 0 }, repeats: true } },
         { ...base, id: 3, schedule: { on: { hour: 16, minute: 0 }, repeats: true } },
-        { ...base, id: 4, schedule: { on: { hour: 20, minute: 0 }, repeats: true } },
-      ],
-    });
+        { ...base, id: 4, schedule: { on: { hour: 20, minute: 0 }, repeats: true } }
+      );
+    }
+
+    if (opts?.noEntryToday) {
+      const noEntryBase = {
+        title: "No log entry today",
+        body: "You haven't recorded today's S&T field logbook entry yet. Add it to stop these reminders.",
+        sound: "default",
+        smallIcon: "ic_stat_notification",
+        largeIcon: "ic_notification_logo",
+        iconColor: "#b45309",
+      };
+      scheduled.push(
+        { ...noEntryBase, id: 10, schedule: { on: { hour: 9, minute: 0 }, repeats: true } },
+        { ...noEntryBase, id: 11, schedule: { on: { hour: 12, minute: 0 }, repeats: true } },
+        { ...noEntryBase, id: 12, schedule: { on: { hour: 15, minute: 0 }, repeats: true } },
+        { ...noEntryBase, id: 13, schedule: { on: { hour: 18, minute: 0 }, repeats: true } }
+      );
+    }
+
+    if (scheduled.length > 0) {
+      await LocalNotifications.schedule({ notifications: scheduled });
+    }
   } catch {
     /* not native / permission denied — silent */
   }

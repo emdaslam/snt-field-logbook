@@ -19,6 +19,7 @@ import {
 } from "@/lib/inspections";
 import { FONT_SIZE_ROOT, type FontSize } from "@/lib/types";
 import { isNative, scheduleDailyReminders } from "@/lib/native";
+import { driveStatus, syncWithDrive } from "@/lib/drive";
 import type {
   Station,
   Staff,
@@ -67,6 +68,10 @@ type Ctx = {
   // Appearance
   fontSize: FontSize;
   setFontSize: (v: FontSize) => void;
+  // Automatic Drive sync
+  autoDriveSync: boolean;
+  setAutoDriveSync: (v: boolean) => void;
+  autoSync: () => Promise<void>;
   // Scope (mapped staff / stations)
   myStationsOnly: boolean;
   setMyStationsOnly: (v: boolean) => void;
@@ -101,7 +106,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [myStationsOnly, setMyStationsOnlyState] = useState(false);
-  const [fontSize, setFontSizeState] = useState<FontSize>("medium");
+  const [fontSize, setFontSizeState] = useState<FontSize>("large");
+  const [autoDriveSync, setAutoDriveSyncState] = useState(true);
 
   const applyFontSize = useCallback((v: FontSize) => {
     if (typeof document !== "undefined") {
@@ -112,7 +118,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const saved = localStorage.getItem("snt.fontSize");
-      if (saved === "small" || saved === "large") {
+      if (saved === "small" || saved === "medium" || saved === "large") {
         setFontSizeState(saved);
         applyFontSize(saved);
         return;
@@ -120,7 +126,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     } catch {
       /* ignore */
     }
-    applyFontSize("medium");
+    applyFontSize("large");
   }, [applyFontSize]);
 
   const setFontSize = useCallback(
@@ -148,6 +154,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       setMyStationsOnlyState(localStorage.getItem("snt.myStationsOnly") === "1");
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const setAutoDriveSync = useCallback((v: boolean) => {
+    setAutoDriveSyncState(v);
+    try {
+      localStorage.setItem("snt.autoDriveSync", v ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      setAutoDriveSyncState(localStorage.getItem("snt.autoDriveSync") !== "0");
     } catch {
       /* ignore */
     }
@@ -189,6 +212,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  /**
+   * Automatic Drive sync — silent and best-effort. Runs only in the Android
+   * app when auto-sync is switched on and the user is signed in to Drive.
+   * Failures are ignored; the manual "Sync to Drive" button in Settings is
+   * the place that reports errors to the user.
+   */
+  const autoSync = useCallback(async () => {
+    if (!autoDriveSync) return;
+    if (!isNative()) return;
+    if (!driveStatus().email) return;
+    const r = await syncWithDrive();
+    if (r.ok && r.imported) await refresh();
+  }, [autoDriveSync, refresh]);
+
   useEffect(() => {
     (async () => {
       try {
@@ -197,8 +234,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
         /* first run may race; refresh anyway */
       }
       await refresh();
+      // First app-open of the day: sync once automatically. The stamp is only
+      // written when a sync was actually attempted, so signing in to Drive or
+      // switching auto-sync on later in the day still triggers it on the next
+      // app open.
+      try {
+        const day = toISODate(new Date());
+        if (localStorage.getItem("snt.drive.lastAutoSyncDay") === day) return;
+        if (!autoDriveSync) return;
+        if (!isNative() || !driveStatus().email) return;
+        const r = await syncWithDrive();
+        if (r.ok && r.imported) await refresh();
+        localStorage.setItem("snt.drive.lastAutoSyncDay", day);
+      } catch {
+        /* auto-sync is best-effort — silent */
+      }
     })();
-  }, [refresh]);
+  }, [refresh, autoDriveSync]);
 
   // Offline app: nothing to poll. We only re-read local storage when the app
   // regains focus, in case another tab/window changed something.
@@ -359,16 +411,25 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setNotifications(notes);
   }, [planned, deficiencies, logs, stations, tags]);
 
+  /** True when the current user already made a log entry for today. */
+  const hasEntryToday = useMemo(() => {
+    const today = toISODate(new Date());
+    return logs.some((l) => l.logDate === today);
+  }, [logs]);
+
   // Keep the phone's notification panel in sync: four reminders a day
   // (8:00 / 12:00 / 16:00 / 20:00) but only while something is actually
   // pending. Each reminder lists the pending items with their full detail.
+  // When today's log entry is still missing, four "no entry today" reminders
+  // (9:00 / 12:00 / 15:00 / 18:00) nag until the entry is added.
   // Only runs on the Android app.
   useEffect(() => {
     if (!isNative()) return;
     scheduleDailyReminders(
-      notifications.map((n) => ({ kind: n.kind, title: n.title, detail: n.detail }))
+      notifications.map((n) => ({ kind: n.kind, title: n.title, detail: n.detail })),
+      { noEntryToday: !hasEntryToday }
     );
-  }, [notifications]);
+  }, [notifications, hasEntryToday]);
 
   const stationName = useCallback(
     (id: number | null) => stations.find((s) => s.id === id)?.name ?? "Unassigned",
@@ -410,9 +471,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [myStationsOnly, myStationNames]
   );
 
-  // suppress unused warning for toISODate import users
-  void toISODate;
-
   return (
     <DataContext.Provider
       value={{
@@ -442,6 +500,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
         inScopeMovement,
         fontSize,
         setFontSize,
+        autoDriveSync,
+        setAutoDriveSync,
+        autoSync,
       }}
     >
       {children}

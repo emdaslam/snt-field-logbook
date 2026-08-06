@@ -50,7 +50,7 @@ export function DailyLogForm({
   onClose: () => void;
   existing?: DailyLog | null;
 }) {
-  const { tags, stations, logs, refresh, currentUser } = useData();
+  const { tags, stations, logs, refresh, currentUser, autoSync } = useData();
   const [logDate, setLogDate] = useState(existing?.logDate ?? toISODate(new Date()));
   const [movement, setMovement] = useState(existing?.stationMovement ?? "");
   const [movementKind, setMovementKind] = useState<"station" | "rest" | "leave" | "cr" | "nh">(
@@ -65,7 +65,7 @@ export function DailyLogForm({
   const [crFrom, setCrFrom] = useState(existing?.crFrom ?? "");
   const [crTo, setCrTo] = useState(existing?.crTo ?? "");
   const [workDone, setWorkDone] = useState(existing?.workDone ?? "");
-  const [taPercent, setTaPercent] = useState(String(existing?.taPercent ?? 100));
+  const [taPercent, setTaPercent] = useState(String(existing?.taPercent ?? 70));
   const [tagIds, setTagIds] = useState<number[]>(existing?.tagIds ?? []);
   const [attachments, setAttachments] = useState<Attachment[]>(existing?.attachments ?? []);
   const [inspectionSide, setInspectionSide] = useState(existing?.inspectionSide ?? "");
@@ -257,7 +257,12 @@ export function DailyLogForm({
       attachments,
     };
     if (existing) await api.logs.update(payload);
-    else await api.logs.create(payload);
+    else {
+      await api.logs.create(payload);
+      // Automatic cloud sync on a new entry (silent, only when switched on
+      // and signed in to Drive in the Android app).
+      void autoSync();
+    }
     await refresh();
     setSaving(false);
     onClose();

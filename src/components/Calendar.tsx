@@ -149,6 +149,7 @@ export function Calendar({
   cursor,
   setCursor,
   onGoToDate,
+  onMonthJump,
 }: {
   activeDates: Set<string>;
   dateTagColors: Map<string, string[]>;
@@ -160,6 +161,9 @@ export function Calendar({
   setCursor: (d: Date) => void;
   /** Opens the "go to date" picker and asks the caller to navigate. */
   onGoToDate?: (iso: string) => void;
+  /** Fired after a horizontal slide commits to another month, so the caller
+   *  can point the timeline at that month (e.g. its 1st). */
+  onMonthJump?: (d: Date) => void;
 }) {
   const today = toISODate(new Date());
   const year = cursor.getFullYear();
@@ -175,17 +179,19 @@ export function Calendar({
   const suppressClick = useRef(false);
   const commitDir = useRef(0);
 
-  const goMonth = (dir: number) => {
+  const goMonth = (dir: number, jump = false) => {
     if (settling) return;
     const W = slideRef.current?.offsetWidth ?? 320;
     suppressClick.current = true;
     commitDir.current = dir;
     setSettling(true);
     setDragX(dir > 0 ? -W : W);
+    const target = new Date(year, month + dir, 1);
     setTimeout(() => {
-      setCursor(new Date(year, month + dir, 1));
+      setCursor(target);
       setDragX(0);
       setSettling(false);
+      if (jump) onMonthJump?.(target);
     }, 240);
     setTimeout(() => (suppressClick.current = false), 380);
   };
@@ -211,9 +217,9 @@ export function Calendar({
     touchStart.current = null;
     if (!s || dragX === 0) return;
     const W = slideRef.current?.offsetWidth ?? 320;
-    const threshold = Math.max(60, W * 0.25);
+    const threshold = Math.max(32, W * 0.12);
     if (Math.abs(dragX) >= threshold) {
-      goMonth(dragX < 0 ? 1 : -1);
+      goMonth(dragX < 0 ? 1 : -1, true);
     } else {
       setSettling(true);
       setDragX(0);

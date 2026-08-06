@@ -3,7 +3,26 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
-## 1.7.6.9 — 2026-08-06 (current)
+## 1.7.6.10 — 2026-08-06 (current)
+
+**Feat: four new user-requested behaviours**
+- **"No entry today" reminders** — when no daily log entry exists for today,
+  four notifications (9:00 / 12:00 / 15:00 / 18:00) keep nagging until the
+  entry is added; they are cancelled the moment the entry is recorded.
+- **Automatic cloud sync** — new "Automatic cloud sync" toggle in the Google
+  Drive Sync settings (on by default). Auto-sync runs when a new daily log
+  entry is added and once on the first app open of the day. Silent and
+  best-effort; the manual "Sync to Drive" button still reports errors.
+- **New defaults** — app font size defaults to Large (was Medium) and a new
+  daily log entry defaults to 70 % TA (was 100 %). Special cases are
+  unchanged: Rest/Leave/CR/NH, headquarters visits and dates that already
+  carry a TA claim force 0 %.
+- **Calendar slide sensitivity & month jump** — swiping between months now
+  needs a much shorter flick, and when a slide commits to another month the
+  timeline jumps to the 1st of that month (dates outside the timeline range
+  clamp silently to the nearest boundary).
+
+## 1.7.6.9 — 2026-08-06
 
 **Fix: notifications are station-based, side text only when explicitly chosen** — `40e3b92`
 Deficiency notifications no longer say "towards … side" — they show just the

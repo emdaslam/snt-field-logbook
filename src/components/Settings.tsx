@@ -474,7 +474,7 @@ function TagEditor({ existing, onClose }: { existing: Tag | null; onClose: () =>
 }
 
 function DriveSyncSection() {
-  const { refresh } = useData();
+  const { refresh, autoDriveSync, setAutoDriveSync } = useData();
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [lastSynced, setLastSynced] = useState<string | null>(null);
@@ -586,6 +586,21 @@ function DriveSyncSection() {
           {msg && (
             <p className={`text-xs ${msg.ok ? "text-emerald-600" : "text-red-600"}`}>{msg.text}</p>
           )}
+          <label className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 p-3">
+            <span className="min-w-0">
+              <span className="block text-sm font-medium text-slate-700">Automatic cloud sync</span>
+              <span className="block text-xs text-slate-400">
+                Syncs to Drive when you add a new daily log entry and once on the first app open of the
+                day.
+              </span>
+            </span>
+            <input
+              type="checkbox"
+              checked={autoDriveSync}
+              onChange={(e) => setAutoDriveSync(e.target.checked)}
+              className="h-4 w-4 flex-shrink-0 accent-emerald-600"
+            />
+          </label>
           {confirming && (
             <div className="rounded-lg border border-amber-300 bg-amber-50 p-3">
               <p className="text-sm text-amber-800">
