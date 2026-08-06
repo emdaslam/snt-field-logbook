@@ -5,7 +5,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.11 — 2026-08-06 (current)
 
-**Feat: per-export text size + upgraded monthly report**
+**Feat: per-export text size + upgraded monthly report** — `cff4b17`
 - **Export text size** — Settings gains a numeric text size (10–96) that scales
   only the written content in exported PDFs (the app UI is untouched). Every
   PDF export now asks for the text size at the top of the share/save sheet,
