@@ -50,3 +50,10 @@ Only then start the task the user actually asked for.
 - Build prerequisites: Node 20+, JDK 21 (`JAVA_HOME=/opt/jdk21`), Android SDK 36
   with build-tools 36.0.0, package `in.railway.snt.logbook`. Full details in
   `ANDROID_APK_GUIDE.md`.
+- **Signing key**: debug builds must be signed with the repo debug keystore
+  (`debug (1).keystore` at the repo root, gitignored; SHA-1
+  `7B:C9:5F:C1:7F:0F:E4:93:52:1B:48:09:54:46:13:48:4E:73:B7:81`, alias
+  `androiddebugkey`, passwords `android`). Before building an APK, ensure
+  `~/.android/debug.keystore` is a copy of it
+  (`cp "debug (1).keystore" ~/.android/debug.keystore`); any other key breaks
+  install-over and Drive sign-in (error 10). See `ANDROID_APK_GUIDE.md` §5.1.
