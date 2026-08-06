@@ -127,25 +127,21 @@ export async function openAttachmentNative(name: string, dataUrl: string): Promi
 }
 
 /**
- * Write a text file (e.g. the JSON backup) into the device's Documents folder
- * and hand it to Android's share sheet, bypassing the webview's broken file
- * picker. Returns false when the native shell isn't available.
+ * Save a text file (e.g. the JSON backup) via Android's system "Save to…"
+ * picker (Storage Access Framework), bypassing the webview's broken file
+ * picker. Writing straight to public folders like Documents is blocked by
+ * scoped storage on Android 10+, so the user picks the location instead.
+ * Returns false when the native shell isn't available or the save fails.
  */
 export async function saveTextFileNative(filename: string, text: string): Promise<boolean> {
   if (!isNative()) return false;
   try {
-    const [{ Filesystem, Directory, Encoding }, { Share }] = await Promise.all([
-      import("@capacitor/filesystem"),
-      import("@capacitor/share"),
-    ]);
-    const written = await Filesystem.writeFile({
-      path: filename,
-      data: text,
-      encoding: Encoding.UTF8,
-      directory: Directory.Documents,
-      recursive: true,
+    const { saveViaPicker, toBase64Utf8 } = await import("./documentSave");
+    await saveViaPicker({
+      filename,
+      data: toBase64Utf8(text),
+      mimeType: "application/json",
     });
-    await Share.share({ title: filename, text: filename, url: written.uri, dialogTitle: "Save backup" });
     return true;
   } catch {
     return false;

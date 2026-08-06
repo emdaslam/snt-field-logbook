@@ -241,33 +241,39 @@ function isNative() {
 }
 
 /**
- * Write the PDF into the device's Documents folder and hand it to Android's
- * share sheet. Runs entirely on-device — no server, no network.
+ * Hand a PDF to Android's share sheet. The file is written to the app's
+ * private cache (always writable) and shared from there — the receiving app
+ * (WhatsApp, Telegram, Drive…) stores it. Runs entirely on-device.
  */
-async function nativeSaveAndShare(doc: jsPDF, filename: string, title: string, share: boolean) {
+async function nativeSharePdf(doc: jsPDF, filename: string, title: string) {
   const [{ Filesystem, Directory }, { Share }] = await Promise.all([
     import("@capacitor/filesystem"),
     import("@capacitor/share"),
   ]);
   const base64 = doc.output("datauristring").split(",")[1];
-
   const written = await Filesystem.writeFile({
-    path: filename,
+    path: `pdf/${filename}`,
     data: base64,
-    directory: Directory.Documents,
+    directory: Directory.Cache,
     recursive: true,
   });
-
-  if (!share) {
-    alert(`Saved to Documents/${filename}`);
-    return;
-  }
   await Share.share({
     title,
     text: title,
     url: written.uri,
     dialogTitle: "Share PDF",
   });
+}
+
+/**
+ * Save a PDF to a user-chosen location through Android's system "Save to…"
+ * picker (Storage Access Framework). Direct writes to /Documents are blocked
+ * by scoped storage on Android 10+, so the picker grants access to the file.
+ */
+async function nativeSavePdf(doc: jsPDF, filename: string) {
+  const { saveViaPicker } = await import("./documentSave");
+  const base64 = doc.output("datauristring").split(",")[1];
+  await saveViaPicker({ filename, data: base64, mimeType: "application/pdf" });
 }
 
 export function exportHtmlAsPdf(title: string, bodyHtml: string) {
@@ -282,7 +288,7 @@ export function exportHtmlAsPdf(title: string, bodyHtml: string) {
 
   const share = async () => {
     if (isNative()) {
-      await nativeSaveAndShare(doc, filename, title, true);
+      await nativeSharePdf(doc, filename, title);
       return;
     }
     // Browser fallback
@@ -301,7 +307,13 @@ export function exportHtmlAsPdf(title: string, bodyHtml: string) {
 
   const save = async () => {
     if (isNative()) {
-      await nativeSaveAndShare(doc, filename, title, false);
+      try {
+        await nativeSavePdf(doc, filename);
+      } catch (e) {
+        const { isSaveCancelled } = await import("./documentSave");
+        if (isSaveCancelled(e)) return; // user backed out — close quietly
+        throw e;
+      }
       return;
     }
     try {

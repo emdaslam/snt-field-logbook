@@ -101,14 +101,14 @@ export function BackupModal({ open, onClose }: { open: boolean; onClose: () => v
     if (!json) return;
     setBusy(true);
     setError(null);
-    // On the Android app the browser file picker is unreliable — write the file
-    // straight to Documents via the Filesystem plugin and open the share sheet.
+    // On the Android app the browser file picker is unreliable — save the file
+    // via the system "Save to…" picker instead of a raw path in /Documents.
     if (isNative()) {
       const ok = await saveTextFileNative(filename, json);
       setStatus(
         ok
-          ? "Saved — pick “Save to device” / Files in the share sheet to store it."
-          : "Could not save the backup on this device — try “Copy JSON”."
+          ? "Saved to the location you chose."
+          : "Save was cancelled or failed — use “Copy JSON” instead."
       );
       setBusy(false);
       return;

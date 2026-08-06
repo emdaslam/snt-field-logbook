@@ -7,6 +7,7 @@ import android.webkit.WebView;
 import com.getcapacitor.BridgeActivity;
 
 import in.railway.snt.logbook.drive.GoogleDrivePlugin;
+import in.railway.snt.logbook.save.DocumentSavePlugin;
 
 /**
  * Railway S&T Field Logbook — offline-first.
@@ -25,6 +26,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(GoogleDrivePlugin.class);
+        registerPlugin(DocumentSavePlugin.class);
 
         super.onCreate(savedInstanceState);
 

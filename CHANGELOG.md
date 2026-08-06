@@ -3,7 +3,17 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
-## 1.7.6.6 — 2026-08-05 (current)
+## 1.7.6.7 — 2026-08-06 (current)
+
+**Fix: PDF export & backup save no longer fail with EACCES on Android 10+**
+Android scoped storage blocks direct writes to `/storage/emulated/0/Documents`,
+which broke "Save file" for PDFs and the JSON backup ("open failed: EACCES").
+Added a native `DocumentSave` plugin that saves via Android's Storage Access
+Framework ("Save to…" picker), so the user chooses the location and no storage
+permission is needed. "Share" now stages the PDF in the app cache (always
+writable) before handing it to the share sheet, matching how attachments work.
+
+## 1.7.6.6 — 2026-08-05
 
 **Fix: never overwrite the Drive backup with an unknown local database**
 `519a79e` — Sync used to push first and pull second, so on a fresh install the
