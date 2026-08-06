@@ -5,7 +5,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.8 — 2026-08-06 (current)
 
-**Feat: "Go to date" from the calendar header**
+**Feat: "Go to date" from the calendar header** — `b6596fa`
 Tapping the month/year label in the upper calendar opens a date picker that
 jumps the calendar and timeline straight to the chosen date. If the date falls
 outside the timeline's range (no entries there), a message appears ("No entry
