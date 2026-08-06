@@ -1,11 +1,35 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import { FONT_SIZE_SCALE } from "@/lib/types";
-import type { FontSize } from "@/lib/types";
+import {
+  CONTENT_FONT_MAX,
+  CONTENT_FONT_MIN,
+  DEFAULT_CONTENT_FONT_SIZE,
+} from "@/lib/types";
 
 const NAVY: [number, number, number] = [30, 58, 138];
 const GREEN: [number, number, number] = [5, 95, 70];
 const GREY: [number, number, number] = [100, 116, 139];
+
+/** Active numeric export text size, set in Settings or in the export sheet. */
+function contentFontSizeSetting(): number {
+  try {
+    const v = Number(localStorage.getItem("snt.contentFontSize"));
+    if (Number.isFinite(v) && v >= CONTENT_FONT_MIN && v <= CONTENT_FONT_MAX) {
+      return Math.round(v);
+    }
+  } catch {
+    /* ignore */
+  }
+  return DEFAULT_CONTENT_FONT_SIZE;
+}
+
+function persistContentFontSize(v: number) {
+  try {
+    localStorage.setItem("snt.contentFontSize", String(v));
+  } catch {
+    /* ignore */
+  }
+}
 
 function slug(s: string) {
   return s.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase() || "report";
@@ -45,25 +69,16 @@ function liText(el: HTMLElement): string {
     .trim();
 }
 
-/** Active app font size, persisted by DataProvider under `snt.fontSize`. */
-function activeFontSize(): FontSize {
-  try {
-    const v = localStorage.getItem("snt.fontSize");
-    if (v === "small" || v === "medium" || v === "large") return v;
-  } catch {
-    /* ignore */
-  }
-  return "medium";
-}
-
 /**
  * Render the HTML produced by the export builders into a real PDF.
- * We control the markup shape (h1 / h2 / p / table / ul>li), so a small
+ * We control the markup shape (h1 / h2 / h3 / p / table / ul>li), so a small
  * DOM walk is enough and avoids pulling in a heavyweight rasteriser.
+ * `contentSize` is the numeric pt size of the body text (10–96); headings and
+ * tables scale relative to it so the whole document stays proportional.
  */
-function buildPdf(title: string, bodyHtml: string): jsPDF {
+function buildPdf(title: string, bodyHtml: string, contentSize: number): jsPDF {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
-  const fs = FONT_SIZE_SCALE[activeFontSize()];
+  const fs = contentSize / 9;
   const margin = 40;
   const pageW = doc.internal.pageSize.getWidth();
   const maxW = pageW - margin * 2;
@@ -98,6 +113,12 @@ function buildPdf(title: string, bodyHtml: string): jsPDF {
       const lines = doc.splitTextToSize(text, maxW) as string[];
       doc.text(lines, margin, y);
       y += lines.length * (14 * fs) + 6;
+    } else if (tag === "h3") {
+      pageBreak(24 * fs);
+      doc.setFont("helvetica", "bold").setFontSize(9.5 * fs).setTextColor(...NAVY);
+      const lines = doc.splitTextToSize(text, maxW) as string[];
+      doc.text(lines, margin, y);
+      y += lines.length * (13 * fs) + 5;
     } else if (tag === "p") {
       if (!text) continue;
       pageBreak(22 * fs);
@@ -191,7 +212,9 @@ function buildPdf(title: string, bodyHtml: string): jsPDF {
   return doc;
 }
 
-function sheet(opts: { label: string; primary?: boolean; run: () => void | Promise<void> }[]) {
+export function exportHtmlAsPdf(title: string, bodyHtml: string) {
+  // Ask for the text size at the top of every export sheet. The default is the
+  // currently saved size; changing it here also becomes the new default.
   const overlay = document.createElement("div");
   overlay.style.cssText =
     "position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.5);display:flex;align-items:flex-end;justify-content:center";
@@ -205,23 +228,95 @@ function sheet(opts: { label: string; primary?: boolean; run: () => void | Promi
   status.style.cssText = "margin:0 0 10px;font-size:12px;color:#64748b;text-align:center;min-height:16px";
   const close = () => overlay.remove();
 
-  for (const o of opts) {
+  // Font size prompt — written content only, 10–96.
+  const row = document.createElement("div");
+  row.style.cssText =
+    "display:flex;align-items:center;gap:10px;margin:0 0 14px;padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px";
+  row.innerHTML =
+    '<label style="flex:1;font-size:13px;font-weight:600;color:#334155">Text size<span style="display:block;font-weight:400;font-size:11px;color:#64748b;margin-top:2px">Written content only — 10 to 96</span></label>';
+  const input = document.createElement("input");
+  input.type = "number";
+  input.min = String(CONTENT_FONT_MIN);
+  input.max = String(CONTENT_FONT_MAX);
+  input.value = String(contentFontSizeSetting());
+  input.style.cssText =
+    "width:76px;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:15px;text-align:center;font-weight:600;color:#1e3a8a";
+  row.appendChild(input);
+  box.appendChild(row);
+
+  const chosenSize = () => {
+    const v = Math.round(Number(input.value));
+    if (!Number.isFinite(v)) return contentFontSizeSetting();
+    return Math.min(CONTENT_FONT_MAX, Math.max(CONTENT_FONT_MIN, v));
+  };
+
+  const makeButton = (
+    label: string,
+    primary: boolean,
+    run: (doc: jsPDF, filename: string) => Promise<void>
+  ) => {
     const b = document.createElement("button");
-    b.textContent = o.label;
+    b.textContent = label;
     b.style.cssText = `display:block;width:100%;margin-bottom:8px;padding:12px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;border:1px solid ${
-      o.primary ? "#1e40af" : "#cbd5e1"
-    };background:${o.primary ? "#1e40af" : "#fff"};color:${o.primary ? "#fff" : "#334155"}`;
+      primary ? "#1e40af" : "#cbd5e1"
+    };background:${primary ? "#1e40af" : "#fff"};color:${primary ? "#fff" : "#334155"}`;
     b.onclick = async () => {
       status.textContent = "Working…";
       try {
-        await o.run();
+        const size = chosenSize();
+        const doc = buildPdf(title, bodyHtml, size);
+        persistContentFontSize(size);
+        const filename = `${slug(title)}.pdf`;
+        await run(doc, filename);
         close();
       } catch (e) {
         status.textContent = String(e);
       }
     };
-    box.appendChild(b);
-  }
+    return b;
+  };
+
+  const share = async (doc: jsPDF, filename: string) => {
+    if (isNative()) {
+      await nativeSharePdf(doc, filename, title);
+      return;
+    }
+    // Browser fallback
+    const blob = doc.output("blob");
+    const file = new File([blob], filename, { type: "application/pdf" });
+    if (navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title, text: title });
+        return;
+      } catch (e) {
+        if (e instanceof DOMException && e.name === "AbortError") return;
+      }
+    }
+    throw new Error("Sharing isn’t available here — use Save instead.");
+  };
+
+  const save = async (doc: jsPDF, filename: string) => {
+    if (isNative()) {
+      try {
+        await nativeSavePdf(doc, filename);
+      } catch (e) {
+        const { isSaveCancelled } = await import("./documentSave");
+        if (isSaveCancelled(e)) return; // user backed out — close quietly
+        throw e;
+      }
+      return;
+    }
+    try {
+      doc.save(filename);
+    } catch {
+      throw new Error("Saving was blocked by the browser.");
+    }
+  };
+
+  box.appendChild(
+    makeButton("📤  Share to other apps (WhatsApp, Telegram…)", true, share)
+  );
+  box.appendChild(makeButton("⬇  Save file", false, save));
   box.appendChild(status);
   const c = document.createElement("button");
   c.textContent = "Cancel";
@@ -274,57 +369,4 @@ async function nativeSavePdf(doc: jsPDF, filename: string) {
   const { saveViaPicker } = await import("./documentSave");
   const base64 = doc.output("datauristring").split(",")[1];
   await saveViaPicker({ filename, data: base64, mimeType: "application/pdf" });
-}
-
-export function exportHtmlAsPdf(title: string, bodyHtml: string) {
-  let doc: jsPDF;
-  try {
-    doc = buildPdf(title, bodyHtml);
-  } catch (e) {
-    alert("Could not build the PDF: " + String(e));
-    return;
-  }
-  const filename = `${slug(title)}.pdf`;
-
-  const share = async () => {
-    if (isNative()) {
-      await nativeSharePdf(doc, filename, title);
-      return;
-    }
-    // Browser fallback
-    const blob = doc.output("blob");
-    const file = new File([blob], filename, { type: "application/pdf" });
-    if (navigator.canShare?.({ files: [file] })) {
-      try {
-        await navigator.share({ files: [file], title, text: title });
-        return;
-      } catch (e) {
-        if (e instanceof DOMException && e.name === "AbortError") return;
-      }
-    }
-    throw new Error("Sharing isn’t available here — use Save instead.");
-  };
-
-  const save = async () => {
-    if (isNative()) {
-      try {
-        await nativeSavePdf(doc, filename);
-      } catch (e) {
-        const { isSaveCancelled } = await import("./documentSave");
-        if (isSaveCancelled(e)) return; // user backed out — close quietly
-        throw e;
-      }
-      return;
-    }
-    try {
-      doc.save(filename);
-    } catch {
-      throw new Error("Saving was blocked by the browser.");
-    }
-  };
-
-  sheet([
-    { label: "📤  Share to other apps (WhatsApp, Telegram…)", primary: true, run: share },
-    { label: "⬇  Save file", run: save },
-  ]);
 }

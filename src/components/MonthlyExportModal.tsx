@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useData } from "./DataProvider";
-import { Modal, Field, inputClass, PrimaryButton } from "./ui";
+import { Modal, Field, inputClass, PrimaryButton, Chip } from "./ui";
 import { exportMonthly, type MonthlyFilters } from "./exports";
 import { toISODate } from "@/lib/api";
 import { DEPARTMENTS, STATUSES } from "@/lib/types";
@@ -20,11 +20,26 @@ export function MonthlyExportModal({ open, onClose }: { open: boolean; onClose: 
     includePlanned: true,
     from: toISODate(monthBack),
     to: toISODate(today),
-    stationId: "",
-    department: "",
+    stationIds: [],
+    departments: [],
     status: "",
     tagId: "",
   });
+
+  const toggleStation = (id: number) =>
+    setF((prev) => ({
+      ...prev,
+      stationIds: prev.stationIds.includes(id)
+        ? prev.stationIds.filter((x) => x !== id)
+        : [...prev.stationIds, id],
+    }));
+  const toggleDept = (d: string) =>
+    setF((prev) => ({
+      ...prev,
+      departments: prev.departments.includes(d)
+        ? prev.departments.filter((x) => x !== d)
+        : [...prev.departments, d],
+    }));
 
   return (
     <Modal open={open} onClose={onClose} title="Export Monthly List" wide>
@@ -56,18 +71,6 @@ export function MonthlyExportModal({ open, onClose }: { open: boolean; onClose: 
         <Field label="To">
           <input type="date" className={inputClass} value={f.to} onChange={(e) => setF({ ...f, to: e.target.value })} />
         </Field>
-        <Field label="Station">
-          <select className={inputClass} value={f.stationId} onChange={(e) => setF({ ...f, stationId: e.target.value ? Number(e.target.value) : "" })}>
-            <option value="">All</option>
-            {stations.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-        </Field>
-        <Field label="Department">
-          <select className={inputClass} value={f.department} onChange={(e) => setF({ ...f, department: e.target.value })}>
-            <option value="">All</option>
-            {DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}
-          </select>
-        </Field>
         <Field label="Status">
           <select className={inputClass} value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}>
             <option value="">All</option>
@@ -81,7 +84,42 @@ export function MonthlyExportModal({ open, onClose }: { open: boolean; onClose: 
           </select>
         </Field>
       </div>
-      <p className="mb-3 text-xs text-slate-400">Default range is today back to exactly one month prior.</p>
+
+      <Field label={`Stations (${f.stationIds.length} selected — none means all)`}>
+        <div className="max-h-44 overflow-y-auto rounded-lg border border-slate-200 p-2">
+          {stations.length === 0 && <p className="text-xs text-slate-400">No stations yet.</p>}
+          {stations.map((s) => (
+            <label key={s.id} className="flex cursor-pointer items-center gap-2 py-1 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-emerald-600"
+                checked={f.stationIds.includes(s.id)}
+                onChange={() => toggleStation(s.id)}
+              />
+              {s.name}
+            </label>
+          ))}
+        </div>
+      </Field>
+
+      <Field label="Departments (none means all)">
+        <div className="flex flex-wrap gap-2">
+          {DEPARTMENTS.map((d) => (
+            <Chip
+              key={d}
+              label={d}
+              color="#0e7490"
+              active={f.departments.includes(d)}
+              onClick={() => toggleDept(d)}
+            />
+          ))}
+        </div>
+      </Field>
+
+      <p className="mb-3 text-xs text-slate-400">
+        Default range is today back to exactly one month prior. Daily logs export in ascending date order;
+        deficiencies and planned works are grouped station-wise.
+      </p>
       <div className="flex justify-end">
         <PrimaryButton
           onClick={() => {

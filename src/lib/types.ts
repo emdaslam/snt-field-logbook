@@ -81,3 +81,12 @@ export const FONT_SIZE_SCALE: Record<FontSize, number> = {
   medium: 1,
   large: 1.125,
 };
+
+/**
+ * Numeric text size (points, 10–96) for the written content inside exported
+ * PDFs. This scales only the PDF body — the app UI keeps using the
+ * small/medium/large setting above.
+ */
+export const CONTENT_FONT_MIN = 10;
+export const CONTENT_FONT_MAX = 96;
+export const DEFAULT_CONTENT_FONT_SIZE = 10;

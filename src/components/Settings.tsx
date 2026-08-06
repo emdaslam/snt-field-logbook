@@ -7,7 +7,7 @@ import { inputClass, PrimaryButton, Chip, Modal, Field } from "./ui";
 import { DEPARTMENTS } from "@/lib/types";
 import { BackupModal } from "./BackupModal";
 import { RestoreModal } from "./RestoreModal";
-import { FONT_SIZES, FONT_SIZE_LABEL } from "@/lib/types";
+import { FONT_SIZES, FONT_SIZE_LABEL, CONTENT_FONT_MIN, CONTENT_FONT_MAX, DEFAULT_CONTENT_FONT_SIZE } from "@/lib/types";
 import {
   driveIsConfigured,
   driveStatus,
@@ -27,6 +27,30 @@ export function Settings() {
   const [backupOpen, setBackupOpen] = useState(false);
   const [restoreOpen, setRestoreOpen] = useState(false);
   const [editingTag, setEditingTag] = useState<{ tag: Tag | null } | null>(null);
+
+  // Numeric export text size (10–96). Only the written text inside exported
+  // PDFs scales with this; the app UI uses the small/medium/large buttons.
+  const [contentFontSize, setContentFontSize] = useState<number>(() => {
+    try {
+      const v = Number(localStorage.getItem("snt.contentFontSize"));
+      if (Number.isFinite(v) && v >= CONTENT_FONT_MIN && v <= CONTENT_FONT_MAX) {
+        return Math.round(v);
+      }
+    } catch {
+      /* ignore */
+    }
+    return DEFAULT_CONTENT_FONT_SIZE;
+  });
+
+  const changeContentFontSize = (v: number) => {
+    const clamped = Math.min(CONTENT_FONT_MAX, Math.max(CONTENT_FONT_MIN, v));
+    setContentFontSize(clamped);
+    try {
+      localStorage.setItem("snt.contentFontSize", String(clamped));
+    } catch {
+      /* ignore */
+    }
+  };
 
   const stationLabel = (ids: number[]) =>
     ids.length === 0
@@ -191,6 +215,29 @@ export function Settings() {
             </button>
           ))}
         </div>
+        <div className="mt-3 flex items-center gap-3 rounded-lg border border-slate-200 p-3">
+          <label className="min-w-0 flex-1 text-sm text-slate-700">
+            Export text size
+            <span className="block text-xs text-slate-400">
+              Only the written text in exported PDFs — the app is unaffected.
+            </span>
+          </label>
+          <input
+            type="number"
+            min={CONTENT_FONT_MIN}
+            max={CONTENT_FONT_MAX}
+            value={contentFontSize}
+            onChange={(e) => {
+              const v = Math.round(Number(e.target.value));
+              if (!Number.isFinite(v)) return;
+              changeContentFontSize(v);
+            }}
+            className="w-20 rounded-lg border border-slate-300 px-2 py-2 text-center text-sm text-slate-800"
+          />
+        </div>
+        <p className="mt-2 text-xs text-slate-400">
+          Export text size is asked again at the top of every PDF export, defaulting to this value.
+        </p>
       </Section>
 
       {/* Backup */}

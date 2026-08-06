@@ -3,7 +3,21 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
-## 1.7.6.10 — 2026-08-06 (current)
+## 1.7.6.11 — 2026-08-06 (current)
+
+**Feat: per-export text size + upgraded monthly report**
+- **Export text size** — Settings gains a numeric text size (10–96) that scales
+  only the written content in exported PDFs (the app UI is untouched). Every
+  PDF export now asks for the text size at the top of the share/save sheet,
+  pre-filled with the saved value; changing it there also updates the default.
+- **Monthly export filters** — Station and Department are now multi-select
+  (tick several, or none = all). The header lists every chosen station/dept.
+- **Monthly report layout** — Deficiency Tasks and Planned Works are grouped
+  station-wise (a heading per station with its own table, station column
+  dropped since it's already the group header). Daily Logs are exported in
+  ascending date order.
+
+## 1.7.6.10 — 2026-08-06
 
 **Feat: four new user-requested behaviours** — `f58f17d`
 - **"No entry today" reminders** — when no daily log entry exists for today,

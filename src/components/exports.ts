@@ -359,8 +359,10 @@ export type MonthlyFilters = {
   includePlanned: boolean;
   from: string;
   to: string;
-  stationId: number | "";
-  department: string;
+  /** Multiple stations — empty array means all. */
+  stationIds: number[];
+  /** Multiple departments — empty array means all. */
+  departments: string[];
   status: string;
   tagId: number | "";
 };
@@ -378,35 +380,48 @@ export function exportMonthly(
     if (!d) return false;
     return d >= filters.from && d <= filters.to;
   };
+  // Multiple stations: match by id, or (for logs) by the movement text.
+  const matchStation = (id: number | null) =>
+    filters.stationIds.length === 0 || (id != null && filters.stationIds.includes(id));
+  const matchMovement = (movement: string | null) => {
+    if (filters.stationIds.length === 0) return true;
+    return filters.stationIds.some((id) => movement?.includes(stationName(id)) ?? false);
+  };
 
-  const fLogs = logs.filter((l) => {
-    if (!inRange(l.logDate)) return false;
-    if (filters.stationId && !l.stationMovement?.includes(stationName(filters.stationId as number))) return false;
-    if (filters.tagId && !l.tagIds.includes(filters.tagId as number)) return false;
-    return true;
-  });
+  const fLogs = logs
+    .filter((l) => {
+      if (!inRange(l.logDate)) return false;
+      if (!matchMovement(l.stationMovement)) return false;
+      if (filters.tagId && !l.tagIds.includes(filters.tagId as number)) return false;
+      return true;
+    })
+    // Daily logs in ascending order of date
+    .sort((a, b) => a.logDate.localeCompare(b.logDate));
   const fDefs = deficiencies.filter((d) => {
     if (!inRange(d.dueDate) && !inRange(toISODate(new Date(d.createdAt)))) return false;
-    if (filters.stationId && d.stationId !== filters.stationId) return false;
-    if (filters.department && d.department !== filters.department) return false;
+    if (!matchStation(d.stationId)) return false;
+    if (filters.departments.length && !filters.departments.includes(d.department)) return false;
     if (filters.status && d.status !== filters.status) return false;
     return true;
   });
   const fPlans = planned.filter((p) => {
     if (!inRange(p.plannedDate)) return false;
-    if (filters.stationId && p.stationId !== filters.stationId) return false;
+    if (!matchStation(p.stationId)) return false;
     if (filters.status && p.status !== filters.status) return false;
     return true;
   });
 
   const tagName = (id: number) => tags.find((t) => t.id === id)?.name ?? "";
 
+  const meta = [`Range: ${fmtDate(filters.from)} — ${fmtDate(filters.to)}`];
+  if (filters.stationIds.length) {
+    meta.push(`Stations: ${filters.stationIds.map((id) => stationName(id)).join(", ")}`);
+  }
+  if (filters.departments.length) meta.push(`Dept: ${filters.departments.join(", ")}`);
+  if (filters.status) meta.push(`Status: ${esc(filters.status)}`);
+
   let body = `<h1>Monthly S&amp;T Report</h1>`;
-  body += `<p class="meta">Range: ${fmtDate(filters.from)} — ${fmtDate(filters.to)}`;
-  if (filters.stationId) body += ` · Station: ${esc(stationName(filters.stationId as number))}`;
-  if (filters.department) body += ` · Dept: ${esc(filters.department)}`;
-  if (filters.status) body += ` · Status: ${esc(filters.status)}`;
-  body += `</p>`;
+  body += `<p class="meta">${esc(meta.join(" · "))}</p>`;
 
   if (filters.includeLogs) {
     body += `<h2>Daily Logs (${fLogs.length})</h2>`;
@@ -422,22 +437,42 @@ export function exportMonthly(
   if (filters.includeDeficiencies) {
     body += `<h2>Deficiency Tasks (${fDefs.length})</h2>`;
     if (fDefs.length) {
-      body += `<table><tr><th>Title</th><th>Dept</th><th>Station</th><th>Priority</th><th>Due</th><th>Status</th></tr>`;
+      const groups = new Map<string, DeficiencyTask[]>();
       for (const d of fDefs) {
-        body += `<tr><td>${esc(d.title)}</td><td>${esc(d.department)}</td><td>${esc(stationName(d.stationId))}</td><td>${esc(d.priority)}</td><td>${d.dueDate ? fmtDate(d.dueDate) : "-"}</td><td>${esc(d.status)}</td></tr>`;
+        const k = stationName(d.stationId);
+        if (!groups.has(k)) groups.set(k, []);
+        groups.get(k)!.push(d);
       }
-      body += `</table>`;
+      // Station-wise groups
+      for (const [station, items] of [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+        body += `<h3>${esc(station)} (${items.length})</h3>`;
+        body += `<table><tr><th>Title</th><th>Dept</th><th>Priority</th><th>Due</th><th>Status</th></tr>`;
+        for (const d of items) {
+          body += `<tr><td>${esc(d.title)}</td><td>${esc(d.department)}</td><td>${esc(d.priority)}</td><td>${d.dueDate ? fmtDate(d.dueDate) : "-"}</td><td>${esc(d.status)}</td></tr>`;
+        }
+        body += `</table>`;
+      }
     } else body += `<p class="empty">No deficiency tasks in range.</p>`;
   }
 
   if (filters.includePlanned) {
     body += `<h2>Planned Works (${fPlans.length})</h2>`;
     if (fPlans.length) {
-      body += `<table><tr><th>Title</th><th>Planned Date</th><th>Station</th><th>Status</th><th>Material/Remarks</th></tr>`;
+      const groups = new Map<string, PlannedWork[]>();
       for (const p of fPlans) {
-        body += `<tr><td>${esc(p.title)}</td><td>${fmtDate(p.plannedDate)}</td><td>${esc(stationName(p.stationId))}</td><td>${esc(p.status)}</td><td>${esc(p.materialRemarks)}</td></tr>`;
+        const k = stationName(p.stationId);
+        if (!groups.has(k)) groups.set(k, []);
+        groups.get(k)!.push(p);
       }
-      body += `</table>`;
+      // Station-wise groups
+      for (const [station, items] of [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+        body += `<h3>${esc(station)} (${items.length})</h3>`;
+        body += `<table><tr><th>Title</th><th>Planned Date</th><th>Status</th><th>Material/Remarks</th></tr>`;
+        for (const p of items) {
+          body += `<tr><td>${esc(p.title)}</td><td>${fmtDate(p.plannedDate)}</td><td>${esc(p.status)}</td><td>${esc(p.materialRemarks)}</td></tr>`;
+        }
+        body += `</table>`;
+      }
     } else body += `<p class="empty">No planned works in range.</p>`;
   }
 
