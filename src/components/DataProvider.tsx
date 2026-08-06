@@ -14,6 +14,7 @@ import {
   computeInspectionDues,
   computeTagDues,
   INSPECTION_RULES,
+  kindFromTagName,
   tagReminderConfigs,
 } from "@/lib/inspections";
 import { FONT_SIZE_ROOT, type FontSize } from "@/lib/types";
@@ -265,7 +266,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         notes.push({
           id: "plan-" + p.id,
           title: p.title,
-          detail: `Planned work ${days === 0 ? "today" : `in ${days} day${days > 1 ? "s" : ""}`} (${p.plannedDate})`,
+          detail: `Planned work ${days === 0 ? "today" : `in ${days} day${days > 1 ? "s" : ""}`} (${p.plannedDate}) · ${stationNameFor(p.stationId)}`,
           kind: "planned",
           target: { type: "planned", id: p.id },
         });
@@ -281,7 +282,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           title: d.title,
           detail:
             (overdue ? `Overdue (due ${d.dueDate})` : `Due soon (${d.dueDate})`) +
-            ` · towards ${stationNameFor(d.stationId)} side`,
+            ` · ${stationNameFor(d.stationId)}`,
           kind: "due",
           target: { type: "deficiency", id: d.id },
         });
@@ -312,6 +313,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
       tagReminderConfigs(tags)
     )) {
       const rule = INSPECTION_RULES[due.kind];
+      // The "towards … side" phrasing is only shown when the user explicitly
+      // selected the side (asks-for-side) on the tag driving this schedule;
+      // otherwise notifications stay station-only.
+      const sideChosen =
+        due.kind !== "footplate" &&
+        due.towards &&
+        due.towards !== "Unspecified side" &&
+        tags.some((t) => t.needsSide && kindFromTagName(t.name) === due.kind);
       notes.push({
         id: "insp-" + due.key,
         title:
@@ -323,9 +332,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
             : due.daysLeft === 0
               ? `Due today (${due.nextDue})`
               : `Due in ${due.daysLeft} day${due.daysLeft !== 1 ? "s" : ""} (${due.nextDue})`) +
-          (due.kind === "footplate"
-            ? ` · at ${due.station}`
-            : ` · at ${due.station}, towards ${due.towards} side`) +
+          (sideChosen
+            ? ` · at ${due.station}, towards ${due.towards} side`
+            : ` · at ${due.station}`) +
           (due.jointDept ? ` with ${due.jointDept}` : ""),
         kind: "inspection",
         target: due.sourceLogId ? { type: "log", id: due.sourceLogId } : undefined,
