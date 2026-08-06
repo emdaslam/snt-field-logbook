@@ -3,7 +3,16 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
-## 1.7.6.8 — 2026-08-06 (current)
+## 1.7.6.9 — 2026-08-06 (current)
+
+**Fix: notifications are station-based, side text only when explicitly chosen** — `40e3b92`
+Deficiency notifications no longer say "towards … side" — they show just the
+station. Planned-work notifications now name their station too. Inspection
+reminders keep the "towards … side" phrasing only when the driving tag has
+"asks for side" enabled in custom tag management; otherwise they show the
+station only.
+
+## 1.7.6.8 — 2026-08-06
 
 **Feat: "Go to date" from the calendar header** — `b6596fa`
 Tapping the month/year label in the upper calendar opens a date picker that
