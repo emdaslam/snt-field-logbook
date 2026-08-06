@@ -5,7 +5,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.10 — 2026-08-06 (current)
 
-**Feat: four new user-requested behaviours**
+**Feat: four new user-requested behaviours** — `f58f17d`
 - **"No entry today" reminders** — when no daily log entry exists for today,
   four notifications (9:00 / 12:00 / 15:00 / 18:00) keep nagging until the
   entry is added; they are cancelled the moment the entry is recorded.
