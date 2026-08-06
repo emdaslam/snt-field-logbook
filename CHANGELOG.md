@@ -5,7 +5,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.7 — 2026-08-06 (current)
 
-**Fix: PDF export & backup save no longer fail with EACCES on Android 10+**
+**Fix: PDF export & backup save no longer fail with EACCES on Android 10+** — `9d2ff86`
 Android scoped storage blocks direct writes to `/storage/emulated/0/Documents`,
 which broke "Save file" for PDFs and the JSON backup ("open failed: EACCES").
 Added a native `DocumentSave` plugin that saves via Android's Storage Access
