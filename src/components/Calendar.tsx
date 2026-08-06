@@ -3,6 +3,60 @@
 import { useRef, useState } from "react";
 import { toISODate } from "@/lib/api";
 
+/**
+ * Small sheet opened by tapping the month/year label. Lets the user type or
+ * pick any date and jump the calendar/timeline straight to it.
+ */
+function GoToDateModal({
+  initial,
+  onGo,
+  onClose,
+}: {
+  initial: string;
+  onGo: (iso: string) => void;
+  onClose: () => void;
+}) {
+  const [val, setVal] = useState(initial);
+  const submit = () => {
+    if (!val) return;
+    onGo(val);
+  };
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-sm rounded-t-2xl bg-white p-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-slate-200" />
+        <p className="mb-3 text-center text-sm font-semibold text-blue-900">Go to date</p>
+        <input
+          type="date"
+          value={val}
+          onChange={(e) => setVal(e.target.value)}
+          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+        />
+        <div className="mt-3 flex gap-2">
+          <button
+            onClick={onClose}
+            className="flex-1 rounded-lg border border-slate-300 bg-white py-2 text-sm font-medium text-slate-600"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={submit}
+            className="flex-1 rounded-lg bg-blue-800 py-2 text-sm font-semibold text-white"
+          >
+            Go
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MonthGrid({
   month,
   activeDates,
@@ -94,6 +148,7 @@ export function Calendar({
   collapsed,
   cursor,
   setCursor,
+  onGoToDate,
 }: {
   activeDates: Set<string>;
   dateTagColors: Map<string, string[]>;
@@ -103,6 +158,8 @@ export function Calendar({
   collapsed: boolean;
   cursor: Date;
   setCursor: (d: Date) => void;
+  /** Opens the "go to date" picker and asks the caller to navigate. */
+  onGoToDate?: (iso: string) => void;
 }) {
   const today = toISODate(new Date());
   const year = cursor.getFullYear();
@@ -112,6 +169,7 @@ export function Calendar({
   // the neighbouring month (or springs back) on release.
   const [dragX, setDragX] = useState(0);
   const [settling, setSettling] = useState(false);
+  const [goToOpen, setGoToOpen] = useState(false);
   const slideRef = useRef<HTMLDivElement>(null);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const suppressClick = useRef(false);
@@ -168,7 +226,14 @@ export function Calendar({
   if (collapsed) {
     return (
       <div className="flex items-center justify-between px-4 py-1.5 text-sm font-medium text-blue-900">
-        <span>{monthLabel}</span>
+        <button
+          onClick={() => setGoToOpen(true)}
+          className="rounded px-1 py-0.5 hover:bg-blue-100"
+          aria-label="Go to date"
+          title="Go to date"
+        >
+          {monthLabel}
+        </button>
         {focusedDate && (
           <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
             {new Date(focusedDate + "T00:00:00").toLocaleDateString("en-GB", {
@@ -177,6 +242,16 @@ export function Calendar({
               month: "short",
             })}
           </span>
+        )}
+        {goToOpen && (
+          <GoToDateModal
+            initial={focusedDate ?? selectedDate ?? today}
+            onGo={(iso) => {
+              setGoToOpen(false);
+              onGoToDate?.(iso);
+            }}
+            onClose={() => setGoToOpen(false)}
+          />
         )}
       </div>
     );
@@ -205,7 +280,14 @@ export function Calendar({
             <path d="m15 18-6-6 6-6" />
           </svg>
         </button>
-        <span className="text-[13px] font-semibold text-blue-900">{monthLabel}</span>
+        <button
+          onClick={() => setGoToOpen(true)}
+          className="rounded-lg px-2 py-1 text-[13px] font-semibold text-blue-900 hover:bg-blue-100"
+          aria-label="Go to date"
+          title="Go to date"
+        >
+          {monthLabel}
+        </button>
         <button
           onClick={() => goMonth(1)}
           className="rounded-full p-1 text-blue-800 hover:bg-blue-100"
@@ -244,6 +326,16 @@ export function Calendar({
           {draggingNext && <MonthGrid month={new Date(year, month + 1, 1)} {...gridProps} />}
         </div>
       </div>
+      {goToOpen && (
+        <GoToDateModal
+          initial={focusedDate ?? selectedDate ?? today}
+          onGo={(iso) => {
+            setGoToOpen(false);
+            onGoToDate?.(iso);
+          }}
+          onClose={() => setGoToOpen(false)}
+        />
+      )}
     </div>
   );
 }

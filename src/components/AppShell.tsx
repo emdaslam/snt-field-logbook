@@ -20,6 +20,7 @@ import { InspectionExportModal } from "./InspectionExportModal";
 import { DailyLogForm, DeficiencyForm, PlannedWorkForm } from "./Forms";
 import { Onboarding } from "./Onboarding";
 import { isNative } from "@/lib/native";
+import { toISODate } from "@/lib/api";
 import type { DailyLog, Attachment, DeficiencyTask, PlannedWork } from "@/db/schema";
 
 type View = "home" | "tasks" | "search" | "reports" | "notes" | "attachments" | "settings";
@@ -242,6 +243,50 @@ export function AppShell() {
 
   const activeDates = useMemo(() => new Set(logs.map((l) => l.logDate)), [logs]);
 
+  /**
+   * "Go to date" from the calendar header. The timeline can only show a
+   * continuous range spanning all known entries (plus today and 45 days back).
+   * Picking a date outside that range has nothing to show, so we land on the
+   * nearest boundary date and say so.
+   */
+  const goToDate = (iso: string) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayIso = toISODate(today);
+
+    const all = [
+      ...logs.map((l) => l.logDate),
+      ...deficiencies.map((d) => d.dueDate ?? ""),
+      ...planned.map((p) => p.plannedDate),
+    ]
+      .filter(Boolean)
+      .sort();
+
+    const maxKnown = all.length ? new Date(all[all.length - 1] + "T00:00:00") : today;
+    const end = maxKnown > today ? maxKnown : today;
+
+    const defaultStart = new Date(today);
+    defaultStart.setDate(defaultStart.getDate() - 45);
+    const minKnown = all.length ? new Date(all[0] + "T00:00:00") : defaultStart;
+    const start = minKnown < defaultStart ? minKnown : defaultStart;
+
+    const startIso = toISODate(start);
+    const endIso = toISODate(end);
+
+    let target = iso;
+    if (iso > endIso) {
+      alert("No entry beyond the nearest date");
+      target = endIso;
+    } else if (iso < startIso) {
+      alert("No entry before the earliest date");
+      target = startIso;
+    }
+
+    setSelectedDate(target);
+    setFocusedDate(target);
+    setCalCursor(new Date(Number(target.slice(0, 4)), Number(target.slice(5, 7)) - 1, 1));
+  };
+
   const tagsById = useMemo(() => new Map(tags.map((t) => [t.id, t])), [tags]);
   const dateTagColors = useMemo(() => {
     const m = new Map<string, string[]>();
@@ -429,6 +474,7 @@ export function AppShell() {
                 collapsed={calCollapsed}
                 cursor={calCursor}
                 setCursor={setCalCursor}
+                onGoToDate={goToDate}
               />
               <button
                 onClick={() => setCalCollapsed((v) => !v)}

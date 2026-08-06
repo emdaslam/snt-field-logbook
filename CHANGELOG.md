@@ -3,7 +3,16 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
-## 1.7.6.7 — 2026-08-06 (current)
+## 1.7.6.8 — 2026-08-06 (current)
+
+**Feat: "Go to date" from the calendar header**
+Tapping the month/year label in the upper calendar opens a date picker that
+jumps the calendar and timeline straight to the chosen date. If the date falls
+outside the timeline's range (no entries there), a message appears ("No entry
+beyond the nearest date" / "No entry before the earliest date") and the app
+lands on the nearest boundary date instead.
+
+## 1.7.6.7 — 2026-08-06
 
 **Fix: PDF export & backup save no longer fail with EACCES on Android 10+** — `9d2ff86`
 Android scoped storage blocks direct writes to `/storage/emulated/0/Documents`,
