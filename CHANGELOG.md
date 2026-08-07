@@ -3,7 +3,22 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
-## 1.7.6.11 — 2026-08-06 (current)
+## 1.7.6.12 — 2026-08-07 (current)
+
+**Feat: station-filtered "Tomorrow's Work" selection + direct go-to-date + per-export font size** — `a7dab00`
+- **Tomorrow's Work**: the export sheet gains a station multi-select filter, plus
+  "Select all"/"Clear" buttons scoped to the filtered items, so picking one
+  station's deficiencies and planned works is a single step.
+- **Go to date**: the calendar now shows a visible bordered "Go to date" button
+  that opens the native date picker directly (no extra sheet/step), and jumping
+  outside the timeline range reports the exact chosen date
+  ("No entry beyond 15 Aug 2026" / "No entry before …").
+- **Export text size**: the fixed default in Settings is gone. Each export type
+  (monthly, tomorrow's work, diary, PCDO, inspections) remembers the last text
+  size chosen in its share/save sheet and reuses it next time; the size can
+  still be changed on every export.
+
+## 1.7.6.11 — 2026-08-06
 
 **Feat: per-export text size + upgraded monthly report** — `cff4b17`
 - **Export text size** — Settings gains a numeric text size (10–96) that scales
