@@ -125,12 +125,13 @@ function buildPdf(title: string, bodyHtml: string, contentSize: number): jsPDF {
       doc.setFont("helvetica", "bold").setFontSize(11 * fs).setTextColor(...GREEN);
       const lines = doc.splitTextToSize(text, maxW) as string[];
       doc.text(lines, margin, y);
-      // A heading hugs the table under it (advance just past the glyphs);
-      // otherwise keep normal line spacing for whatever follows (e.g. another
-      // heading, which needs room for its ascenders).
+      // A heading sits right above the table under it, leaving a small visible
+      // gap (~4pt) between the glyphs and the table border; otherwise keep
+      // normal line spacing for whatever follows (e.g. another heading, which
+      // needs room for its ascenders).
       const size = 11 * fs;
       y += nextIsTable
-        ? (lines.length - 1) * (1.15 * size) + 0.23 * size + 1
+        ? (lines.length - 1) * (1.15 * size) + 0.21 * size + 4
         : lines.length * (1.15 * size);
     } else if (tag === "h3") {
       pageBreak(24 * fs);
@@ -139,7 +140,7 @@ function buildPdf(title: string, bodyHtml: string, contentSize: number): jsPDF {
       doc.text(lines, margin, y);
       const size = 9.5 * fs;
       y += nextIsTable
-        ? (lines.length - 1) * (1.15 * size) + 0.23 * size + 1
+        ? (lines.length - 1) * (1.15 * size) + 0.21 * size + 4
         : lines.length * (1.15 * size);
     } else if (tag === "p") {
       if (!text) continue;
