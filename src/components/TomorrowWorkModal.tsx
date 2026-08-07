@@ -13,6 +13,7 @@ export function TomorrowWorkModal({ open, onClose }: { open: boolean; onClose: (
   const [selPlan, setSelPlan] = useState<Set<number>>(new Set());
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const [stationFilter, setStationFilter] = useState<number[]>([]);
 
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -20,6 +21,38 @@ export function TomorrowWorkModal({ open, onClose }: { open: boolean; onClose: (
 
   const pendingDef = deficiencies.filter((d) => d.status === "Pending");
   const pendingPlan = planned.filter((p) => p.status === "Pending");
+
+  // Station filter — empty array means all stations.
+  const toggleFilterStation = (id: number) =>
+    setStationFilter((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  const stationMatched = (id: number | null) =>
+    stationFilter.length === 0 || (id != null && stationFilter.includes(id));
+
+  const filteredDef = pendingDef.filter((d) => stationMatched(d.stationId));
+  const filteredPlan = pendingPlan.filter((p) => stationMatched(p.stationId));
+
+  const selectAllDef = () => {
+    const next = new Set(selDef);
+    for (const d of filteredDef) next.add(d.id);
+    setSelDef(next);
+  };
+  const clearDef = () => {
+    const next = new Set(selDef);
+    for (const d of filteredDef) next.delete(d.id);
+    setSelDef(next);
+  };
+  const selectAllPlan = () => {
+    const next = new Set(selPlan);
+    for (const p of filteredPlan) next.add(p.id);
+    setSelPlan(next);
+  };
+  const clearPlan = () => {
+    const next = new Set(selPlan);
+    for (const p of filteredPlan) next.delete(p.id);
+    setSelPlan(next);
+  };
 
   // Pre-select items already flagged or planned exactly for tomorrow
   useEffect(() => {
@@ -80,10 +113,47 @@ export function TomorrowWorkModal({ open, onClose }: { open: boolean; onClose: (
         Select the deficiency tasks and planned works to be done tomorrow, then export the station-wise PDF.
       </p>
 
-      <h4 className="mb-2 text-xs font-bold uppercase tracking-wide text-blue-900">Deficiency Tasks</h4>
-      {pendingDef.length === 0 && <p className="mb-3 text-sm text-slate-400">No pending deficiency tasks.</p>}
+      <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+        <p className="mb-2 text-sm font-medium text-slate-700">
+          Stations ({stationFilter.length} selected — none means all)
+        </p>
+        <div className="max-h-36 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2">
+          {stations.length === 0 && <p className="text-xs text-slate-400">No stations yet.</p>}
+          {stations.map((s) => (
+            <label key={s.id} className="flex cursor-pointer items-center gap-2 py-1 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-emerald-600"
+                checked={stationFilter.includes(s.id)}
+                onChange={() => toggleFilterStation(s.id)}
+              />
+              {s.name}
+            </label>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-slate-400">
+          Use this to focus on one or a few stations, then press &quot;Select all&quot; in a section to tick that station&apos;s items.
+        </p>
+      </div>
+
+      <div className="mb-1 flex items-center justify-between">
+        <h4 className="text-xs font-bold uppercase tracking-wide text-blue-900">Deficiency Tasks</h4>
+        <div className="flex gap-2">
+          <button onClick={clearDef} className="rounded border border-slate-300 px-2 py-0.5 text-[11px] font-medium text-slate-500 hover:bg-slate-100">
+            Clear
+          </button>
+          <button onClick={selectAllDef} className="rounded border border-emerald-600 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50">
+            Select all
+          </button>
+        </div>
+      </div>
+      {filteredDef.length === 0 && (
+        <p className="mb-3 text-sm text-slate-400">
+          {pendingDef.length === 0 ? "No pending deficiency tasks." : "No deficiency tasks for the selected stations."}
+        </p>
+      )}
       <div className="mb-4 space-y-2">
-        {pendingDef.map((d) => (
+        {filteredDef.map((d) => (
           <label
             key={d.id}
             className={`flex cursor-pointer items-start gap-2 rounded-lg border p-2.5 transition ${
@@ -109,10 +179,24 @@ export function TomorrowWorkModal({ open, onClose }: { open: boolean; onClose: (
         ))}
       </div>
 
-      <h4 className="mb-2 text-xs font-bold uppercase tracking-wide text-blue-900">Future Planned Works</h4>
-      {pendingPlan.length === 0 && <p className="mb-3 text-sm text-slate-400">No pending planned works.</p>}
+      <div className="mb-1 flex items-center justify-between">
+        <h4 className="text-xs font-bold uppercase tracking-wide text-blue-900">Future Planned Works</h4>
+        <div className="flex gap-2">
+          <button onClick={clearPlan} className="rounded border border-slate-300 px-2 py-0.5 text-[11px] font-medium text-slate-500 hover:bg-slate-100">
+            Clear
+          </button>
+          <button onClick={selectAllPlan} className="rounded border border-emerald-600 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50">
+            Select all
+          </button>
+        </div>
+      </div>
+      {filteredPlan.length === 0 && (
+        <p className="mb-3 text-sm text-slate-400">
+          {pendingPlan.length === 0 ? "No pending planned works." : "No planned works for the selected stations."}
+        </p>
+      )}
       <div className="mb-4 space-y-2">
-        {pendingPlan.map((p) => (
+        {filteredPlan.map((p) => (
           <label
             key={p.id}
             className={`flex cursor-pointer items-start gap-2 rounded-lg border p-2.5 transition ${

@@ -65,7 +65,7 @@ export function exportTomorrowsWork(
     }
     body += `</ul>`;
   }
-  exportHtmlAsPdf(`Tomorrow's Work ${label}`, body);
+  exportHtmlAsPdf(`Tomorrow's Work ${label}`, body, "tomorrow");
 }
 
 /**
@@ -201,7 +201,7 @@ export function exportPcdo(
     }
   }
 
-  exportHtmlAsPdf(`PCDO ${period.label}`, body);
+  exportHtmlAsPdf(`PCDO ${period.label}`, body, "pcdo");
 }
 
 
@@ -263,7 +263,7 @@ export function exportDiary(
     body += `<p class="meta" style="margin-top:10px"><strong>Total TA claimed: ${totalDays.toFixed(1)} day${totalDays === 1 ? "" : "s"}</strong></p>`;
   }
 
-  exportHtmlAsPdf(`Diary ${period.label}`, body);
+  exportHtmlAsPdf(`Diary ${period.label}`, body, "diary");
 }
 
 
@@ -350,7 +350,7 @@ export function exportInspections(
     body += `</table>`;
   }
 
-  exportHtmlAsPdf(`${kindLabel} ${period.label}`, body);
+  exportHtmlAsPdf(`${kindLabel} ${period.label}`, body, "inspection");
 }
 
 export type MonthlyFilters = {
@@ -480,5 +480,5 @@ export function exportMonthly(
     body += `<p class="empty">No sections selected for this report.</p>`;
   }
 
-  exportHtmlAsPdf("Monthly S&T Report", body);
+  exportHtmlAsPdf("Monthly S&T Report", body, "monthly");
 }

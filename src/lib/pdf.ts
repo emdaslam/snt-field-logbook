@@ -10,12 +10,21 @@ const NAVY: [number, number, number] = [30, 58, 138];
 const GREEN: [number, number, number] = [5, 95, 70];
 const GREY: [number, number, number] = [100, 116, 139];
 
-/** Active numeric export text size, set in Settings or in the export sheet. */
-function contentFontSizeSetting(): number {
+/**
+ * Last-used numeric export text size for a given export type (points, 10–96).
+ * Each export kind (monthly, tomorrow, diary, pcdo, inspection…) remembers its
+ * own size so the next export of that type reuses it. Falls back to the
+ * legacy single global value, then to the default.
+ */
+function contentFontSizeSetting(type: string): number {
   try {
-    const v = Number(localStorage.getItem("snt.contentFontSize"));
+    const v = Number(localStorage.getItem(`snt.contentFontSize.${type}`));
     if (Number.isFinite(v) && v >= CONTENT_FONT_MIN && v <= CONTENT_FONT_MAX) {
       return Math.round(v);
+    }
+    const legacy = Number(localStorage.getItem("snt.contentFontSize"));
+    if (Number.isFinite(legacy) && legacy >= CONTENT_FONT_MIN && legacy <= CONTENT_FONT_MAX) {
+      return Math.round(legacy);
     }
   } catch {
     /* ignore */
@@ -23,9 +32,9 @@ function contentFontSizeSetting(): number {
   return DEFAULT_CONTENT_FONT_SIZE;
 }
 
-function persistContentFontSize(v: number) {
+function persistContentFontSize(type: string, v: number) {
   try {
-    localStorage.setItem("snt.contentFontSize", String(v));
+    localStorage.setItem(`snt.contentFontSize.${type}`, String(v));
   } catch {
     /* ignore */
   }
@@ -212,9 +221,14 @@ function buildPdf(title: string, bodyHtml: string, contentSize: number): jsPDF {
   return doc;
 }
 
-export function exportHtmlAsPdf(title: string, bodyHtml: string) {
-  // Ask for the text size at the top of every export sheet. The default is the
-  // currently saved size; changing it here also becomes the new default.
+/**
+ * @param type export kind used to remember the last chosen text size per
+ * export type (e.g. "monthly", "tomorrow", "diary", "pcdo", "inspection").
+ */
+export function exportHtmlAsPdf(title: string, bodyHtml: string, type = "general") {
+  // Ask for the text size at the top of every export sheet. It defaults to the
+  // last size used for this export type; changing it here is remembered for
+  // the next export of the same type.
   const overlay = document.createElement("div");
   overlay.style.cssText =
     "position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.5);display:flex;align-items:flex-end;justify-content:center";
@@ -238,7 +252,7 @@ export function exportHtmlAsPdf(title: string, bodyHtml: string) {
   input.type = "number";
   input.min = String(CONTENT_FONT_MIN);
   input.max = String(CONTENT_FONT_MAX);
-  input.value = String(contentFontSizeSetting());
+  input.value = String(contentFontSizeSetting(type));
   input.style.cssText =
     "width:76px;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:15px;text-align:center;font-weight:600;color:#1e3a8a";
   row.appendChild(input);
@@ -246,7 +260,7 @@ export function exportHtmlAsPdf(title: string, bodyHtml: string) {
 
   const chosenSize = () => {
     const v = Math.round(Number(input.value));
-    if (!Number.isFinite(v)) return contentFontSizeSetting();
+    if (!Number.isFinite(v)) return contentFontSizeSetting(type);
     return Math.min(CONTENT_FONT_MAX, Math.max(CONTENT_FONT_MIN, v));
   };
 
@@ -265,7 +279,7 @@ export function exportHtmlAsPdf(title: string, bodyHtml: string) {
       try {
         const size = chosenSize();
         const doc = buildPdf(title, bodyHtml, size);
-        persistContentFontSize(size);
+        persistContentFontSize(type, size);
         const filename = `${slug(title)}.pdf`;
         await run(doc, filename);
         close();

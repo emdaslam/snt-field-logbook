@@ -13,8 +13,5 @@ android/keystore.properties
 out/
 tsconfig.tsbuildinfo
 
-# APK download hosting
-.apk-download/
-
 # Dependencies
 node_modules/

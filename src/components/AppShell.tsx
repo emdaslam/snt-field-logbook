@@ -20,7 +20,7 @@ import { InspectionExportModal } from "./InspectionExportModal";
 import { DailyLogForm, DeficiencyForm, PlannedWorkForm } from "./Forms";
 import { Onboarding } from "./Onboarding";
 import { isNative } from "@/lib/native";
-import { toISODate } from "@/lib/api";
+import { toISODate, fmtDate } from "@/lib/api";
 import type { DailyLog, Attachment, DeficiencyTask, PlannedWork } from "@/db/schema";
 
 type View = "home" | "tasks" | "search" | "reports" | "notes" | "attachments" | "settings";
@@ -274,11 +274,11 @@ export function AppShell() {
   const clampToRange = (iso: string, announce: boolean): string => {
     const { startIso, endIso } = timelineBounds();
     if (iso > endIso) {
-      if (announce) alert("No entry beyond the nearest date");
+      if (announce) alert(`No entry beyond ${fmtDate(iso)}`);
       return endIso;
     }
     if (iso < startIso) {
-      if (announce) alert("No entry before the earliest date");
+      if (announce) alert(`No entry before ${fmtDate(iso)}`);
       return startIso;
     }
     return iso;

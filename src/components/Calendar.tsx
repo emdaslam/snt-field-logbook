@@ -4,56 +4,42 @@ import { useRef, useState } from "react";
 import { toISODate } from "@/lib/api";
 
 /**
- * Small sheet opened by tapping the month/year label. Lets the user type or
- * pick any date and jump the calendar/timeline straight to it.
+ * Visible "Go to date" button. An invisible date input covers the button, so
+ * tapping it opens the native date picker straight away and the chosen date
+ * jumps the calendar/timeline immediately — no extra sheet or "Go" step.
  */
-function GoToDateModal({
+function GoToDateButton({
   initial,
   onGo,
-  onClose,
 }: {
   initial: string;
   onGo: (iso: string) => void;
-  onClose: () => void;
 }) {
   const [val, setVal] = useState(initial);
-  const submit = () => {
-    if (!val) return;
-    onGo(val);
-  };
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-sm rounded-t-2xl bg-white p-4"
-        onClick={(e) => e.stopPropagation()}
+    <span className="relative inline-flex">
+      <button
+        className="flex items-center gap-1 rounded-lg border border-blue-300 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-900 hover:bg-blue-100"
+        type="button"
       >
-        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-slate-200" />
-        <p className="mb-3 text-center text-sm font-semibold text-blue-900">Go to date</p>
-        <input
-          type="date"
-          value={val}
-          onChange={(e) => setVal(e.target.value)}
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
-        />
-        <div className="mt-3 flex gap-2">
-          <button
-            onClick={onClose}
-            className="flex-1 rounded-lg border border-slate-300 bg-white py-2 text-sm font-medium text-slate-600"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={submit}
-            className="flex-1 rounded-lg bg-blue-800 py-2 text-sm font-semibold text-white"
-          >
-            Go
-          </button>
-        </div>
-      </div>
-    </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <path d="M16 2v4M8 2v4M3 10h18" />
+        </svg>
+        Go to date
+      </button>
+      <input
+        type="date"
+        value={val}
+        onChange={(e) => {
+          setVal(e.target.value);
+          if (e.target.value) onGo(e.target.value);
+        }}
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+        aria-label="Go to date"
+        title="Go to date"
+      />
+    </span>
   );
 }
 
@@ -173,7 +159,6 @@ export function Calendar({
   // the neighbouring month (or springs back) on release.
   const [dragX, setDragX] = useState(0);
   const [settling, setSettling] = useState(false);
-  const [goToOpen, setGoToOpen] = useState(false);
   const slideRef = useRef<HTMLDivElement>(null);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const suppressClick = useRef(false);
@@ -232,33 +217,22 @@ export function Calendar({
   if (collapsed) {
     return (
       <div className="flex items-center justify-between px-4 py-1.5 text-sm font-medium text-blue-900">
-        <button
-          onClick={() => setGoToOpen(true)}
-          className="rounded px-1 py-0.5 hover:bg-blue-100"
-          aria-label="Go to date"
-          title="Go to date"
-        >
-          {monthLabel}
-        </button>
-        {focusedDate && (
-          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
-            {new Date(focusedDate + "T00:00:00").toLocaleDateString("en-GB", {
-              weekday: "short",
-              day: "2-digit",
-              month: "short",
-            })}
-          </span>
-        )}
-        {goToOpen && (
-          <GoToDateModal
+        <span>{monthLabel}</span>
+        <div className="flex items-center gap-2">
+          <GoToDateButton
             initial={focusedDate ?? selectedDate ?? today}
-            onGo={(iso) => {
-              setGoToOpen(false);
-              onGoToDate?.(iso);
-            }}
-            onClose={() => setGoToOpen(false)}
+            onGo={(iso) => onGoToDate?.(iso)}
           />
-        )}
+          {focusedDate && (
+            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
+              {new Date(focusedDate + "T00:00:00").toLocaleDateString("en-GB", {
+                weekday: "short",
+                day: "2-digit",
+                month: "short",
+              })}
+            </span>
+          )}
+        </div>
       </div>
     );
   }
@@ -286,14 +260,13 @@ export function Calendar({
             <path d="m15 18-6-6 6-6" />
           </svg>
         </button>
-        <button
-          onClick={() => setGoToOpen(true)}
-          className="rounded-lg px-2 py-1 text-[13px] font-semibold text-blue-900 hover:bg-blue-100"
-          aria-label="Go to date"
-          title="Go to date"
-        >
-          {monthLabel}
-        </button>
+        <div className="flex items-center gap-2">
+          <span className="text-[13px] font-semibold text-blue-900">{monthLabel}</span>
+          <GoToDateButton
+            initial={focusedDate ?? selectedDate ?? today}
+            onGo={(iso) => onGoToDate?.(iso)}
+          />
+        </div>
         <button
           onClick={() => goMonth(1)}
           className="rounded-full p-1 text-blue-800 hover:bg-blue-100"
@@ -332,16 +305,6 @@ export function Calendar({
           {draggingNext && <MonthGrid month={new Date(year, month + 1, 1)} {...gridProps} />}
         </div>
       </div>
-      {goToOpen && (
-        <GoToDateModal
-          initial={focusedDate ?? selectedDate ?? today}
-          onGo={(iso) => {
-            setGoToOpen(false);
-            onGoToDate?.(iso);
-          }}
-          onClose={() => setGoToOpen(false)}
-        />
-      )}
     </div>
   );
 }
