@@ -5,7 +5,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.14 — 2026-08-07 (current)
 
-**Fix: persistent Drive sign-in, reliable auto-sync, smarter sync icon**
+**Fix: persistent Drive sign-in, reliable auto-sync, smarter sync icon** — `998e3c8`
 - Google sign-in now persists: the app remembers the account and silently
   refreshes the token, so it stays logged in until you sign out and no longer
   asks for a login on every sync.
