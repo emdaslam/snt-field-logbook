@@ -20,7 +20,7 @@ import {
 import type { Staff, Tag } from "@/db/schema";
 
 export function Settings() {
-  const { stations, staff, tags, currentUser, refresh, fontSize, setFontSize } = useData();
+  const { stations, staff, tags, currentUser, refresh, fontSize, setFontSize, reminderDays, setReminderDays } = useData();
   const [newStation, setNewStation] = useState({ name: "", code: "" });
   const [editStaff, setEditStaff] = useState<Staff | null>(null);
   const [addStaff, setAddStaff] = useState(false);
@@ -193,6 +193,33 @@ export function Settings() {
         </div>
         <p className="mt-2 text-xs text-slate-400">
           PDF exports ask for their own text size on every export and remember the last one used per export type.
+        </p>
+      </Section>
+
+      {/* Notifications */}
+      <Section title="Notifications">
+        <div className="flex items-center gap-3 rounded-lg border border-slate-200 p-3">
+          <label className="min-w-0 flex-1 text-sm text-slate-700">
+            Warn before (days)
+            <span className="block text-xs text-slate-400">
+              Days before a due date to start warning about deficiency tasks and planned works.
+            </span>
+          </label>
+          <input
+            type="number"
+            min={1}
+            max={30}
+            value={reminderDays}
+            onChange={(e) => {
+              const v = Math.round(Number(e.target.value));
+              if (!Number.isFinite(v)) return;
+              setReminderDays(v);
+            }}
+            className="w-20 rounded-lg border border-slate-300 px-2 py-2 text-center text-sm text-slate-800"
+          />
+        </div>
+        <p className="mt-2 text-xs text-slate-400">
+          Default is 3 days. Overdue items always warn regardless of this value.
         </p>
       </Section>
 

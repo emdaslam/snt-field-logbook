@@ -104,7 +104,11 @@ function buildPdf(title: string, bodyHtml: string, contentSize: number): jsPDF {
     }
   };
 
-  for (const el of Array.from(root.children)) {
+  const els = Array.from(root.children);
+  for (let i = 0; i < els.length; i++) {
+    const el = els[i];
+    const next = els[i + 1];
+    const nextIsTable = next?.tagName?.toLowerCase() === "table";
     const tag = el.tagName.toLowerCase();
     const text = tidy(el.textContent ?? "");
 
@@ -121,13 +125,22 @@ function buildPdf(title: string, bodyHtml: string, contentSize: number): jsPDF {
       doc.setFont("helvetica", "bold").setFontSize(11 * fs).setTextColor(...GREEN);
       const lines = doc.splitTextToSize(text, maxW) as string[];
       doc.text(lines, margin, y);
-      y += lines.length * (14 * fs) + 6;
+      // A heading hugs the table under it (advance just past the glyphs);
+      // otherwise keep normal line spacing for whatever follows (e.g. another
+      // heading, which needs room for its ascenders).
+      const size = 11 * fs;
+      y += nextIsTable
+        ? (lines.length - 1) * (1.15 * size) + 0.23 * size + 1
+        : lines.length * (1.15 * size);
     } else if (tag === "h3") {
       pageBreak(24 * fs);
       doc.setFont("helvetica", "bold").setFontSize(9.5 * fs).setTextColor(...NAVY);
       const lines = doc.splitTextToSize(text, maxW) as string[];
       doc.text(lines, margin, y);
-      y += lines.length * (13 * fs) + 5;
+      const size = 9.5 * fs;
+      y += nextIsTable
+        ? (lines.length - 1) * (1.15 * size) + 0.23 * size + 1
+        : lines.length * (1.15 * size);
     } else if (tag === "p") {
       if (!text) continue;
       pageBreak(22 * fs);
@@ -154,7 +167,7 @@ function buildPdf(title: string, bodyHtml: string, contentSize: number): jsPDF {
           y += lines.length * (12 * fs) + 3;
         }
       }
-      y += 6;
+      y += 16;
     } else if (tag === "table") {
       const rows = Array.from(el.querySelectorAll("tr"));
       if (!rows.length) continue;
@@ -197,7 +210,9 @@ function buildPdf(title: string, bodyHtml: string, contentSize: number): jsPDF {
         columnStyles: Object.keys(columnStyles).length ? columnStyles : undefined,
       });
       const last = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable;
-      y = (last?.finalY ?? y + 40) + 16;
+      // Generous gap after a table before the next heading/group — clearly
+      // larger than the (zero-ish) gap between a heading and its own table.
+      y = (last?.finalY ?? y + 40) + 24;
     }
   }
 

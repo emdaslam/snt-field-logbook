@@ -68,6 +68,9 @@ type Ctx = {
   // Appearance
   fontSize: FontSize;
   setFontSize: (v: FontSize) => void;
+  // How many days before a due date to start warning (deficiency/planned work)
+  reminderDays: number;
+  setReminderDays: (v: number) => void;
   // Automatic Drive sync
   autoDriveSync: boolean;
   setAutoDriveSync: (v: boolean) => void;
@@ -108,6 +111,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [myStationsOnly, setMyStationsOnlyState] = useState(false);
   const [fontSize, setFontSizeState] = useState<FontSize>("large");
   const [autoDriveSync, setAutoDriveSyncState] = useState(true);
+  const [reminderDays, setReminderDaysState] = useState(3);
 
   const applyFontSize = useCallback((v: FontSize) => {
     if (typeof document !== "undefined") {
@@ -154,6 +158,25 @@ export function DataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       setMyStationsOnlyState(localStorage.getItem("snt.myStationsOnly") === "1");
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const setReminderDays = useCallback((v: number) => {
+    const clamped = Math.min(30, Math.max(1, Math.round(v) || 1));
+    setReminderDaysState(clamped);
+    try {
+      localStorage.setItem("snt.reminderDays", String(clamped));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      const v = Number(localStorage.getItem("snt.reminderDays"));
+      if (Number.isFinite(v) && v >= 1 && v <= 30) setReminderDaysState(Math.round(v));
     } catch {
       /* ignore */
     }
@@ -300,20 +323,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
     };
   }, [refresh]);
 
-  // Notification logic: planned works 3 days prior, and overdue/due deficiency tasks
+  // Notification logic: planned works & deficiencies within the configurable
+  // reminder window (default 3 days prior), plus overdue items.
   useEffect(() => {
     const stationNameFor = (id: number | null) =>
       stations.find((s) => s.id === id)?.name ?? "Unassigned";
     const notes: Notification[] = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const threeDays = new Date(today);
-    threeDays.setDate(today.getDate() + 3);
+    const warnUntil = new Date(today);
+    warnUntil.setDate(today.getDate() + reminderDays);
 
     for (const p of planned) {
       if (p.status !== "Pending") continue;
       const pd = new Date(p.plannedDate + "T00:00:00");
-      if (pd <= threeDays && pd >= today) {
+      if (pd <= warnUntil && pd >= today) {
         const days = Math.round((pd.getTime() - today.getTime()) / 86400000);
         notes.push({
           id: "plan-" + p.id,
@@ -327,7 +351,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     for (const d of deficiencies) {
       if (d.status !== "Pending" || !d.dueDate) continue;
       const dd = new Date(d.dueDate + "T00:00:00");
-      if (dd <= threeDays) {
+      if (dd <= warnUntil) {
         const overdue = dd < today;
         notes.push({
           id: "def-" + d.id,
@@ -409,7 +433,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
 
     setNotifications(notes);
-  }, [planned, deficiencies, logs, stations, tags]);
+  }, [planned, deficiencies, logs, stations, tags, reminderDays]);
 
   /** True when the current user already made a log entry for today. */
   const hasEntryToday = useMemo(() => {
@@ -500,6 +524,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         inScopeMovement,
         fontSize,
         setFontSize,
+        reminderDays,
+        setReminderDays,
         autoDriveSync,
         setAutoDriveSync,
         autoSync,
