@@ -7,7 +7,7 @@ import { api, fmtDate } from "@/lib/api";
 import type { Note } from "@/db/schema";
 
 export function Notes() {
-  const { notes, noteCategories, stationName, refresh } = useData();
+  const { notes, noteCategories, stationName, refresh, autoSync } = useData();
   const colorOf = (name: string) =>
     noteCategories.find((c) => c.name === name)?.color ?? "#64748b";
   const [q, setQ] = useState("");
@@ -30,6 +30,7 @@ export function Notes() {
 
   async function togglePin(n: Note) {
     await api.notes.update({ id: n.id, pinned: !n.pinned });
+    void autoSync();
     await refresh();
   }
 
@@ -163,7 +164,7 @@ function NoteCard({
 }
 
 function NoteForm({ existing, onClose }: { existing: Note | null; onClose: () => void }) {
-  const { stations, currentUser, noteCategories, refresh } = useData();
+  const { stations, currentUser, noteCategories, refresh, autoSync } = useData();
   const [title, setTitle] = useState(existing?.title ?? "");
   const [body, setBody] = useState(existing?.body ?? "");
   const [category, setCategory] = useState(
@@ -189,6 +190,7 @@ function NoteForm({ existing, onClose }: { existing: Note | null; onClose: () =>
     };
     if (existing) await api.notes.update(payload);
     else await api.notes.create(payload);
+    void autoSync();
     await refresh();
     setSaving(false);
     onClose();
@@ -261,7 +263,7 @@ function NoteForm({ existing, onClose }: { existing: Note | null; onClose: () =>
 }
 
 function CategoryManager({ onClose }: { onClose: () => void }) {
-  const { noteCategories, notes, refresh } = useData();
+  const { noteCategories, notes, refresh, autoSync } = useData();
   const [name, setName] = useState("");
   const [color, setColor] = useState("#2563eb");
   const [error, setError] = useState<string | null>(null);
@@ -279,6 +281,7 @@ function CategoryManager({ onClose }: { onClose: () => void }) {
     setName("");
     setColor("#2563eb");
     setError(null);
+    void autoSync();
     await refresh();
   }
 
@@ -288,6 +291,7 @@ function CategoryManager({ onClose }: { onClose: () => void }) {
     if (res?.error) return setError(res.error);
     setEditId(null);
     setError(null);
+    void autoSync();
     await refresh();
   }
 

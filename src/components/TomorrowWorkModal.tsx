@@ -8,7 +8,7 @@ import { api, fmtDate, toISODate } from "@/lib/api";
 import { PRIORITY_COLORS, DEPARTMENT_COLORS } from "@/lib/types";
 
 export function TomorrowWorkModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { deficiencies, planned, stations, stationName, refresh } = useData();
+  const { deficiencies, planned, stations, stationName, refresh, autoSync } = useData();
   const [selDef, setSelDef] = useState<Set<number>>(new Set());
   const [selPlan, setSelPlan] = useState<Set<number>>(new Set());
   const [note, setNote] = useState("");
@@ -90,6 +90,7 @@ export function TomorrowWorkModal({ open, onClose }: { open: boolean; onClose: (
           : Promise.resolve()
       ),
     ]);
+    void autoSync();
 
     // Build export from the current in-modal selection directly
     const selectedDefs = pendingDef

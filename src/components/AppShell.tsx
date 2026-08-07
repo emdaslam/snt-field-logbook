@@ -37,6 +37,9 @@ export function AppShell() {
     stations,
     refresh,
     syncing: autoSyncing,
+    driveSyncing,
+    dirty,
+    doDriveSync,
     lastSynced,
     myStationsOnly,
     setMyStationsOnly,
@@ -133,7 +136,6 @@ export function AppShell() {
   }
   const [defForm, setDefForm] = useState(false);
   const [planForm, setPlanForm] = useState(false);
-  const [syncing, setSyncing] = useState(false);
 
   const exitToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastBack = useRef(0);
@@ -322,9 +324,11 @@ export function AppShell() {
   }, [logs, tagsById]);
 
   async function doSync() {
-    setSyncing(true);
-    await refresh();
-    setTimeout(() => setSyncing(false), 500);
+    try {
+      await doDriveSync();
+    } finally {
+      await refresh();
+    }
   }
 
   const titles: Record<View, string> = {
@@ -435,10 +439,32 @@ export function AppShell() {
             )}
           </div>
           {/* Sync */}
-          <button onClick={doSync} className="rounded-lg p-1.5 hover:bg-blue-800" aria-label="Sync">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={syncing ? "animate-spin" : ""}>
-              <path d="M21 2v6h-6M3 22v-6h6M3.5 9a9 9 0 0 1 14.85-3.36L21 8M20.5 15a9 9 0 0 1-14.85 3.36L3 16" />
-            </svg>
+          <button
+            onClick={doSync}
+            className="rounded-lg p-1.5 hover:bg-blue-800"
+            aria-label="Sync"
+            title={
+              autoSyncing || driveSyncing
+                ? "Syncing…"
+                : dirty
+                  ? "Changes pending — tap to sync"
+                  : "All changes synced to Drive"
+            }
+          >
+            {autoSyncing || driveSyncing ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin">
+                <path d="M21 2v6h-6M3 22v-6h6M3.5 9a9 9 0 0 1 14.85-3.36L21 8M20.5 15a9 9 0 0 1-14.85 3.36L3 16" />
+              </svg>
+            ) : dirty ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-amber-300">
+                <path d="M21 2v6h-6M3 22v-6h6M3.5 9a9 9 0 0 1 14.85-3.36L21 8M20.5 15a9 9 0 0 1-14.85 3.36L3 16" />
+              </svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-emerald-300">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M8 12.5l2.5 2.5L16 9" />
+              </svg>
+            )}
           </button>
         </div>
       </header>

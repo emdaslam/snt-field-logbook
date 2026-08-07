@@ -259,10 +259,10 @@ export function DailyLogForm({
     if (existing) await api.logs.update(payload);
     else {
       await api.logs.create(payload);
-      // Automatic cloud sync on a new entry (silent, only when switched on
-      // and signed in to Drive in the Android app).
-      void autoSync();
     }
+    // Automatic cloud sync (silent, only when switched on and signed in to
+    // Drive in the Android app) on any entry, new or edited.
+    void autoSync();
     await refresh();
     setSaving(false);
     onClose();
@@ -899,7 +899,7 @@ export function DeficiencyForm({
   onClose: () => void;
   existing?: DeficiencyTask | null;
 }) {
-  const { stations, staff, refresh } = useData();
+  const { stations, staff, refresh, autoSync } = useData();
   const [department, setDepartment] = useState(existing?.department ?? "Signalling");
   const [stationId, setStationId] = useState<number | null>(existing?.stationId ?? null);
   const [title, setTitle] = useState(existing?.title ?? "");
@@ -923,6 +923,7 @@ export function DeficiencyForm({
     };
     if (existing) await api.deficiencies.update(payload);
     else await api.deficiencies.create(payload);
+    void autoSync();
     await refresh();
     setSaving(false);
     onClose();
@@ -1000,7 +1001,7 @@ export function PlannedWorkForm({
    * into a planned work (the deficiency is marked Complete on save). */
   convertFrom?: DeficiencyTask | null;
 }) {
-  const { stations, refresh, currentUser } = useData();
+  const { stations, refresh, currentUser, autoSync } = useData();
   const [title, setTitle] = useState(existing?.title ?? convertFrom?.title ?? "");
   const [description, setDescription] = useState(existing?.description ?? convertFrom?.description ?? "");
   const [plannedDate, setPlannedDate] = useState(
@@ -1030,6 +1031,7 @@ export function PlannedWorkForm({
     if (convertFrom && !existing) {
       await api.deficiencies.update({ id: convertFrom.id, status: "Completed" });
     }
+    void autoSync();
     await refresh();
     setSaving(false);
     onClose();

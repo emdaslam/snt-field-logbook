@@ -9,6 +9,12 @@ import { summarizeBackup, type BackupPayload } from "./backup";
  * pushed as a single JSON backup into the app's private Drive app-data folder
  * and pulled back on demand. Conflict rule: last-write-wins using the
  * backup's exportedAt stamp stored locally as the sync version.
+ *
+ * Sessions persist across app restarts. The native plugin remembers the last
+ * signed-in Google account, so a silent token refresh (getAccessToken) hands
+ * back a valid token without showing any UI. The interactive sign-in picker is
+ * only used for the explicit "Sign in" action in Settings — auto-sync and the
+ * header sync button never interrupt the user with a login prompt.
  */
 
 const DRIVE_FILE_NAME = "snt-logbook-backup.json";
@@ -33,6 +39,7 @@ export type DriveStatus = {
 type GoogleDriveNative = {
   isConfigured: () => Promise<{ configured: boolean }>;
   signIn: () => Promise<DriveAuth>;
+  getAccessToken: (opts?: { email?: string }) => Promise<DriveAuth>;
   signOut: () => Promise<void>;
 };
 
@@ -129,50 +136,97 @@ async function signInFresh(): Promise<DriveAuth> {
   return auth;
 }
 
-async function loadAuth(): Promise<DriveAuth> {
+/**
+ * Silently ask the native layer for a fresh token, reusing the previously
+ * signed-in account. No UI is ever shown. Returns null when there is no usable
+ * session (not signed in, signed out, or offline without a cached token).
+ */
+async function trySilentRefresh(): Promise<DriveAuth | null> {
+  if (!isNative()) return null;
+  try {
+    const fresh = await GoogleDrive.getAccessToken({ email: getStoredEmail() ?? undefined });
+    if (fresh?.accessToken) {
+      storeAuth(fresh);
+      return fresh;
+    }
+  } catch {
+    /* not signed in / offline / needs consent — fall through */
+  }
+  return null;
+}
+
+/**
+ * Resolve a Drive auth for a request. Order: in-memory token, a silent native
+ * refresh (keeps the user logged in across restarts), the stored token, and
+ * only if `interactive` (and nothing above worked) the account picker. For
+ * non-interactive flows (auto-sync) the picker is never shown.
+ */
+async function currentAuth(interactive: boolean): Promise<DriveAuth | null> {
   if (authState?.accessToken) return authState;
+  const fresh = await trySilentRefresh();
+  if (fresh) return fresh;
   const stored = getStoredAuth();
   if (stored?.accessToken) {
     authState = stored;
     return stored;
   }
+  if (!interactive) return null;
   return signInFresh();
 }
 
 /** Drive REST call with a fresh bearer token; re-signs in once on 401. */
-async function authorizedFetch(url: string, init?: RequestInit): Promise<Response> {
-  let auth = await loadAuth();
-  let res = await fetch(url, {
-    ...init,
-    headers: { Authorization: `Bearer ${auth.accessToken}`, ...(init?.headers ?? {}) },
-  });
-  if (res.status === 401) {
-    auth = await signInFresh();
-    res = await fetch(url, {
+async function authorizedFetch(
+  url: string,
+  init?: RequestInit,
+  interactive = true
+): Promise<Response> {
+  const auth = await currentAuth(interactive);
+  if (!auth) throw new Error("Not signed in to Google Drive.");
+  const call = (token: string) =>
+    fetch(url, {
       ...init,
-      headers: { Authorization: `Bearer ${auth.accessToken}`, ...(init?.headers ?? {}) },
+      headers: { Authorization: `Bearer ${token}`, ...(init?.headers ?? {}) },
     });
+  let res = await call(auth.accessToken);
+  if (res.status === 401) {
+    // Token expired — refresh silently before bothering the user.
+    const fresh = await trySilentRefresh();
+    if (fresh) {
+      res = await call(fresh.accessToken);
+    }
+    if (res.status === 401 && interactive) {
+      const again = await signInFresh();
+      res = await call(again.accessToken);
+    }
   }
   return res;
 }
 
-async function findFile(token: string): Promise<{ id: string } | null> {
+async function findFile(interactive: boolean): Promise<{ id: string } | null> {
   const q = encodeURIComponent(`name='${DRIVE_FILE_NAME}'`);
   const url = `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name)&q=${q}`;
-  const res = await authorizedFetch(url);
+  const res = await authorizedFetch(url, undefined, interactive);
   if (!res.ok) throw new Error(`Could not reach Google Drive (${res.status})`);
   const data = (await res.json()) as { files?: { id: string }[] };
   return data.files?.[0] ?? null;
 }
 
-async function uploadFile(token: string, existingId: string | null, body: string): Promise<void> {
+async function uploadFile(
+  existingId: string | null,
+  body: string,
+  interactive: boolean
+): Promise<void> {
   if (existingId) {
     const url = `https://www.googleapis.com/upload/drive/v3/files/${existingId}?uploadType=media`;
-    const res = await authorizedFetch(url, {
-      method: "PATCH",
-      body,
-      headers: { "Content-Type": "application/json" },
-    });
+    const res = await authorizedFetch(
+      url,
+      {
+        method: "PATCH",
+        body,
+        headers: { "Content-Type": "application/json" },
+      },
+      interactive
+    );
     if (!res.ok) throw new Error(`Upload to Drive failed (${res.status})`);
     return;
   }
@@ -191,30 +245,35 @@ async function uploadFile(token: string, existingId: string | null, body: string
     "",
   ].join("\r\n");
   const url = "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id";
-  const res = await authorizedFetch(url, {
-    method: "POST",
-    body: multipart,
-    headers: { "Content-Type": `multipart/related; boundary=${boundary}` },
-  });
+  const res = await authorizedFetch(
+    url,
+    {
+      method: "POST",
+      body: multipart,
+      headers: { "Content-Type": `multipart/related; boundary=${boundary}` },
+    },
+    interactive
+  );
   if (!res.ok) throw new Error(`Upload to Drive failed (${res.status})`);
 }
 
-async function downloadFile(token: string, id: string): Promise<string> {
+async function downloadFile(id: string, interactive: boolean): Promise<string> {
   const url = `https://www.googleapis.com/drive/v3/files/${id}?alt=media`;
-  const res = await authorizedFetch(url);
+  const res = await authorizedFetch(url, undefined, interactive);
   if (!res.ok) throw new Error(`Could not download the Drive backup (${res.status})`);
   return res.text();
 }
 
 /** Push the current database to Drive. Returns the newest exportedAt. */
-export async function pushToDrive(): Promise<DriveResult> {
+export async function pushToDrive(interactive = true): Promise<DriveResult> {
   if (!isNative()) return { ok: false, message: "Drive sync works only in the Android app." };
   try {
-    const auth = await loadAuth();
+    const auth = await currentAuth(interactive);
+    if (!auth) return { ok: false, message: "Not signed in to Google Drive." };
     const payload = (await api.backup.export()) as Record<string, unknown> & { exportedAt?: string };
     const body = JSON.stringify(payload);
-    const existing = await findFile(auth.accessToken);
-    await uploadFile(auth.accessToken, existing?.id ?? null, body);
+    const existing = await findFile(interactive);
+    await uploadFile(existing?.id ?? null, body, interactive);
     if (payload.exportedAt) setVersion(payload.exportedAt);
     const kb = Math.max(1, Math.round(body.length / 1024));
     return { ok: true, message: `Synced to Drive (${kb} KB).` };
@@ -224,13 +283,14 @@ export async function pushToDrive(): Promise<DriveResult> {
 }
 
 /** Pull the Drive backup and restore it if it is newer than the last sync. */
-export async function pullFromDrive(): Promise<DriveResult> {
+export async function pullFromDrive(interactive = true): Promise<DriveResult> {
   if (!isNative()) return { ok: false, message: "Drive sync works only in the Android app." };
   try {
-    const auth = await loadAuth();
-    const existing = await findFile(auth.accessToken);
+    const auth = await currentAuth(interactive);
+    if (!auth) return { ok: false, message: "Not signed in to Google Drive." };
+    const existing = await findFile(interactive);
     if (!existing) return { ok: false, message: "No backup found on Drive yet — sync once first." };
-    const text = await downloadFile(auth.accessToken, existing.id);
+    const text = await downloadFile(existing.id, interactive);
     const payload = JSON.parse(text) as BackupPayload;
     const remote = typeof payload.exportedAt === "string" ? payload.exportedAt : null;
     const local = getVersion();
@@ -252,22 +312,26 @@ export async function pullFromDrive(): Promise<DriveResult> {
  * remote copy is never overwritten without proof the local copy is at least
  * as new: if the local version is unknown (fresh install) or older than the
  * remote backup, the remote backup is restored first.
+ *
+ * `interactive` controls whether a missing/expired session may show the
+ * account picker. Auto-sync passes false so it stays completely silent.
  */
-export async function syncWithDrive(): Promise<DriveResult> {
+export async function syncWithDrive(interactive = true): Promise<DriveResult> {
   if (!isNative()) return { ok: false, message: "Drive sync works only in the Android app." };
   try {
-    const auth = await loadAuth();
-    const existing = await findFile(auth.accessToken);
+    const auth = await currentAuth(interactive);
+    if (!auth) return { ok: false, message: "Not signed in to Google Drive." };
+    const existing = await findFile(interactive);
     if (!existing) {
-      return pushToDrive();
+      return pushToDrive(interactive);
     }
-    const text = await downloadFile(auth.accessToken, existing.id);
+    const text = await downloadFile(existing.id, interactive);
     const payload = JSON.parse(text) as BackupPayload;
     const remote = typeof payload.exportedAt === "string" ? payload.exportedAt : null;
     const local = getVersion();
     const remoteNewer = !!remote && (local === null || remote > local);
     if (!remoteNewer) {
-      const pushed = await pushToDrive();
+      const pushed = await pushToDrive(interactive);
       if (!pushed.ok) return pushed;
       return { ok: true, message: pushed.message };
     }

@@ -3,7 +3,23 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
-## 1.7.6.13 — 2026-08-07 (current)
+## 1.7.6.14 — 2026-08-07 (current)
+
+**Fix: persistent Drive sign-in, reliable auto-sync, smarter sync icon**
+- Google sign-in now persists: the app remembers the account and silently
+  refreshes the token, so it stays logged in until you sign out and no longer
+  asks for a login on every sync.
+- Signing out and signing in with another account no longer fails with "Could
+  not determine the signed-in Google account" — the picked account is resolved
+  from its ID token even when Google returns it without profile fields.
+- New logs, deficiency/planned-work changes and notes now auto-sync to Drive
+  (previously only new daily logs attempted it). Manual sync never pops the
+  Google picker unless you are not signed in at all.
+- Header sync button now performs a real Drive sync and shows its state:
+  spinning while syncing, a static arrow when local changes are pending, and a
+  green tick when everything is synced.
+
+## 1.7.6.13 — 2026-08-07
 
 **Fix: PDF heading/table spacing + configurable reminder window** — `ba27075`
 - PDF exports: a station name heading now sits right above its table with only a

@@ -8,7 +8,7 @@ import { summarizeBackup, formatBytes, type BackupSummary } from "@/lib/backup";
 import { api } from "@/lib/api";
 
 export function RestoreModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { refresh } = useData();
+  const { refresh, autoSync } = useData();
   const [text, setText] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -77,6 +77,7 @@ export function RestoreModal({ open, onClose }: { open: boolean; onClose: () => 
       const expected = summarizeBackup(parsed as Record<string, never>);
       setRestored(nowSummary);
 
+      void autoSync();
       await refresh();
 
       if (nowSummary.totalRecords === expected.totalRecords) {

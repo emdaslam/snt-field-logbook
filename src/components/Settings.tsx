@@ -13,7 +13,6 @@ import {
   driveStatus,
   signInToDrive,
   signOutFromDrive,
-  syncWithDrive,
   pullFromDrive,
   type DriveResult,
 } from "@/lib/drive";
@@ -504,7 +503,7 @@ function TagEditor({ existing, onClose }: { existing: Tag | null; onClose: () =>
 }
 
 function DriveSyncSection() {
-  const { refresh, autoDriveSync, setAutoDriveSync } = useData();
+  const { refresh, autoDriveSync, setAutoDriveSync, doDriveSync, clearDirty } = useData();
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [lastSynced, setLastSynced] = useState<string | null>(null);
@@ -555,9 +554,8 @@ function DriveSyncSection() {
   async function doSync() {
     setBusy("sync");
     setMsg(null);
-    const r = await syncWithDrive();
+    const r = await doDriveSync();
     report(r);
-    if (r.ok && r.imported) await refresh();
     setBusy(null);
   }
 
@@ -566,7 +564,10 @@ function DriveSyncSection() {
     setMsg(null);
     const r = await pullFromDrive();
     report(r);
-    if (r.ok && r.imported) await refresh();
+    if (r.ok) {
+      clearDirty();
+      if (r.imported) await refresh();
+    }
     setBusy(null);
   }
 

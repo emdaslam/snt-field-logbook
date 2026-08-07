@@ -19,7 +19,7 @@ import {
 } from "@/lib/inspections";
 import { FONT_SIZE_ROOT, type FontSize } from "@/lib/types";
 import { isNative, scheduleDailyReminders } from "@/lib/native";
-import { driveStatus, syncWithDrive } from "@/lib/drive";
+import { driveStatus, syncWithDrive, type DriveResult } from "@/lib/drive";
 import type {
   Station,
   Staff,
@@ -63,8 +63,14 @@ type Ctx = {
   // Sync state
   online: boolean;
   syncing: boolean;
+  driveSyncing: boolean;
   lastSynced: Date | null;
   syncError: string | null;
+  /** True while the local database has changes not yet pushed to Drive. */
+  dirty: boolean;
+  clearDirty: () => void;
+  /** Manual Drive sync (may show the Google picker if not signed in). */
+  doDriveSync: () => Promise<DriveResult>;
   // Appearance
   fontSize: FontSize;
   setFontSize: (v: FontSize) => void;
@@ -106,8 +112,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const [online, setOnline] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [driveSyncing, setDriveSyncing] = useState(false);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [dirty, setDirty] = useState(false);
   const [myStationsOnly, setMyStationsOnlyState] = useState(false);
   const [fontSize, setFontSizeState] = useState<FontSize>("large");
   const [autoDriveSync, setAutoDriveSyncState] = useState(true);
@@ -236,18 +244,41 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /**
+   * Manual Drive sync — the "Sync" button in the header and Settings. Runs in
+   * the Android app and may show the Google account picker when there is no
+   * session yet. Clears the pending-changes flag on success.
+   */
+  const doDriveSync = useCallback(
+    async (interactive = true): Promise<DriveResult> => {
+      setDriveSyncing(true);
+      try {
+        const r = await syncWithDrive(interactive);
+        if (r.ok) {
+          setDirty(false);
+          if (r.imported) await refresh();
+        }
+        return r;
+      } finally {
+        setDriveSyncing(false);
+      }
+    },
+    [refresh]
+  );
+
+  /**
    * Automatic Drive sync — silent and best-effort. Runs only in the Android
    * app when auto-sync is switched on and the user is signed in to Drive.
-   * Failures are ignored; the manual "Sync to Drive" button in Settings is
-   * the place that reports errors to the user.
+   * Never shows the account picker; failures are ignored. Marks the database
+   * as having pending changes, which the sync icon surfaces, and clears that
+   * flag only once the local data has actually been pushed to Drive.
    */
   const autoSync = useCallback(async () => {
+    setDirty(true);
     if (!autoDriveSync) return;
     if (!isNative()) return;
     if (!driveStatus().email) return;
-    const r = await syncWithDrive();
-    if (r.ok && r.imported) await refresh();
-  }, [autoDriveSync, refresh]);
+    await doDriveSync(false);
+  }, [autoDriveSync, doDriveSync]);
 
   useEffect(() => {
     (async () => {
@@ -266,14 +297,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
         if (localStorage.getItem("snt.drive.lastAutoSyncDay") === day) return;
         if (!autoDriveSync) return;
         if (!isNative() || !driveStatus().email) return;
-        const r = await syncWithDrive();
-        if (r.ok && r.imported) await refresh();
+        await doDriveSync(false);
         localStorage.setItem("snt.drive.lastAutoSyncDay", day);
       } catch {
         /* auto-sync is best-effort — silent */
       }
     })();
-  }, [refresh, autoDriveSync]);
+  }, [refresh, autoDriveSync, doDriveSync]);
 
   // Offline app: nothing to poll. We only re-read local storage when the app
   // regains focus, in case another tab/window changed something.
@@ -514,8 +544,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
         currentUser,
         online,
         syncing,
+        driveSyncing,
         lastSynced,
         syncError,
+        dirty,
+        clearDirty: () => setDirty(false),
+        doDriveSync,
         myStationsOnly,
         setMyStationsOnly,
         myStationIds,

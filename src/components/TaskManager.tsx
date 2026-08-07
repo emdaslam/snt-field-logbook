@@ -27,6 +27,7 @@ export function TaskManager({
     stationName,
     staffName,
     refresh,
+    autoSync,
     inScopeStation,
     myStationsOnly,
     myStationNames,
@@ -58,12 +59,14 @@ export function TaskManager({
     const next = status === "Pending" ? "Completed" : "Pending";
     if (kind === "def") await api.deficiencies.update({ id, status: next });
     else await api.planned.update({ id, status: next });
+    void autoSync();
     await refresh();
   }
 
   async function toggleTomorrow(kind: "def" | "plan", id: number, val: boolean) {
     if (kind === "def") await api.deficiencies.update({ id, selectedForTomorrow: val });
     else await api.planned.update({ id, selectedForTomorrow: val });
+    void autoSync();
     await refresh();
   }
 
