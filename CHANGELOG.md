@@ -3,7 +3,18 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
-## 1.7.6.12 — 2026-08-07 (current)
+## 1.7.6.13 — 2026-08-07 (current)
+
+**Fix: PDF heading/table spacing + configurable reminder window** — `22c1770`
+- PDF exports: a station name heading now sits directly on top of its table with
+  no gap, and a clear gap follows the table before the next heading (applies to
+  tables and bullet-list groups in all exports).
+- Settings: new "Warn before (days)" under Notifications sets how many days
+  before its due date a deficiency task or planned work starts warning.
+  Default is 3 days; the value is remembered per device. Overdue items always
+  warn.
+
+## 1.7.6.12 — 2026-08-07
 
 **Feat: station-filtered "Tomorrow's Work" selection + direct go-to-date + per-export font size** — `a7dab00`
 - **Tomorrow's Work**: the export sheet gains a station multi-select filter, plus
