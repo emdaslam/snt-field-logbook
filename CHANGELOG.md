@@ -5,10 +5,11 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.13 — 2026-08-07 (current)
 
-**Fix: PDF heading/table spacing + configurable reminder window** — `22c1770`
-- PDF exports: a station name heading now sits directly on top of its table with
-  no gap, and a clear gap follows the table before the next heading (applies to
-  tables and bullet-list groups in all exports).
+**Fix: PDF heading/table spacing + configurable reminder window** — `ba27075`
+- PDF exports: a station name heading now sits right above its table with only a
+  small visible gap, and a clear 24pt gap follows the table before the next
+  heading, so each station group reads as one block (applies to tables and
+  bullet-list groups in all exports).
 - Settings: new "Warn before (days)" under Notifications sets how many days
   before its due date a deficiency task or planned work starts warning.
   Default is 3 days; the value is remembered per device. Overdue items always
