@@ -26,6 +26,8 @@ export function Settings() {
   const [backupOpen, setBackupOpen] = useState(false);
   const [restoreOpen, setRestoreOpen] = useState(false);
   const [editingTag, setEditingTag] = useState<{ tag: Tag | null } | null>(null);
+  const [editingReminder, setEditingReminder] = useState(false);
+  const [reminderDraft, setReminderDraft] = useState("");
 
   const stationLabel = (ids: number[]) =>
     ids.length === 0
@@ -197,25 +199,58 @@ export function Settings() {
 
       {/* Notifications */}
       <Section title="Notifications">
-        <div className="flex items-center gap-3 rounded-lg border border-slate-200 p-3">
-          <label className="min-w-0 flex-1 text-sm text-slate-700">
-            Warn before (days)
-            <span className="block text-xs text-slate-400">
-              Days before a due date to start warning about deficiency tasks and planned works.
-            </span>
-          </label>
-          <input
-            type="number"
-            min={1}
-            max={30}
-            value={reminderDays}
-            onChange={(e) => {
-              const v = Math.round(Number(e.target.value));
-              if (!Number.isFinite(v)) return;
-              setReminderDays(v);
-            }}
-            className="w-20 rounded-lg border border-slate-300 px-2 py-2 text-center text-sm text-slate-800"
-          />
+        <div className="rounded-lg border border-slate-200 p-3">
+          <p className="text-sm font-semibold text-slate-800">
+            Deficiency and planned work reminder
+          </p>
+          <p className="mb-3 mt-1 text-xs text-slate-400">
+            Days before a due date to start warning about deficiency tasks and planned works.
+          </p>
+          {!editingReminder ? (
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-slate-700">
+                Current: <strong>{reminderDays}</strong> day{reminderDays !== 1 ? "s" : ""}
+              </span>
+              <button
+                onClick={() => {
+                  setReminderDraft(String(reminderDays));
+                  setEditingReminder(true);
+                }}
+                className="rounded-lg border border-blue-800 px-4 py-2 text-sm font-semibold text-blue-800"
+              >
+                Edit
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                max={30}
+                value={reminderDraft}
+                onChange={(e) => {
+                  const v = Math.round(Number(e.target.value));
+                  if (!Number.isFinite(v)) return;
+                  setReminderDraft(String(v));
+                }}
+                className="w-20 rounded-lg border border-slate-300 px-2 py-2 text-center text-sm text-slate-800"
+              />
+              <PrimaryButton
+                onClick={() => {
+                  setReminderDays(Number(reminderDraft));
+                  setEditingReminder(false);
+                }}
+              >
+                Save
+              </PrimaryButton>
+              <button
+                onClick={() => setEditingReminder(false)}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
         <p className="mt-2 text-xs text-slate-400">
           Default is 3 days. Overdue items always warn regardless of this value.
