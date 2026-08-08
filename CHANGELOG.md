@@ -5,7 +5,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.17 — 2026-08-08 (current)
 
-**Fix: disconnection counts no longer show NaN in reports** — ``
+**Fix: disconnection counts no longer show NaN in reports** — `f1e9c68`
 - Logs saved before the Not Permitted purpose was added stored the disconnection
   fields as missing, so reports (PCDO export, monthly report, report summaries)
   summed `undefined` values into NaN. Reads are now sanitised so every
