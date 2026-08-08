@@ -308,6 +308,7 @@ function normaliseLog(b: Partial<DailyLog>) {
     discSpecialWork: num(b.discSpecialWork),
     discFailure: num(b.discFailure),
     discMaintenance: num(b.discMaintenance),
+    discNotPermitted: num(b.discNotPermitted),
     inspectionKind: b.inspectionKind ?? null,
     inspectionStationId: b.inspectionStationId ?? null,
     inspectionTowardsStationId: b.inspectionTowardsStationId ?? null,

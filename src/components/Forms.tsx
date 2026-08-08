@@ -167,6 +167,7 @@ export function DailyLogForm({
   const [discSpecialWork, setDiscSpecialWork] = useState(String(existing?.discSpecialWork ?? 0));
   const [discFailure, setDiscFailure] = useState(String(existing?.discFailure ?? 0));
   const [discMaintenance, setDiscMaintenance] = useState(String(existing?.discMaintenance ?? 0));
+  const [discNotPermitted, setDiscNotPermitted] = useState(String(existing?.discNotPermitted ?? 0));
   // Side (towards station id) recorded for tags marked "asks for side"
   const [tagSides, setTagSides] = useState<Record<number, number>>(existing?.tagSides ?? {});
   const [error, setError] = useState("");
@@ -222,7 +223,10 @@ export function DailyLogForm({
     return INSPECTION_RULES[inspectionKind ?? "monthly"].intervalDays;
   })();
   const discTotal =
-    (Number(discSpecialWork) || 0) + (Number(discFailure) || 0) + (Number(discMaintenance) || 0);
+    (Number(discSpecialWork) || 0) +
+    (Number(discFailure) || 0) +
+    (Number(discMaintenance) || 0) +
+    (Number(discNotPermitted) || 0);
 
   async function createStation() {
     const name = newStationName.trim();
@@ -296,6 +300,7 @@ export function DailyLogForm({
       discSpecialWork: discOpen ? Number(discSpecialWork) || 0 : 0,
       discFailure: discOpen ? Number(discFailure) || 0 : 0,
       discMaintenance: discOpen ? Number(discMaintenance) || 0 : 0,
+      discNotPermitted: discOpen ? Number(discNotPermitted) || 0 : 0,
       tagIds,
       tagSides,
       attachments,
@@ -578,7 +583,7 @@ export function DailyLogForm({
 
         {discOpen && (
           <>
-            <div className="mt-3 grid grid-cols-3 gap-2">
+            <div className="mt-3 grid grid-cols-2 gap-2">
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-slate-700">Special Work</span>
                 <input
@@ -607,6 +612,16 @@ export function DailyLogForm({
                   className={inputClass}
                   value={discMaintenance}
                   onChange={(e) => setDiscMaintenance(e.target.value)}
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-slate-700">Not Permitted</span>
+                <input
+                  type="number"
+                  min="0"
+                  className={inputClass}
+                  value={discNotPermitted}
+                  onChange={(e) => setDiscNotPermitted(e.target.value)}
                 />
               </label>
             </div>

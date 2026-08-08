@@ -100,6 +100,7 @@ export const dailyLogs = pgTable("daily_logs", {
   discSpecialWork: integer("disc_special_work").default(0).notNull(),
   discFailure: integer("disc_failure").default(0).notNull(),
   discMaintenance: integer("disc_maintenance").default(0).notNull(),
+  discNotPermitted: integer("disc_not_permitted").default(0).notNull(),
   tagIds: jsonb("tag_ids").$type<number[]>().default([]).notNull(),
   // Side (towards station id) recorded per tag that needs one.
   tagSides: jsonb("tag_sides").$type<Record<number, number>>().default({}).notNull(),

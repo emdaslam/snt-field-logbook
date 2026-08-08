@@ -238,7 +238,7 @@ export function Timeline({
 
                 {dayLogs.map((log) => {
                   const discTotal =
-                    log.discSpecialWork + log.discFailure + log.discMaintenance;
+                    log.discSpecialWork + log.discFailure + log.discMaintenance + log.discNotPermitted;
                   const hasDisc = log.hasDisconnections && discTotal > 0;
                   const hasPcdo = Boolean(log.pcdoWork && log.pcdoWork.trim());
                   const shared = isSharedLog(log);

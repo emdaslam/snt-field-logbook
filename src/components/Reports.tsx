@@ -37,8 +37,9 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
         sw: a.sw + (l.hasDisconnections ? l.discSpecialWork : 0),
         fa: a.fa + (l.hasDisconnections ? l.discFailure : 0),
         mt: a.mt + (l.hasDisconnections ? l.discMaintenance : 0),
+        np: a.np + (l.hasDisconnections ? l.discNotPermitted : 0),
       }),
-      { sw: 0, fa: 0, mt: 0 }
+      { sw: 0, fa: 0, mt: 0, np: 0 }
     );
 
     // Station-wise breakdown of logs in the period
@@ -66,7 +67,7 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
       planPending: pPlans.filter((p) => p.status === "Pending").length,
       planDone: pPlans.filter((p) => p.status === "Completed").length,
       disc,
-      discTotal: disc.sw + disc.fa + disc.mt,
+      discTotal: disc.sw + disc.fa + disc.mt + disc.np,
       byStation: [...byStation.entries()].sort((a, b) => b[1] - a[1]),
       attachments: pLogs.reduce((n, l) => n + l.attachments.length, 0),
     };
@@ -164,14 +165,14 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
                 .filter(
                   (l) =>
                     l.hasDisconnections &&
-                    l.discSpecialWork + l.discFailure + l.discMaintenance > 0
+                    l.discSpecialWork + l.discFailure + l.discMaintenance + l.discNotPermitted > 0
                 )
                 .map((l) => ({
                   key: "d" + l.id,
                   date: l.logDate,
                   title: l.stationMovement?.trim() || "—",
-                  sub: `Special work ${l.discSpecialWork} · Failure ${l.discFailure} · Maintenance ${l.discMaintenance}`,
-                  badge: `${l.discSpecialWork + l.discFailure + l.discMaintenance}`,
+                  sub: `Special work ${l.discSpecialWork} · Failure ${l.discFailure} · Maintenance ${l.discMaintenance} · Not permitted ${l.discNotPermitted}`,
+                  badge: `${l.discSpecialWork + l.discFailure + l.discMaintenance + l.discNotPermitted}`,
                 })),
               footer: `Total: ${stats.discTotal} disconnections`,
             })
@@ -276,10 +277,11 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
           <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-amber-900">
             Disconnections Breakdown
           </h3>
-          <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="grid grid-cols-2 gap-2 text-center">
             <Mini label="Special Work" value={stats.disc.sw} />
             <Mini label="Failure" value={stats.disc.fa} />
             <Mini label="Maintenance" value={stats.disc.mt} />
+            <Mini label="Not Permitted" value={stats.disc.np} />
           </div>
         </div>
       )}

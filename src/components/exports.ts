@@ -117,7 +117,7 @@ export function exportPcdo(
   const discEntries = logs
     .filter((l) => {
       if (!l.hasDisconnections) return false;
-      if (l.discSpecialWork + l.discFailure + l.discMaintenance <= 0) return false;
+      if (l.discSpecialWork + l.discFailure + l.discMaintenance + l.discNotPermitted <= 0) return false;
       const d = l.pcdoDate || l.logDate;
       if (d < period.from || d > period.to) return false;
       if (stationFilter && logStationId(l) !== stationFilter) return false;
@@ -165,8 +165,9 @@ export function exportPcdo(
     sw: rows.reduce((n, r) => n + r.discSpecialWork, 0),
     fa: rows.reduce((n, r) => n + r.discFailure, 0),
     mt: rows.reduce((n, r) => n + r.discMaintenance, 0),
+    np: rows.reduce((n, r) => n + r.discNotPermitted, 0),
     get total() {
-      return this.sw + this.fa + this.mt;
+      return this.sw + this.fa + this.mt + this.np;
     },
   });
   const grand = sum(discEntries);
@@ -179,24 +180,24 @@ export function exportPcdo(
   } else {
     // Station-wise summary
     body += `<h2>Summary — Station-wise</h2>`;
-    body += `<table><tr><th>Station</th><th>Special Work</th><th>Failure</th><th>Maintenance</th><th>Total</th></tr>`;
+    body += `<table><tr><th>Station</th><th>Special Work</th><th>Failure</th><th>Maintenance</th><th>Not Permitted</th><th>Total</th></tr>`;
     for (const [station, rows] of sortedDisc) {
       const t = sum(rows);
-      body += `<tr><td>${esc(station)}</td><td>${t.sw}</td><td>${t.fa}</td><td>${t.mt}</td><td><strong>${t.total}</strong></td></tr>`;
+      body += `<tr><td>${esc(station)}</td><td>${t.sw}</td><td>${t.fa}</td><td>${t.mt}</td><td>${t.np}</td><td><strong>${t.total}</strong></td></tr>`;
     }
-    body += `<tr><td><strong>Grand Total</strong></td><td><strong>${grand.sw}</strong></td><td><strong>${grand.fa}</strong></td><td><strong>${grand.mt}</strong></td><td><strong>${grand.total}</strong></td></tr>`;
+    body += `<tr><td><strong>Grand Total</strong></td><td><strong>${grand.sw}</strong></td><td><strong>${grand.fa}</strong></td><td><strong>${grand.mt}</strong></td><td><strong>${grand.np}</strong></td><td><strong>${grand.total}</strong></td></tr>`;
     body += `</table>`;
 
     // Detailed date-wise list per station
     for (const [station, rows] of sortedDisc) {
       const t = sum(rows);
       body += `<h2>${esc(station)} — ${t.total} disconnection${t.total !== 1 ? "s" : ""}</h2>`;
-      body += `<table><tr><th class="date">Date</th><th>Special Work</th><th>Failure</th><th>Maintenance</th><th>Total</th></tr>`;
+      body += `<table><tr><th class="date">Date</th><th>Special Work</th><th>Failure</th><th>Maintenance</th><th>Not Permitted</th><th>Total</th></tr>`;
       for (const r of rows) {
-        const rt = r.discSpecialWork + r.discFailure + r.discMaintenance;
-        body += `<tr><td class="date">${fmtDate(r.pcdoDate || r.logDate)}</td><td>${r.discSpecialWork}</td><td>${r.discFailure}</td><td>${r.discMaintenance}</td><td><strong>${rt}</strong></td></tr>`;
+        const rt = r.discSpecialWork + r.discFailure + r.discMaintenance + r.discNotPermitted;
+        body += `<tr><td class="date">${fmtDate(r.pcdoDate || r.logDate)}</td><td>${r.discSpecialWork}</td><td>${r.discFailure}</td><td>${r.discMaintenance}</td><td>${r.discNotPermitted}</td><td><strong>${rt}</strong></td></tr>`;
       }
-      body += `<tr><td><strong>Total</strong></td><td><strong>${t.sw}</strong></td><td><strong>${t.fa}</strong></td><td><strong>${t.mt}</strong></td><td><strong>${t.total}</strong></td></tr>`;
+      body += `<tr><td><strong>Total</strong></td><td><strong>${t.sw}</strong></td><td><strong>${t.fa}</strong></td><td><strong>${t.mt}</strong></td><td><strong>${t.np}</strong></td><td><strong>${t.total}</strong></td></tr>`;
       body += `</table>`;
     }
   }

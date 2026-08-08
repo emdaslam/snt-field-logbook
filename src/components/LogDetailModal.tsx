@@ -23,7 +23,8 @@ export function LogDetailModal({
   const [preview, setPreview] = useState<Attachment | null>(null);
   if (!log) return null;
 
-  const discTotal = log.discSpecialWork + log.discFailure + log.discMaintenance;
+  const discTotal =
+    log.discSpecialWork + log.discFailure + log.discMaintenance + log.discNotPermitted;
   const shared = isSharedLog(log);
 
   return (
@@ -99,10 +100,11 @@ export function LogDetailModal({
           <p className="mb-2 text-xs font-bold uppercase tracking-wide text-amber-700">
             ⚡ Disconnections · {discTotal} total
           </p>
-          <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="grid grid-cols-2 gap-2 text-center">
             <Metric label="Special Work" value={log.discSpecialWork} />
             <Metric label="Failure" value={log.discFailure} />
             <Metric label="Maintenance" value={log.discMaintenance} />
+            <Metric label="Not Permitted" value={log.discNotPermitted} />
           </div>
         </div>
       )}

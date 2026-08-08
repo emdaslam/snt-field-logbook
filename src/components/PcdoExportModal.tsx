@@ -53,7 +53,7 @@ export function PcdoExportModal({ open, onClose }: { open: boolean; onClose: () 
 
   const discEntries = baseLogs.filter((l) => {
     if (!l.hasDisconnections) return false;
-    if (l.discSpecialWork + l.discFailure + l.discMaintenance <= 0) return false;
+    if (l.discSpecialWork + l.discFailure + l.discMaintenance + l.discNotPermitted <= 0) return false;
     const d = l.pcdoDate || l.logDate;
     if (d < period.from || d > period.to) return false;
     if (stationFilter && resolveStationId(l.stationMovement, l.pcdoStationId) !== stationFilter) return false;
@@ -64,10 +64,11 @@ export function PcdoExportModal({ open, onClose }: { open: boolean; onClose: () 
       sw: a.sw + r.discSpecialWork,
       fa: a.fa + r.discFailure,
       mt: a.mt + r.discMaintenance,
+      np: a.np + r.discNotPermitted,
     }),
-    { sw: 0, fa: 0, mt: 0 }
+    { sw: 0, fa: 0, mt: 0, np: 0 }
   );
-  const discGrand = discTotals.sw + discTotals.fa + discTotals.mt;
+  const discGrand = discTotals.sw + discTotals.fa + discTotals.mt + discTotals.np;
 
   // Only ids still present in the current listing count as deselected, so
   // switching period/station simply starts everyone selected again.
@@ -197,6 +198,7 @@ export function PcdoExportModal({ open, onClose }: { open: boolean; onClose: () 
             <span>Special Work: <strong>{discTotals.sw}</strong></span>
             <span>Failure: <strong>{discTotals.fa}</strong></span>
             <span>Maintenance: <strong>{discTotals.mt}</strong></span>
+            <span>Not Permitted: <strong>{discTotals.np}</strong></span>
             <span className="border-l border-amber-300 pl-5">Total: <strong>{discGrand}</strong></span>
           </div>
         )}
