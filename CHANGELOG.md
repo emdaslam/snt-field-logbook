@@ -3,7 +3,15 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
-## 1.7.6.16 — 2026-08-08 (current)
+## 1.7.6.17 — 2026-08-08 (current)
+
+**Fix: disconnection counts no longer show NaN in reports** — ``
+- Logs saved before the Not Permitted purpose was added stored the disconnection
+  fields as missing, so reports (PCDO export, monthly report, report summaries)
+  summed `undefined` values into NaN. Reads are now sanitised so every
+  disconnection count defaults to 0 for older entries.
+
+## 1.7.6.16 — 2026-08-08
 
 **Feat: Not Permitted disconnection purpose, 3-row global search filters, entry text size, grouped Drive/backup settings, per-version About** — `7948bd8`
 - Disconnection counts gain a fourth "Not Permitted" purpose: the daily log

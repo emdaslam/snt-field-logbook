@@ -109,7 +109,17 @@ export const api = {
     list: async (_staffId?: number | null) => {
       void _staffId;
       const rows = await ldb.readTable<DailyLog>("dailyLogs");
-      return desc(rows, "logDate");
+      return desc(
+        rows.map((r) => ({
+          ...r,
+          hasDisconnections: Boolean(r.hasDisconnections),
+          discSpecialWork: num(r.discSpecialWork),
+          discFailure: num(r.discFailure),
+          discMaintenance: num(r.discMaintenance),
+          discNotPermitted: num(r.discNotPermitted),
+        })),
+        "logDate"
+      );
     },
     create: (b: Partial<DailyLog>) => ldb.insert("dailyLogs", normaliseLog(b)) as unknown as Promise<DailyLog>,
     update: (b: Partial<DailyLog>) =>
