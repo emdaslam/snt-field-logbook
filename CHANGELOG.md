@@ -3,7 +3,25 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
-## 1.7.6.15 — 2026-08-08 (current)
+## 1.7.6.16 — 2026-08-08 (current)
+
+**Feat: Not Permitted disconnection purpose, 3-row global search filters, entry text size, grouped Drive/backup settings, per-version About** — `7948bd8`
+- Disconnection counts gain a fourth "Not Permitted" purpose: the daily log
+  form counts it, PCDO exports and reports include a "Not Permitted" column
+  with totals, and the timeline / log detail / monthly report show it.
+- The global search filters now sit in a fixed 3-column grid, so they take
+  three rows even at the Large app font size instead of overflowing.
+- An "Entry text size" option (100 / 125 / 150%) scales the written content on
+  the Home and Tasks tabs independently of the app-wide font size.
+- Deficiency / planned-work reminder days in Settings now apply via an explicit
+  Edit + Save flow instead of an always-on input.
+- Go-to-date now warns with the nearest valid boundary date, not the date you
+  typed, when the pick is out of range.
+- Settings groups manual Data Backup & Restore directly under Google Drive
+  sync, and the About panel shows the exact app version.
+- Tomorrow's Work export drops the priority badge and keeps the bullet dots.
+
+## 1.7.6.15 — 2026-08-08
 
 **Feat: attachments on deficiencies/planned works, Task Manager station+department filters, DOCX export** — `cff8ce1`
 - Deficiency tasks and planned works now support attachments (photos/PDFs),
