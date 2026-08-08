@@ -153,18 +153,22 @@ function buildPdf(title: string, bodyHtml: string, contentSize: number): jsPDF {
       doc.text(lines, margin, y);
       y += lines.length * (12 * fs) + 8;
     } else if (tag === "ul") {
+      // "plain" lists render items as bare lines (no bullet dots) — used by the
+      // Tomorrow's Work export so opened/converted documents stay clean.
+      const plain = el.classList.contains("plain");
       for (const li of Array.from(el.children)) {
         const parts = liText(li as HTMLElement).split("\n").filter((p) => p.trim());
         if (parts.length === 0) continue;
         pageBreak(20 * fs);
         doc.setFont("helvetica", "normal").setFontSize(9 * fs).setTextColor(15, 23, 42);
-        const first = doc.splitTextToSize("•  " + parts[0], maxW - 10) as string[];
-        doc.text(first, margin + 8, y);
+        const x = plain ? margin : margin + 8;
+        const first = doc.splitTextToSize((plain ? "" : "•  ") + parts[0], maxW - 10) as string[];
+        doc.text(first, x, y);
         y += first.length * (12 * fs) + 3;
         for (const extra of parts.slice(1)) {
           pageBreak(20 * fs);
           const lines = doc.splitTextToSize(extra, maxW - 10) as string[];
-          doc.text(lines, margin + 20, y);
+          doc.text(lines, x, y);
           y += lines.length * (12 * fs) + 3;
         }
       }
