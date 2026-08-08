@@ -3,7 +3,22 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
-## 1.7.6.14 — 2026-08-07 (current)
+## 1.7.6.15 — 2026-08-08 (current)
+
+**Feat: attachments on deficiencies/planned works, Task Manager station+department filters, DOCX export** — `cff8ce1`
+- Deficiency tasks and planned works now support attachments (photos/PDFs),
+  added from their forms and shown as tappable thumbnails on the Task Manager
+  rows, opening the same image/PDF preview with open-with and share actions.
+- Planned works gain a Department field (defaults to Signalling), and both the
+  Deficiencies and Planned tabs get Department + Station dropdown filters at
+  the top, so the pending lists can be narrowed down in one tap.
+- The monthly export's planned-work table now includes a Department column.
+- Every export report (Tomorrow's Work, PCDO, Diary, Inspections, Monthly) can
+  be produced as a PDF or as a Word (.docx) document via a toggle in the export
+  sheet, remembering the last chosen format. The DOCX is generated fully
+  offline by a built-in OOXML/ZIP writer — no new dependency.
+
+## 1.7.6.14 — 2026-08-07
 
 **Fix: persistent Drive sign-in, reliable auto-sync, smarter sync icon** — `998e3c8`
 - Google sign-in now persists: the app remembers the account and silently
