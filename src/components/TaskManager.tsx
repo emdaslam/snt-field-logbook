@@ -194,8 +194,8 @@ export function TaskManager({
                     title="Include in Tomorrow's Work"
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-slate-800">{d.title}</p>
-                    {d.description && <p className="text-sm text-slate-500">{d.description}</p>}
+                    <p className="entry-text-lg font-semibold text-slate-800">{d.title}</p>
+                    {d.description && <p className="entry-text-sm text-sm text-slate-500">{d.description}</p>}
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
                       <Chip label={d.department} color={DEPARTMENT_COLORS[d.department] ?? "#2563eb"} />
                       <Chip label={d.priority} color={PRIORITY_COLORS[d.priority] ?? "#2563eb"} />
@@ -248,8 +248,8 @@ export function TaskManager({
                       title="Include in Tomorrow's Work"
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-slate-800">{p.title}</p>
-                      {p.description && <p className="text-sm text-slate-500">{p.description}</p>}
+                      <p className="entry-text-lg font-semibold text-slate-800">{p.title}</p>
+                      {p.description && <p className="entry-text-sm text-sm text-slate-500">{p.description}</p>}
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
                         <Chip label={"Planned " + fmtDate(p.plannedDate)} color="#059669" />
                         <Chip label={p.department} color={DEPARTMENT_COLORS[p.department] ?? "#2563eb"} />
@@ -257,7 +257,7 @@ export function TaskManager({
                         {daysTo >= 0 && daysTo <= 3 && <Chip label="⏰ Alert active" color="#dc2626" />}
                       </div>
                       <AttachmentsRow attachments={p.attachments ?? []} onOpen={setPreviewAtt} />
-                      {p.materialRemarks && <p className="mt-1 text-xs text-slate-500">Material: {p.materialRemarks}</p>}
+                      {p.materialRemarks && <p className="entry-text-xs mt-1 text-xs text-slate-500">Material: {p.materialRemarks}</p>}
                     </div>
                   </div>
                   <RowActions

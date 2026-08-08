@@ -74,6 +74,9 @@ type Ctx = {
   // Appearance
   fontSize: FontSize;
   setFontSize: (v: FontSize) => void;
+  // Scale (%) for the written content text (log entries, deficiencies, planned works)
+  contentScale: number;
+  setContentScale: (v: number) => void;
   // How many days before a due date to start warning (deficiency/planned work)
   reminderDays: number;
   setReminderDays: (v: number) => void;
@@ -120,6 +123,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [fontSize, setFontSizeState] = useState<FontSize>("large");
   const [autoDriveSync, setAutoDriveSyncState] = useState(true);
   const [reminderDays, setReminderDaysState] = useState(3);
+  const [contentScale, setContentScaleState] = useState(100);
 
   const applyFontSize = useCallback((v: FontSize) => {
     if (typeof document !== "undefined") {
@@ -189,6 +193,40 @@ export function DataProvider({ children }: { children: ReactNode }) {
       /* ignore */
     }
   }, []);
+
+  const applyContentScale = useCallback((v: number) => {
+    if (typeof document !== "undefined") {
+      document.documentElement.dataset.contentScale = String(v);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      const v = Number(localStorage.getItem("snt.contentScale"));
+      if (v === 100 || v === 125 || v === 150) {
+        setContentScaleState(v);
+        applyContentScale(v);
+        return;
+      }
+    } catch {
+      /* ignore */
+    }
+    applyContentScale(100);
+  }, [applyContentScale]);
+
+  const setContentScale = useCallback(
+    (v: number) => {
+      const s = v === 125 || v === 150 ? v : 100;
+      setContentScaleState(s);
+      applyContentScale(s);
+      try {
+        localStorage.setItem("snt.contentScale", String(s));
+      } catch {
+        /* ignore */
+      }
+    },
+    [applyContentScale]
+  );
 
   const setAutoDriveSync = useCallback((v: boolean) => {
     setAutoDriveSyncState(v);
@@ -558,6 +596,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         inScopeMovement,
         fontSize,
         setFontSize,
+        contentScale,
+        setContentScale,
         reminderDays,
         setReminderDays,
         autoDriveSync,

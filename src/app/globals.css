@@ -1,1 +1,27 @@
 @import "tailwindcss";
+
+/*
+ * Entry text scaling (Settings → Appearance → Entry text size).
+ * Scales only the written content of log entries, deficiencies and planned
+ * works on the Home and Tasks tabs. The default scale (100%) keeps the exact
+ * sizes Tailwind already applies (0.75 / 0.875 / 1rem), so the app looks
+ * unchanged until the user raises it.
+ */
+:root {
+  --entry-scale: 1;
+}
+html[data-content-scale="125"] {
+  --entry-scale: 1.25;
+}
+html[data-content-scale="150"] {
+  --entry-scale: 1.5;
+}
+.entry-text-xs {
+  font-size: calc(var(--entry-scale) * 0.75rem) !important;
+}
+.entry-text-sm {
+  font-size: calc(var(--entry-scale) * 0.875rem) !important;
+}
+.entry-text-lg {
+  font-size: calc(var(--entry-scale) * 1rem) !important;
+}

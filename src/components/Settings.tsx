@@ -19,7 +19,7 @@ import {
 import type { Staff, Tag } from "@/db/schema";
 
 export function Settings() {
-  const { stations, staff, tags, currentUser, refresh, fontSize, setFontSize, reminderDays, setReminderDays } = useData();
+  const { stations, staff, tags, currentUser, refresh, fontSize, setFontSize, contentScale, setContentScale, reminderDays, setReminderDays } = useData();
   const [newStation, setNewStation] = useState({ name: "", code: "" });
   const [editStaff, setEditStaff] = useState<Staff | null>(null);
   const [addStaff, setAddStaff] = useState(false);
@@ -192,6 +192,32 @@ export function Settings() {
             </button>
           ))}
         </div>
+        <p className="mb-3 mt-3 text-sm text-slate-600">
+          Entry text size (log entries, deficiencies, planned works)
+        </p>
+        <div className="flex gap-2">
+          {[
+            { v: 100, l: "Normal" },
+            { v: 125, l: "Larger" },
+            { v: 150, l: "Largest" },
+          ].map((o) => (
+            <button
+              key={o.v}
+              onClick={() => setContentScale(o.v)}
+              className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium ${
+                contentScale === o.v
+                  ? "border-blue-600 bg-blue-50 text-blue-800"
+                  : "border-slate-300 text-slate-600"
+              }`}
+            >
+              {o.l}
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-slate-400">
+          Scales only the written text of logged entries, deficiencies and planned works on the Home and
+          Tasks tabs. The rest of the app keeps the font size chosen above.
+        </p>
         <p className="mt-2 text-xs text-slate-400">
           PDF exports ask for their own text size on every export and remember the last one used per export type.
         </p>

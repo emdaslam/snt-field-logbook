@@ -261,12 +261,12 @@ export function Timeline({
                         </p>
                       ) : (
                         log.stationMovement && (
-                          <p className="truncate text-xs font-medium text-blue-800">
+                          <p className="entry-text-xs truncate text-xs font-medium text-blue-800">
                             {log.stationMovement}
                           </p>
                         )
                       )}
-                      <p className="line-clamp-2 text-sm text-slate-800">{summary}</p>
+                      <p className="entry-text-sm line-clamp-2 text-sm text-slate-800">{summary}</p>
 
                       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                         {hasPcdo && (
@@ -345,14 +345,14 @@ export function Timeline({
                 {(dayDefs.length > 0 || dayPlans.length > 0) && (
                   <div className={`space-y-1 ${dayLogs.length ? "border-t border-slate-100 pt-2" : ""}`}>
                     {dayDefs.map((t) => (
-                      <p key={"d" + t.id} className="text-xs text-slate-500">
+                      <p key={"d" + t.id} className="entry-text-xs text-xs text-slate-500">
                         🔧 Deficiency due:{" "}
                         <span className="font-medium text-slate-700">{t.title}</span> ·{" "}
                         {stationName(t.stationId)} ({t.status})
                       </p>
                     ))}
                     {dayPlans.map((p) => (
-                      <p key={"p" + p.id} className="text-xs text-slate-500">
+                      <p key={"p" + p.id} className="entry-text-xs text-xs text-slate-500">
                         📅 Planned: <span className="font-medium text-slate-700">{p.title}</span> ·{" "}
                         {stationName(p.stationId)} ({p.status})
                       </p>
