@@ -41,6 +41,50 @@ async function filesToAttachments(files: FileList | null): Promise<Attachment[]>
   return out;
 }
 
+/** File picker + thumbnail grid used by any form that stores attachments. */
+function AttachmentField({
+  value,
+  onChange,
+}: {
+  value: Attachment[];
+  onChange: (v: Attachment[]) => void;
+}) {
+  return (
+    <Field label="Attachments (photos/files)">
+      <input
+        type="file"
+        multiple
+        accept="image/*,application/pdf"
+        className="text-sm"
+        onChange={async (e) => {
+          const atts = await filesToAttachments(e.target.files);
+          onChange([...value, ...atts]);
+        }}
+      />
+      <div className="mt-2 flex flex-wrap gap-2">
+        {value.map((a, i) => (
+          <div key={i} className="relative">
+            {a.type.startsWith("image/") ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={a.dataUrl} alt={a.name} className="h-16 w-16 rounded-lg border border-slate-200 object-cover" />
+            ) : (
+              <div className="flex h-16 w-16 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-500">
+                PDF
+              </div>
+            )}
+            <button
+              onClick={() => onChange(value.filter((_, x) => x !== i))}
+              className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+    </Field>
+  );
+}
+
 export function DailyLogForm({
   open,
   onClose,
@@ -850,38 +894,7 @@ export function DailyLogForm({
         </div>
       )}
 
-      <Field label="Attachments (photos/files)">
-        <input
-          type="file"
-          multiple
-          accept="image/*,application/pdf"
-          className="text-sm"
-          onChange={async (e) => {
-            const atts = await filesToAttachments(e.target.files);
-            setAttachments((prev) => [...prev, ...atts]);
-          }}
-        />
-        <div className="mt-2 flex flex-wrap gap-2">
-          {attachments.map((a, i) => (
-            <div key={i} className="relative">
-              {a.type.startsWith("image/") ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={a.dataUrl} alt={a.name} className="h-16 w-16 rounded-lg border border-slate-200 object-cover" />
-              ) : (
-                <div className="flex h-16 w-16 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-500">
-                  PDF
-                </div>
-              )}
-              <button
-                onClick={() => setAttachments((p) => p.filter((_, x) => x !== i))}
-                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white"
-              >
-                ×
-              </button>
-            </div>
-          ))}
-        </div>
-      </Field>
+      <AttachmentField value={attachments} onChange={setAttachments} />
       <div className="mt-4 flex justify-end">
         {error && <p className="mr-3 text-sm font-medium text-red-600">{error}</p>}
         <PrimaryButton onClick={save}>{saving ? "Saving…" : "Save Log"}</PrimaryButton>
@@ -906,6 +919,7 @@ export function DeficiencyForm({
   const [description, setDescription] = useState(existing?.description ?? "");
   const [priority, setPriority] = useState(existing?.priority ?? "Normal");
   const [dueDate, setDueDate] = useState(existing?.dueDate ?? "");
+  const [attachments, setAttachments] = useState<Attachment[]>(existing?.attachments ?? []);
   const [saving, setSaving] = useState(false);
 
   const mappedStaff = staff.find((s) => stationId != null && s.stationIds.includes(stationId));
@@ -920,6 +934,7 @@ export function DeficiencyForm({
       description,
       priority,
       dueDate: dueDate || null,
+      attachments,
     };
     if (existing) await api.deficiencies.update(payload);
     else await api.deficiencies.create(payload);
@@ -981,6 +996,7 @@ export function DeficiencyForm({
       <Field label="Due Date">
         <input type="date" className={inputClass} value={dueDate ?? ""} onChange={(e) => setDueDate(e.target.value)} />
       </Field>
+      <AttachmentField value={attachments} onChange={setAttachments} />
       <div className="mt-4 flex justify-end">
         <PrimaryButton onClick={save}>{saving ? "Saving…" : "Save Task"}</PrimaryButton>
       </div>
@@ -1010,7 +1026,11 @@ export function PlannedWorkForm({
   const [stationId, setStationId] = useState<number | null>(
     existing?.stationId ?? convertFrom?.stationId ?? null
   );
+  const [department, setDepartment] = useState(
+    existing?.department ?? convertFrom?.department ?? "Signalling"
+  );
   const [materialRemarks, setMaterialRemarks] = useState(existing?.materialRemarks ?? "");
+  const [attachments, setAttachments] = useState<Attachment[]>(existing?.attachments ?? []);
   const [saving, setSaving] = useState(false);
 
   async function save() {
@@ -1021,7 +1041,9 @@ export function PlannedWorkForm({
       description,
       plannedDate,
       stationId,
+      department,
       materialRemarks,
+      attachments,
       ownerStaffId: existing?.ownerStaffId ?? currentUser?.id ?? null,
     };
     if (existing) await api.planned.update(payload);
@@ -1075,6 +1097,13 @@ export function PlannedWorkForm({
           ))}
         </select>
       </Field>
+      <Field label="Department">
+        <select className={inputClass} value={department} onChange={(e) => setDepartment(e.target.value)}>
+          {DEPARTMENTS.map((d) => (
+            <option key={d}>{d}</option>
+          ))}
+        </select>
+      </Field>
       <Field label="Required Material / Remarks">
         <textarea
           className={inputClass}
@@ -1083,6 +1112,7 @@ export function PlannedWorkForm({
           onChange={(e) => setMaterialRemarks(e.target.value)}
         />
       </Field>
+      <AttachmentField value={attachments} onChange={setAttachments} />
       <div className="mt-4 flex justify-end">
         <PrimaryButton onClick={save}>{saving ? "Saving…" : "Save Work"}</PrimaryButton>
       </div>

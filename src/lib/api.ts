@@ -130,6 +130,7 @@ export const api = {
         assignedStaffId: await staffForStation(b.stationId ?? null),
         status: b.status ?? "Pending",
         selectedForTomorrow: false,
+        attachments: b.attachments ?? [],
         completedAt: null,
       }) as unknown as Promise<DeficiencyTask>,
     update: async (b: Partial<DeficiencyTask>) => {
@@ -144,6 +145,7 @@ export const api = {
       if (b.priority !== undefined) patch.priority = b.priority;
       if (b.dueDate !== undefined) patch.dueDate = b.dueDate || null;
       if (b.selectedForTomorrow !== undefined) patch.selectedForTomorrow = b.selectedForTomorrow;
+      if (b.attachments !== undefined) patch.attachments = b.attachments;
       if (b.status !== undefined) {
         patch.status = b.status;
         patch.completedAt = b.status === "Completed" ? new Date().toISOString() : null;
@@ -165,11 +167,13 @@ export const api = {
         description: b.description ?? null,
         plannedDate: b.plannedDate ?? "",
         stationId: b.stationId ?? null,
+        department: b.department ?? "Signalling",
         materialRemarks: b.materialRemarks ?? null,
         ownerStaffId: b.ownerStaffId ?? null,
         status: b.status ?? "Pending",
         selectedForTomorrow: false,
         notified: false,
+        attachments: b.attachments ?? [],
         completedAt: null,
       }) as unknown as Promise<PlannedWork>,
     update: (b: Partial<PlannedWork>) => {
@@ -179,12 +183,14 @@ export const api = {
         "description",
         "plannedDate",
         "stationId",
+        "department",
         "materialRemarks",
         "selectedForTomorrow",
         "notified",
       ] as const) {
         if (b[k] !== undefined) patch[k] = b[k];
       }
+      if (b.attachments !== undefined) patch.attachments = b.attachments;
       if (b.status !== undefined) {
         patch.status = b.status;
         patch.completedAt = b.status === "Completed" ? new Date().toISOString() : null;

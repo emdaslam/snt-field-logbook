@@ -4,9 +4,10 @@ import { useState, useRef, useEffect } from "react";
 import { useData } from "./DataProvider";
 import { Chip } from "./ui";
 import { api, fmtDate, toISODate } from "@/lib/api";
-import { PRIORITY_COLORS, DEPARTMENT_COLORS } from "@/lib/types";
+import { PRIORITY_COLORS, DEPARTMENT_COLORS, DEPARTMENTS } from "@/lib/types";
 import { DeficiencyForm, PlannedWorkForm } from "./Forms";
-import type { DeficiencyTask, PlannedWork } from "@/db/schema";
+import { AttachmentPreviewModal } from "./AttachmentPreviewModal";
+import type { Attachment, DeficiencyTask, PlannedWork } from "@/db/schema";
 
 type Tab = "deficiencies" | "planned" | "archive";
 
@@ -24,6 +25,7 @@ export function TaskManager({
   const {
     deficiencies: allDefs,
     planned: allPlans,
+    stations,
     stationName,
     staffName,
     refresh,
@@ -40,6 +42,11 @@ export function TaskManager({
   const [editDef, setEditDef] = useState<DeficiencyTask | null>(null);
   const [editPlan, setEditPlan] = useState<PlannedWork | null>(null);
   const [convertDef, setConvertDef] = useState<DeficiencyTask | null>(null);
+  const [defDept, setDefDept] = useState("");
+  const [defStation, setDefStation] = useState("");
+  const [planDept, setPlanDept] = useState("");
+  const [planStation, setPlanStation] = useState("");
+  const [previewAtt, setPreviewAtt] = useState<Attachment | null>(null);
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
   useEffect(() => {
     if (!highlightId) return;
@@ -52,8 +59,18 @@ export function TaskManager({
   const [archiveFrom, setArchiveFrom] = useState("");
   const [archiveTo, setArchiveTo] = useState("");
 
-  const pendingDef = deficiencies.filter((d) => d.status === "Pending");
-  const pendingPlan = planned.filter((p) => p.status === "Pending");
+  const pendingDef = deficiencies.filter(
+    (d) =>
+      d.status === "Pending" &&
+      (!defDept || d.department === defDept) &&
+      (!defStation || String(d.stationId ?? "") === defStation)
+  );
+  const pendingPlan = planned.filter(
+    (p) =>
+      p.status === "Pending" &&
+      (!planDept || p.department === planDept) &&
+      (!planStation || String(p.stationId ?? "") === planStation)
+  );
 
   async function toggleStatus(kind: "def" | "plan", id: number, status: string) {
     const next = status === "Pending" ? "Completed" : "Pending";
@@ -107,6 +124,53 @@ export function TaskManager({
           {myStationNames.length ? myStationNames.join(", ") : "none mapped (showing all)"}
         </div>
       )}
+      {(tab === "deficiencies" || tab === "planned") && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2">
+          <select
+            value={tab === "deficiencies" ? defDept : planDept}
+            onChange={(e) =>
+              tab === "deficiencies" ? setDefDept(e.target.value) : setPlanDept(e.target.value)
+            }
+            className="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-700"
+          >
+            <option value="">All departments</option>
+            {DEPARTMENTS.map((d) => (
+              <option key={d}>{d}</option>
+            ))}
+          </select>
+          <select
+            value={tab === "deficiencies" ? defStation : planStation}
+            onChange={(e) =>
+              tab === "deficiencies" ? setDefStation(e.target.value) : setPlanStation(e.target.value)
+            }
+            className="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-700"
+          >
+            <option value="">All stations</option>
+            {[...stations]
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+          </select>
+          {(tab === "deficiencies"
+            ? defDept || defStation
+            : planDept || planStation) && (
+            <button
+              onClick={() => {
+                setDefDept("");
+                setDefStation("");
+                setPlanDept("");
+                setPlanStation("");
+              }}
+              className="text-xs font-medium text-blue-600 underline"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
       <div className="space-y-3 p-3">
         {tab === "deficiencies" && (
           <>
@@ -138,6 +202,7 @@ export function TaskManager({
                       <Chip label={stationName(d.stationId)} color="#0e7490" />
                       {d.dueDate && <Chip label={"Due " + fmtDate(d.dueDate)} color="#b45309" />}
                     </div>
+                    <AttachmentsRow attachments={d.attachments ?? []} onOpen={setPreviewAtt} />
                     <p className="mt-1 text-xs text-slate-400">Routed to: {staffName(d.assignedStaffId)}</p>
                   </div>
                 </div>
@@ -187,9 +252,11 @@ export function TaskManager({
                       {p.description && <p className="text-sm text-slate-500">{p.description}</p>}
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
                         <Chip label={"Planned " + fmtDate(p.plannedDate)} color="#059669" />
+                        <Chip label={p.department} color={DEPARTMENT_COLORS[p.department] ?? "#2563eb"} />
                         <Chip label={stationName(p.stationId)} color="#0e7490" />
                         {daysTo >= 0 && daysTo <= 3 && <Chip label="⏰ Alert active" color="#dc2626" />}
                       </div>
+                      <AttachmentsRow attachments={p.attachments ?? []} onOpen={setPreviewAtt} />
                       {p.materialRemarks && <p className="mt-1 text-xs text-slate-500">Material: {p.materialRemarks}</p>}
                     </div>
                   </div>
@@ -253,6 +320,46 @@ export function TaskManager({
       {editPlan && <PlannedWorkForm open onClose={() => setEditPlan(null)} existing={editPlan} />}
       {convertDef && (
         <PlannedWorkForm open onClose={() => setConvertDef(null)} convertFrom={convertDef} />
+      )}
+      <AttachmentPreviewModal attachment={previewAtt} onClose={() => setPreviewAtt(null)} />
+    </div>
+  );
+}
+
+function AttachmentsRow({
+  attachments,
+  onOpen,
+}: {
+  attachments: Attachment[];
+  onOpen: (a: Attachment) => void;
+}) {
+  if (attachments.length === 0) return null;
+  const thumbs = attachments.slice(0, 4);
+  return (
+    <div className="mt-1.5 flex items-center gap-1.5">
+      {thumbs.map((a, i) =>
+        a.type.startsWith("image/") ? (
+          <button key={i} onClick={() => onOpen(a)} title={a.name}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={a.dataUrl}
+              alt={a.name}
+              className="h-9 w-9 rounded-md border border-slate-200 object-cover"
+            />
+          </button>
+        ) : (
+          <button
+            key={i}
+            onClick={() => onOpen(a)}
+            title={a.name}
+            className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-[10px] font-semibold text-slate-500"
+          >
+            PDF
+          </button>
+        )
+      )}
+      {attachments.length > thumbs.length && (
+        <span className="text-[11px] text-slate-400">+{attachments.length - thumbs.length} more</span>
       )}
     </div>
   );

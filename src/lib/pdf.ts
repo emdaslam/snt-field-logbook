@@ -241,10 +241,9 @@ function buildPdf(title: string, bodyHtml: string, contentSize: number): jsPDF {
  * @param type export kind used to remember the last chosen text size per
  * export type (e.g. "monthly", "tomorrow", "diary", "pcdo", "inspection").
  */
-export function exportHtmlAsPdf(title: string, bodyHtml: string, type = "general") {
-  // Ask for the text size at the top of every export sheet. It defaults to the
-  // last size used for this export type; changing it here is remembered for
-  // the next export of the same type.
+export function exportDocument(title: string, bodyHtml: string, type = "general") {
+  // Bottom sheet that offers the report as PDF or Word (.docx), with a text
+  // size prompt for the PDF path. The last chosen format is remembered.
   const overlay = document.createElement("div");
   overlay.style.cssText =
     "position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.5);display:flex;align-items:flex-end;justify-content:center";
@@ -253,12 +252,48 @@ export function exportHtmlAsPdf(title: string, bodyHtml: string, type = "general
     "background:#fff;width:100%;max-width:28rem;border-radius:16px 16px 0 0;padding:16px 16px 28px;font-family:system-ui,sans-serif";
   box.innerHTML =
     '<div style="width:40px;height:4px;background:#cbd5e1;border-radius:99px;margin:0 auto 14px"></div>' +
-    '<p style="margin:0 0 12px;font-size:14px;font-weight:600;color:#1e3a8a;text-align:center">Export PDF</p>';
+    '<p style="margin:0 0 12px;font-size:14px;font-weight:600;color:#1e3a8a;text-align:center">Export Report</p>';
   const status = document.createElement("p");
   status.style.cssText = "margin:0 0 10px;font-size:12px;color:#64748b;text-align:center;min-height:16px";
   const close = () => overlay.remove();
 
-  // Font size prompt — written content only, 10–96.
+  // Format toggle — PDF or Word.
+  let format: "pdf" | "docx" = "pdf";
+  try {
+    if (localStorage.getItem("snt.exportFormat") === "docx") format = "docx";
+  } catch {
+    /* ignore */
+  }
+  const seg = document.createElement("div");
+  seg.style.cssText = "display:flex;gap:8px;margin:0 0 14px";
+  const pdfBtn = document.createElement("button");
+  const wordBtn = document.createElement("button");
+  const segStyle = (active: boolean) =>
+    `flex:1;padding:10px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid ${
+      active ? "#1e3a8a" : "#e2e8f0"
+    };background:${active ? "#1e3a8a" : "#f8fafc"};color:${active ? "#fff" : "#334155"}`;
+  pdfBtn.textContent = "PDF";
+  wordBtn.textContent = "Word (.docx)";
+  pdfBtn.style.cssText = segStyle(format === "pdf");
+  wordBtn.style.cssText = segStyle(format === "docx");
+  const applyFormat = (f: "pdf" | "docx") => {
+    format = f;
+    pdfBtn.style.cssText = segStyle(f === "pdf");
+    wordBtn.style.cssText = segStyle(f === "docx");
+    row.style.display = f === "pdf" ? "flex" : "none";
+    try {
+      localStorage.setItem("snt.exportFormat", f);
+    } catch {
+      /* ignore */
+    }
+  };
+  pdfBtn.onclick = () => applyFormat("pdf");
+  wordBtn.onclick = () => applyFormat("docx");
+  seg.appendChild(pdfBtn);
+  seg.appendChild(wordBtn);
+  box.appendChild(seg);
+
+  // Font size prompt — PDF written content only, 10–96.
   const row = document.createElement("div");
   row.style.cssText =
     "display:flex;align-items:center;gap:10px;margin:0 0 14px;padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px";
@@ -272,6 +307,7 @@ export function exportHtmlAsPdf(title: string, bodyHtml: string, type = "general
   input.style.cssText =
     "width:76px;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:15px;text-align:center;font-weight:600;color:#1e3a8a";
   row.appendChild(input);
+  row.style.display = format === "pdf" ? "flex" : "none";
   box.appendChild(row);
 
   const chosenSize = () => {
@@ -280,40 +316,31 @@ export function exportHtmlAsPdf(title: string, bodyHtml: string, type = "general
     return Math.min(CONTENT_FONT_MAX, Math.max(CONTENT_FONT_MIN, v));
   };
 
-  const makeButton = (
-    label: string,
-    primary: boolean,
-    run: (doc: jsPDF, filename: string) => Promise<void>
-  ) => {
-    const b = document.createElement("button");
-    b.textContent = label;
-    b.style.cssText = `display:block;width:100%;margin-bottom:8px;padding:12px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;border:1px solid ${
-      primary ? "#1e40af" : "#cbd5e1"
-    };background:${primary ? "#1e40af" : "#fff"};color:${primary ? "#fff" : "#334155"}`;
-    b.onclick = async () => {
-      status.textContent = "Working…";
-      try {
-        const size = chosenSize();
-        const doc = buildPdf(title, bodyHtml, size);
-        persistContentFontSize(type, size);
-        const filename = `${slug(title)}.pdf`;
-        await run(doc, filename);
-        close();
-      } catch (e) {
-        status.textContent = String(e);
-      }
-    };
-    return b;
-  };
+  type ExportArtifact = { filename: string; mimeType: string; base64: string };
 
-  const share = async (doc: jsPDF, filename: string) => {
+  const share = async (a: ExportArtifact) => {
     if (isNative()) {
-      await nativeSharePdf(doc, filename, title);
+      const [{ Filesystem, Directory }, { Share }] = await Promise.all([
+        import("@capacitor/filesystem"),
+        import("@capacitor/share"),
+      ]);
+      const written = await Filesystem.writeFile({
+        path: `exports/${a.filename}`,
+        data: a.base64,
+        directory: Directory.Cache,
+        recursive: true,
+      });
+      await Share.share({
+        title,
+        text: title,
+        url: written.uri,
+        dialogTitle: "Share export",
+      });
       return;
     }
     // Browser fallback
-    const blob = doc.output("blob");
-    const file = new File([blob], filename, { type: "application/pdf" });
+    const bytes = base64ToBytes(a.base64);
+    const file = new File([bytes], a.filename, { type: a.mimeType });
     if (navigator.canShare?.({ files: [file] })) {
       try {
         await navigator.share({ files: [file], title, text: title });
@@ -325,10 +352,11 @@ export function exportHtmlAsPdf(title: string, bodyHtml: string, type = "general
     throw new Error("Sharing isn’t available here — use Save instead.");
   };
 
-  const save = async (doc: jsPDF, filename: string) => {
+  const save = async (a: ExportArtifact) => {
     if (isNative()) {
       try {
-        await nativeSavePdf(doc, filename);
+        const { saveViaPicker } = await import("./documentSave");
+        await saveViaPicker({ filename: a.filename, data: a.base64, mimeType: a.mimeType });
       } catch (e) {
         const { isSaveCancelled } = await import("./documentSave");
         if (isSaveCancelled(e)) return; // user backed out — close quietly
@@ -337,15 +365,54 @@ export function exportHtmlAsPdf(title: string, bodyHtml: string, type = "general
       return;
     }
     try {
-      doc.save(filename);
+      const url = URL.createObjectURL(new Blob([base64ToBytes(a.base64)], { type: a.mimeType }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = a.filename;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch {
       throw new Error("Saving was blocked by the browser.");
     }
   };
 
-  box.appendChild(
-    makeButton("📤  Share to other apps (WhatsApp, Telegram…)", true, share)
-  );
+  const makeButton = (label: string, primary: boolean, run: (a: ExportArtifact) => Promise<void>) => {
+    const b = document.createElement("button");
+    b.textContent = label;
+    b.style.cssText = `display:block;width:100%;margin-bottom:8px;padding:12px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;border:1px solid ${
+      primary ? "#1e40af" : "#cbd5e1"
+    };background:${primary ? "#1e40af" : "#fff"};color:${primary ? "#fff" : "#334155"}`;
+    b.onclick = async () => {
+      status.textContent = "Working…";
+      try {
+        let artifact: ExportArtifact;
+        if (format === "docx") {
+          const { buildDocx, docxToBase64 } = await import("./docx");
+          artifact = {
+            filename: `${slug(title)}.docx`,
+            mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            base64: docxToBase64(buildDocx(title, bodyHtml)),
+          };
+        } else {
+          const size = chosenSize();
+          const doc = buildPdf(title, bodyHtml, size);
+          persistContentFontSize(type, size);
+          artifact = {
+            filename: `${slug(title)}.pdf`,
+            mimeType: "application/pdf",
+            base64: doc.output("datauristring").split(",")[1],
+          };
+        }
+        await run(artifact);
+        close();
+      } catch (e) {
+        status.textContent = String(e);
+      }
+    };
+    return b;
+  };
+
+  box.appendChild(makeButton("📤  Share to other apps (WhatsApp, Telegram…)", true, share));
   box.appendChild(makeButton("⬇  Save file", false, save));
   box.appendChild(status);
   const c = document.createElement("button");
@@ -359,44 +426,15 @@ export function exportHtmlAsPdf(title: string, bodyHtml: string, type = "general
   document.body.appendChild(overlay);
 }
 
+function base64ToBytes(base64: string): Uint8Array<ArrayBuffer> {
+  const bin = atob(base64);
+  const bytes = new Uint8Array(new ArrayBuffer(bin.length));
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
 /** True when running inside the Capacitor Android shell. */
 function isNative() {
   const w = window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } };
   return Boolean(w.Capacitor?.isNativePlatform?.());
-}
-
-/**
- * Hand a PDF to Android's share sheet. The file is written to the app's
- * private cache (always writable) and shared from there — the receiving app
- * (WhatsApp, Telegram, Drive…) stores it. Runs entirely on-device.
- */
-async function nativeSharePdf(doc: jsPDF, filename: string, title: string) {
-  const [{ Filesystem, Directory }, { Share }] = await Promise.all([
-    import("@capacitor/filesystem"),
-    import("@capacitor/share"),
-  ]);
-  const base64 = doc.output("datauristring").split(",")[1];
-  const written = await Filesystem.writeFile({
-    path: `pdf/${filename}`,
-    data: base64,
-    directory: Directory.Cache,
-    recursive: true,
-  });
-  await Share.share({
-    title,
-    text: title,
-    url: written.uri,
-    dialogTitle: "Share PDF",
-  });
-}
-
-/**
- * Save a PDF to a user-chosen location through Android's system "Save to…"
- * picker (Storage Access Framework). Direct writes to /Documents are blocked
- * by scoped storage on Android 10+, so the picker grants access to the file.
- */
-async function nativeSavePdf(doc: jsPDF, filename: string) {
-  const { saveViaPicker } = await import("./documentSave");
-  const base64 = doc.output("datauristring").split(",")[1];
-  await saveViaPicker({ filename, data: base64, mimeType: "application/pdf" });
 }

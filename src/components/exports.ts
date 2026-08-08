@@ -1,4 +1,4 @@
-import { exportHtmlAsPdf } from "@/lib/pdf";
+import { exportDocument } from "@/lib/pdf";
 import { fmtDate, toISODate, formatFootplateShifts, footplateTrainList } from "@/lib/api";
 import { formatInspectionDates } from "@/lib/inspections";
 import { isSpecialMovement } from "@/lib/types";
@@ -65,7 +65,7 @@ export function exportTomorrowsWork(
     }
     body += `</ul>`;
   }
-  exportHtmlAsPdf(`Tomorrow's Work ${label}`, body, "tomorrow");
+  exportDocument(`Tomorrow's Work ${label}`, body, "tomorrow");
 }
 
 /**
@@ -201,7 +201,7 @@ export function exportPcdo(
     }
   }
 
-  exportHtmlAsPdf(`PCDO ${period.label}`, body, "pcdo");
+  exportDocument(`PCDO ${period.label}`, body, "pcdo");
 }
 
 
@@ -263,7 +263,7 @@ export function exportDiary(
     body += `<p class="meta" style="margin-top:10px"><strong>Total TA claimed: ${totalDays.toFixed(1)} day${totalDays === 1 ? "" : "s"}</strong></p>`;
   }
 
-  exportHtmlAsPdf(`Diary ${period.label}`, body, "diary");
+  exportDocument(`Diary ${period.label}`, body, "diary");
 }
 
 
@@ -350,7 +350,7 @@ export function exportInspections(
     body += `</table>`;
   }
 
-  exportHtmlAsPdf(`${kindLabel} ${period.label}`, body, "inspection");
+  exportDocument(`${kindLabel} ${period.label}`, body, "inspection");
 }
 
 export type MonthlyFilters = {
@@ -467,9 +467,9 @@ export function exportMonthly(
       // Station-wise groups
       for (const [station, items] of [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
         body += `<h3>${esc(station)} (${items.length})</h3>`;
-        body += `<table><tr><th>Title</th><th>Planned Date</th><th>Status</th><th>Material/Remarks</th></tr>`;
+        body += `<table><tr><th>Title</th><th>Dept</th><th>Planned Date</th><th>Status</th><th>Material/Remarks</th></tr>`;
         for (const p of items) {
-          body += `<tr><td>${esc(p.title)}</td><td>${fmtDate(p.plannedDate)}</td><td>${esc(p.status)}</td><td>${esc(p.materialRemarks)}</td></tr>`;
+          body += `<tr><td>${esc(p.title)}</td><td>${esc(p.department ?? "")}</td><td>${fmtDate(p.plannedDate)}</td><td>${esc(p.status)}</td><td>${esc(p.materialRemarks)}</td></tr>`;
         }
         body += `</table>`;
       }
@@ -480,5 +480,5 @@ export function exportMonthly(
     body += `<p class="empty">No sections selected for this report.</p>`;
   }
 
-  exportHtmlAsPdf("Monthly S&T Report", body, "monthly");
+  exportDocument("Monthly S&T Report", body, "monthly");
 }

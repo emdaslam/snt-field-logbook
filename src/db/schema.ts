@@ -119,6 +119,7 @@ export const deficiencyTasks = pgTable("deficiency_tasks", {
   assignedStaffId: integer("assigned_staff_id"),
   status: varchar("status", { length: 20 }).default("Pending").notNull(),
   selectedForTomorrow: boolean("selected_for_tomorrow").default(false).notNull(),
+  attachments: jsonb("attachments").$type<Attachment[]>().default([]).notNull(),
   completedAt: timestamp("completed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
@@ -130,11 +131,13 @@ export const plannedWorks = pgTable("planned_works", {
   description: text("description"),
   plannedDate: date("planned_date").notNull(),
   stationId: integer("station_id"),
+  department: varchar("department", { length: 60 }).default("Signalling").notNull(),
   materialRemarks: text("material_remarks"),
   ownerStaffId: integer("owner_staff_id"),
   status: varchar("status", { length: 20 }).default("Pending").notNull(),
   selectedForTomorrow: boolean("selected_for_tomorrow").default(false).notNull(),
   notified: boolean("notified").default(false).notNull(),
+  attachments: jsonb("attachments").$type<Attachment[]>().default([]).notNull(),
   completedAt: timestamp("completed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
