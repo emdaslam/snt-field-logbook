@@ -120,7 +120,7 @@ export function SearchView({
     return out;
   }, [q, typeF, stationF, deptF, prioF, tagF, statusF, staffF, attachF, logs, deficiencies, planned, tags, stationName]);
 
-  const selCls = "rounded-full border border-slate-300 bg-white px-2.5 py-1 text-xs text-slate-700";
+  const selCls = "w-full min-w-0 rounded-full border border-slate-300 bg-white px-2.5 py-1 text-xs text-slate-700";
 
   return (
     <div className="pb-24">
@@ -131,7 +131,7 @@ export function SearchView({
           placeholder="Search logs, tasks & planned works…"
           className="w-full rounded-full border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
         />
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <select className={selCls} value={typeF} onChange={(e) => setTypeF(e.target.value as ResultType | "")}>
             <option value="">All Types</option>
             <option>Log</option>
@@ -163,7 +163,7 @@ export function SearchView({
             {staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
           <button
-            className={`rounded-full border px-2.5 py-1 text-xs transition ${
+            className={`w-full min-w-0 rounded-full border px-2.5 py-1 text-xs transition ${
               attachF
                 ? "border-emerald-500 bg-emerald-500 font-semibold text-white shadow-sm"
                 : "border-slate-300 bg-white text-slate-700"

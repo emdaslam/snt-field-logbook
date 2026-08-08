@@ -90,3 +90,6 @@ export const FONT_SIZE_SCALE: Record<FontSize, number> = {
 export const CONTENT_FONT_MIN = 10;
 export const CONTENT_FONT_MAX = 96;
 export const DEFAULT_CONTENT_FONT_SIZE = 10;
+
+/** App version shown in Settings → About. Bump alongside android/app/build.gradle. */
+export const APP_VERSION = "1.7.6.14";

@@ -7,7 +7,7 @@ import { inputClass, PrimaryButton, Chip, Modal, Field } from "./ui";
 import { DEPARTMENTS } from "@/lib/types";
 import { BackupModal } from "./BackupModal";
 import { RestoreModal } from "./RestoreModal";
-import { FONT_SIZES, FONT_SIZE_LABEL } from "@/lib/types";
+import { FONT_SIZES, FONT_SIZE_LABEL, APP_VERSION } from "@/lib/types";
 import {
   driveIsConfigured,
   driveStatus,
@@ -58,6 +58,23 @@ export function Settings() {
 
       {/* Google Drive sync */}
       <DriveSyncSection />
+
+      {/* Backup */}
+      <Section title="Data Backup & Restore">
+        <div className="flex flex-wrap gap-2">
+          <PrimaryButton onClick={() => setBackupOpen(true)}>Export Database (JSON)</PrimaryButton>
+          <button
+            onClick={() => setRestoreOpen(true)}
+            className="rounded-lg border border-blue-800 px-4 py-2.5 text-sm font-semibold text-blue-800"
+          >
+            Import / Restore JSON
+          </button>
+        </div>
+        <p className="mt-2 text-xs text-slate-400">
+          This app works fully offline — all records live on this device only. Export a backup file regularly
+          and keep it somewhere safe; importing it restores everything. Importing replaces all existing data.
+        </p>
+      </Section>
 
       {/* Stations */}
       <Section title="Manage Stations">
@@ -283,23 +300,6 @@ export function Settings() {
         </p>
       </Section>
 
-      {/* Backup */}
-      <Section title="Data Backup & Restore">
-        <div className="flex flex-wrap gap-2">
-          <PrimaryButton onClick={() => setBackupOpen(true)}>Export Database (JSON)</PrimaryButton>
-          <button
-            onClick={() => setRestoreOpen(true)}
-            className="rounded-lg border border-blue-800 px-4 py-2.5 text-sm font-semibold text-blue-800"
-          >
-            Import / Restore JSON
-          </button>
-        </div>
-        <p className="mt-2 text-xs text-slate-400">
-          This app works fully offline — all records live on this device only. Export a backup file regularly
-          and keep it somewhere safe; importing it restores everything. Importing replaces all existing data.
-        </p>
-      </Section>
-
       {/* About */}
       <Section title="About">
         <div className="flex items-center gap-4">
@@ -308,15 +308,16 @@ export function Settings() {
           </div>
           <div>
             <p className="text-sm font-semibold text-slate-800">S&amp;T Field Logbook</p>
-            <p className="text-xs text-slate-500">Version 1.5</p>
+            <p className="text-xs text-slate-500">Version {APP_VERSION}</p>
             <p className="mt-1 text-xs text-slate-500">
               Developed by <span className="font-semibold text-slate-700">E.MD. Aslam, JE/SIG/JMDG</span>
             </p>
           </div>
         </div>
         <p className="mt-3 text-xs text-slate-400">
-          An offline logbook for daily entries, inspections, deficiencies, planned works, PCDO records and
-          reports. All data stays on this device.
+          An offline-first field logbook for Railway S&amp;T section staff: daily log entries, inspections,
+          deficiencies, planned works, PCDO records, reminders and PDF exports. Data stays on this device
+          and can be backed up to Google Drive.
         </p>
       </Section>
 
