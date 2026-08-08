@@ -56,9 +56,9 @@ export function exportTomorrowsWork(
     body += `<p class="empty">No tasks or planned works selected. Tick items in the Task Manager to include them.</p>`;
   }
   for (const [station, g] of groups) {
-    body += `<h2>${esc(station)}</h2><ul class="plain">`;
+    body += `<h2>${esc(station)}</h2><ul>`;
     for (const t of g.tasks) {
-      body += `<li><strong>[Deficiency · ${esc(t.department)}]</strong> ${esc(t.title)}${t.description ? `<br/>${esc(t.description)}` : ""}</li>`;
+      body += `<li><strong>[Deficiency · ${esc(t.department)}]</strong> ${esc(t.title)}${t.description ? `<br/><small>${esc(t.description)}</small>` : ""}</li>`;
     }
     for (const w of g.works) {
       body += `<li><strong>[Planned Work]</strong> ${esc(w.title)}${w.materialRemarks ? `<br/>Material/Remarks: ${esc(w.materialRemarks)}` : ""}</li>`;
