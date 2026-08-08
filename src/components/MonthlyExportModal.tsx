@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useData } from "./DataProvider";
-import { Modal, Field, inputClass, PrimaryButton, Chip } from "./ui";
+import { Modal, Field, inputClass, PrimaryButton } from "./ui";
 import { exportMonthly, type MonthlyFilters } from "./exports";
 import { toISODate } from "@/lib/api";
 import { DEPARTMENTS, STATUSES } from "@/lib/types";
@@ -40,6 +40,8 @@ export function MonthlyExportModal({ open, onClose }: { open: boolean; onClose: 
         ? prev.departments.filter((x) => x !== d)
         : [...prev.departments, d],
     }));
+
+  const [openMenu, setOpenMenu] = useState<null | "stations" | "depts">(null);
 
   return (
     <Modal open={open} onClose={onClose} title="Export Monthly List" wide>
@@ -85,36 +87,34 @@ export function MonthlyExportModal({ open, onClose }: { open: boolean; onClose: 
         </Field>
       </div>
 
-      <Field label={`Stations (${f.stationIds.length} selected — none means all)`}>
-        <div className="max-h-44 overflow-y-auto rounded-lg border border-slate-200 p-2">
-          {stations.length === 0 && <p className="text-xs text-slate-400">No stations yet.</p>}
-          {stations.map((s) => (
-            <label key={s.id} className="flex cursor-pointer items-center gap-2 py-1 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                className="h-4 w-4 accent-emerald-600"
-                checked={f.stationIds.includes(s.id)}
-                onChange={() => toggleStation(s.id)}
-              />
-              {s.name}
-            </label>
-          ))}
-        </div>
-      </Field>
+      <MultiSelectDropdown
+        label="Stations"
+        hint={
+          f.stationIds.length === 0
+            ? "None selected — all stations included"
+            : `${f.stationIds.length} station${f.stationIds.length !== 1 ? "s" : ""} selected`
+        }
+        options={stations.map((s) => ({ value: s.id, label: s.name }))}
+        selected={f.stationIds}
+        onToggle={(v) => toggleStation(v as number)}
+        open={openMenu === "stations"}
+        onOpenChange={(o) => setOpenMenu(o ? "stations" : null)}
+        emptyText="No stations yet."
+      />
 
-      <Field label="Departments (none means all)">
-        <div className="flex flex-wrap gap-2">
-          {DEPARTMENTS.map((d) => (
-            <Chip
-              key={d}
-              label={d}
-              color="#0e7490"
-              active={f.departments.includes(d)}
-              onClick={() => toggleDept(d)}
-            />
-          ))}
-        </div>
-      </Field>
+      <MultiSelectDropdown
+        label="Departments"
+        hint={
+          f.departments.length === 0
+            ? "None selected — all departments included"
+            : `${f.departments.length} department${f.departments.length !== 1 ? "s" : ""} selected`
+        }
+        options={DEPARTMENTS.map((d) => ({ value: d, label: d }))}
+        selected={f.departments}
+        onToggle={(v) => toggleDept(v as string)}
+        open={openMenu === "depts"}
+        onOpenChange={(o) => setOpenMenu(o ? "depts" : null)}
+      />
 
       <p className="mb-3 text-xs text-slate-400">
         Default range is today back to exactly one month prior. Daily logs export in ascending date order;
@@ -153,5 +153,77 @@ function Toggle({
       />
       {label}
     </label>
+  );
+}
+
+function MultiSelectDropdown({
+  label,
+  hint,
+  options,
+  selected,
+  onToggle,
+  open,
+  onOpenChange,
+  emptyText,
+}: {
+  label: string;
+  hint?: string;
+  options: { value: string | number; label: string }[];
+  selected: (string | number)[];
+  onToggle: (v: string | number) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  emptyText?: string;
+}) {
+  const summary =
+    selected.length === 0
+      ? "All"
+      : selected.length === 1
+        ? options.find((o) => selected.includes(o.value))?.label ?? "1 selected"
+        : `${selected.length} selected`;
+  return (
+    <div className="relative mb-3">
+      <span className="mb-1 block text-sm font-medium text-slate-700">{label}</span>
+      <button
+        type="button"
+        onClick={() => onOpenChange(!open)}
+        className="flex w-full items-center justify-between gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+      >
+        <span className="truncate">{summary}</span>
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          className={`flex-shrink-0 text-slate-400 transition ${open ? "rotate-180" : ""}`}
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
+          {options.length === 0 && (
+            <p className="px-2 py-1.5 text-xs text-slate-400">{emptyText ?? "Nothing to choose"}</p>
+          )}
+          {options.map((o) => (
+            <label
+              key={String(o.value)}
+              className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+            >
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-emerald-600"
+                checked={selected.includes(o.value)}
+                onChange={() => onToggle(o.value)}
+              />
+              <span className="truncate">{o.label}</span>
+            </label>
+          ))}
+        </div>
+      )}
+      {hint && <p className="mt-1 text-xs text-slate-400">{hint}</p>}
+    </div>
   );
 }
