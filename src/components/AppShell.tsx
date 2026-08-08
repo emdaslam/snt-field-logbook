@@ -276,11 +276,11 @@ export function AppShell() {
   const clampToRange = (iso: string, announce: boolean): string => {
     const { startIso, endIso } = timelineBounds();
     if (iso > endIso) {
-      if (announce) alert(`No entry beyond ${fmtDate(iso)}`);
+      if (announce) alert(`No entry beyond ${fmtDate(endIso)}`);
       return endIso;
     }
     if (iso < startIso) {
-      if (announce) alert(`No entry before ${fmtDate(iso)}`);
+      if (announce) alert(`No entry before ${fmtDate(startIso)}`);
       return startIso;
     }
     return iso;
