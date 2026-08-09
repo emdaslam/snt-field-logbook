@@ -3,7 +3,23 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
-## 1.7.6.18 — 2026-08-09 (current)
+## 1.7.6.19 — 2026-08-09 (current)
+
+**Feat: Google Drive backups are stored per day, so each sync uploads only what changed instead of the whole database** — `cd0b024`
+- The single `snt-logbook-backup.json` is replaced by one small file per log
+  date (photos included), one data file for the non-log tables, and a tiny
+  index. A normal sync pushes only the touched day(s) plus the index — entering
+  one daily log no longer re-uploads the entire backup, and the app-data
+  storage quota is no longer wasted on redundant uploads.
+- Restore pulls the index, the data file and every day file and imports them
+  all at once, so nothing is missed on a new device.
+- The first sync after the update migrates the existing single-file backup
+  into the per-day layout automatically and then removes the old file — data
+  is never lost in between.
+- Every write (log, deficiency, planned work, station, staff, tag, note) marks
+  exactly what changed, so unchanged days are never re-sent.
+
+## 1.7.6.18 — 2026-08-09
 
 **Feat: deficiency station defaults to the latest daily-log station; PCDO export keeps only the all-stations disconnection summary** — `989f438`
 - Adding a deficiency now pre-fills the Affected Station with the station from
