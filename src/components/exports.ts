@@ -178,7 +178,7 @@ export function exportPcdo(
   if (sortedDisc.length === 0) {
     body += `<p class="empty">No disconnections recorded for this period.</p>`;
   } else {
-    // Station-wise summary
+    // Single summary table covering all stations
     body += `<h2>Summary — Station-wise</h2>`;
     body += `<table><tr><th>Station</th><th>Special Work</th><th>Failure</th><th>Maintenance</th><th>Not Permitted</th><th>Total</th></tr>`;
     for (const [station, rows] of sortedDisc) {
@@ -187,19 +187,6 @@ export function exportPcdo(
     }
     body += `<tr><td><strong>Grand Total</strong></td><td><strong>${grand.sw}</strong></td><td><strong>${grand.fa}</strong></td><td><strong>${grand.mt}</strong></td><td><strong>${grand.np}</strong></td><td><strong>${grand.total}</strong></td></tr>`;
     body += `</table>`;
-
-    // Detailed date-wise list per station
-    for (const [station, rows] of sortedDisc) {
-      const t = sum(rows);
-      body += `<h2>${esc(station)} — ${t.total} disconnection${t.total !== 1 ? "s" : ""}</h2>`;
-      body += `<table><tr><th class="date">Date</th><th>Special Work</th><th>Failure</th><th>Maintenance</th><th>Not Permitted</th><th>Total</th></tr>`;
-      for (const r of rows) {
-        const rt = r.discSpecialWork + r.discFailure + r.discMaintenance + r.discNotPermitted;
-        body += `<tr><td class="date">${fmtDate(r.pcdoDate || r.logDate)}</td><td>${r.discSpecialWork}</td><td>${r.discFailure}</td><td>${r.discMaintenance}</td><td>${r.discNotPermitted}</td><td><strong>${rt}</strong></td></tr>`;
-      }
-      body += `<tr><td><strong>Total</strong></td><td><strong>${t.sw}</strong></td><td><strong>${t.fa}</strong></td><td><strong>${t.mt}</strong></td><td><strong>${t.np}</strong></td><td><strong>${t.total}</strong></td></tr>`;
-      body += `</table>`;
-    }
   }
 
   exportDocument(`PCDO ${period.label}`, body, "pcdo");

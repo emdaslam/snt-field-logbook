@@ -922,14 +922,18 @@ export function DeficiencyForm({
   open,
   onClose,
   existing,
+  defaultStationId,
 }: {
   open: boolean;
   onClose: () => void;
   existing?: DeficiencyTask | null;
+  /** Suggested "Affected Station", e.g. the station of the most recent daily
+   * log entry; the user can still change it. Ignored when `existing` is set. */
+  defaultStationId?: number | null;
 }) {
   const { stations, staff, refresh, autoSync } = useData();
   const [department, setDepartment] = useState(existing?.department ?? "Signalling");
-  const [stationId, setStationId] = useState<number | null>(existing?.stationId ?? null);
+  const [stationId, setStationId] = useState<number | null>(existing?.stationId ?? defaultStationId ?? null);
   const [title, setTitle] = useState(existing?.title ?? "");
   const [description, setDescription] = useState(existing?.description ?? "");
   const [priority, setPriority] = useState(existing?.priority ?? "Normal");

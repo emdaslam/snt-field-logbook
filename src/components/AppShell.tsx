@@ -137,6 +137,17 @@ export function AppShell() {
   const [defForm, setDefForm] = useState(false);
   const [planForm, setPlanForm] = useState(false);
 
+  // Suggested "Affected Station" for a new deficiency: the station of the most
+  // recent daily log entry (logs arrive newest-first). The user can change it.
+  const defaultDefStationId = useMemo(() => {
+    for (const l of logs) {
+      const m = stations.find((s) => l.stationMovement === s.name);
+      if (m) return m.id;
+      if (l.pcdoStationId) return l.pcdoStationId;
+    }
+    return null;
+  }, [logs, stations]);
+
   const exitToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastBack = useRef(0);
 
@@ -664,7 +675,7 @@ export function AppShell() {
       {/* Forms & modals */}
       {logForm && <DailyLogForm open onClose={() => setLogForm(false)} />}
       {editLog && <DailyLogForm open onClose={() => setEditLog(null)} existing={editLog} />}
-      {defForm && <DeficiencyForm open onClose={() => setDefForm(false)} />}
+      {defForm && <DeficiencyForm open onClose={() => setDefForm(false)} defaultStationId={defaultDefStationId} />}
       {planForm && <PlannedWorkForm open onClose={() => setPlanForm(false)} />}
       {searchDef && <DeficiencyForm open onClose={() => setSearchDef(null)} existing={searchDef} />}
       {searchPlan && <PlannedWorkForm open onClose={() => setSearchPlan(null)} existing={searchPlan} />}
