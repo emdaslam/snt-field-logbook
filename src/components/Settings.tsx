@@ -18,8 +18,18 @@ import {
 } from "@/lib/drive";
 import type { Staff, Tag } from "@/db/schema";
 
+const GROUPS = [
+  { id: "account", label: "Account & Directory" },
+  { id: "tags", label: "Tags & Notifications" },
+  { id: "backup", label: "Backup & Drive" },
+  { id: "appearance", label: "Appearance & Font Size" },
+  { id: "about", label: "About" },
+] as const;
+type GroupId = (typeof GROUPS)[number]["id"];
+
 export function Settings() {
   const { stations, staff, tags, currentUser, refresh, fontSize, setFontSize, contentScale, setContentScale, reminderDays, setReminderDays } = useData();
+  const [group, setGroup] = useState<GroupId>("account");
   const [newStation, setNewStation] = useState({ name: "", code: "" });
   const [editStaff, setEditStaff] = useState<Staff | null>(null);
   const [addStaff, setAddStaff] = useState(false);
@@ -36,6 +46,28 @@ export function Settings() {
 
   return (
     <div className="space-y-4 p-4 pb-24">
+      {/* Horizontal group selector */}
+      <div className="sticky top-0 z-10 -mx-4 bg-slate-100 px-4 pb-2 pt-1">
+        <div className="flex gap-2 overflow-x-auto">
+          {GROUPS.map((g) => (
+            <button
+              key={g.id}
+              type="button"
+              onClick={() => setGroup(g.id)}
+              className={`flex-shrink-0 whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-semibold transition ${
+                group === g.id
+                  ? "bg-blue-900 text-white shadow"
+                  : "border border-slate-300 bg-white text-slate-600"
+              }`}
+            >
+              {g.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {group === "account" && (
+        <>
       {/* Current User Profile */}
       <Section title="My Profile">
         {currentUser ? (
@@ -54,26 +86,6 @@ export function Settings() {
         ) : (
           <p className="text-sm text-slate-400">No current user set. Add staff and mark one as “current user”.</p>
         )}
-      </Section>
-
-      {/* Google Drive sync */}
-      <DriveSyncSection />
-
-      {/* Backup */}
-      <Section title="Data Backup & Restore">
-        <div className="flex flex-wrap gap-2">
-          <PrimaryButton onClick={() => setBackupOpen(true)}>Export Database (JSON)</PrimaryButton>
-          <button
-            onClick={() => setRestoreOpen(true)}
-            className="rounded-lg border border-blue-800 px-4 py-2.5 text-sm font-semibold text-blue-800"
-          >
-            Import / Restore JSON
-          </button>
-        </div>
-        <p className="mt-2 text-xs text-slate-400">
-          This app works fully offline — all records live on this device only. Export a backup file regularly
-          and keep it somewhere safe; importing it restores everything. Importing replaces all existing data.
-        </p>
       </Section>
 
       {/* Stations */}
@@ -131,7 +143,11 @@ export function Settings() {
           ))}
         </ul>
       </Section>
+        </>
+      )}
 
+      {group === "tags" && (
+        <>
       {/* Tags */}
       <Section title="Manage Custom Tags">
         <div className="mb-3 flex justify-end">
@@ -188,55 +204,6 @@ export function Settings() {
           tags (e.g. “point oiling”, “monthly inspection”) are tracked per station/side, every other tag by
           its last use. Tick <strong>asks for side</strong> to be asked which station side the work was done
           towards when the tag is picked in a log entry.
-        </p>
-      </Section>
-
-      {/* Appearance */}
-      <Section title="Appearance">
-        <p className="mb-2 text-sm text-slate-600">Font size (applies to the whole app)</p>
-        <div className="flex gap-2">
-          {FONT_SIZES.map((f) => (
-            <button
-              key={f}
-              onClick={() => setFontSize(f)}
-              className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium capitalize ${
-                fontSize === f
-                  ? "border-blue-600 bg-blue-50 text-blue-800"
-                  : "border-slate-300 text-slate-600"
-              }`}
-            >
-              {FONT_SIZE_LABEL[f]}
-            </button>
-          ))}
-        </div>
-        <p className="mb-3 mt-3 text-sm text-slate-600">
-          Entry text size (log entries, deficiencies, planned works)
-        </p>
-        <div className="flex gap-2">
-          {[
-            { v: 100, l: "Normal" },
-            { v: 125, l: "Larger" },
-            { v: 150, l: "Largest" },
-          ].map((o) => (
-            <button
-              key={o.v}
-              onClick={() => setContentScale(o.v)}
-              className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium ${
-                contentScale === o.v
-                  ? "border-blue-600 bg-blue-50 text-blue-800"
-                  : "border-slate-300 text-slate-600"
-              }`}
-            >
-              {o.l}
-            </button>
-          ))}
-        </div>
-        <p className="mt-2 text-xs text-slate-400">
-          Scales only the written text of logged entries, deficiencies and planned works on the Home and
-          Tasks tabs. The rest of the app keeps the font size chosen above.
-        </p>
-        <p className="mt-2 text-xs text-slate-400">
-          PDF exports ask for their own text size on every export and remember the last one used per export type.
         </p>
       </Section>
 
@@ -299,8 +266,87 @@ export function Settings() {
           Default is 3 days. Overdue items always warn regardless of this value.
         </p>
       </Section>
+        </>
+      )}
 
-      {/* About */}
+      {group === "backup" && (
+        <>
+      {/* Backup */}
+      <Section title="Data Backup & Restore">
+        <div className="flex flex-wrap gap-2">
+          <PrimaryButton onClick={() => setBackupOpen(true)}>Export Database (JSON)</PrimaryButton>
+          <button
+            onClick={() => setRestoreOpen(true)}
+            className="rounded-lg border border-blue-800 px-4 py-2.5 text-sm font-semibold text-blue-800"
+          >
+            Import / Restore JSON
+          </button>
+        </div>
+        <p className="mt-2 text-xs text-slate-400">
+          This app works fully offline — all records live on this device only. Export a backup file regularly
+          and keep it somewhere safe; importing it restores everything. Importing replaces all existing data.
+        </p>
+      </Section>
+
+      {/* Google Drive sync */}
+      <DriveSyncSection />
+        </>
+      )}
+
+      {group === "appearance" && (
+        <>
+      {/* Appearance */}
+      <Section title="Appearance">
+        <p className="mb-2 text-sm text-slate-600">Font size (applies to the whole app)</p>
+        <div className="flex gap-2">
+          {FONT_SIZES.map((f) => (
+            <button
+              key={f}
+              onClick={() => setFontSize(f)}
+              className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium capitalize ${
+                fontSize === f
+                  ? "border-blue-600 bg-blue-50 text-blue-800"
+                  : "border-slate-300 text-slate-600"
+              }`}
+            >
+              {FONT_SIZE_LABEL[f]}
+            </button>
+          ))}
+        </div>
+        <p className="mb-3 mt-3 text-sm text-slate-600">
+          Entry text size (log entries, deficiencies, planned works)
+        </p>
+        <div className="flex gap-2">
+          {[
+            { v: 100, l: "Normal" },
+            { v: 125, l: "Larger" },
+            { v: 150, l: "Largest" },
+          ].map((o) => (
+            <button
+              key={o.v}
+              onClick={() => setContentScale(o.v)}
+              className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium ${
+                contentScale === o.v
+                  ? "border-blue-600 bg-blue-50 text-blue-800"
+                  : "border-slate-300 text-slate-600"
+              }`}
+            >
+              {o.l}
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-slate-400">
+          Scales only the written text of logged entries, deficiencies and planned works on the Home and
+          Tasks tabs. The rest of the app keeps the font size chosen above.
+        </p>
+        <p className="mt-2 text-xs text-slate-400">
+          PDF exports ask for their own text size on every export and remember the last one used per export type.
+        </p>
+      </Section>
+        </>
+      )}
+
+      {group === "about" && (
       <Section title="About">
         <div className="flex items-center gap-4">
           <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-blue-900 text-2xl font-black text-white">
@@ -320,6 +366,7 @@ export function Settings() {
           and can be backed up to Google Drive.
         </p>
       </Section>
+      )}
 
       {(editStaff || addStaff) && (
         <StaffEditor

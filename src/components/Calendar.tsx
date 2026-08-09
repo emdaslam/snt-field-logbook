@@ -4,41 +4,61 @@ import { useRef, useState } from "react";
 import { toISODate } from "@/lib/api";
 
 /**
- * Visible "Go to date" button. An invisible date input covers the button, so
- * tapping it opens the native date picker straight away and the chosen date
- * jumps the calendar/timeline immediately — no extra sheet or "Go" step.
+ * Compact "Go to date" button. An invisible date input covers the small
+ * calendar icon, so tapping it opens the native date picker straight away and
+ * the chosen date jumps the calendar/timeline immediately — no extra sheet or
+ * "Go" step. A "Go to today" button sits beside it as a quick shortcut back
+ * to today.
  */
 function GoToDateButton({
   initial,
+  today,
   onGo,
 }: {
   initial: string;
+  today: string;
   onGo: (iso: string) => void;
 }) {
   const [val, setVal] = useState(initial);
   return (
-    <span className="relative inline-flex">
+    <span className="relative inline-flex items-center gap-2">
+      <span className="relative inline-flex">
+        <button
+          className="flex h-[25px] items-center rounded-lg border border-blue-300 bg-blue-50 px-2 text-blue-900 hover:bg-blue-100"
+          type="button"
+          aria-label="Go to date"
+          title="Go to date"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" />
+            <path d="M16 2v4M8 2v4M3 10h18" />
+          </svg>
+        </button>
+        <input
+          type="date"
+          value={val}
+          onChange={(e) => {
+            setVal(e.target.value);
+            if (e.target.value) onGo(e.target.value);
+          }}
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          aria-label="Go to date"
+          title="Go to date"
+        />
+      </span>
       <button
-        className="flex items-center gap-1 rounded-lg border border-blue-300 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-900 hover:bg-blue-100"
         type="button"
+        onClick={() => onGo(today)}
+        className="flex h-[25px] items-center gap-1 rounded-lg border border-blue-300 bg-blue-50 px-2 text-xs font-semibold text-blue-900 hover:bg-blue-100"
+        aria-label="Go to today"
+        title="Go to today"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <rect x="3" y="4" width="18" height="18" rx="2" />
-          <path d="M16 2v4M8 2v4M3 10h18" />
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3 3" />
         </svg>
-        Go to date
+        Today
       </button>
-      <input
-        type="date"
-        value={val}
-        onChange={(e) => {
-          setVal(e.target.value);
-          if (e.target.value) onGo(e.target.value);
-        }}
-        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-        aria-label="Go to date"
-        title="Go to date"
-      />
     </span>
   );
 }
@@ -221,6 +241,7 @@ export function Calendar({
         <div className="flex items-center gap-2">
           <GoToDateButton
             initial={focusedDate ?? selectedDate ?? today}
+            today={today}
             onGo={(iso) => onGoToDate?.(iso)}
           />
           {focusedDate && (
@@ -264,6 +285,7 @@ export function Calendar({
           <span className="text-[13px] font-semibold text-blue-900">{monthLabel}</span>
           <GoToDateButton
             initial={focusedDate ?? selectedDate ?? today}
+            today={today}
             onGo={(iso) => onGoToDate?.(iso)}
           />
         </div>

@@ -3,7 +3,17 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
-## 1.7.6.19 — 2026-08-09 (current)
+## 1.7.6.20 — 2026-08-09 (current)
+
+**Feat: easier date navigation and a reorganised Settings page**
+- The calendar now shows a compact calendar-icon button (opens the native date
+  picker) and a "Today" button that jumps straight back to the current day,
+  both 25 px tall and side by side.
+- Settings is collapsed into horizontally grouped sections — Account &
+  Directory, Tags & Notifications, Backup & Drive, Appearance & Font Size, and
+  About — so you reach what you need with one tap.
+
+## 1.7.6.19 — 2026-08-09
 
 **Feat: Google Drive backups are stored per day, so each sync uploads only what changed instead of the whole database** — `cd0b024`
 - The single `snt-logbook-backup.json` is replaced by one small file per log
