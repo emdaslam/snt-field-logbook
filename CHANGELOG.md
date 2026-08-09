@@ -3,7 +3,15 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
-## 1.7.6.17 — 2026-08-08 (current)
+## 1.7.6.18 — 2026-08-09 (current)
+
+**Feat: deficiency station defaults to the latest daily-log station; PCDO export keeps only the all-stations disconnection summary** — `989f438`
+- Adding a deficiency now pre-fills the Affected Station with the station from
+  the most recent daily log entry (the user can still change it).
+- The PCDO export no longer prints the per-station, date-wise disconnection
+  tables — the single station-wise summary table with the grand total is enough.
+
+## 1.7.6.17 — 2026-08-08
 
 **Fix: disconnection counts no longer show NaN in reports** — `f1e9c68`
 - Logs saved before the Not Permitted purpose was added stored the disconnection
