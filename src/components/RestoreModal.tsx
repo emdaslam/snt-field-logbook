@@ -6,6 +6,7 @@ import { useData } from "./DataProvider";
 import { BackupManifest } from "./BackupManifest";
 import { summarizeBackup, formatBytes, type BackupSummary } from "@/lib/backup";
 import { api } from "@/lib/api";
+import { markAllDirty } from "@/lib/drivebackup";
 
 export function RestoreModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { refresh, autoSync } = useData();
@@ -71,6 +72,9 @@ export function RestoreModal({ open, onClose }: { open: boolean; onClose: () => 
     setRestored(null);
     try {
       await api.backup.import(parsed as Record<string, unknown>);
+      // Everything changed on this device — the next Drive sync re-pushes the
+      // full dataset so the manual restore is also reflected in the cloud.
+      markAllDirty();
 
       // Read the store back and confirm everything landed
       const nowSummary = summarizeBackup(await api.backup.export());

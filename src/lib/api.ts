@@ -5,6 +5,7 @@
  * against the device's own IndexedDB store. Nothing here touches the network.
  */
 import * as ldb from "./localdb";
+import { markDayDirty, markDataDirty } from "./drivebackup";
 import type {
   Note,
   NoteCategory,
@@ -40,17 +41,25 @@ async function staffForStation(stationId: number | null): Promise<number | null>
 export const api = {
   stations: {
     list: async () => asc(await ldb.readTable<Station>("stations"), "name"),
-    create: (b: Partial<Station>) =>
-      ldb.insert<Partial<Station>>("stations", { name: b.name ?? "", code: b.code ?? null }) as unknown as Promise<Station>,
-    update: (b: Partial<Station>) =>
-      ldb.update("stations", b.id as number, { name: b.name, code: b.code ?? null }) as unknown as Promise<Station>,
-    remove: (id: number) => ldb.remove("stations", id),
+    create: (b: Partial<Station>) => {
+      markDataDirty();
+      return ldb.insert<Partial<Station>>("stations", { name: b.name ?? "", code: b.code ?? null }) as unknown as Promise<Station>;
+    },
+    update: (b: Partial<Station>) => {
+      markDataDirty();
+      return ldb.update("stations", b.id as number, { name: b.name, code: b.code ?? null }) as unknown as Promise<Station>;
+    },
+    remove: (id: number) => {
+      markDataDirty();
+      return ldb.remove("stations", id);
+    },
   },
 
   staff: {
     list: async () => asc(await ldb.readTable<Staff>("staff"), "name"),
-    create: (b: Partial<Staff>) =>
-      ldb.insert("staff", {
+    create: (b: Partial<Staff>) => {
+      markDataDirty();
+      return ldb.insert("staff", {
         name: b.name ?? "",
         designation: b.designation ?? null,
         phone: b.phone ?? null,
@@ -59,9 +68,11 @@ export const api = {
         stationIds: Array.isArray(b.stationIds) ? b.stationIds : [],
         headquartersStationId: b.headquartersStationId ?? null,
         isCurrentUser: b.isCurrentUser ?? false,
-      }) as unknown as Promise<Staff>,
-    update: (b: Partial<Staff>) =>
-      ldb.update("staff", b.id as number, {
+      }) as unknown as Promise<Staff>;
+    },
+    update: (b: Partial<Staff>) => {
+      markDataDirty();
+      return ldb.update("staff", b.id as number, {
         name: b.name,
         designation: b.designation ?? null,
         phone: b.phone ?? null,
@@ -70,8 +81,12 @@ export const api = {
         stationIds: Array.isArray(b.stationIds) ? b.stationIds : [],
         headquartersStationId: b.headquartersStationId ?? null,
         isCurrentUser: b.isCurrentUser ?? false,
-      }) as unknown as Promise<Staff>,
-    remove: (id: number) => ldb.remove("staff", id),
+      }) as unknown as Promise<Staff>;
+    },
+    remove: (id: number) => {
+      markDataDirty();
+      return ldb.remove("staff", id);
+    },
   },
 
   tags: {
@@ -89,18 +104,24 @@ export const api = {
         row.remindIntervalDays = b.remindIntervalDays ?? null;
         row.remindBeforeDays = b.remindBeforeDays ?? null;
       }
+      markDataDirty();
       return ldb.insert("tags", row) as unknown as Promise<Tag>;
     },
-    update: (b: Partial<Tag>) =>
-      ldb.update("tags", b.id as number, {
+    update: (b: Partial<Tag>) => {
+      markDataDirty();
+      return ldb.update("tags", b.id as number, {
         name: b.name ?? "",
         color: b.color ?? "#2563eb",
         needsSide: Boolean(b.needsSide),
         remindEnabled: b.remindEnabled ?? false,
         remindIntervalDays: b.remindIntervalDays ?? null,
         remindBeforeDays: b.remindBeforeDays ?? null,
-      }) as unknown as Promise<Tag>,
-    remove: (id: number) => ldb.remove("tags", id),
+      }) as unknown as Promise<Tag>;
+    },
+    remove: (id: number) => {
+      markDataDirty();
+      return ldb.remove("tags", id);
+    },
   },
 
   logs: {
@@ -121,16 +142,30 @@ export const api = {
         "logDate"
       );
     },
-    create: (b: Partial<DailyLog>) => ldb.insert("dailyLogs", normaliseLog(b)) as unknown as Promise<DailyLog>,
-    update: (b: Partial<DailyLog>) =>
-      ldb.update("dailyLogs", b.id as number, normaliseLog(b)) as unknown as Promise<DailyLog>,
-    remove: (id: number) => ldb.remove("dailyLogs", id),
+    create: (b: Partial<DailyLog>) => {
+      const row = normaliseLog(b);
+      markDayDirty(row.logDate);
+      return ldb.insert("dailyLogs", row) as unknown as Promise<DailyLog>;
+    },
+    update: async (b: Partial<DailyLog>) => {
+      const row = normaliseLog(b);
+      markDayDirty(row.logDate);
+      const old = (await ldb.readTable<DailyLog>("dailyLogs")).find((r) => r.id === b.id);
+      if (old?.logDate && old.logDate !== row.logDate) markDayDirty(old.logDate);
+      return ldb.update("dailyLogs", b.id as number, row) as unknown as Promise<DailyLog>;
+    },
+    remove: async (id: number) => {
+      const old = (await ldb.readTable<DailyLog>("dailyLogs")).find((r) => r.id === id);
+      if (old?.logDate) markDayDirty(old.logDate);
+      return ldb.remove("dailyLogs", id);
+    },
   },
 
   deficiencies: {
     list: async () => desc(await ldb.readTable<DeficiencyTask>("deficiencyTasks"), "createdAt"),
-    create: async (b: Partial<DeficiencyTask>) =>
-      ldb.insert("deficiencyTasks", {
+    create: async (b: Partial<DeficiencyTask>) => {
+      markDataDirty();
+      return ldb.insert("deficiencyTasks", {
         department: b.department ?? "Signalling",
         stationId: b.stationId ?? null,
         title: b.title ?? "",
@@ -142,8 +177,10 @@ export const api = {
         selectedForTomorrow: false,
         attachments: b.attachments ?? [],
         completedAt: null,
-      }) as unknown as Promise<DeficiencyTask>,
+      }) as unknown as Promise<DeficiencyTask>;
+    },
     update: async (b: Partial<DeficiencyTask>) => {
+      markDataDirty();
       const patch: Record<string, unknown> = {};
       if (b.department !== undefined) patch.department = b.department;
       if (b.stationId !== undefined) {
@@ -163,7 +200,10 @@ export const api = {
       }
       return ldb.update("deficiencyTasks", b.id as number, patch) as unknown as Promise<DeficiencyTask>;
     },
-    remove: (id: number) => ldb.remove("deficiencyTasks", id),
+    remove: (id: number) => {
+      markDataDirty();
+      return ldb.remove("deficiencyTasks", id);
+    },
   },
 
   planned: {
@@ -171,8 +211,9 @@ export const api = {
       void _staffId;
       return desc(await ldb.readTable<PlannedWork>("plannedWorks"), "plannedDate");
     },
-    create: (b: Partial<PlannedWork>) =>
-      ldb.insert("plannedWorks", {
+    create: (b: Partial<PlannedWork>) => {
+      markDataDirty();
+      return ldb.insert("plannedWorks", {
         title: b.title ?? "",
         description: b.description ?? null,
         plannedDate: b.plannedDate ?? "",
@@ -185,8 +226,10 @@ export const api = {
         notified: false,
         attachments: b.attachments ?? [],
         completedAt: null,
-      }) as unknown as Promise<PlannedWork>,
+      }) as unknown as Promise<PlannedWork>;
+    },
     update: (b: Partial<PlannedWork>) => {
+      markDataDirty();
       const patch: Record<string, unknown> = {};
       for (const k of [
         "title",
@@ -208,7 +251,10 @@ export const api = {
       }
       return ldb.update("plannedWorks", b.id as number, patch) as unknown as Promise<PlannedWork>;
     },
-    remove: (id: number) => ldb.remove("plannedWorks", id),
+    remove: (id: number) => {
+      markDataDirty();
+      return ldb.remove("plannedWorks", id);
+    },
   },
 
   notes: {
@@ -220,8 +266,9 @@ export const api = {
           String(b.updatedAt ?? "").localeCompare(String(a.updatedAt ?? ""))
       );
     },
-    create: (b: Partial<Note>) =>
-      ldb.insert("notes", {
+    create: (b: Partial<Note>) => {
+      markDataDirty();
+      return ldb.insert("notes", {
         title: b.title ?? "",
         body: b.body ?? null,
         category: b.category ?? "General",
@@ -230,8 +277,10 @@ export const api = {
         pinned: Boolean(b.pinned),
         ownerStaffId: b.ownerStaffId ?? null,
         updatedAt: new Date().toISOString(),
-      }) as unknown as Promise<Note>,
+      }) as unknown as Promise<Note>;
+    },
     update: (b: Partial<Note>) => {
+      markDataDirty();
       const patch: Record<string, unknown> = { updatedAt: new Date().toISOString() };
       for (const k of ["title", "body", "category", "stationId", "pinned"] as const) {
         if (b[k] !== undefined) patch[k] = b[k];
@@ -239,7 +288,10 @@ export const api = {
       if (b.refDate !== undefined) patch.refDate = b.refDate || null;
       return ldb.update("notes", b.id as number, patch) as unknown as Promise<Note>;
     },
-    remove: (id: number) => ldb.remove("notes", id),
+    remove: (id: number) => {
+      markDataDirty();
+      return ldb.remove("notes", id);
+    },
   },
 
   noteCategories: {
@@ -251,6 +303,7 @@ export const api = {
       if (rows.some((c) => c.name.toLowerCase() === name.toLowerCase())) {
         return { error: "That category already exists" } as NoteCategory & { error?: string };
       }
+      markDataDirty();
       return ldb.insert("noteCategories", { name, color: b.color ?? "#2563eb" }) as unknown as unknown as Promise<
         NoteCategory & { error?: string }
       >;
@@ -264,6 +317,7 @@ export const api = {
       if (rows.some((c) => c.id !== b.id && c.name.toLowerCase() === name.toLowerCase())) {
         return { error: "That category already exists" } as NoteCategory & { error?: string };
       }
+      markDataDirty();
       const saved = await ldb.update("noteCategories", b.id as number, {
         name,
         color: b.color ?? current.color,
@@ -280,6 +334,7 @@ export const api = {
     remove: async (id: number) => {
       const rows = await ldb.readTable<NoteCategory>("noteCategories");
       const current = rows.find((c) => c.id === id);
+      markDataDirty();
       if (current) {
         const notes = await ldb.readTable<Note>("notes");
         for (const n of notes.filter((x) => x.category === current.name)) {
