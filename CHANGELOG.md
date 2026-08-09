@@ -18,6 +18,10 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
   is never lost in between.
 - Every write (log, deficiency, planned work, station, staff, tag, note) marks
   exactly what changed, so unchanged days are never re-sent.
+- The Drive Sync panel in Settings now remembers the outcome of the last sync —
+  e.g. `Synced to Drive (1 day, 3.2 KB)` or `Already up to date (37 days backed
+  up)` — so the per-day upload is visible even when an automatic sync performed
+  it. — `9c45bca`
 
 ## 1.7.6.18 — 2026-08-09
 
