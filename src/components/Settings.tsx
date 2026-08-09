@@ -579,8 +579,10 @@ function DriveSyncSection() {
       const c = await driveIsConfigured();
       if (!live) return;
       setConfigured(c);
-      setEmail(driveStatus().email);
-      setLastSynced(driveStatus().lastSynced);
+      const st = driveStatus();
+      setEmail(st.email);
+      setLastSynced(st.lastSynced);
+      if (st.lastSync) setMsg({ ok: st.lastSync.ok, text: st.lastSync.message });
     })();
     return () => {
       live = false;

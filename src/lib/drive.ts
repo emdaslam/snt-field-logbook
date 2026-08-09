@@ -39,6 +39,7 @@ import {
 const AUTH_KEY = "snt.drive.auth";
 const VERSION_KEY = "snt.drive.version";
 const EMAIL_KEY = "snt.drive.email";
+const LAST_SYNC_KEY = "snt.drive.lastSync";
 
 export type DriveAuth = { accessToken: string; email: string; displayName: string };
 
@@ -48,10 +49,20 @@ export type DriveResult = {
   imported?: boolean;
 };
 
+export type LastSyncInfo = {
+  at: string;
+  ok: boolean;
+  message: string;
+  days?: number;
+  bytes?: number;
+  records?: number;
+};
+
 export type DriveStatus = {
   available: boolean;
   email: string | null;
   lastSynced: string | null;
+  lastSync: LastSyncInfo | null;
 };
 
 type GoogleDriveNative = {
@@ -110,6 +121,34 @@ function setVersion(v: string) {
   }
 }
 
+function getLastSync(): LastSyncInfo | null {
+  try {
+    const raw = localStorage.getItem(LAST_SYNC_KEY);
+    if (!raw) return null;
+    const rec = JSON.parse(raw) as LastSyncInfo;
+    return typeof rec?.at === "string" ? rec : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Persist the outcome of the most recent Drive sync so the result of an
+ * automatic sync (which the user never sees) is still visible in Settings. */
+function recordSync(info: {
+  ok: boolean;
+  message: string;
+  days?: number;
+  bytes?: number;
+  records?: number;
+}) {
+  try {
+    const rec: LastSyncInfo = { at: new Date().toISOString(), ...info };
+    localStorage.setItem(LAST_SYNC_KEY, JSON.stringify(rec));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
 function errorMessage(e: unknown): string {
   if (e instanceof Error && e.message) return e.message;
   return "Something went wrong";
@@ -131,6 +170,7 @@ export function driveStatus(): DriveStatus {
     available: isNative(),
     email: getStoredEmail(),
     lastSynced: getVersion(),
+    lastSync: getLastSync(),
   };
 }
 
@@ -330,7 +370,9 @@ export async function pushToDrive(interactive = true): Promise<DriveResult> {
         return d !== null && !groups.has(d);
       });
       if (allPresent && !orphanDay && byName.has(DATA_NAME) && byName.has(INDEX_NAME)) {
-        return { ok: true, message: "Already up to date." };
+        const message = `Already up to date (${localDates.length} days backed up).`;
+        recordSync({ ok: true, message });
+        return { ok: true, message };
       }
     }
 
@@ -364,7 +406,9 @@ export async function pushToDrive(interactive = true): Promise<DriveResult> {
 
     if (!changed) {
       clearDirty();
-      return { ok: true, message: "Already up to date." };
+      const message = `Already up to date (${localDates.length} days backed up).`;
+      recordSync({ ok: true, message });
+      return { ok: true, message };
     }
 
     // Tiny index — rewritten whenever anything changed so the exportedAt stamp
@@ -380,9 +424,13 @@ export async function pushToDrive(interactive = true): Promise<DriveResult> {
     markShardedSeeded();
     clearDirty();
     const dayLabel = groups.size === 1 ? "1 day" : `${groups.size} days`;
-    return { ok: true, message: `Synced to Drive (${dayLabel}, ${formatBytes(uploadedBytes)}).` };
+    const message = `Synced to Drive (${dayLabel}, ${formatBytes(uploadedBytes)}).`;
+    recordSync({ ok: true, message, days: groups.size, bytes: uploadedBytes });
+    return { ok: true, message };
   } catch (e) {
-    return { ok: false, message: errorMessage(e) };
+    const message = errorMessage(e);
+    recordSync({ ok: false, message });
+    return { ok: false, message };
   }
 }
 
@@ -399,7 +447,9 @@ async function pullSharded(interactive: boolean, byName: Map<string, string>): P
   const remote = typeof index.exportedAt === "string" ? index.exportedAt : null;
   const local = getVersion();
   if (remote && local && remote <= local) {
-    return { ok: true, message: "Already up to date with Drive." };
+    const message = "Already up to date with Drive.";
+    recordSync({ ok: true, message });
+    return { ok: true, message };
   }
 
   const dataId = byName.get(DATA_NAME);
@@ -426,7 +476,9 @@ async function pullSharded(interactive: boolean, byName: Map<string, string>): P
   if (remote) setVersion(remote);
   markShardedSeeded();
   clearDirty();
-  return { ok: true, imported: true, message: `Imported ${summary.totalRecords} records from Drive.` };
+  const message = `Imported ${summary.totalRecords} records from Drive.`;
+  recordSync({ ok: true, message, records: summary.totalRecords });
+  return { ok: true, imported: true, message };
 }
 
 /** Pull the (old single-file) Drive backup and restore it if it is newer. */
@@ -436,14 +488,18 @@ async function importLegacy(legacyId: string, interactive: boolean): Promise<Dri
   const remote = typeof payload.exportedAt === "string" ? payload.exportedAt : null;
   const local = getVersion();
   if (remote && local && remote <= local) {
-    return { ok: true, message: "Already up to date with Drive." };
+    const message = "Already up to date with Drive.";
+    recordSync({ ok: true, message });
+    return { ok: true, message };
   }
   const summary = summarizeBackup(payload);
   if (!summary.valid) throw new Error("Drive backup looks invalid");
   await api.backup.import(payload as unknown as Record<string, unknown>);
   if (remote) setVersion(remote);
   clearDirty();
-  return { ok: true, imported: true, message: `Imported ${summary.totalRecords} records from Drive.` };
+  const message = `Imported ${summary.totalRecords} records from Drive.`;
+  recordSync({ ok: true, message, records: summary.totalRecords });
+  return { ok: true, imported: true, message };
 }
 
 /** Pull the Drive backup and restore it if it is newer than the last sync. */
@@ -461,9 +517,13 @@ export async function pullFromDrive(interactive = true): Promise<DriveResult> {
     const legacyId = byName.get(LEGACY_NAME);
     if (legacyId) return importLegacy(legacyId, interactive);
 
-    return { ok: false, message: "No backup found on Drive — sync once first." };
+    const message = "No backup found on Drive — sync once first.";
+    recordSync({ ok: false, message });
+    return { ok: false, message };
   } catch (e) {
-    return { ok: false, message: errorMessage(e) };
+    const message = errorMessage(e);
+    recordSync({ ok: false, message });
+    return { ok: false, message };
   }
 }
 
@@ -509,7 +569,9 @@ export async function syncWithDrive(interactive = true): Promise<DriveResult> {
 
     return pushToDrive(interactive);
   } catch (e) {
-    return { ok: false, message: errorMessage(e) };
+    const message = errorMessage(e);
+    recordSync({ ok: false, message });
+    return { ok: false, message };
   }
 }
 
