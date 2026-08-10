@@ -5,7 +5,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.21 — 2026-08-10 (current)
 
-**Feat: stations record their distance from the headquarters and travel time**
+**Feat: stations record their distance from the headquarters and travel time** — `fc412b5`
 - Each station now stores whether it is **below 8 km** or **above 8 km** from
   the headquarters station, plus the **travel time (minutes)** from the
   headquarters to that station.
