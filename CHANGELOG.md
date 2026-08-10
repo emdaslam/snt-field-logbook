@@ -3,7 +3,18 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
-## 1.7.6.21 — 2026-08-10 (current)
+## 1.7.6.22 — 2026-08-10 (current)
+
+**Feat: station travel time is now a range (min–max) instead of a single value**
+- The travel time from the headquarters to a station is stored as a **range**,
+  e.g. *40 to 55 min*, reflecting how long the trip typically takes.
+- The Add Station form and the station Edit dialog take a **min** and a **max**
+  travel time; the list shows the range (`40–55 min`) or a single value when
+  both ends match.
+- The **headquarters station** stays locked at *below 8 km* and *0–0 min* with
+  its inputs disabled.
+
+## 1.7.6.21 — 2026-08-10
 
 **Feat: stations record their distance from the headquarters and travel time** — `fc412b5`
 - Each station now stores whether it is **below 8 km** or **above 8 km** from

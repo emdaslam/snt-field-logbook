@@ -30,7 +30,7 @@ type GroupId = (typeof GROUPS)[number]["id"];
 export function Settings() {
   const { stations, staff, tags, currentUser, refresh, fontSize, setFontSize, contentScale, setContentScale, reminderDays, setReminderDays } = useData();
   const [group, setGroup] = useState<GroupId>("account");
-  const [newStation, setNewStation] = useState({ name: "", code: "", distanceFromHq: "below8", travelMinutes: "" });
+  const [newStation, setNewStation] = useState({ name: "", code: "", distanceFromHq: "below8", travelMin: "", travelMax: "" });
   const [editStation, setEditStation] = useState<Station | null>(null);
   const [editStaff, setEditStaff] = useState<Staff | null>(null);
   const [addStaff, setAddStaff] = useState(false);
@@ -103,22 +103,37 @@ export function Settings() {
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>
-          <input
-            className="w-20 rounded-lg border border-slate-300 px-2 py-2 text-sm"
-            type="number"
-            min={0}
-            placeholder="Mins"
-            value={newStation.travelMinutes}
-            onChange={(e) => setNewStation({ ...newStation, travelMinutes: e.target.value })}
-          />
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-slate-400">min</span>
+            <input
+              className="w-16 rounded-lg border border-slate-300 px-2 py-2 text-sm"
+              type="number"
+              min={0}
+              placeholder="0"
+              value={newStation.travelMin}
+              onChange={(e) => setNewStation({ ...newStation, travelMin: e.target.value })}
+            />
+            <span className="text-xs text-slate-400">max</span>
+            <input
+              className="w-16 rounded-lg border border-slate-300 px-2 py-2 text-sm"
+              type="number"
+              min={0}
+              placeholder="0"
+              value={newStation.travelMax}
+              onChange={(e) => setNewStation({ ...newStation, travelMax: e.target.value })}
+            />
+          </div>
           <button
             onClick={async () => {
               if (!newStation.name) return;
+              const min = Math.max(0, Math.round(Number(newStation.travelMin)) || 0);
+              const max = Math.max(min, Math.round(Number(newStation.travelMax)) || 0);
               await api.stations.create({
                 ...newStation,
-                travelMinutes: Math.max(0, Math.round(Number(newStation.travelMinutes)) || 0),
+                travelMin: min,
+                travelMax: max,
               });
-              setNewStation({ name: "", code: "", distanceFromHq: "below8", travelMinutes: "" });
+              setNewStation({ name: "", code: "", distanceFromHq: "below8", travelMin: "", travelMax: "" });
               await refresh();
             }}
             className="rounded-lg bg-emerald-600 px-3 text-sm font-semibold text-white"
@@ -137,7 +152,10 @@ export function Settings() {
                     {isHq && <Chip label="HQ" color="#059669" />}
                   </span>
                   <span className="ml-2 text-xs text-slate-400">
-                    {STATION_DISTANCE_LABEL[(s.distanceFromHq ?? "below8") as StationDistance]} · {s.travelMinutes ?? 0} min from HQ
+                    {STATION_DISTANCE_LABEL[(s.distanceFromHq ?? "below8") as StationDistance]} ·{" "}
+                    {s.travelMin === s.travelMax
+                      ? `${s.travelMin ?? 0} min`
+                      : `${s.travelMin ?? 0}–${s.travelMax ?? 0} min`} from HQ
                   </span>
                 </span>
                 <span className="flex flex-shrink-0 gap-2">
@@ -546,21 +564,24 @@ function StationEditor({ station, onClose }: { station: Station; onClose: () => 
     name: station.name,
     code: station.code ?? "",
     distanceFromHq: isHq ? "below8" : (station.distanceFromHq ?? "below8"),
-    travelMinutes: isHq ? "0" : String(station.travelMinutes ?? 0),
+    travelMin: isHq ? "0" : String(station.travelMin ?? 0),
+    travelMax: isHq ? "0" : String(station.travelMax ?? 0),
   });
   const [saving, setSaving] = useState(false);
 
   async function save() {
     if (!form.name.trim()) return;
     setSaving(true);
-    const travel = Math.max(0, Math.round(Number(form.travelMinutes)) || 0);
+    const min = Math.max(0, Math.round(Number(form.travelMin)) || 0);
+    const max = Math.max(min, Math.round(Number(form.travelMax)) || 0);
     await api.stations.update({
       id: station.id,
       name: form.name.trim(),
       code: form.code.trim() || null,
       // The headquarters station is always "below 8 km" with 0 minutes of travel.
       distanceFromHq: isHq ? "below8" : (form.distanceFromHq as StationDistance),
-      travelMinutes: isHq ? 0 : travel,
+      travelMin: isHq ? 0 : min,
+      travelMax: isHq ? 0 : max,
     });
     setSaving(false);
     onClose();
@@ -592,15 +613,33 @@ function StationEditor({ station, onClose }: { station: Station; onClose: () => 
             ))}
           </select>
         </Field>
-        <Field label="Travel time (min)">
-          <input
-            className={inputClass}
-            type="number"
-            min={0}
-            disabled={isHq}
-            value={form.travelMinutes}
-            onChange={(e) => setForm({ ...form, travelMinutes: e.target.value })}
-          />
+        <Field label="Travel time from HQ (min)">
+          <div className="flex items-center gap-2">
+            <input
+              className={inputClass}
+              type="number"
+              min={0}
+              disabled={isHq}
+              placeholder="min"
+              value={form.travelMin}
+              onChange={(e) => setForm({ ...form, travelMin: e.target.value })}
+            />
+            <span className="text-slate-400">to</span>
+            <input
+              className={inputClass}
+              type="number"
+              min={0}
+              disabled={isHq}
+              placeholder="max"
+              value={form.travelMax}
+              onChange={(e) => setForm({ ...form, travelMax: e.target.value })}
+            />
+          </div>
+          {!isHq && (
+            <span className="mt-1 block text-xs text-slate-500">
+              e.g. 40 to 55 — the range the trip typically takes.
+            </span>
+          )}
         </Field>
       </div>
       <div className="mt-4 flex justify-end">

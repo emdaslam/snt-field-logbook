@@ -47,7 +47,8 @@ export const api = {
         name: b.name ?? "",
         code: b.code ?? null,
         distanceFromHq: b.distanceFromHq ?? "below8",
-        travelMinutes: b.travelMinutes ?? 0,
+        travelMin: b.travelMin ?? 0,
+        travelMax: b.travelMax ?? 0,
       }) as unknown as Promise<Station>;
     },
     update: (b: Partial<Station>) => {
@@ -56,7 +57,8 @@ export const api = {
         name: b.name,
         code: b.code ?? null,
         distanceFromHq: b.distanceFromHq ?? "below8",
-        travelMinutes: b.travelMinutes ?? 0,
+        travelMin: b.travelMin ?? 0,
+        travelMax: b.travelMax ?? 0,
       }) as unknown as Promise<Station>;
     },
     remove: (id: number) => {
