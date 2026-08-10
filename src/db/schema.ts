@@ -16,6 +16,10 @@ export const stations = pgTable("stations", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 200 }).notNull(),
   code: varchar("code", { length: 30 }),
+  // Distance from the headquarters station: "below8" (≤ 8 km) or "above8" (> 8 km).
+  // The headquarters station itself is always "below8" with 0 minutes travel time.
+  distanceFromHq: varchar("distance_from_hq", { length: 10 }).default("below8").notNull(),
+  travelMinutes: integer("travel_minutes").default(0).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

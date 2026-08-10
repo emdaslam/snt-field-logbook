@@ -43,11 +43,21 @@ export const api = {
     list: async () => asc(await ldb.readTable<Station>("stations"), "name"),
     create: (b: Partial<Station>) => {
       markDataDirty();
-      return ldb.insert<Partial<Station>>("stations", { name: b.name ?? "", code: b.code ?? null }) as unknown as Promise<Station>;
+      return ldb.insert<Partial<Station>>("stations", {
+        name: b.name ?? "",
+        code: b.code ?? null,
+        distanceFromHq: b.distanceFromHq ?? "below8",
+        travelMinutes: b.travelMinutes ?? 0,
+      }) as unknown as Promise<Station>;
     },
     update: (b: Partial<Station>) => {
       markDataDirty();
-      return ldb.update("stations", b.id as number, { name: b.name, code: b.code ?? null }) as unknown as Promise<Station>;
+      return ldb.update("stations", b.id as number, {
+        name: b.name,
+        code: b.code ?? null,
+        distanceFromHq: b.distanceFromHq ?? "below8",
+        travelMinutes: b.travelMinutes ?? 0,
+      }) as unknown as Promise<Station>;
     },
     remove: (id: number) => {
       markDataDirty();

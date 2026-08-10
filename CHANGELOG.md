@@ -3,7 +3,20 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
-## 1.7.6.20 — 2026-08-09 (current)
+## 1.7.6.21 — 2026-08-10 (current)
+
+**Feat: stations record their distance from the headquarters and travel time**
+- Each station now stores whether it is **below 8 km** or **above 8 km** from
+  the headquarters station, plus the **travel time (minutes)** from the
+  headquarters to that station.
+- The new fields are entered when adding a station and editable later via a new
+  Edit button on each station row in Settings → Manage Stations; the distance /
+  time also shows next to every station in the list.
+- The **headquarters station** (the one selected as HQ in the current user's
+  profile) is locked: its distance is fixed at *below 8 km* and its travel time
+  at *0 min*, and those inputs are disabled in the editor.
+
+## 1.7.6.20 — 2026-08-09
 
 **Feat: easier date navigation and a reorganised Settings page**
 - The calendar now shows a compact calendar-icon button (opens the native date

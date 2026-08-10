@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useData } from "./DataProvider";
 import { api } from "@/lib/api";
 import { inputClass, PrimaryButton, Chip, Modal, Field } from "./ui";
-import { DEPARTMENTS } from "@/lib/types";
+import { DEPARTMENTS, STATION_DISTANCE_OPTIONS, STATION_DISTANCE_LABEL, type StationDistance } from "@/lib/types";
 import { BackupModal } from "./BackupModal";
 import { RestoreModal } from "./RestoreModal";
 import { FONT_SIZES, FONT_SIZE_LABEL, APP_VERSION } from "@/lib/types";
@@ -16,7 +16,7 @@ import {
   pullFromDrive,
   type DriveResult,
 } from "@/lib/drive";
-import type { Staff, Tag } from "@/db/schema";
+import type { Staff, Station, Tag } from "@/db/schema";
 
 const GROUPS = [
   { id: "account", label: "Account & Directory" },
@@ -30,7 +30,8 @@ type GroupId = (typeof GROUPS)[number]["id"];
 export function Settings() {
   const { stations, staff, tags, currentUser, refresh, fontSize, setFontSize, contentScale, setContentScale, reminderDays, setReminderDays } = useData();
   const [group, setGroup] = useState<GroupId>("account");
-  const [newStation, setNewStation] = useState({ name: "", code: "" });
+  const [newStation, setNewStation] = useState({ name: "", code: "", distanceFromHq: "below8", travelMinutes: "" });
+  const [editStation, setEditStation] = useState<Station | null>(null);
   const [editStaff, setEditStaff] = useState<Staff | null>(null);
   const [addStaff, setAddStaff] = useState(false);
   const [backupOpen, setBackupOpen] = useState(false);
@@ -90,14 +91,34 @@ export function Settings() {
 
       {/* Stations */}
       <Section title="Manage Stations">
-        <div className="mb-3 flex gap-2">
-          <input className={inputClass} placeholder="Station name" value={newStation.name} onChange={(e) => setNewStation({ ...newStation, name: e.target.value })} />
+        <div className="mb-3 flex flex-wrap gap-2">
+          <input className={`${inputClass} w-full`} placeholder="Station name" value={newStation.name} onChange={(e) => setNewStation({ ...newStation, name: e.target.value })} />
           <input className="w-24 rounded-lg border border-slate-300 px-2 text-sm" placeholder="Code" value={newStation.code} onChange={(e) => setNewStation({ ...newStation, code: e.target.value })} />
+          <select
+            className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+            value={newStation.distanceFromHq}
+            onChange={(e) => setNewStation({ ...newStation, distanceFromHq: e.target.value })}
+          >
+            {STATION_DISTANCE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+          <input
+            className="w-20 rounded-lg border border-slate-300 px-2 py-2 text-sm"
+            type="number"
+            min={0}
+            placeholder="Mins"
+            value={newStation.travelMinutes}
+            onChange={(e) => setNewStation({ ...newStation, travelMinutes: e.target.value })}
+          />
           <button
             onClick={async () => {
               if (!newStation.name) return;
-              await api.stations.create(newStation);
-              setNewStation({ name: "", code: "" });
+              await api.stations.create({
+                ...newStation,
+                travelMinutes: Math.max(0, Math.round(Number(newStation.travelMinutes)) || 0),
+              });
+              setNewStation({ name: "", code: "", distanceFromHq: "below8", travelMinutes: "" });
               await refresh();
             }}
             className="rounded-lg bg-emerald-600 px-3 text-sm font-semibold text-white"
@@ -106,12 +127,26 @@ export function Settings() {
           </button>
         </div>
         <ul className="divide-y divide-slate-100">
-          {stations.map((s) => (
-            <li key={s.id} className="flex items-center justify-between py-2 text-sm">
-              <span>{s.name} {s.code && <span className="text-slate-400">({s.code})</span>}</span>
-              <button onClick={async () => { if (confirm("Remove station?")) { await api.stations.remove(s.id); await refresh(); } }} className="text-xs text-red-600">Remove</button>
-            </li>
-          ))}
+          {stations.map((s) => {
+            const isHq = currentUser?.headquartersStationId != null && s.id === currentUser.headquartersStationId;
+            return (
+              <li key={s.id} className="flex items-center justify-between gap-2 py-2 text-sm">
+                <span className="min-w-0">
+                  <span className="font-medium">
+                    {s.name} {s.code && <span className="text-slate-400">({s.code})</span>}
+                    {isHq && <Chip label="HQ" color="#059669" />}
+                  </span>
+                  <span className="ml-2 text-xs text-slate-400">
+                    {STATION_DISTANCE_LABEL[(s.distanceFromHq ?? "below8") as StationDistance]} · {s.travelMinutes ?? 0} min from HQ
+                  </span>
+                </span>
+                <span className="flex flex-shrink-0 gap-2">
+                  <button onClick={() => setEditStation(s)} className="text-xs font-medium text-blue-700">Edit</button>
+                  <button onClick={async () => { if (confirm("Remove station?")) { await api.stations.remove(s.id); await refresh(); } }} className="text-xs text-red-600">Remove</button>
+                </span>
+              </li>
+            );
+          })}
         </ul>
       </Section>
 
@@ -374,6 +409,12 @@ export function Settings() {
           onClose={() => { setEditStaff(null); setAddStaff(false); }}
         />
       )}
+      {editStation && (
+        <StationEditor
+          station={editStation}
+          onClose={async () => { setEditStation(null); await refresh(); }}
+        />
+      )}
       {editingTag && (
         <TagEditor
           existing={editingTag.tag}
@@ -491,6 +532,77 @@ function StaffEditor({ existing, onClose }: { existing: Staff | null; onClose: (
         />
         Set as current user (this device)
       </label>
+      <div className="mt-4 flex justify-end">
+        <PrimaryButton onClick={save}>{saving ? "Saving…" : "Save"}</PrimaryButton>
+      </div>
+    </Modal>
+  );
+}
+
+function StationEditor({ station, onClose }: { station: Station; onClose: () => void }) {
+  const { currentUser, refresh } = useData();
+  const isHq = currentUser?.headquartersStationId != null && station.id === currentUser.headquartersStationId;
+  const [form, setForm] = useState({
+    name: station.name,
+    code: station.code ?? "",
+    distanceFromHq: isHq ? "below8" : (station.distanceFromHq ?? "below8"),
+    travelMinutes: isHq ? "0" : String(station.travelMinutes ?? 0),
+  });
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    if (!form.name.trim()) return;
+    setSaving(true);
+    const travel = Math.max(0, Math.round(Number(form.travelMinutes)) || 0);
+    await api.stations.update({
+      id: station.id,
+      name: form.name.trim(),
+      code: form.code.trim() || null,
+      // The headquarters station is always "below 8 km" with 0 minutes of travel.
+      distanceFromHq: isHq ? "below8" : (form.distanceFromHq as StationDistance),
+      travelMinutes: isHq ? 0 : travel,
+    });
+    setSaving(false);
+    onClose();
+  }
+
+  return (
+    <Modal open onClose={onClose} title={isHq ? "Edit Station (Headquarters)" : "Edit Station"}>
+      <Field label="Station name">
+        <input className={inputClass} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+      </Field>
+      <Field label="Code">
+        <input className={inputClass} value={form.code} placeholder="Optional" onChange={(e) => setForm({ ...form, code: e.target.value })} />
+      </Field>
+      {isHq && (
+        <p className="mb-3 rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-500">
+          This is the headquarters station — distance is fixed at below 8 km and travel time at 0 min.
+        </p>
+      )}
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Distance from HQ">
+          <select
+            className={inputClass}
+            disabled={isHq}
+            value={form.distanceFromHq}
+            onChange={(e) => setForm({ ...form, distanceFromHq: e.target.value })}
+          >
+            {STATION_DISTANCE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Travel time (min)">
+          <input
+            className={inputClass}
+            type="number"
+            min={0}
+            disabled={isHq}
+            value={form.travelMinutes}
+            onChange={(e) => setForm({ ...form, travelMinutes: e.target.value })}
+          />
+        </Field>
+      </div>
       <div className="mt-4 flex justify-end">
         <PrimaryButton onClick={save}>{saving ? "Saving…" : "Save"}</PrimaryButton>
       </div>
