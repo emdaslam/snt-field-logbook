@@ -3,6 +3,36 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.23p — 2026-08-10 (current — owner personal build)
+
+> This version lives on the **`personal/owner`** branch: it carries features for
+> the owner's personal use only and is **not** part of the public `master`
+> releases.
+
+**Feat: Diary and TA Journal exports match the reference workbook layouts** — `e3c5210`
+- The **Diary export** is rewritten to the reference format
+  `DATE | TRAIN NO | TIME DEP | TIME ARR | FROM | TO | NATURE OF WORK`:
+  each away day produces **two rows** (HQ → station, then the return leg), HQ
+  days show as `AT <HQ>`, and Rest/NH/Leave/CR days collapse into a single
+  `AVAILED …` row.
+- A new **TA Journal export** is added — `SOUTH CENTRAL RAILWAY. GUNTAKAL
+  DIVISION` header (Name / Designation / P.F.NO and HQ / Month / B.U.No), the
+  10-column table with `KMS / DAYS / AMOUNT`, a rate-wise summary
+  (`1.0 X … / 0.7 X … / 0.3 X …` and a total), and the certification +
+  signature block.
+- Both exports use **station codes** (e.g. `JMDG`, `SJMA`) instead of full
+  station names, and `ROAD` as the train number.
+- **Departure / arrival times are derived automatically** per TA rate
+  (100% → 06:30–07:30 / 18:40–20:00, 70% → 08:00–09:00 / 16:30–18:30,
+  30% → 08:45–09:30 / 14:00–16:00) plus the station's stored travel range;
+  the times are seeded so re-exporting the same period gives identical timings.
+- The TA amount is a fixed **₹1000/day**; the KMS column always reads
+  `ALL ARE ABOVE 8 KMS`.
+- The export bottom sheet gains a third format, **Excel (.xlsx)**, alongside
+  PDF and Word.
+- Staff profiles gain optional **PF No** and **B.U. No** fields (Settings →
+  My Profile), rendered in the TA Journal header.
+
 ## 1.7.6.22 — 2026-08-10 (current)
 
 **Feat: station travel time is now a range (min–max) instead of a single value** — `3e80ce9`
