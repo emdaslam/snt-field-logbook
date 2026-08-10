@@ -5,7 +5,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.22 — 2026-08-10 (current)
 
-**Feat: station travel time is now a range (min–max) instead of a single value**
+**Feat: station travel time is now a range (min–max) instead of a single value** — `3e80ce9`
 - The travel time from the headquarters to a station is stored as a **range**,
   e.g. *40 to 55 min*, reflecting how long the trip typically takes.
 - The Add Station form and the station Edit dialog take a **min** and a **max**
