@@ -298,7 +298,7 @@ function crc32(data: Uint8Array): number {
   return (c ^ 0xffffffff) >>> 0;
 }
 
-function makeZip(entries: { name: string; data: string }[]): Uint8Array {
+export function makeZip(entries: { name: string; data: string }[]): Uint8Array {
   const enc = new TextEncoder();
   const packed = entries.map((e) => {
     const bytes = enc.encode(e.data);

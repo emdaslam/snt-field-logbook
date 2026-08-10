@@ -450,6 +450,8 @@ function StaffEditor({ existing, onClose }: { existing: Staff | null; onClose: (
   const [form, setForm] = useState({
     name: existing?.name ?? "",
     designation: existing?.designation ?? "",
+    pfNo: existing?.pfNo ?? "",
+    buNo: existing?.buNo ?? "",
     phone: existing?.phone ?? "",
     email: existing?.email ?? "",
     department: existing?.department ?? "Signalling",
@@ -493,6 +495,14 @@ function StaffEditor({ existing, onClose }: { existing: Staff | null; onClose: (
       <Field label="Designation">
         <input className={inputClass} value={form.designation ?? ""} onChange={(e) => setForm({ ...form, designation: e.target.value })} />
       </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="PF No">
+          <input className={inputClass} value={form.pfNo ?? ""} onChange={(e) => setForm({ ...form, pfNo: e.target.value })} />
+        </Field>
+        <Field label="B.U. No">
+          <input className={inputClass} value={form.buNo ?? ""} onChange={(e) => setForm({ ...form, buNo: e.target.value })} />
+        </Field>
+      </div>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Phone">
           <input className={inputClass} value={form.phone ?? ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} />

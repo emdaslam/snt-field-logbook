@@ -63,6 +63,7 @@ export function AppShell() {
   const [tomorrowOpen, setTomorrowOpen] = useState(false);
   const [pcdoOpen, setPcdoOpen] = useState(false);
   const [diaryOpen, setDiaryOpen] = useState(false);
+  const [taOpen, setTaOpen] = useState(false);
   const [inspOpen, setInspOpen] = useState(false);
   const [exitToast, setExitToast] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -441,6 +442,12 @@ export function AppShell() {
                   📔 Export Diary
                 </button>
                 <button
+                  onClick={() => { setTaOpen(true); setExportMenu(false); }}
+                  className="block w-full rounded-lg px-3 py-2.5 text-left text-sm hover:bg-blue-50"
+                >
+                  💰 Export TA Journal
+                </button>
+                <button
                   onClick={() => { setInspOpen(true); setExportMenu(false); }}
                   className="block w-full rounded-lg px-3 py-2.5 text-left text-sm hover:bg-blue-50"
                 >
@@ -682,7 +689,8 @@ export function AppShell() {
       <MonthlyExportModal open={monthlyOpen} onClose={() => setMonthlyOpen(false)} />
       <TomorrowWorkModal open={tomorrowOpen} onClose={() => setTomorrowOpen(false)} />
       <PcdoExportModal open={pcdoOpen} onClose={() => setPcdoOpen(false)} />
-      <DiaryExportModal open={diaryOpen} onClose={() => setDiaryOpen(false)} />
+      <DiaryExportModal open={diaryOpen} onClose={() => setDiaryOpen(false)} initialMode="diary" />
+      <DiaryExportModal open={taOpen} onClose={() => setTaOpen(false)} initialMode="ta" />
       <InspectionExportModal open={inspOpen} onClose={() => setInspOpen(false)} />
       <LogDetailModal log={detailLog} onClose={() => setDetailLog(null)} onEdit={(l) => setEditLog(l)} />
       <AttachmentPreviewModal attachment={selAttachment} onClose={() => setSelAttachment(null)} />

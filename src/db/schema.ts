@@ -30,6 +30,8 @@ export const staff = pgTable("staff", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 200 }).notNull(),
   designation: varchar("designation", { length: 120 }),
+  pfNo: varchar("pf_no", { length: 60 }),
+  buNo: varchar("bu_no", { length: 60 }),
   phone: varchar("phone", { length: 40 }),
   email: varchar("email", { length: 160 }),
   department: varchar("department", { length: 60 }),

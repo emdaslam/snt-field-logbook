@@ -18,6 +18,7 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
   const [tomorrowOpen, setTomorrowOpen] = useState(false);
   const [pcdoOpen, setPcdoOpen] = useState(false);
   const [diaryOpen, setDiaryOpen] = useState(false);
+  const [taOpen, setTaOpen] = useState(false);
   const [inspOpen, setInspOpen] = useState(false);
   const [period, setPeriod] = useState<Period>(() => monthPeriod(0));
   const [custom, setCustom] = useState(false);
@@ -387,6 +388,12 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
             📔 Export Diary (movement, TA &amp; work done)
           </button>
           <button
+            onClick={() => setTaOpen(true)}
+            className="rounded-lg border border-amber-600 px-4 py-2.5 text-sm font-semibold text-amber-700"
+          >
+            💰 Export TA Journal (with summary)
+          </button>
+          <button
             onClick={() => setInspOpen(true)}
             className="rounded-lg border border-sky-600 px-4 py-2.5 text-sm font-semibold text-sky-700"
           >
@@ -397,7 +404,8 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
 
       <TomorrowWorkModal open={tomorrowOpen} onClose={() => setTomorrowOpen(false)} />
       <PcdoExportModal open={pcdoOpen} onClose={() => setPcdoOpen(false)} />
-      <DiaryExportModal open={diaryOpen} onClose={() => setDiaryOpen(false)} />
+      <DiaryExportModal open={diaryOpen} onClose={() => setDiaryOpen(false)} initialMode="diary" />
+      <DiaryExportModal open={taOpen} onClose={() => setTaOpen(false)} initialMode="ta" />
       <InspectionExportModal open={inspOpen} onClose={() => setInspOpen(false)} />
       <StatDetailModal
         open={Boolean(drill)}
