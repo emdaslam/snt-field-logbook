@@ -9,7 +9,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 > the owner's personal use only and is **not** part of the public `master`
 > releases.
 
-**Feat: Diary and TA Journal exports match the reference workbook layouts** — `e3c5210`
+**Feat: Diary and TA Journal exports match the reference workbook layouts** — `e8f69e9`
 - The **Diary export** is rewritten to the reference format
   `DATE | TRAIN NO | TIME DEP | TIME ARR | FROM | TO | NATURE OF WORK`:
   each away day produces **two rows** (HQ → station, then the return leg), HQ
