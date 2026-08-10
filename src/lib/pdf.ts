@@ -5,6 +5,7 @@ import {
   CONTENT_FONT_MIN,
   DEFAULT_CONTENT_FONT_SIZE,
 } from "@/lib/types";
+import type { XlsxSheet } from "./xlsx";
 
 const NAVY: [number, number, number] = [30, 58, 138];
 const GREEN: [number, number, number] = [5, 95, 70];
@@ -239,11 +240,14 @@ function buildPdf(title: string, bodyHtml: string, contentSize: number): jsPDF {
 
 /**
  * @param type export kind used to remember the last chosen text size per
- * export type (e.g. "monthly", "tomorrow", "diary", "pcdo", "inspection").
+ * export type (e.g. "monthly", "tomorrow", "diary", "ta", "pcdo",
+ * "inspection").
+ * @param sheet optional Excel grid — when provided the bottom sheet offers an
+ * "Excel (.xlsx)" format alongside PDF and Word.
  */
-export function exportDocument(title: string, bodyHtml: string, type = "general") {
-  // Bottom sheet that offers the report as PDF or Word (.docx), with a text
-  // size prompt for the PDF path. The last chosen format is remembered.
+export function exportDocument(title: string, bodyHtml: string, type = "general", sheet?: XlsxSheet) {
+  // Bottom sheet that offers the report as PDF, Word (.docx) or Excel (.xlsx),
+  // with a text size prompt for the PDF path. The last chosen format is remembered.
   const overlay = document.createElement("div");
   overlay.style.cssText =
     "position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.5);display:flex;align-items:flex-end;justify-content:center";
@@ -257,29 +261,38 @@ export function exportDocument(title: string, bodyHtml: string, type = "general"
   status.style.cssText = "margin:0 0 10px;font-size:12px;color:#64748b;text-align:center;min-height:16px";
   const close = () => overlay.remove();
 
-  // Format toggle — PDF or Word.
-  let format: "pdf" | "docx" = "pdf";
+  // Format toggle — PDF, Word or Excel (Excel only when a grid was provided).
+  type Format = "pdf" | "docx" | "xlsx";
+  let format: Format = "pdf";
   try {
-    if (localStorage.getItem("snt.exportFormat") === "docx") format = "docx";
+    const saved = localStorage.getItem("snt.exportFormat");
+    if (saved === "docx" || (saved === "xlsx" && sheet)) format = saved;
   } catch {
     /* ignore */
   }
   const seg = document.createElement("div");
   seg.style.cssText = "display:flex;gap:8px;margin:0 0 14px";
-  const pdfBtn = document.createElement("button");
-  const wordBtn = document.createElement("button");
   const segStyle = (active: boolean) =>
     `flex:1;padding:10px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid ${
       active ? "#1e3a8a" : "#e2e8f0"
     };background:${active ? "#1e3a8a" : "#f8fafc"};color:${active ? "#fff" : "#334155"}`;
-  pdfBtn.textContent = "PDF";
-  wordBtn.textContent = "Word (.docx)";
-  pdfBtn.style.cssText = segStyle(format === "pdf");
-  wordBtn.style.cssText = segStyle(format === "docx");
-  const applyFormat = (f: "pdf" | "docx") => {
+  const makeSegButton = (label: string, f: Format, enabled: boolean) => {
+    const b = document.createElement("button");
+    b.textContent = label;
+    b.disabled = !enabled;
+    b.style.cssText = segStyle(format === f) + (enabled ? "" : "opacity:.45;cursor:not-allowed");
+    return b;
+  };
+  const pdfBtn = makeSegButton("PDF", "pdf", true);
+  const wordBtn = makeSegButton("Word (.docx)", "docx", true);
+  const excelBtn = makeSegButton("Excel (.xlsx)", "xlsx", Boolean(sheet));
+  const buttons = [pdfBtn, wordBtn, excelBtn];
+  const applyFormat = (f: Format) => {
     format = f;
-    pdfBtn.style.cssText = segStyle(f === "pdf");
-    wordBtn.style.cssText = segStyle(f === "docx");
+    buttons.forEach((b, i) => {
+      const target = (["pdf", "docx", "xlsx"] as Format[])[i];
+      b.style.cssText = segStyle(f === target) + (b.disabled ? ";opacity:.45;cursor:not-allowed" : "");
+    });
     row.style.display = f === "pdf" ? "flex" : "none";
     try {
       localStorage.setItem("snt.exportFormat", f);
@@ -289,8 +302,10 @@ export function exportDocument(title: string, bodyHtml: string, type = "general"
   };
   pdfBtn.onclick = () => applyFormat("pdf");
   wordBtn.onclick = () => applyFormat("docx");
+  excelBtn.onclick = () => applyFormat("xlsx");
   seg.appendChild(pdfBtn);
   seg.appendChild(wordBtn);
+  seg.appendChild(excelBtn);
   box.appendChild(seg);
 
   // Font size prompt — PDF written content only, 10–96.
@@ -392,6 +407,13 @@ export function exportDocument(title: string, bodyHtml: string, type = "general"
             filename: `${slug(title)}.docx`,
             mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             base64: docxToBase64(buildDocx(title, bodyHtml)),
+          };
+        } else if (format === "xlsx") {
+          const { buildXlsx, xlsxToBase64 } = await import("./xlsx");
+          artifact = {
+            filename: `${slug(title)}.xlsx`,
+            mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            base64: xlsxToBase64(buildXlsx(sheet ?? { rows: [] })),
           };
         } else {
           const size = chosenSize();

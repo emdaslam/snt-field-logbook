@@ -3,7 +3,27 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
-## 1.7.6.22 — 2026-08-10 (current)
+## 1.7.6.23 — 2026-08-10 (current)
+
+**Feat: Diary and TA Journal exports in the reference workbook layout — with timings you enter yourself**
+- The **Diary** export is rewritten to the reference format
+  `DATE | TRAIN NO | TIME DEP | TIME ARR | FROM | TO | NATURE OF WORK`, two rows
+  per away day (HQ → station and the return), `AT <HQ>` rows for days at
+  headquarters, and single `AVAILED REST/NH/LEAVE/CR` rows for rest days.
+- New **TA Journal** export: a SOUTH CENTRAL RAILWAY. GUNTAKAL DIVISION header
+  with Name / Designation / P.F.NO and HQ / Month / B.U.No, the 10-column
+  KMS / DAYS / AMOUNT table, a month summary by rate and the certification /
+  signature block.
+- Both exports print **station codes** (e.g. JMDG, GTL) instead of full names,
+  and the export sheet gains an **Excel (.xlsx)** format alongside PDF and Word.
+- **No timings are generated anymore.** When you add a daily log for a station
+  movement, you now enter the four clock times yourself — departure from HQ,
+  arrival at station, departure from station, arrival back at HQ. Those exact
+  times appear in the Diary and TA Journal exports.
+- Staff profiles gain optional **PF No** and **B.U. No** fields (shown in the TA
+  Journal header).
+
+## 1.7.6.22 — 2026-08-10
 
 **Feat: station travel time is now a range (min–max) instead of a single value** — `3e80ce9`
 - The travel time from the headquarters to a station is stored as a **range**,

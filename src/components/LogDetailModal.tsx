@@ -42,6 +42,12 @@ export function LogDetailModal({
       ) : (
         <>
           <Row label="Movement" value={log.stationMovement} />
+          {log.timeDep || log.returnTimeArr ? (
+            <Row
+              label="Timings"
+              value={`Dep ${log.timeDep || "—"} → Arr ${log.timeArr || "—"}  ·  Ret Dep ${log.returnTimeDep || "—"} → Arr ${log.returnTimeArr || "—"}`}
+            />
+          ) : null}
           <Row label="Work Done" value={log.workDone} multiline />
           <Row
             label="TA"

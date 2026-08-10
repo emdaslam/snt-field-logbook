@@ -97,6 +97,10 @@ export function DailyLogForm({
   const { tags, stations, logs, refresh, currentUser, autoSync } = useData();
   const [logDate, setLogDate] = useState(existing?.logDate ?? toISODate(new Date()));
   const [movement, setMovement] = useState(existing?.stationMovement ?? "");
+  const [timeDep, setTimeDep] = useState(existing?.timeDep ?? "");
+  const [timeArr, setTimeArr] = useState(existing?.timeArr ?? "");
+  const [returnTimeDep, setReturnTimeDep] = useState(existing?.returnTimeDep ?? "");
+  const [returnTimeArr, setReturnTimeArr] = useState(existing?.returnTimeArr ?? "");
   const [movementKind, setMovementKind] = useState<"station" | "rest" | "leave" | "cr" | "nh">(
     existing?.movementKind === "rest" ||
       existing?.movementKind === "leave" ||
@@ -249,6 +253,10 @@ export function DailyLogForm({
       id: existing?.id,
       logDate,
       stationMovement: movement,
+      timeDep: movementKind === "station" ? timeDep || null : null,
+      timeArr: movementKind === "station" ? timeArr || null : null,
+      returnTimeDep: movementKind === "station" ? returnTimeDep || null : null,
+      returnTimeArr: movementKind === "station" ? returnTimeArr || null : null,
       movementKind: isSpecial ? movementKind : null,
       leaveKind: movementKind === "leave" ? leaveKind || null : null,
       crFrom: movementKind === "cr" ? crFrom || null : null,
@@ -458,6 +466,61 @@ export function DailyLogForm({
           </span>
         )}
       </Field>
+      {!isSpecial && (
+        <Field label="Timings">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="mb-0.5 block text-[11px] text-slate-600">
+                  Time of departure from HQ
+                </span>
+                <input
+                  type="time"
+                  className={inputClass}
+                  value={timeDep}
+                  onChange={(e) => setTimeDep(e.target.value)}
+                />
+              </label>
+              <label className="block">
+                <span className="mb-0.5 block text-[11px] text-slate-600">
+                  Time of arrival at station
+                </span>
+                <input
+                  type="time"
+                  className={inputClass}
+                  value={timeArr}
+                  onChange={(e) => setTimeArr(e.target.value)}
+                />
+              </label>
+              <label className="block">
+                <span className="mb-0.5 block text-[11px] text-slate-600">
+                  Time of departure from station
+                </span>
+                <input
+                  type="time"
+                  className={inputClass}
+                  value={returnTimeDep}
+                  onChange={(e) => setReturnTimeDep(e.target.value)}
+                />
+              </label>
+              <label className="block">
+                <span className="mb-0.5 block text-[11px] text-slate-600">
+                  Time of arrival at HQ
+                </span>
+                <input
+                  type="time"
+                  className={inputClass}
+                  value={returnTimeArr}
+                  onChange={(e) => setReturnTimeArr(e.target.value)}
+                />
+              </label>
+            </div>
+            <p className="mt-1.5 text-xs text-slate-500">
+              These times are printed verbatim in the Diary and TA Journal exports.
+            </p>
+          </div>
+        </Field>
+      )}
       {isSpecial ? (
         <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
           No TA is claimed for {movementLabel} — assumed <strong>0 day</strong>.

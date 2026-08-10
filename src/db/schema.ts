@@ -30,6 +30,8 @@ export const staff = pgTable("staff", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 200 }).notNull(),
   designation: varchar("designation", { length: 120 }),
+  pfNo: varchar("pf_no", { length: 60 }),
+  buNo: varchar("bu_no", { length: 60 }),
   phone: varchar("phone", { length: 40 }),
   email: varchar("email", { length: 160 }),
   department: varchar("department", { length: 60 }),
@@ -61,6 +63,12 @@ export const dailyLogs = pgTable("daily_logs", {
   id: serial("id").primaryKey(),
   logDate: date("log_date").notNull(),
   stationMovement: text("station_movement"),
+  // Clock times the user enters for a station-movement day (HH:MM). The diary /
+  // TA exports show them verbatim — nothing is derived.
+  timeDep: varchar("time_dep", { length: 5 }),
+  timeArr: varchar("time_arr", { length: 5 }),
+  returnTimeDep: varchar("return_time_dep", { length: 5 }),
+  returnTimeArr: varchar("return_time_arr", { length: 5 }),
   // Non-station movement types: "rest" | "leave" | "cr" (null = a station movement)
   movementKind: varchar("movement_kind", { length: 10 }),
   // For leave: CL / LAP / SICK
