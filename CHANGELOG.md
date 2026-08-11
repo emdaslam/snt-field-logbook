@@ -3,6 +3,25 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.26 — 2026-08-11
+
+**Feat: one-line Diary/TA columns, TA summary matching the reference workbook, and explicit "missing" placeholders**
+- The Diary and TA Journal tables are re-spaced so every column is wide enough
+  for its content to sit on one line — matching the widths of the reference
+  `JE_SIG_JMDG DIARY.xlsx` and `JE SIG JMDG TA.xlsx` workbooks — with only
+  **NATURE OF WORK** wrapping.
+- The **TA summary** is corrected to the reference layout: a `TOTAL NO. OF DAYS`
+  row showing the weighted day total and the amount, then the three rate lines
+  (`1.0 X n = x DAYS`, `0.7 X n`, `0.3 X n`), the underline, and the
+  `TOTAL = x DAYS` line, followed by the certification and signature block.
+  This also fixes the Excel sheet's summary merges, which were applied one row
+  too high, so the underline / TOTAL / certification cells now land on the
+  right rows.
+- Missing information is now labelled where it is missing: a missing **B.U.No**
+  or **P.F.NO** (and Name / Designation) shows `not updated in profile`, and a
+  missing departure/arrival time shows `not entered in daily log` instead of a
+  bare dash.
+
 ## 1.7.6.25 — 2026-08-10 (current)
 
 **Feat: TA Journal refined — 8 km rule, South Coast Railway, centred & wrapped cells**
