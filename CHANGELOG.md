@@ -9,7 +9,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 > the owner's personal use only and is **not** part of the public `master`
 > releases.
 
-**Feat: generated timings are rounded to 5-minute steps, and days with two movements export as one**
+**Feat: generated timings are rounded to 5-minute steps, and days with two movements export as one** — `6060881`
 - **Timings in multiples of 5.** Every automatically derived departure / arrival
   time is now rounded to the nearest 5 minutes (e.g. `07:25`, not `07:28`), so
   the Diary and TA Journal exports read like hand-filled sheets. The travel
