@@ -67,12 +67,14 @@ function para(
     bullet?: boolean;
     keepNext?: boolean;
     borderBottom?: string;
+    centered?: boolean;
   } = {}
 ): string {
   if (!text.trim()) return "";
   const pPrParts = [];
   if (opts.keepNext) pPrParts.push("<w:keepNext/>");
   pPrParts.push(`<w:spacing w:before="${opts.before ?? 0}" w:after="${opts.after ?? 160}"/>`);
+  if (opts.centered) pPrParts.push(`<w:jc w:val="center"/>`);
   if (opts.bullet) pPrParts.push(`<w:ind w:left="283" w:hanging="283"/>`);
   if (opts.borderBottom) {
     pPrParts.push(
@@ -198,6 +200,7 @@ export function buildDocx(title: string, bodyHtml: string): Uint8Array {
           after: 280,
           keepNext: true,
           borderBottom: "1E3A8A",
+          centered: el.className.includes("centered"),
         })
       );
     } else if (tag === "h2") {
@@ -209,6 +212,7 @@ export function buildDocx(title: string, bodyHtml: string): Uint8Array {
           sz: 22,
           after: nextIsTable ? 80 : 200,
           keepNext: true,
+          centered: el.className.includes("centered"),
         })
       );
     } else if (tag === "h3") {

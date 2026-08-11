@@ -117,7 +117,9 @@ function buildPdf(title: string, bodyHtml: string, contentSize: number): jsPDF {
       pageBreak(38 * fs);
       doc.setFont("helvetica", "bold").setFontSize(15 * fs).setTextColor(...NAVY);
       const lines = doc.splitTextToSize(text, maxW) as string[];
-      doc.text(lines, margin, y);
+      // Centered headings (e.g. the TA Journal header) are centred on the page.
+      const centered = el.className.includes("centered");
+      doc.text(lines, centered ? pageW / 2 : margin, y, centered ? { align: "center" } : undefined);
       y += lines.length * (18 * fs) + 4;
       doc.setDrawColor(...NAVY).setLineWidth(1.5).line(margin, y, pageW - margin, y);
       y += 14;
@@ -125,7 +127,8 @@ function buildPdf(title: string, bodyHtml: string, contentSize: number): jsPDF {
       pageBreak(30 * fs);
       doc.setFont("helvetica", "bold").setFontSize(11 * fs).setTextColor(...GREEN);
       const lines = doc.splitTextToSize(text, maxW) as string[];
-      doc.text(lines, margin, y);
+      const centered = el.className.includes("centered");
+      doc.text(lines, centered ? pageW / 2 : margin, y, centered ? { align: "center" } : undefined);
       // A heading sits right above the table under it, leaving a small visible
       // gap (~4pt) between the glyphs and the table border; otherwise keep
       // normal line spacing for whatever follows (e.g. another heading, which
@@ -177,7 +180,10 @@ function buildPdf(title: string, bodyHtml: string, contentSize: number): jsPDF {
       const hasHead = headCells.length > 0;
       // A fixed-width "date" column (cells marked class="date") keeps dates on
       // one line instead of wrapping in a proportionally-narrow column.
-      const columnStyles: Record<number, { cellWidth: number }> = {};
+      const columnStyles: Record<
+        number,
+        { cellWidth?: number; halign?: "left" | "center" | "right"; valign?: "top" | "middle" | "bottom" }
+      > = {};
       let dateCol: number | null = null;
       for (const r of rows) {
         const marked = r.querySelector("td.date, th.date");
@@ -190,10 +196,23 @@ function buildPdf(title: string, bodyHtml: string, contentSize: number): jsPDF {
       // Explicit per-column widths via data-width on the header row; these let
       // a report pin narrow date/movement columns and hand the rest to a wide
       // "Work Done" column instead of letting autoTable squeeze it.
+      // data-align="center" centres that column on both axes (used by the TA
+      // journal for dates / timings / from / to / KMS).
       if (hasHead) {
         headCells.forEach((c, i) => {
           const w = c.getAttribute("data-width");
-          if (w) columnStyles[i] = { cellWidth: Number(w) };
+          const a = c.getAttribute("data-align");
+          const entry: {
+            cellWidth?: number;
+            halign?: "left" | "center" | "right";
+            valign?: "top" | "middle" | "bottom";
+          } = { ...columnStyles[i] };
+          if (w) entry.cellWidth = Number(w);
+          if (a === "center") {
+            entry.halign = "center";
+            entry.valign = "middle";
+          }
+          columnStyles[i] = entry;
         });
       }
       const head = hasHead ? [headCells.map((c) => tidy(c.textContent ?? ""))] : undefined;
