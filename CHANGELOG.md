@@ -5,7 +5,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.24 — 2026-08-10 (current)
 
-**Feat: a day with two movements exports as one — the TA movement wins, and the work merges with "and"**
+**Feat: a day with two movements exports as one — the TA movement wins, and the work merges with "and"** — `c391dca`
 - When two daily log entries exist for the same date (two movements), the Diary
   and TA Journal exports now show them as **one movement** instead of two
   separate row pairs.
