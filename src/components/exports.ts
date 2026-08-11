@@ -2,7 +2,7 @@ import { exportDocument } from "@/lib/pdf";
 import { fmtDate, toISODate, formatFootplateShifts, footplateTrainList } from "@/lib/api";
 import { formatInspectionDates } from "@/lib/inspections";
 import { isSpecialMovement } from "@/lib/types";
-import type { XlsxSheet, XlsxMerge } from "@/lib/xlsx";
+import type { XlsxCell, XlsxSheet, XlsxMerge } from "@/lib/xlsx";
 import type {
   DeficiencyTask,
   PlannedWork,
@@ -265,6 +265,16 @@ function workText(l: DailyLog): string {
   return l.workDone?.trim() || "";
 }
 
+/** Wrap a grid cell into an XlsxCell, applying center / wrap cell styles. */
+function styled(v: string | number, o: { center?: boolean; wrap?: boolean } = {}): XlsxCell {
+  return o.center || o.wrap ? { v, ...o } : v;
+}
+
+/** Plain text of a grid cell (unwraps styled cell objects). */
+function cellText(c: XlsxCell | string | number): string {
+  return typeof c === "object" ? String(c.v) : String(c);
+}
+
 /**
  * Merge several logs of the same day into one nature-of-work cell. When a day
  * has two movements, both pieces of work are joined with " and "; exact
@@ -375,7 +385,7 @@ export function exportDiary(
     body += `<table>`;
     body += `<tr><th class="date" data-width="76">DATE</th><th data-width="84">TRAIN NO</th><th data-width="70">TIME DEP</th><th data-width="70">TIME ARR</th><th data-width="58">FROM</th><th data-width="58">TO</th><th>NATURE OF WORK</th></tr>`;
     for (const g of grid) {
-      body += `<tr>${g.map((c, i) => (i === 0 ? `<td class="date">${esc(String(c))}</td>` : `<td>${esc(String(c))}</td>`)).join("")}</tr>`;
+      body += `<tr>${g.map((c, i) => (i === 0 ? `<td class="date">${esc(cellText(c))}</td>` : `<td>${esc(cellText(c))}</td>`)).join("")}</tr>`;
     }
     body += `</table>`;
     if (me?.designation) body += `<p class="meta" style="text-align:right">${esc(me.designation.toUpperCase())}</p>`;
@@ -389,7 +399,7 @@ export function exportDiary(
     rows: [
       [{ v: titleText, bold: true }],
       ["DATE", "TRAIN NO", "TIME DEP", "TIME ARR", "FROM", "TO", "NATURE OF WORK"],
-      ...grid,
+      ...grid.map((g) => g.map((c, i) => (i === 6 ? styled(c, { wrap: true }) : c)) as XlsxCell[]),
     ],
     merges: allMerges,
     colWidths: [12, 9, 9, 9, 8, 8, 46],
@@ -401,9 +411,12 @@ export function exportDiary(
 
 /**
  * TA Journal export — the reference TA.xlsx layout. Includes only days where
- * TA is actually claimed (a non-HQ station movement with a 100 / 70 / 30 rate),
- * one two-leg row pair per day, a KMS note, a month summary by rate, and the
- * certification + signature block.
+ * TA is actually claimed: a station movement **farther than 8 km from the
+ * headquarters** (stations.distanceFromHq === "above8") with a 100 / 70 / 30
+ * rate. Each qualifying day is shown as a vertical two-leg row pair, the dates
+ * / timings / from / to / KMS columns are centred on both axes, the work text
+ * wraps, and the SOUTH COAST RAILWAY header is centred. Ends with a month
+ * summary by rate and the certification + signature block.
  */
 export function exportTaJournal(
   period: { from: string; to: string; label: string },
@@ -416,7 +429,8 @@ export function exportTaJournal(
 
   // One entry per TA day. A date with two movements (two daily logs) counts as
   // a single TA day: the TA movement drives the route, and the nature of work
-  // merges both logs with " and ".
+  // merges both logs with " and ". Only stations recorded as above 8 km from
+  // the headquarters qualify.
   const days = new Map<string, DailyLog[]>();
   for (const l of logs) {
     if (l.logDate < period.from || l.logDate > period.to) continue;
@@ -429,6 +443,7 @@ export function exportTaJournal(
     if (isSpecialMovement(primary)) continue;
     const st = movementStation(primary, stations);
     if (!st || (hq && st.match?.id === hq.id)) continue;
+    if (st.match?.distanceFromHq !== "above8") continue;
     const p = primary.taPercent ?? 100;
     if (p !== 100 && p !== 70 && p !== 30) continue;
     taDays.push({ log: primary, work: mergeWork(dayLogs) || "-" });
@@ -446,7 +461,7 @@ export function exportTaJournal(
   const totalAmount = totalDays * 1000;
   const amt = (d: number) => Math.round(d * 1000);
 
-  const grid: (string | number)[][] = [];
+  const grid: XlsxCell[][] = [];
   const merges: XlsxMerge[] = [];
   const dataStart = grid.length;
   for (const d of taDays) {
@@ -455,18 +470,29 @@ export function exportTaJournal(
     const p = l.taPercent ?? 100;
     const r = grid.length;
     grid.push([
-      dmy(l.logDate),
+      styled(dmy(l.logDate), { center: true }),
       "ROAD",
-      l.timeDep || "—",
-      l.timeArr || "—",
-      hqCode,
-      st.code,
-      "ALL ARE ABOVE 8 KMS",
+      styled(l.timeDep || "—", { center: true }),
+      styled(l.timeArr || "—", { center: true }),
+      styled(hqCode, { center: true }),
+      styled(st.code, { center: true }),
+      styled("ALL ARE ABOVE 8 KMS", { center: true }),
       (p / 100).toFixed(1),
       p * 10,
-      d.work,
+      styled(d.work, { wrap: true }),
     ]);
-    grid.push(["", "ROAD", l.returnTimeDep || "—", l.returnTimeArr || "—", st.code, hqCode, "", "", "", ""]);
+    grid.push([
+      styled("", { center: true }),
+      "ROAD",
+      styled(l.returnTimeDep || "—", { center: true }),
+      styled(l.returnTimeArr || "—", { center: true }),
+      styled(st.code, { center: true }),
+      styled(hqCode, { center: true }),
+      styled("", { center: true }),
+      "",
+      "",
+      "",
+    ]);
     merges.push([r, 0, r + 1, 0], [r, 7, r + 1, 7], [r, 8, r + 1, 8], [r, 9, r + 1, 9]);
   }
   const dataEnd = grid.length - 1;
@@ -481,8 +507,8 @@ export function exportTaJournal(
   const cert =
     "I here certify that the above mentioned employee was absent on duty from his headquarters station during the period charged for in the bill on Railway Business.";
 
-  let body = `<h1>SOUTH CENTRAL RAILWAY. GUNTAKAL DIVISION</h1>`;
-  body += `<h2>TRAVELLING ALLOWANCE JOURNAL</h2>`;
+  let body = `<h1 class="centered">SOUTH COAST RAILWAY. GUNTAKAL DIVISION</h1>`;
+  body += `<h2 class="centered">TRAVELLING ALLOWANCE JOURNAL</h2>`;
   body += `<p class="meta">${esc(name)} · ${esc(designation)} · ${esc(pf)}</p>`;
   body += `<p class="meta">${esc(`Headquarters: ${hqCode}`)} · Month: ${esc(month)} · ${esc(bu)}</p>`;
 
@@ -490,9 +516,17 @@ export function exportTaJournal(
     body += `<p class="empty">No TA days in this period.</p>`;
   } else {
     body += `<table>`;
-    body += `<tr><th class="date" data-width="76">DATE</th><th data-width="58">TRAIN NO</th><th data-width="64">TIME DEP</th><th data-width="64">TIME ARR</th><th data-width="52">FROM</th><th data-width="52">TO</th><th data-width="92">KMS</th><th data-width="46">DAYS</th><th data-width="52">AMOUNT</th><th>NATURE OF WORK</th></tr>`;
+    body += `<tr><th class="date" data-width="76" data-align="center">DATE</th><th data-width="58">TRAIN NO</th><th data-width="64" data-align="center">TIME DEP</th><th data-width="64" data-align="center">TIME ARR</th><th data-width="52" data-align="center">FROM</th><th data-width="52" data-align="center">TO</th><th data-width="92" data-align="center">KMS</th><th data-width="46">DAYS</th><th data-width="52">AMOUNT</th><th>NATURE OF WORK</th></tr>`;
+    const centerCols = new Set([0, 2, 3, 4, 5, 6]);
     for (const g of grid) {
-      body += `<tr>${g.map((c, i) => (i === 0 ? `<td class="date">${esc(String(c))}</td>` : `<td>${esc(String(c))}</td>`)).join("")}</tr>`;
+      const tds = g
+        .map((c, i) => {
+          const cls = i === 0 ? ' class="date"' : "";
+          const align = centerCols.has(i) ? ' data-align="center"' : "";
+          return `<td${cls}${align}>${esc(cellText(c))}</td>`;
+        })
+        .join("");
+      body += `<tr>${tds}</tr>`;
     }
     body += `</table>`;
 
@@ -512,12 +546,34 @@ export function exportTaJournal(
   }
 
   const summaryRows: XlsxSheet["rows"] = [
-    [{ v: "SOUTH CENTRAL RAILWAY. GUNTAKAL DIVISION", bold: true }],
-    [{ v: "TRAVELLING ALLOWANCE JOURNAL", bold: true }],
+    [{ v: "SOUTH COAST RAILWAY. GUNTAKAL DIVISION", bold: true, center: true }],
+    [{ v: "TRAVELLING ALLOWANCE JOURNAL", bold: true, center: true }],
     [name, "", "", designation, "", "", "", { v: pf, bold: false }, ""],
     [`Headquarters: ${hqCode}`, "", "", `Month: ${month}`, "", "", "", { v: bu, bold: false }, ""],
-    ["DATE", "TRAIN NO", "TIME", "", "STATION", "", "KMS", "DAYS", "AMOUNT", "NATURE OF WORK"],
-    ["", "", "TIME DEPT", "TIME ARR", "FROM", "TO", "", "", "", ""],
+    [
+      styled("DATE", { center: true }),
+      "TRAIN NO",
+      styled("TIME", { center: true }),
+      "",
+      styled("STATION", { center: true }),
+      "",
+      styled("KMS", { center: true }),
+      "DAYS",
+      "AMOUNT",
+      "NATURE OF WORK",
+    ],
+    [
+      "",
+      "",
+      styled("TIME DEPT", { center: true }),
+      styled("TIME ARR", { center: true }),
+      styled("FROM", { center: true }),
+      styled("TO", { center: true }),
+      "",
+      "",
+      "",
+      "",
+    ],
     ...grid,
   ];
   const mergesAll: XlsxMerge[] = [

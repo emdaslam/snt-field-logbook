@@ -9,7 +9,17 @@
 
 import { makeZip } from "./docx";
 
-export type XlsxCell = string | number | { v: string | number; bold?: boolean };
+export type XlsxCell =
+  | string
+  | number
+  | {
+      v: string | number;
+      bold?: boolean;
+      /** Center the cell both horizontally and vertically. */
+      center?: boolean;
+      /** Wrap long text within the cell. */
+      wrap?: boolean;
+    };
 /** 0-indexed inclusive merge: [row1, col1, row2, col2] */
 export type XlsxMerge = [number, number, number, number];
 
@@ -39,22 +49,54 @@ function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-function cellXml(ref: string, cell: XlsxCell): string {
-  const bold = typeof cell === "object" && cell.bold;
-  const style = bold ? ' s="1"' : "";
+type CellStyle = { bold?: boolean; center?: boolean; wrap?: boolean };
+
+function cellStyleOf(cell: XlsxCell): CellStyle {
+  return typeof cell === "object"
+    ? { bold: cell.bold, center: cell.center, wrap: cell.wrap }
+    : {};
+}
+
+const styleKey = (s: CellStyle) => `${s.bold ? 1 : 0}${s.center ? 1 : 0}${s.wrap ? 1 : 0}`;
+
+/**
+ * Collect the distinct cell styles actually used, in first-seen order with the
+ * plain style always at index 0 (the default). The returned indexOf() maps a
+ * style back to its cellXf id.
+ */
+function collectStyles(rows: XlsxCell[][]): { indexOf: (s: CellStyle) => number; list: CellStyle[] } {
+  const list: CellStyle[] = [];
+  const byKey: Record<string, number> = {};
+  const add = (s: CellStyle) => {
+    const k = styleKey(s);
+    if (byKey[k] === undefined) {
+      byKey[k] = list.length;
+      list.push(s);
+    }
+  };
+  add({});
+  for (const row of rows) for (const c of row) add(cellStyleOf(c));
+  return { list, indexOf: (s) => byKey[styleKey(s)] };
+}
+
+function cellXml(ref: string, cell: XlsxCell, styleIdx: number): string {
+  const s = ` s="${styleIdx}"`;
   if (typeof cell === "object" && typeof cell.v === "number") {
-    return `<c r="${ref}"${style}><v>${cell.v}</v></c>`;
+    return `<c r="${ref}"${s}><v>${cell.v}</v></c>`;
   }
   if (typeof cell === "number") {
-    return `<c r="${ref}"${style}><v>${cell}</v></c>`;
+    return `<c r="${ref}"${s}><v>${cell}</v></c>`;
   }
   const text = typeof cell === "object" ? String(cell.v) : cell;
-  return `<c r="${ref}"${style} t="inlineStr"><is><t xml:space="preserve">${esc(text)}</t></is></c>`;
+  return `<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${esc(text)}</t></is></c>`;
 }
 
 /** Build a single-sheet .xlsx as a STORE-method ZIP of OOXML parts. */
 export function buildXlsx(sheet: XlsxSheet): Uint8Array {
   const { rows, merges = [], colWidths = [] } = sheet;
+
+  const { indexOf, list } = collectStyles(rows);
+  const usedBold = list.some((s) => s.bold);
 
   const cols =
     colWidths.length > 0
@@ -70,7 +112,7 @@ export function buildXlsx(sheet: XlsxSheet): Uint8Array {
     .map(
       (row, ri) =>
         `<row r="${ri + 1}">${row
-          .map((c, ci) => cellXml(`${colLetter(ci)}${ri + 1}`, c))
+          .map((c, ci) => cellXml(`${colLetter(ci)}${ri + 1}`, c, indexOf(cellStyleOf(c))))
           .join("")}</row>`
     )
     .join("");
@@ -122,24 +164,42 @@ export function buildXlsx(sheet: XlsxSheet): Uint8Array {
     `<Relationship Id="rId2" Type="${R_NS}/styles" Target="styles.xml"/>` +
     `</Relationships>`;
 
-  // Style 0 = default; style 1 = bold. Enough for the export grids.
+  // Font 0 = normal, font 1 = bold (only when a bold cell exists).
+  const fonts =
+    `<fonts count="${usedBold ? 2 : 1}">` +
+    `<font><sz val="10"/><name val="Calibri"/></font>` +
+    (usedBold ? `<font><b/><sz val="10"/><name val="Calibri"/></font>` : "") +
+    `</fonts>`;
+  // One cellXf per distinct style; alignment (center / wrap) is applied when used.
+  const cellXfs =
+    `<cellXfs count="${list.length}">` +
+    list
+      .map((s) => {
+        const fontId = s.bold ? 1 : 0;
+        const align: string[] = [];
+        if (s.center) align.push('horizontal="center" vertical="center"');
+        if (s.wrap) align.push('wrapText="1"');
+        const alignment = align.length ? `<alignment ${align.join(" ")}/>` : "";
+        return (
+          `<xf numFmtId="0" fontId="${fontId}" fillId="0" borderId="0" xfId="0"` +
+          (s.bold ? ` applyFont="1"` : "") +
+          (align.length ? ` applyAlignment="1"` : "") +
+          `>${alignment}</xf>`
+        );
+      })
+      .join("") +
+    `</cellXfs>`;
   const stylesXml =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n` +
     `<styleSheet xmlns="${NS}">` +
-    `<fonts count="2">` +
-    `<font><sz val="10"/><name val="Calibri"/></font>` +
-    `<font><b/><sz val="10"/><name val="Calibri"/></font>` +
-    `</fonts>` +
+    fonts +
     `<fills count="2">` +
     `<fill><patternFill patternType="none"/></fill>` +
     `<fill><patternFill patternType="gray125"/></fill>` +
     `</fills>` +
     `<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>` +
     `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
-    `<cellXfs count="2">` +
-    `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>` +
-    `<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>` +
-    `</cellXfs>` +
+    cellXfs +
     `<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>` +
     `</styleSheet>`;
 

@@ -45,7 +45,8 @@ export function DiaryExportModal({
     .filter((l) => !isSharedLog(l) && l.logDate >= period.from && l.logDate <= period.to)
     .sort((a, b) => a.logDate.localeCompare(b.logDate));
 
-  // TA journal only counts days actually claimed away from HQ
+  // TA journal only counts days actually claimed away from HQ — and only for
+  // stations recorded as farther than 8 km from the headquarters.
   const isHqMovement = (l: DailyLog) => {
     const t = (l.stationMovement ?? "").trim().toLowerCase();
     if (!t) return true;
@@ -54,6 +55,11 @@ export function DiaryExportModal({
   const taRows = own.filter((l) => {
     if (isSpecialMovement(l)) return false;
     if (isHqMovement(l)) return false;
+    const t = (l.stationMovement ?? "").trim().toLowerCase();
+    const st = stations.find(
+      (s) => s.name.toLowerCase() === t || (s.code && s.code.toLowerCase() === t)
+    );
+    if (!st || st.distanceFromHq !== "above8") return false;
     const p = l.taPercent ?? 100;
     return p === 100 || p === 70 || p === 30;
   });
@@ -109,6 +115,13 @@ export function DiaryExportModal({
         {" · "}
         Headquarters: <strong>{hqCode ?? "not set"}</strong>
       </div>
+
+      {isTa && (
+        <div className="mb-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
+          Only movements to stations recorded as <strong>above 8 km</strong> from the headquarters are
+          included in the TA Journal.
+        </div>
+      )}
 
       <div className="mb-3 max-h-56 overflow-y-auto rounded-lg border border-slate-200">
         {(isTa ? taRows : own).length === 0 ? (

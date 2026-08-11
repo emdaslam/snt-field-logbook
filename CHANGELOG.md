@@ -3,7 +3,23 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
-## 1.7.6.24 — 2026-08-10 (current)
+## 1.7.6.25 — 2026-08-10 (current)
+
+**Feat: TA Journal refined — 8 km rule, South Coast Railway, centred & wrapped cells**
+- The **TA Journal only includes movements to stations recorded as above 8 km**
+  from the headquarters (`stations.distanceFromHq` = "above8"); below-8 km and
+  unrecorded stations no longer generate TA rows. The preview count and the
+  generated sheet stay in sync.
+- The header now reads **SOUTH COAST RAILWAY. GUNTAKAL DIVISION** (was South
+  Central Railway) and is **centred** in the PDF, Word and Excel exports, like
+  the TRAVELLING ALLOWANCE JOURNAL line under it.
+- In the TA sheet the **DATE, TIME DEP, TIME ARR, FROM, TO and KMS** columns are
+  **centred both horizontally and vertically**, and **Nature of Work wraps**
+  within its cell (also wrapped in the Diary Excel export).
+- Each qualifying movement is still listed **vertically** as its own two-leg
+  row pair.
+
+## 1.7.6.24 — 2026-08-10
 
 **Feat: a day with two movements exports as one — the TA movement wins, and the work merges with "and"** — `c391dca`
 - When two daily log entries exist for the same date (two movements), the Diary
