@@ -5,7 +5,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.26 — 2026-08-11
 
-**Feat: one-line Diary/TA columns, TA summary matching the reference workbook, and explicit "missing" placeholders**
+**Feat: one-line Diary/TA columns, TA summary matching the reference workbook, and explicit "missing" placeholders** — `32b7cf2`
 - The Diary and TA Journal tables are re-spaced so every column is wide enough
   for its content to sit on one line — matching the widths of the reference
   `JE_SIG_JMDG DIARY.xlsx` and `JE SIG JMDG TA.xlsx` workbooks — with only
