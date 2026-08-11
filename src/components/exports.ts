@@ -265,6 +265,45 @@ function specialPair(l: DailyLog): [string, string] | null {
   }
 }
 
+/** Non-empty work text for a log, trimmed ("" when nothing was recorded). */
+function workText(l: DailyLog): string {
+  return l.workDone?.trim() || "";
+}
+
+/**
+ * Merge several logs of the same day into one nature-of-work cell. When a day
+ * has two movements, both pieces of work are joined with " and "; exact
+ * duplicates are dropped.
+ */
+function mergeWork(logs: DailyLog[]): string {
+  const parts: string[] = [];
+  for (const l of logs) {
+    const t = workText(l);
+    if (t && !parts.includes(t)) parts.push(t);
+  }
+  return parts.join(" and ");
+}
+
+/**
+ * Pick the log that drives a day's route and timings when several logs share
+ * the same date. The TA movement (a station trip claiming 100 / 70 / 30 %)
+ * wins; otherwise the first real station movement; otherwise the first log.
+ */
+function preferTaLog(logs: DailyLog[], hq: Station | undefined): DailyLog {
+  const isTa = (l: DailyLog) => {
+    const p = l.taPercent ?? 0;
+    return (p === 100 || p === 70 || p === 30) && !isSpecialMovement(l);
+  };
+  const ta = logs.find(isTa);
+  if (ta) return ta;
+  const movement = logs.find((l) => {
+    if (isSpecialMovement(l)) return false;
+    const text = (l.stationMovement ?? "").trim();
+    return Boolean(text) && !(hq && text.toLowerCase() === hq.name.toLowerCase());
+  });
+  return movement ?? logs[0];
+}
+
 /**
  * Diary export — the reference layout: DATE | TRAIN NO | TIME DEP | TIME ARR |
  * FROM | TO | NATURE OF WORK. An away day produces two rows (HQ → station and
@@ -285,25 +324,36 @@ export function exportDiary(
     .filter((l) => l.logDate >= period.from && l.logDate <= period.to)
     .sort((a, b) => a.logDate.localeCompare(b.logDate));
 
+  // A day may carry two movements (two daily logs for the same date). Export
+  // such a day as a single movement — the TA one wins for the route and the
+  // timings, and the nature of work merges both entries with " and ".
+  const days = new Map<string, DailyLog[]>();
+  for (const l of rows) {
+    if (!days.has(l.logDate)) days.set(l.logDate, []);
+    days.get(l.logDate)!.push(l);
+  }
+
   // Display rows (grid + xlsx share the same data)
   const grid: (string | number)[][] = [];
   const merges: XlsxMerge[] = [];
-  for (const l of rows) {
-    const sp = specialPair(l);
+  for (const [date, dayLogs] of days) {
+    const primary = preferTaLog(dayLogs, hq);
+    const work = mergeWork(dayLogs) || "-";
+    const sp = specialPair(primary);
     if (sp) {
       const r = grid.length;
-      grid.push([dmy(l.logDate), sp[0], "", "", "", "", sp[1]]);
+      grid.push([dmy(date), sp[0], "", "", "", "", sp[1]]);
       merges.push([r, 1, r, 5]); // train-no..to collapse into the label
       continue;
     }
-    const st = movementStation(l, stations);
+    const st = movementStation(primary, stations);
     if (!st || (hq && st.match?.id === hq.id)) {
-      grid.push([dmy(l.logDate), "---", "---", "---", "AT", hqCode, l.workDone?.trim() || "-"]);
+      grid.push([dmy(date), "---", "---", "---", "AT", hqCode, work]);
       continue;
     }
-    const t = tripTimes(l.logDate, l.taPercent ?? 100, st.travelMin, st.travelMax);
+    const t = tripTimes(date, primary.taPercent ?? 100, st.travelMin, st.travelMax);
     const r = grid.length;
-    grid.push([dmy(l.logDate), "ROAD", t.outDep, t.outArr, hqCode, st.code, l.workDone?.trim() || "-"]);
+    grid.push([dmy(date), "ROAD", t.outDep, t.outArr, hqCode, st.code, work]);
     grid.push(["", "ROAD", t.retDep, t.retArr, st.code, hqCode, ""]);
     merges.push([r, 0, r + 1, 0], [r, 6, r + 1, 6]); // date + work span both legs
   }
@@ -361,18 +411,28 @@ export function exportTaJournal(
   const hq = stations.find((s) => s.id === me?.headquartersStationId);
   const hqCode = hqLabel(hq);
 
-  const taDays = logs
-    .filter((l) => l.logDate >= period.from && l.logDate <= period.to)
-    .filter((l) => {
-      if (isSpecialMovement(l)) return false;
-      const st = movementStation(l, stations);
-      if (!st || (hq && st.match?.id === hq.id)) return false;
-      const p = l.taPercent ?? 100;
-      return p === 100 || p === 70 || p === 30;
-    })
-    .sort((a, b) => a.logDate.localeCompare(b.logDate));
+  // One entry per TA day. A date with two movements (two daily logs) counts as
+  // a single TA day: the TA movement drives the route, and the nature of work
+  // merges both logs with " and ".
+  const days = new Map<string, DailyLog[]>();
+  for (const l of logs) {
+    if (l.logDate < period.from || l.logDate > period.to) continue;
+    if (!days.has(l.logDate)) days.set(l.logDate, []);
+    days.get(l.logDate)!.push(l);
+  }
+  const taDays: { log: DailyLog; work: string }[] = [];
+  for (const dayLogs of days.values()) {
+    const primary = preferTaLog(dayLogs, hq);
+    if (isSpecialMovement(primary)) continue;
+    const st = movementStation(primary, stations);
+    if (!st || (hq && st.match?.id === hq.id)) continue;
+    const p = primary.taPercent ?? 100;
+    if (p !== 100 && p !== 70 && p !== 30) continue;
+    taDays.push({ log: primary, work: mergeWork(dayLogs) || "-" });
+  }
+  taDays.sort((a, b) => a.log.logDate.localeCompare(b.log.logDate));
 
-  const count = (p: number) => taDays.filter((l) => (l.taPercent ?? 100) === p).length;
+  const count = (p: number) => taDays.filter((d) => (d.log.taPercent ?? 100) === p).length;
   const n100 = count(100);
   const n70 = count(70);
   const n30 = count(30);
@@ -386,7 +446,8 @@ export function exportTaJournal(
   const grid: (string | number)[][] = [];
   const merges: XlsxMerge[] = [];
   const dataStart = grid.length;
-  for (const l of taDays) {
+  for (const d of taDays) {
+    const l = d.log;
     const st = movementStation(l, stations)!;
     const p = l.taPercent ?? 100;
     const t = tripTimes(l.logDate, p, st.travelMin, st.travelMax);
@@ -401,7 +462,7 @@ export function exportTaJournal(
       "ALL ARE ABOVE 8 KMS",
       (p / 100).toFixed(1),
       p * 10,
-      l.workDone?.trim() || "-",
+      d.work,
     ]);
     grid.push(["", "ROAD", t.retDep, t.retArr, st.code, hqCode, "", "", "", ""]);
     merges.push([r, 0, r + 1, 0], [r, 7, r + 1, 7], [r, 8, r + 1, 8], [r, 9, r + 1, 9]);

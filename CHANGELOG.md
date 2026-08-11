@@ -3,7 +3,27 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
-## 1.7.6.23p — 2026-08-10 (current — owner personal build)
+## 1.7.6.24p — 2026-08-10 (current — owner personal build)
+
+> This version lives on the **`personal/owner`** branch: it carries features for
+> the owner's personal use only and is **not** part of the public `master`
+> releases.
+
+**Feat: generated timings are rounded to 5-minute steps, and days with two movements export as one**
+- **Timings in multiples of 5.** Every automatically derived departure / arrival
+  time is now rounded to the nearest 5 minutes (e.g. `07:25`, not `07:28`), so
+  the Diary and TA Journal exports read like hand-filled sheets. The travel
+  duration is rounded the same way, keeping all four clock times in step.
+- **Two movements export as one.** When two daily log entries exist for the
+  same date, the Diary and TA Journal exports show a **single movement**
+  instead of two row pairs. The **TA movement** (the station trip claiming
+  100 / 70 / 30 % TA) drives the route and timings; the **NATURE OF WORK**
+  column merges both entries with **"and"** between them (e.g. *CARRIED OUT
+  DAY FOOTPLATE INSPECTION. and CARRIED OUT YA-PRDT BLOCK AND BPAC MONTHLY
+  INSPECTION.*), dropping exact duplicates.
+- The TA Journal counts such a day **once** towards the month's day total.
+
+## 1.7.6.23p — 2026-08-10
 
 > This version lives on the **`personal/owner`** branch: it carries features for
 > the owner's personal use only and is **not** part of the public `master`

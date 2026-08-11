@@ -55,6 +55,11 @@ function randInt(min: number, max: number, rnd: () => number): number {
   return min + Math.floor(rnd() * (max - min + 1));
 }
 
+/** Round a minute count to the nearest multiple of 5 (all generated times are). */
+function step5(v: number): number {
+  return Math.round(v / 5) * 5;
+}
+
 function fmt(minutes: number): string {
   return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 }
@@ -63,7 +68,8 @@ function fmt(minutes: number): string {
  * One day's HQ → station → HQ timings. The one-way travel duration is drawn
  * from the station's travel range; the HQ departure and return-arrival times
  * are drawn from the TA-rate windows. All values are derived from a seed of
- * (date, TA rate, travel range) so exports are stable.
+ * (date, TA rate, travel range) so exports are stable, and every generated
+ * time is a multiple of 5 minutes.
  */
 export function tripTimes(
   logDate: string,
@@ -73,12 +79,16 @@ export function tripTimes(
 ): TripTimes {
   const win = TA_WINDOWS[taPercent] ?? TA_WINDOWS[70];
   const rnd = mulberry32(hashSeed(logDate, taPercent, travelMin ?? 0, travelMax ?? 0));
-  const oneWay =
-    travelMin != null && travelMax != null && travelMax > 0
-      ? randInt(travelMin, travelMax, rnd)
-      : randInt(DEFAULT_TRAVEL_MIN, DEFAULT_TRAVEL_MAX, rnd);
-  const outDep = randInt(win.dep[0], win.dep[1], rnd);
-  const retArr = randInt(win.ret[0], win.ret[1], rnd);
+  const oneWay = Math.max(
+    5,
+    step5(
+      travelMin != null && travelMax != null && travelMax > 0
+        ? randInt(travelMin, travelMax, rnd)
+        : randInt(DEFAULT_TRAVEL_MIN, DEFAULT_TRAVEL_MAX, rnd)
+    )
+  );
+  const outDep = step5(randInt(win.dep[0], win.dep[1], rnd));
+  const retArr = step5(randInt(win.ret[0], win.ret[1], rnd));
   return {
     outDep: fmt(outDep),
     outArr: fmt(outDep + oneWay),
