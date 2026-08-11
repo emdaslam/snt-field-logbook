@@ -399,7 +399,7 @@ export function exportDiary(
       ...grid.map((g) => g.map((c, i) => (i === 6 ? styled(c, { wrap: true }) : c)) as XlsxCell[]),
     ],
     merges: allMerges,
-    colWidths: [12, 9, 9, 9, 8, 8, 46],
+    colWidths: [10.3, 8.7, 8.7, 8.7, 7.3, 7.3, 52.3],
   };
 
   exportDocument(`Diary ${period.label}`, body, "diary", sheet);
@@ -452,7 +452,6 @@ export function exportTaJournal(
   const days30 = n30 * 0.3;
   const totalDays = days100 + days70 + days30;
   const totalAmount = totalDays * 1000;
-  const amt = (d: number) => Math.round(d * 1000);
 
   const grid: XlsxCell[][] = [];
   const merges: XlsxMerge[] = [];
@@ -482,10 +481,10 @@ export function exportTaJournal(
   if (dataStart <= dataEnd) merges.push([dataStart, 6, dataEnd, 6]); // KMS note spans all rows
 
   const month = monthStamp(period.label);
-  const name = me?.name ? `Name: ${me.name}` : "Name: —";
-  const designation = me?.designation ? `Designation: ${me.designation}` : "Designation: —";
-  const pf = me?.pfNo ? `P.F.NO: ${me.pfNo}` : "P.F.NO: —";
-  const bu = me?.buNo ? `B.U.No: ${me.buNo}` : "B.U.No: —";
+  const name = me?.name ? `Name: ${me.name}` : "Name: not updated in profile";
+  const designation = me?.designation ? `Designation: ${me.designation}` : "Designation: not updated in profile";
+  const pf = me?.pfNo ? `P.F.NO: ${me.pfNo}` : "P.F.NO: not updated in profile";
+  const bu = me?.buNo ? `B.U.No: ${me.buNo}` : "B.U.No: not updated in profile";
 
   const cert =
     "I here certify that the above mentioned employee was absent on duty from his headquarters station during the period charged for in the bill on Railway Business.";
@@ -515,12 +514,12 @@ export function exportTaJournal(
 
     body += `<h2>Summary</h2>`;
     body += `<table>`;
-    body += `<tr><th>Rate</th><th>Calculation</th><th>Days</th><th>Amount (₹)</th></tr>`;
-    body += `<tr><td><strong>TOTAL NO. OF DAYS</strong></td><td></td><td><strong>${daysLabel(totalDays)} DAYS</strong></td><td><strong>${totalAmount}</strong></td></tr>`;
-    body += `<tr><td>1.0</td><td>X ${n100} = ${daysLabel(days100)} DAYS</td><td>${daysLabel(days100)}</td><td>${amt(days100)}</td></tr>`;
-    body += `<tr><td>0.7</td><td>X ${n70} = ${daysLabel(days70)} DAYS</td><td>${daysLabel(days70)}</td><td>${amt(days70)}</td></tr>`;
-    body += `<tr><td>0.3</td><td>X ${n30} = ${daysLabel(days30)} DAYS</td><td>${daysLabel(days30)}</td><td>${amt(days30)}</td></tr>`;
-    body += `<tr><td><strong>TOTAL</strong></td><td>= ${daysLabel(totalDays)} DAYS</td><td><strong>${daysLabel(totalDays)}</strong></td><td><strong>${totalAmount}</strong></td></tr>`;
+    body += `<tr><td><strong>TOTAL NO. OF DAYS</strong></td><td></td><td></td><td><strong>${daysLabel(totalDays)} DAYS</strong></td><td><strong>₹${totalAmount.toLocaleString("en-IN")}</strong></td></tr>`;
+    body += `<tr><td>1.0</td><td>X ${n100}</td><td>= ${daysLabel(days100)} DAYS</td><td></td><td></td></tr>`;
+    body += `<tr><td>0.7</td><td>X ${n70}</td><td>= ${daysLabel(days70)} DAYS</td><td></td><td></td></tr>`;
+    body += `<tr><td>0.3</td><td>X ${n30}</td><td>= ${daysLabel(days30)} DAYS</td><td></td><td></td></tr>`;
+    body += `<tr><td>${"".padEnd(24, "_")}</td><td></td><td></td><td></td><td></td></tr>`;
+    body += `<tr><td><strong>TOTAL</strong></td><td></td><td>= ${daysLabel(totalDays)} DAYS</td><td></td><td></td></tr>`;
     body += `</table>`;
 
     body += `<p class="meta" style="margin-top:12px">${esc(cert)}</p>`;
@@ -575,35 +574,40 @@ export function exportTaJournal(
     ...merges.map(([r1, c1, r2, c2]) => [r1 + 6, c1, r2 + 6, c2] as XlsxMerge),
   ];
   const s = 6 + grid.length;
-  const t1 = s, t2 = s + 1, t3 = s + 2, line = s + 3, tot = s + 4, certRow = s + 5, sigRow = s + 6, sigLab = s + 7;
+  const t1 = s;
+  const line = s + 5;
+  const tot = s + 6;
+  const certRow = s + 8;
+  const sigLab = s + 12;
   mergesAll.push(
     [t1, 0, t1, 6], // TOTAL NO. OF DAYS spans A:G
     [line, 1, line, 4], // underline
     [tot, 1, tot, 2], // TOTAL label
-    [certRow, 0, certRow, 9],
-    [sigRow, 0, sigRow, 0],
-    [sigRow, 5, sigRow, 5],
-    [sigRow, 9, sigRow, 9],
+    [certRow, 0, certRow, 9], // certification text
     [sigLab, 0, sigLab, 2],
     [sigLab, 5, sigLab, 7],
     [sigLab, 9, sigLab, 9]
   );
   summaryRows.push(
-    [{ v: "TOTAL NO. OF DAYS", bold: true }, "", "", "", "", "", "", `${daysLabel(totalDays)} DAYS`, totalAmount, ""],
+    [{ v: "TOTAL NO. OF DAYS", center: true }, "", "", "", "", "", "", `${daysLabel(totalDays)} DAYS`, totalAmount, ""],
+    [""],
     ["", 1.0, `X ${n100}`, `= ${daysLabel(days100)} DAYS`, "", "", "", "", "", "", days100],
     ["", 0.7, `X ${n70}`, `= ${daysLabel(days70)} DAYS`, "", "", "", "", "", "", days70],
     ["", 0.3, `X ${n30}`, `= ${daysLabel(days30)} DAYS`, "", "", "", "", "", "", days30],
-    ["", "____________________", "", "", ""],
+    ["", "".padEnd(24, "_"), "", "", ""],
     ["", "TOTAL", "", `= ${daysLabel(totalDays)} DAYS`],
+    [""],
     [{ v: cert, bold: false }, "", "", "", "", "", "", "", "", ""],
-    ["____________________", "", "", "", "", "____________________", "", "", "", "________________________"],
+    [""],
+    [""],
+    ["".padEnd(20, "_"), "", "", "", "", "".padEnd(19, "_"), "", "", "", "".padEnd(22, "_")],
     ["CONTROLLING OFFICER", "", "", "", "", "HEAD OF OFFICE", "", "", "", "SIGNATURE OF OFFICER/ CLAIMING TA"]
   );
 
   const sheet: XlsxSheet = {
     rows: summaryRows,
     merges: mergesAll,
-    colWidths: [12, 9, 9, 9, 8, 8, 18, 9, 10, 44, 8],
+    colWidths: [10.43, 8.14, 9.71, 9.29, 6.71, 8.43, 4.57, 9.71, 11.43, 48, 12.14, 9],
   };
 
   exportDocument(`TA Journal ${period.label}`, body, "ta", sheet);

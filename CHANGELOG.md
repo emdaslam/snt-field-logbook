@@ -3,7 +3,30 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
-## 1.7.6.25p — 2026-08-10 (current — owner personal build)
+## 1.7.6.26p — 2026-08-11 (current — owner personal build)
+
+> This version lives on the **`personal/owner`** branch: it carries features for
+> the owner's personal use only and is **not** part of the public `master`
+> releases.
+
+**Feat: one-line Diary/TA columns, TA summary matching the reference workbook, and explicit "missing" placeholders**
+- The Diary and TA Journal tables are re-spaced so every column is wide enough
+  for its content to sit on one line — matching the widths of the reference
+  `JE_SIG_JMDG DIARY.xlsx` and `JE SIG JMDG TA.xlsx` workbooks — with only
+  **NATURE OF WORK** wrapping.
+- The **TA summary** is corrected to the reference layout: a `TOTAL NO. OF DAYS`
+  row showing the weighted day total and the amount, then the three rate lines
+  (`1.0 X n = x DAYS`, `0.7 X n`, `0.3 X n`), the underline, and the
+  `TOTAL = x DAYS` line, followed by the certification and signature block.
+  This also fixes the Excel sheet's summary merges, which were applied one row
+  too high, so the underline / TOTAL / certification cells now land on the
+  right rows.
+- Missing profile information is now labelled where it is missing: a missing
+  **B.U.No** or **P.F.NO** (and Name / Designation) shows `not updated in
+  profile`. Auto-generated timings (`src/lib/travel.ts`) always exist on this
+  branch, so no timing placeholder is needed.
+
+## 1.7.6.25p — 2026-08-10
 
 > This version lives on the **`personal/owner`** branch: it carries features for
 > the owner's personal use only and is **not** part of the public `master`
@@ -24,7 +47,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
   row pair. Auto-generated timings continue to come from `src/lib/travel.ts`
   (5-minute steps, rounded).
 
-## 1.7.6.24p — 2026-08-10 (current — owner personal build)
+## 1.7.6.24p — 2026-08-10
 
 > This version lives on the **`personal/owner`** branch: it carries features for
 > the owner's personal use only and is **not** part of the public `master`
