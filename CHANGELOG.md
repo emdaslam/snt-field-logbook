@@ -3,7 +3,21 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
-## 1.7.6.23 — 2026-08-10 (current)
+## 1.7.6.24 — 2026-08-10 (current)
+
+**Feat: a day with two movements exports as one — the TA movement wins, and the work merges with "and"**
+- When two daily log entries exist for the same date (two movements), the Diary
+  and TA Journal exports now show them as **one movement** instead of two
+  separate row pairs.
+- The **TA movement** (the station trip that claims 100 / 70 / 30 % TA) drives
+  the route and the timings in `FROM / TO`; the other movement's entry no
+  longer prints its own rows.
+- The **NATURE OF WORK** column merges both entries' work with **"and"** between
+  them (e.g. *CARRIED OUT DAY FOOTPLATE INSPECTION. and CARRIED OUT YA-PRDT
+  BLOCK AND BPAC MONTHLY INSPECTION.*); identical work is not repeated.
+- The TA Journal counts such a day **once** towards the month's day total.
+
+## 1.7.6.23 — 2026-08-10
 
 **Feat: Diary and TA Journal exports in the reference workbook layout — with timings you enter yourself**
 - The **Diary** export is rewritten to the reference format
