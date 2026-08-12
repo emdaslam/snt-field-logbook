@@ -5,7 +5,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.28 — 2026-08-12
 
-**Feat: HQ-movement entries no longer need timings + configurable TA auto-generation windows**
+**Feat: HQ-movement entries no longer need timings + configurable TA auto-generation windows** — `e7c2879`
 
 - **HQ movements (normal build):** when the daily-log movement is the
   headquarters station, the four clock-time fields no longer appear and nothing
