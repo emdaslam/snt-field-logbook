@@ -254,10 +254,11 @@ export function DailyLogForm({
       id: existing?.id,
       logDate,
       stationMovement: movement,
-      timeDep: movementKind === "station" ? timeDep || null : null,
-      timeArr: movementKind === "station" ? timeArr || null : null,
-      returnTimeDep: movementKind === "station" ? returnTimeDep || null : null,
-      returnTimeArr: movementKind === "station" ? returnTimeArr || null : null,
+      // Headquarters movements carry no clock times (the Diary prints "AT <HQ>").
+      timeDep: movementKind === "station" && !isHeadquarters ? timeDep || null : null,
+      timeArr: movementKind === "station" && !isHeadquarters ? timeArr || null : null,
+      returnTimeDep: movementKind === "station" && !isHeadquarters ? returnTimeDep || null : null,
+      returnTimeArr: movementKind === "station" && !isHeadquarters ? returnTimeArr || null : null,
       movementKind: isSpecial ? movementKind : null,
       leaveKind: movementKind === "leave" ? leaveKind || null : null,
       crFrom: movementKind === "cr" ? crFrom || null : null,
@@ -467,7 +468,7 @@ export function DailyLogForm({
           </span>
         )}
       </Field>
-      {!isSpecial && !AUTO_TIMINGS && (
+      {!isSpecial && !isHeadquarters && !AUTO_TIMINGS && (
         <Field label="Timings">
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
             <div className="grid grid-cols-2 gap-3">

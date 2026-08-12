@@ -4,6 +4,7 @@ import { formatInspectionDates } from "@/lib/inspections";
 import { isSpecialMovement } from "@/lib/types";
 import { AUTO_TIMINGS } from "@/lib/timingsMode";
 import { tripTimes } from "@/lib/travel";
+import { loadTaGenConfig, type TaGenWindow, type TaRateKey } from "@/lib/taGenConfig";
 import type { XlsxCell, XlsxSheet, XlsxMerge } from "@/lib/xlsx";
 import type {
   DeficiencyTask,
@@ -260,10 +261,11 @@ function hqLabel(hq: Station | undefined): string {
 function diaryTimes(
   l: DailyLog,
   st: MovementStation,
-  date: string
+  date: string,
+  taWin?: TaGenWindow
 ): { outDep: string; outArr: string; retDep: string; retArr: string } {
   if (AUTO_TIMINGS) {
-    const t = tripTimes(date, l.taPercent ?? 100, st.travelMin, st.travelMax);
+    const t = tripTimes(date, l.taPercent ?? 100, st.travelMin, st.travelMax, taWin);
     return { outDep: t.outDep, outArr: t.outArr, retDep: t.retDep, retArr: t.retArr };
   }
   return {
@@ -272,6 +274,11 @@ function diaryTimes(
     retDep: l.returnTimeDep || "not entered in daily log",
     retArr: l.returnTimeArr || "not entered in daily log",
   };
+}
+
+/** Map a TA percent to the matching config window key (100 / 70 / 30). */
+function taRateKey(p: number | null | undefined): TaRateKey {
+  return p === 100 || p === 30 ? (String(p) as TaRateKey) : "70";
 }
 
 /** "AVAILED REST" + "REST" style pair for a Rest / NH / Leave / CR day. */
@@ -356,6 +363,7 @@ export function exportDiary(
 ) {
   const hq = stations.find((s) => s.id === me?.headquartersStationId);
   const hqCode = hqLabel(hq);
+  const taCfg = AUTO_TIMINGS ? loadTaGenConfig() : null;
 
   const rows = logs
     .filter((l) => l.logDate >= period.from && l.logDate <= period.to)
@@ -388,7 +396,7 @@ export function exportDiary(
       grid.push([dmy(date), "---", "---", "---", "AT", hqCode, work]);
       continue;
     }
-    const t = diaryTimes(primary, st, date);
+    const t = diaryTimes(primary, st, date, taCfg ? taCfg[taRateKey(primary.taPercent)] : undefined);
     const r = grid.length;
     grid.push([
       dmy(date),
@@ -460,6 +468,7 @@ export function exportTaJournal(
 ) {
   const hq = stations.find((s) => s.id === me?.headquartersStationId);
   const hqCode = hqLabel(hq);
+  const taCfg = AUTO_TIMINGS ? loadTaGenConfig() : null;
 
   // One entry per TA day. A date with two movements (two daily logs) counts as
   // a single TA day: the TA movement drives the route, and the nature of work
@@ -501,7 +510,7 @@ export function exportTaJournal(
     const l = d.log;
     const st = movementStation(l, stations)!;
     const p = l.taPercent ?? 100;
-    const t = diaryTimes(l, st, l.logDate);
+    const t = diaryTimes(l, st, l.logDate, taCfg ? taCfg[taRateKey(l.taPercent)] : undefined);
     const r = grid.length;
     grid.push([
       styled(dmy(l.logDate), { center: true }),

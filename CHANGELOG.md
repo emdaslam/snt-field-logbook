@@ -3,6 +3,25 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.28 — 2026-08-12
+
+**Feat: HQ-movement entries no longer need timings + configurable TA auto-generation windows**
+
+- **HQ movements (normal build):** when the daily-log movement is the
+  headquarters station, the four clock-time fields no longer appear and nothing
+  is stored — the Diary already prints these days as `AT <HQ>` without times.
+- **TA Auto-Generation (personal build):** a new Settings section (shown only
+  in the auto-timings build) lets you pick, **per TA rate**, the departure
+  window from HQ, the return-arrival window at HQ, and the tour-duration
+  condition — e.g. for **1 TA**: depart 06:30–07:30, return 18:30–20:00, and
+  the generated tour must last **more than 12 hrs and less than 14 hrs**. Each
+  rate (1 / 0.7 / 0.3) has its own set; the station reach times still come from
+  each station's travel-time range from HQ. A *Reset* button restores the
+  defaults and *Save TA Settings* keeps the values on the device.
+- The generator now draws the departure and return-arrival so the tour length
+  always stays inside the configured condition (when the windows allow it), on
+  the same deterministic 5-minute grid as before.
+
 ## 1.7.6.27 — 2026-08-11
 
 **Chore: one codebase builds both the normal and the personal APK** — `ee127cc`

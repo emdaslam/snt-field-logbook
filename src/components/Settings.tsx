@@ -8,6 +8,16 @@ import { DEPARTMENTS, STATION_DISTANCE_OPTIONS, STATION_DISTANCE_LABEL, type Sta
 import { BackupModal } from "./BackupModal";
 import { RestoreModal } from "./RestoreModal";
 import { FONT_SIZES, FONT_SIZE_LABEL, APP_VERSION } from "@/lib/types";
+import { AUTO_TIMINGS } from "@/lib/timingsMode";
+import {
+  TA_RATE_KEYS,
+  TA_RATE_LABEL,
+  loadTaGenConfig,
+  saveTaGenConfig,
+  type TaGenConfig,
+  type TaGenWindow,
+  type TaRateKey,
+} from "@/lib/taGenConfig";
 import {
   driveIsConfigured,
   driveStatus,
@@ -39,6 +49,7 @@ export function Settings() {
   const [editingTag, setEditingTag] = useState<{ tag: Tag | null } | null>(null);
   const [editingReminder, setEditingReminder] = useState(false);
   const [reminderDraft, setReminderDraft] = useState("");
+  const [taGen, setTaGen] = useState<TaGenConfig>(() => loadTaGenConfig());
 
   const stationLabel = (ids: number[]) =>
     ids.length === 0
@@ -167,6 +178,34 @@ export function Settings() {
           })}
         </ul>
       </Section>
+
+      {/* TA Auto-Generation — personal (auto timings) build only */}
+      {AUTO_TIMINGS && (
+        <Section title="TA Auto-Generation">
+          <p className="mb-3 text-xs text-slate-500">
+            Choose the departure window, return-arrival window and tour-duration condition used to
+            auto-generate the timings in the Diary / TA Journal exports, per TA rate. The station
+            reach times are still derived from each station’s travel time from HQ.
+          </p>
+          {TA_RATE_KEYS.map((k) => (
+            <TaWindowEditor
+              key={k}
+              rate={k}
+              value={taGen[k]}
+              onChange={(v) => setTaGen((prev) => ({ ...prev, [k]: v }))}
+            />
+          ))}
+          <div className="mt-3 flex items-center justify-end gap-3">
+            <button
+              onClick={() => setTaGen(loadTaGenConfig())}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-600"
+            >
+              Reset
+            </button>
+            <PrimaryButton onClick={() => saveTaGenConfig(taGen)}>Save TA Settings</PrimaryButton>
+          </div>
+        </Section>
+      )}
 
       {/* Staff Directory (editable) */}
       <Section title="Staff Directory">
@@ -564,6 +603,85 @@ function StaffEditor({ existing, onClose }: { existing: Staff | null; onClose: (
         <PrimaryButton onClick={save}>{saving ? "Saving…" : "Save"}</PrimaryButton>
       </div>
     </Modal>
+  );
+}
+
+/** Editor for one TA rate's auto-generation window (auto timings build only). */
+function TaWindowEditor({
+  rate,
+  value,
+  onChange,
+}: {
+  rate: TaRateKey;
+  value: TaGenWindow;
+  onChange: (v: TaGenWindow) => void;
+}) {
+  const set = (patch: Partial<TaGenWindow>) => onChange({ ...value, ...patch });
+  return (
+    <div className="mb-3 rounded-lg border border-slate-200 p-3">
+      <p className="mb-2 text-sm font-semibold text-slate-800">{TA_RATE_LABEL[rate]}</p>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Departure from HQ">
+          <div className="flex items-center gap-2">
+            <input
+              type="time"
+              className={inputClass}
+              value={value.depStart}
+              onChange={(e) => set({ depStart: e.target.value })}
+            />
+            <span className="text-slate-400">to</span>
+            <input
+              type="time"
+              className={inputClass}
+              value={value.depEnd}
+              onChange={(e) => set({ depEnd: e.target.value })}
+            />
+          </div>
+        </Field>
+        <Field label="Return arrival at HQ">
+          <div className="flex items-center gap-2">
+            <input
+              type="time"
+              className={inputClass}
+              value={value.retStart}
+              onChange={(e) => set({ retStart: e.target.value })}
+            />
+            <span className="text-slate-400">to</span>
+            <input
+              type="time"
+              className={inputClass}
+              value={value.retEnd}
+              onChange={(e) => set({ retEnd: e.target.value })}
+            />
+          </div>
+        </Field>
+      </div>
+      <Field label="Tour duration condition">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-slate-500">more than</span>
+          <input
+            className={`${inputClass} w-20`}
+            type="number"
+            min={1}
+            max={24}
+            step={0.5}
+            value={value.minHrs}
+            onChange={(e) => set({ minHrs: Number(e.target.value) || 0 })}
+          />
+          <span className="text-sm text-slate-500">hrs and less than</span>
+          <input
+            className={`${inputClass} w-20`}
+            type="number"
+            min={1}
+            max={24}
+            step={0.5}
+            value={value.maxHrs}
+            onChange={(e) => set({ maxHrs: Number(e.target.value) || 0 })}
+          />
+          <span className="text-sm text-slate-500">hrs</span>
+        </div>
+      </Field>
+    </div>
   );
 }
 
