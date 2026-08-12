@@ -3,6 +3,23 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.29 — 2026-08-12
+
+**Feat: every export table is centred and single-line, and the TA KMS note is merged**
+
+- **Centred cells:** in every export (Diary, TA Journal, Monthly report,
+  Inspections, PCDO…), each table cell is now centred both horizontally and
+  vertically — in the PDF, Word and Excel outputs alike. This applies to both
+  the normal (manual timings) and personal (auto timings) APKs.
+- **One-line columns:** all columns except **NATURE OF WORK** (and the other
+  free-text columns such as *Work Done*, *Title*, *Special Work* and
+  *Dates Inspected*) now stay on a single line and no longer wrap onto a
+  second line. Only the wrap-marked text columns keep wrapping.
+- **TA "ALL ARE ABOVE 8 KMS":** the KMS note in the TA Journal is now
+  vertically merged across all TA days and centred — in the PDF, Word and
+  Excel exports (Word uses a true vertical merge; Excel merges the range and
+  centres the label).
+
 ## 1.7.6.28 — 2026-08-12
 
 **Feat: HQ-movement entries no longer need timings + configurable TA auto-generation windows** — `e7c2879`

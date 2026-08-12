@@ -15,7 +15,7 @@ export type XlsxCell =
   | {
       v: string | number;
       bold?: boolean;
-      /** Center the cell both horizontally and vertically. */
+      /** Center the cell both horizontally and vertically (applied to every cell). */
       center?: boolean;
       /** Wrap long text within the cell. */
       wrap?: boolean;
@@ -170,21 +170,20 @@ export function buildXlsx(sheet: XlsxSheet): Uint8Array {
     `<font><sz val="10"/><name val="Calibri"/></font>` +
     (usedBold ? `<font><b/><sz val="10"/><name val="Calibri"/></font>` : "") +
     `</fonts>`;
-  // One cellXf per distinct style; alignment (center / wrap) is applied when used.
+  // One cellXf per distinct style; every cell is centred on both axes and
+  // wrapText is added only for the cells that opt in (the nature-of-work text).
   const cellXfs =
     `<cellXfs count="${list.length}">` +
     list
       .map((s) => {
         const fontId = s.bold ? 1 : 0;
-        const align: string[] = [];
-        if (s.center) align.push('horizontal="center" vertical="center"');
+        const align: string[] = ['horizontal="center" vertical="center"'];
         if (s.wrap) align.push('wrapText="1"');
-        const alignment = align.length ? `<alignment ${align.join(" ")}/>` : "";
+        const alignment = `<alignment ${align.join(" ")}/>`;
         return (
           `<xf numFmtId="0" fontId="${fontId}" fillId="0" borderId="0" xfId="0"` +
           (s.bold ? ` applyFont="1"` : "") +
-          (align.length ? ` applyAlignment="1"` : "") +
-          `>${alignment}</xf>`
+          ` applyAlignment="1">${alignment}</xf>`
         );
       })
       .join("") +
