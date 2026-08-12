@@ -5,7 +5,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.29 — 2026-08-12
 
-**Feat: every export table is centred and single-line, and the TA KMS note is merged**
+**Feat: every export table is centred and single-line, and the TA KMS note is merged** — `d1efba3`
 
 - **Centred cells:** in every export (Diary, TA Journal, Monthly report,
   Inspections, PCDO…), each table cell is now centred both horizontally and
