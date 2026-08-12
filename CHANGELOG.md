@@ -3,6 +3,24 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.27 — 2026-08-11
+
+**Chore: one codebase builds both the normal and the personal APK**
+
+- The old `master` (manual timing entry) and `personal/owner` (auto-generated
+  timings) branches are merged into **one** source tree. A build-time flag
+  (`NEXT_PUBLIC_TIMINGS_MODE=manual|auto`) picks the behaviour for each APK, so
+  there is no longer a second branch to keep in sync.
+- `npm run apk:build` (or `scripts/build-variants.sh`) produces **both** APKs
+  from the same tree: `SnTFieldlogbook-v1.7.6.27.apk` (manual timings, typed in
+  the daily log) and `SnTFieldlogbook-v1.7.6.27p.apk` (auto-generated timings,
+  the owner's personal build). Pass `normal` / `p` to build just one variant,
+  e.g. `npm run apk:build normal` when only the manual-timing path changed.
+- Everything else is identical to 1.7.6.26 / 1.7.6.26p (one-line Diary/TA
+  columns, reference TA summary, explicit "missing" placeholders).
+- Both variants share `versionCode 39`; the version shown in Settings gets the
+  `p` suffix only in the personal build.
+
 ## 1.7.6.26 — 2026-08-11
 
 **Feat: one-line Diary/TA columns, TA summary matching the reference workbook, and explicit "missing" placeholders** — `32b7cf2`

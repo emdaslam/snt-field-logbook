@@ -8,7 +8,10 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "build:mobile": "MOBILE_EXPORT=1 next build",
-    "apk:sync": "MOBILE_EXPORT=1 next build && npx cap sync android"
+    "apk:sync": "MOBILE_EXPORT=1 next build && npx cap sync android",
+    "apk:build": "scripts/build-variants.sh",
+    "apk:normal": "scripts/build-variants.sh normal",
+    "apk:p": "scripts/build-variants.sh p"
   },
   "dependencies": {
     "@capacitor-community/file-opener": "^8.0.1",

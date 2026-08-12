@@ -28,28 +28,40 @@ request.
 
 ## 2. Build the APK (command line)
 
+One source tree produces **two** APK variants — the only difference is how the
+Diary / TA Journal timings are filled in:
+
+| Variant | Timings | APK |
+|---|---|---|
+| normal | typed by hand in the daily log | `SnTFieldlogbook-v1.7.6.27.apk` |
+| p (personal) | auto-generated from the TA rate + station travel range | `SnTFieldlogbook-v1.7.6.27p.apk` |
+
+A build-time flag (`NEXT_PUBLIC_TIMINGS_MODE=manual|auto`) selects the
+behaviour when the web bundle is built; nothing else differs.
+
 ```bash
 # 1. Install dependencies
 npm install
 
-# 2. Build the offline web bundle and copy it into the Android project.
-#    This runs:  MOBILE_EXPORT=1 next build  &&  npx cap sync android
-npm run apk:sync
-
-# 3. Compile the APK
-cd android
-JAVA_HOME=/path/to/jdk21 ./gradlew assembleDebug
+# 2. Build both APK variants and stage them in .apk-download/
+#    (web bundles -> npx cap sync android -> gradlew assembleDebug)
+npm run apk:build          # == scripts/build-variants.sh both
+npm run apk:build normal   # == scripts/build-variants.sh normal  (manual-timing changes only)
+npm run apk:build p        # == scripts/build-variants.sh p       (auto-timing changes only)
 ```
 
-Your APK:
+The staged APKs:
 
 ```
-android/app/build/outputs/apk/debug/app-debug.apk
+.apk-download/SnTFieldlogbook-v1.7.6.27.apk
+.apk-download/SnTFieldlogbook-v1.7.6.27p.apk
 ```
 
-The exact same `JAVA_HOME` trick is used in the CI/preview environment here:
-`JAVA_HOME=/opt/jdk21`. If `assembleDebug` fails with a missing Java toolchain,
-you are on the wrong JDK — switch to 21.
+The build script reads the version from `src/lib/types.ts` (`APP_VERSION_BASE`)
+and `versionCode` from `android/app/build.gradle`, and passes the `p`-suffixed
+`versionName` to Gradle for the personal variant. The script uses
+`JAVA_HOME=${JAVA_HOME:-/opt/jdk21}`; if `assembleDebug` fails with a missing
+Java toolchain, you are on the wrong JDK — switch to 21.
 
 > Always run `npx cap sync android` from the **project root** (the folder that
 > contains `capacitor.config.json`). Running it inside `android/` fails with
@@ -62,8 +74,9 @@ you are on the wrong JDK — switch to 21.
 Any change to `src/` requires a rebuild, or the APK keeps the old web app:
 
 ```bash
-npm run apk:sync            # rebuild bundle + copy into android/
-cd android && ./gradlew assembleDebug
+npm run apk:build          # rebuild both variants + copy into android/
+npm run apk:build normal   # just the normal (manual-timings) variant
+npm run apk:build p        # just the personal (auto-timings) variant
 ```
 
 ---
@@ -82,13 +95,20 @@ cd android && ./gradlew assembleDebug
 In `android/app/build.gradle`:
 
 ```gradle
-versionCode 18
-versionName "1.7.6.6"
+versionCode 39
+versionName System.getenv("APP_VERSION_NAME") ?: "1.7.6.27"
 ```
 
 **`versionCode` MUST increase for every build**, or Android refuses to install
 over a previous build (`INSTALL_FAILED_VERSION_DOWNGRADE`). Current convention
 in this repo: bump `1.7.6.x` → `1.7.6.y` (and `versionCode` by 1) for each fix.
+
+The base version lives in `src/lib/types.ts` as `APP_VERSION_BASE`. Both
+variants share the same `versionCode`; only the `versionName` differs
+(`1.7.6.27` normal, `1.7.6.27p` personal), injected by
+`scripts/build-variants.sh`. The version shown in Settings
+(`APP_VERSION` in `src/lib/types.ts`) gets the `p` suffix automatically in the
+personal build.
 
 ---
 

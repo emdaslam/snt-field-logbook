@@ -1,3 +1,5 @@
+import { AUTO_TIMINGS } from "./timingsMode";
+
 export const DEPARTMENTS = ["Signalling", "Engg", "OHE", "Telecom"] as const;
 export type Department = (typeof DEPARTMENTS)[number];
 
@@ -108,4 +110,5 @@ export const STATION_DISTANCE_LABEL: Record<StationDistance, string> = {
 };
 
 /** App version shown in Settings → About. Bump alongside android/app/build.gradle. */
-export const APP_VERSION = "1.7.6.26";
+export const APP_VERSION_BASE = "1.7.6.27";
+export const APP_VERSION = `${APP_VERSION_BASE}${AUTO_TIMINGS ? "p" : ""}`;

@@ -5,6 +5,7 @@ import { useData } from "./DataProvider";
 import { Modal, Field, inputClass, Chip, PrimaryButton } from "./ui";
 import { api, toISODate, fmtDate } from "@/lib/api";
 import { DEPARTMENTS, PRIORITIES, LEAVE_KINDS, MOVEMENT_TYPES, MOVEMENT_LABEL } from "@/lib/types";
+import { AUTO_TIMINGS } from "@/lib/timingsMode";
 import {
   kindFromTags,
   INSPECTION_RULES,
@@ -466,7 +467,7 @@ export function DailyLogForm({
           </span>
         )}
       </Field>
-      {!isSpecial && (
+      {!isSpecial && !AUTO_TIMINGS && (
         <Field label="Timings">
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
             <div className="grid grid-cols-2 gap-3">

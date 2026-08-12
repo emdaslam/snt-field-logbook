@@ -2,6 +2,8 @@ import { exportDocument } from "@/lib/pdf";
 import { fmtDate, toISODate, formatFootplateShifts, footplateTrainList } from "@/lib/api";
 import { formatInspectionDates } from "@/lib/inspections";
 import { isSpecialMovement } from "@/lib/types";
+import { AUTO_TIMINGS } from "@/lib/timingsMode";
+import { tripTimes } from "@/lib/travel";
 import type { XlsxCell, XlsxSheet, XlsxMerge } from "@/lib/xlsx";
 import type {
   DeficiencyTask,
@@ -221,9 +223,11 @@ type MovementStation = {
   /** Raw movement text (for matching / fallback). */
   name: string;
   match: Station | undefined;
+  travelMin: number | null;
+  travelMax: number | null;
 };
 
-/** Resolve a log's station display code. */
+/** Resolve a log's station display code and (matched) travel range. */
 function movementStation(l: DailyLog, stations: Station[]): MovementStation | null {
   const text = (l.stationMovement ?? "").trim();
   if (!text) return null;
@@ -236,12 +240,38 @@ function movementStation(l: DailyLog, stations: Station[]): MovementStation | nu
     code: match?.code?.trim() ? match.code : text,
     name: text,
     match,
+    travelMin: match?.travelMin ?? null,
+    travelMax: match?.travelMax ?? null,
   };
 }
 
 /** Display label for the HQ station — its code when one is set, else its name. */
 function hqLabel(hq: Station | undefined): string {
   return hq?.code?.trim() ? hq.code : hq?.name || "Headquarters";
+}
+
+/**
+ * The four clock times for a station-movement day. In the normal build these
+ * come from the time fields the user entered on the daily log (shown verbatim,
+ * or "not entered in daily log" when missing). In the personal build they are
+ * generated deterministically from the TA rate and the station's travel range
+ * (see src/lib/travel.ts), so they always exist.
+ */
+function diaryTimes(
+  l: DailyLog,
+  st: MovementStation,
+  date: string
+): { outDep: string; outArr: string; retDep: string; retArr: string } {
+  if (AUTO_TIMINGS) {
+    const t = tripTimes(date, l.taPercent ?? 100, st.travelMin, st.travelMax);
+    return { outDep: t.outDep, outArr: t.outArr, retDep: t.retDep, retArr: t.retArr };
+  }
+  return {
+    outDep: l.timeDep || "not entered in daily log",
+    outArr: l.timeArr || "not entered in daily log",
+    retDep: l.returnTimeDep || "not entered in daily log",
+    retArr: l.returnTimeArr || "not entered in daily log",
+  };
 }
 
 /** "AVAILED REST" + "REST" style pair for a Rest / NH / Leave / CR day. */
@@ -313,9 +343,10 @@ function preferTaLog(logs: DailyLog[], hq: Station | undefined): DailyLog {
  * Diary export — the reference layout: DATE | TRAIN NO | TIME DEP | TIME ARR |
  * FROM | TO | NATURE OF WORK. An away day produces two rows (HQ → station and
  * the return leg); HQ days are "AT <HQ>"; Rest/NH/Leave/CR days collapse into
- * a single "AVAILED …" row. Times come straight from the clock fields the
- * user entered on each daily log (timeDep / timeArr / returnTimeDep /
- * returnTimeArr) — nothing is generated.
+ * a single "AVAILED …" row. In the normal build the times are the clock fields
+ * the user entered on each daily log (timeDep / timeArr / returnTimeDep /
+ * returnTimeArr), shown verbatim; in the personal build they are derived from
+ * the TA rate and the station's travel range (see src/lib/travel.ts).
  */
 export function exportDiary(
   period: { from: string; to: string; label: string },
@@ -357,17 +388,18 @@ export function exportDiary(
       grid.push([dmy(date), "---", "---", "---", "AT", hqCode, work]);
       continue;
     }
+    const t = diaryTimes(primary, st, date);
     const r = grid.length;
     grid.push([
       dmy(date),
       "ROAD",
-      primary.timeDep || "not entered in daily log",
-      primary.timeArr || "not entered in daily log",
+      t.outDep,
+      t.outArr,
       hqCode,
       st.code,
       work,
     ]);
-    grid.push(["", "ROAD", primary.returnTimeDep || "not entered in daily log", primary.returnTimeArr || "not entered in daily log", st.code, hqCode, ""]);
+    grid.push(["", "ROAD", t.retDep, t.retArr, st.code, hqCode, ""]);
     merges.push([r, 0, r + 1, 0], [r, 6, r + 1, 6]); // date + work span both legs
   }
 
@@ -415,8 +447,10 @@ export function exportDiary(
  * headquarters** (stations.distanceFromHq === "above8") with a 100 / 70 / 30
  * rate. Each qualifying day is shown as a vertical two-leg row pair, the dates
  * / timings / from / to / KMS columns are centred on both axes, the work text
- * wraps, and the SOUTH COAST RAILWAY header is centred. Ends with a month
- * summary by rate and the certification + signature block.
+ * wraps, and the SOUTH COAST RAILWAY header is centred. In the normal build
+ * the timings are the user-entered clock fields; in the personal build they
+ * are generated (see src/lib/travel.ts). Ends with a month summary by rate
+ * and the certification + signature block.
  */
 export function exportTaJournal(
   period: { from: string; to: string; label: string },
@@ -467,12 +501,13 @@ export function exportTaJournal(
     const l = d.log;
     const st = movementStation(l, stations)!;
     const p = l.taPercent ?? 100;
+    const t = diaryTimes(l, st, l.logDate);
     const r = grid.length;
     grid.push([
       styled(dmy(l.logDate), { center: true }),
       "ROAD",
-      styled(l.timeDep || "not entered in daily log", { center: true }),
-      styled(l.timeArr || "not entered in daily log", { center: true }),
+      styled(t.outDep, { center: true }),
+      styled(t.outArr, { center: true }),
       styled(hqCode, { center: true }),
       styled(st.code, { center: true }),
       styled("ALL ARE ABOVE 8 KMS", { center: true }),
@@ -483,8 +518,8 @@ export function exportTaJournal(
     grid.push([
       styled("", { center: true }),
       "ROAD",
-      styled(l.returnTimeDep || "not entered in daily log", { center: true }),
-      styled(l.returnTimeArr || "not entered in daily log", { center: true }),
+      styled(t.retDep, { center: true }),
+      styled(t.retArr, { center: true }),
       styled(st.code, { center: true }),
       styled(hqCode, { center: true }),
       styled("", { center: true }),
