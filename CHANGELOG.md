@@ -5,7 +5,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.27 — 2026-08-11
 
-**Chore: one codebase builds both the normal and the personal APK**
+**Chore: one codebase builds both the normal and the personal APK** — `ee127cc`
 
 - The old `master` (manual timing entry) and `personal/owner` (auto-generated
   timings) branches are merged into **one** source tree. A build-time flag
