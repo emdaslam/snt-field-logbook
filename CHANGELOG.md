@@ -5,7 +5,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.31 — 2026-08-13
 
-**Fix: Footplate single-movement return leg (Up / Down) shows the wrong "From" in the Diary and TA journal** — `<HASH>`
+**Fix: Footplate single-movement return leg (Up / Down) shows the wrong "From" in the Diary and TA journal** — `8626f8f`
 
 - On a one-way footplate (no return train) the third journey row is the road
   return to HQ **from the other-end station**, not from the boarding station.
