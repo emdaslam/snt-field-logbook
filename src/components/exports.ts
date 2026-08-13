@@ -166,7 +166,7 @@ export function exportPcdo(
 
   for (const [station, items] of sortedGroups) {
     body += `<h2>${esc(station)} (${items.length})</h2>`;
-    body += `<table><tr><th class="date">Date of PCDO</th><th data-wrap="1">Special Work</th></tr>`;
+    body += `<table><tr><th class="date">Date of PCDO</th><th>Special Work</th></tr>`;
     for (const it of items) {
       body += `<tr><td class="date">${fmtDate(it.pcdoDate || it.logDate)}</td><td>${esc(it.pcdoWork)}</td></tr>`;
     }
@@ -423,7 +423,7 @@ export function exportDiary(
     body += `<p class="empty">No diary entries in this period.</p>`;
   } else {
     body += `<table>`;
-    body += `<tr><th class="date" data-width="76">DATE</th><th data-width="84">TRAIN NO</th><th data-width="70">TIME DEP</th><th data-width="70">TIME ARR</th><th data-width="58">FROM</th><th data-width="58">TO</th><th data-wrap="1">NATURE OF WORK</th></tr>`;
+    body += `<tr><th class="date" data-width="76">DATE</th><th data-width="84">TRAIN NO</th><th data-width="70">TIME DEP</th><th data-width="70">TIME ARR</th><th data-width="58">FROM</th><th data-width="58">TO</th><th>NATURE OF WORK</th></tr>`;
     for (const g of grid) {
       body += `<tr>${g.map((c, i) => (i === 0 ? `<td class="date">${esc(cellText(c))}</td>` : `<td>${esc(cellText(c))}</td>`)).join("")}</tr>`;
     }
@@ -453,10 +453,9 @@ export function exportDiary(
  * TA Journal export — the reference TA.xlsx layout. Includes only days where
  * TA is actually claimed: a station movement **farther than 8 km from the
  * headquarters** (stations.distanceFromHq === "above8") with a 100 / 70 / 30
- * rate. Each qualifying day is shown as a vertical two-leg row pair, the
- * "ALL ARE ABOVE 8 KMS" note is vertically merged and centred across all TA
- * days, every cell is centred on both axes, the work text wraps, and the
- * SOUTH COAST RAILWAY header is centred. In the normal build
+ * rate. Each qualifying day is shown as a vertical two-leg row pair, the dates
+ * / timings / from / to / KMS columns are centred on both axes, the work text
+ * wraps, and the SOUTH COAST RAILWAY header is centred. In the normal build
  * the timings are the user-entered clock fields; in the personal build they
  * are generated (see src/lib/travel.ts). Ends with a month summary by rate
  * and the certification + signature block.
@@ -560,20 +559,18 @@ export function exportTaJournal(
     body += `<p class="empty">No TA days in this period.</p>`;
   } else {
     body += `<table>`;
-    body += `<tr><th class="date" data-width="76">DATE</th><th data-width="58">TRAIN NO</th><th data-width="64">TIME DEP</th><th data-width="64">TIME ARR</th><th data-width="52">FROM</th><th data-width="52">TO</th><th data-width="92">KMS</th><th data-width="46">DAYS</th><th data-width="52">AMOUNT</th><th data-wrap="1">NATURE OF WORK</th></tr>`;
-    // The KMS note cell spans every TA day: the first row carries a rowspan
-    // over the whole grid (pdf/docx honour it), the later rows omit the cell.
-    grid.forEach((g, ri) => {
-      const tds: string[] = [];
-      g.forEach((c, i) => {
-        if (i === 6) {
-          if (ri === 0) tds.push(`<td rowspan="${grid.length}">${esc(cellText(c))}</td>`);
-          return;
-        }
-        tds.push(`${i === 0 ? '<td class="date">' : "<td>"}${esc(cellText(c))}</td>`);
-      });
-      body += `<tr>${tds.join("")}</tr>`;
-    });
+    body += `<tr><th class="date" data-width="76" data-align="center">DATE</th><th data-width="58">TRAIN NO</th><th data-width="64" data-align="center">TIME DEP</th><th data-width="64" data-align="center">TIME ARR</th><th data-width="52" data-align="center">FROM</th><th data-width="52" data-align="center">TO</th><th data-width="92" data-align="center">KMS</th><th data-width="46">DAYS</th><th data-width="52">AMOUNT</th><th>NATURE OF WORK</th></tr>`;
+    const centerCols = new Set([0, 2, 3, 4, 5, 6]);
+    for (const g of grid) {
+      const tds = g
+        .map((c, i) => {
+          const cls = i === 0 ? ' class="date"' : "";
+          const align = centerCols.has(i) ? ' data-align="center"' : "";
+          return `<td${cls}${align}>${esc(cellText(c))}</td>`;
+        })
+        .join("");
+      body += `<tr>${tds}</tr>`;
+    }
     body += `</table>`;
 
     body += `<h2>Summary</h2>`;
@@ -733,7 +730,7 @@ export function exportInspections(
     if (kind === "footplate") {
       // Train numbers only — one row per footplate inspection
       body += `<table>`;
-      body += `<tr><th style="width:120px">Day / Night</th><th data-wrap="1">Train No.</th><th style="width:110px">Date</th></tr>`;
+      body += `<tr><th style="width:120px">Day / Night</th><th>Train No.</th><th style="width:110px">Date</th></tr>`;
       for (const r of rows) {
         const trains = footplateTrainList(r);
         body += `<tr><td>${esc(formatFootplateShifts(r.footplateShift) || "-")} footplate</td><td>${
@@ -754,7 +751,7 @@ export function exportInspections(
       groups.get(label)!.push(r.logDate);
     }
     body += `<table>`;
-    body += `<tr><th style="width:38%">Station Inspected</th><th data-wrap="1">Dates Inspected</th></tr>`;
+    body += `<tr><th style="width:38%">Station Inspected</th><th>Dates Inspected</th></tr>`;
     for (const [station, dates] of [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
       body += `<tr><td>${esc(station)}</td><td>${esc(formatInspectionDates(dates))}</td></tr>`;
     }
@@ -837,7 +834,7 @@ export function exportMonthly(
   if (filters.includeLogs) {
     body += `<h2>Daily Logs (${fLogs.length})</h2>`;
     if (fLogs.length) {
-      body += `<table><tr><th>Date</th><th data-wrap="1">Movement</th><th data-wrap="1">Work Done</th><th>TA</th><th>Tags</th></tr>`;
+      body += `<table><tr><th>Date</th><th>Movement</th><th>Work Done</th><th>TA</th><th>Tags</th></tr>`;
       for (const l of fLogs) {
         body += `<tr><td>${fmtDate(l.logDate)}</td><td>${esc(l.stationMovement)}</td><td>${esc(l.workDone)}</td><td>${l.ta ? "₹" + l.ta : "-"}</td><td>${l.tagIds.map(tagName).filter(Boolean).map(esc).join(", ")}</td></tr>`;
       }
@@ -857,7 +854,7 @@ export function exportMonthly(
       // Station-wise groups
       for (const [station, items] of [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
         body += `<h3>${esc(station)} (${items.length})</h3>`;
-        body += `<table><tr><th data-wrap="1">Title</th><th>Dept</th><th>Priority</th><th>Due</th><th>Status</th></tr>`;
+        body += `<table><tr><th>Title</th><th>Dept</th><th>Priority</th><th>Due</th><th>Status</th></tr>`;
         for (const d of items) {
           body += `<tr><td>${esc(d.title)}</td><td>${esc(d.department)}</td><td>${esc(d.priority)}</td><td>${d.dueDate ? fmtDate(d.dueDate) : "-"}</td><td>${esc(d.status)}</td></tr>`;
         }
@@ -878,7 +875,7 @@ export function exportMonthly(
       // Station-wise groups
       for (const [station, items] of [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
         body += `<h3>${esc(station)} (${items.length})</h3>`;
-        body += `<table><tr><th data-wrap="1">Title</th><th>Dept</th><th>Planned Date</th><th>Status</th><th data-wrap="1">Material/Remarks</th></tr>`;
+        body += `<table><tr><th>Title</th><th>Dept</th><th>Planned Date</th><th>Status</th><th>Material/Remarks</th></tr>`;
         for (const p of items) {
           body += `<tr><td>${esc(p.title)}</td><td>${esc(p.department ?? "")}</td><td>${fmtDate(p.plannedDate)}</td><td>${esc(p.status)}</td><td>${esc(p.materialRemarks)}</td></tr>`;
         }

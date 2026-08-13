@@ -58,38 +58,6 @@ function tidy(s: string) {
 }
 
 /**
- * Parse the <tr> elements of an export table into the autoTable body format,
- * honouring vertical merges: a cell carrying rowspan="N" becomes a CellDef
- * with that rowSpan, and the cells it covers are omitted from later rows.
- */
-function parseTableBody(
-  trs: Element[]
-): (string | { content: string; rowSpan: number })[][] {
-  const active = new Map<number, number>();
-  const body: (string | { content: string; rowSpan: number })[][] = [];
-  for (const tr of trs) {
-    const cells = Array.from(tr.querySelectorAll("td"));
-    const row: (string | { content: string; rowSpan: number })[] = [];
-    let col = 0;
-    for (const el of cells) {
-      while (active.has(col)) {
-        const left = active.get(col)! - 1;
-        if (left <= 0) active.delete(col);
-        else active.set(col, left);
-        col++;
-      }
-      const span = Math.max(1, parseInt(el.getAttribute("rowspan") || "1", 10) || 1);
-      const text = tidy(el.textContent ?? "");
-      row.push(span > 1 ? { content: text, rowSpan: span } : text);
-      if (span > 1) active.set(col, span - 1);
-      col++;
-    }
-    body.push(row);
-  }
-  return body;
-}
-
-/**
  * Text of a list item with <br/> converted to line breaks, so an item can
  * carry a second line (e.g. "Material/Remarks:"). Other inline elements keep
  * their text on the current line.
@@ -212,7 +180,10 @@ function buildPdf(title: string, bodyHtml: string, contentSize: number): jsPDF {
       const hasHead = headCells.length > 0;
       // A fixed-width "date" column (cells marked class="date") keeps dates on
       // one line instead of wrapping in a proportionally-narrow column.
-      const columnStyles: Record<number, { cellWidth?: number; overflow?: "linebreak" }> = {};
+      const columnStyles: Record<
+        number,
+        { cellWidth?: number; halign?: "left" | "center" | "right"; valign?: "top" | "middle" | "bottom" }
+      > = {};
       let dateCol: number | null = null;
       for (const r of rows) {
         const marked = r.querySelector("td.date, th.date");
@@ -224,33 +195,36 @@ function buildPdf(title: string, bodyHtml: string, contentSize: number): jsPDF {
       if (dateCol !== null) columnStyles[dateCol] = { cellWidth: 72 };
       // Explicit per-column widths via data-width on the header row; these let
       // a report pin narrow date/movement columns and hand the rest to a wide
-      // "Work Done" column instead of letting autoTable squeeze it. Columns
-      // marked data-wrap keep multi-line text (the nature-of-work column);
-      // every other column stays on a single line.
+      // "Work Done" column instead of letting autoTable squeeze it.
+      // data-align="center" centres that column on both axes (used by the TA
+      // journal for dates / timings / from / to / KMS).
       if (hasHead) {
         headCells.forEach((c, i) => {
-          const entry: { cellWidth?: number; overflow?: "linebreak" } = { ...columnStyles[i] };
           const w = c.getAttribute("data-width");
+          const a = c.getAttribute("data-align");
+          const entry: {
+            cellWidth?: number;
+            halign?: "left" | "center" | "right";
+            valign?: "top" | "middle" | "bottom";
+          } = { ...columnStyles[i] };
           if (w) entry.cellWidth = Number(w);
-          if (c.getAttribute("data-wrap")) entry.overflow = "linebreak";
+          if (a === "center") {
+            entry.halign = "center";
+            entry.valign = "middle";
+          }
           columnStyles[i] = entry;
         });
       }
       const head = hasHead ? [headCells.map((c) => tidy(c.textContent ?? ""))] : undefined;
-      const bodyRows = parseTableBody(hasHead ? rows.slice(1) : rows);
+      const bodyRows = (hasHead ? rows.slice(1) : rows).map((r) =>
+        Array.from(r.querySelectorAll("td")).map((c) => tidy(c.textContent ?? ""))
+      );
       autoTable(doc, {
         head,
         body: bodyRows,
         startY: y,
         margin: { left: margin, right: margin },
-        styles: {
-          fontSize: 8 * fs,
-          cellPadding: 4,
-          overflow: "hidden",
-          halign: "center",
-          valign: "middle",
-          textColor: [15, 23, 42],
-        },
+        styles: { fontSize: 8 * fs, cellPadding: 4, overflow: "linebreak", textColor: [15, 23, 42] },
         headStyles: { fillColor: [219, 234, 254], textColor: NAVY, fontStyle: "bold" },
         alternateRowStyles: { fillColor: [248, 250, 252] },
         theme: "grid",
