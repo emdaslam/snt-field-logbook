@@ -3,6 +3,16 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.34 — 2026-08-13
+
+**Fix: Word (.docx) exports dropped the table, leaving only the heading**
+
+- The Diary and TA Journal Word exports were producing an unreadable table
+  (each cell was closed twice, breaking the document's XML) so Word discarded
+  the whole table and showed only the heading. Fixed the cell writer so every
+  `<w:tc>` is closed exactly once; the date / nature-of-work merges
+  (`vMerge` / `gridSpan`) are unchanged and now render in Word.
+
 ## 1.7.6.33 — 2026-08-13
 
 **Fix: PDF and Word exports merge the date and nature-of-work cells across a movement's legs**

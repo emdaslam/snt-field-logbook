@@ -115,8 +115,7 @@ function tableCell(
       sz: isHead ? 16 : 18,
       after: 60,
       before: 40,
-    }) +
-    `</w:tc>`;
+    });
   return `<w:tc>${tcPr}</w:tc>`;
 }
 

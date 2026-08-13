@@ -112,5 +112,5 @@ export const STATION_DISTANCE_LABEL: Record<StationDistance, string> = {
 };
 
 /** App version shown in Settings → About. Bump alongside android/app/build.gradle. */
-export const APP_VERSION_BASE = "1.7.6.33";
+export const APP_VERSION_BASE = "1.7.6.34";
 export const APP_VERSION = `${APP_VERSION_BASE}${AUTO_TIMINGS ? "p" : ""}`;
