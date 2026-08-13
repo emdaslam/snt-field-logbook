@@ -100,10 +100,14 @@ export function DailyLogForm({
   const { tags, stations, logs, refresh, currentUser, autoSync } = useData();
   const [logDate, setLogDate] = useState(existing?.logDate ?? toISODate(new Date()));
   const [movement, setMovement] = useState(existing?.stationMovement ?? "");
-  const [timeDep, setTimeDep] = useState(existing?.timeDep ?? "");
-  const [timeArr, setTimeArr] = useState(existing?.timeArr ?? "");
-  const [returnTimeDep, setReturnTimeDep] = useState(existing?.returnTimeDep ?? "");
-  const [returnTimeArr, setReturnTimeArr] = useState(existing?.returnTimeArr ?? "");
+  const [timeDep, setTimeDep] = useState(existing?.timeDep ?? (!AUTO_TIMINGS ? "08:00" : ""));
+  const [timeArr, setTimeArr] = useState(existing?.timeArr ?? (!AUTO_TIMINGS ? "09:00" : ""));
+  const [returnTimeDep, setReturnTimeDep] = useState(
+    existing?.returnTimeDep ?? (!AUTO_TIMINGS ? "16:30" : "")
+  );
+  const [returnTimeArr, setReturnTimeArr] = useState(
+    existing?.returnTimeArr ?? (!AUTO_TIMINGS ? "17:30" : "")
+  );
   const [movementKind, setMovementKind] = useState<"station" | "rest" | "leave" | "cr" | "nh" | "footplate">(
     existing?.movementKind === "rest" ||
       existing?.movementKind === "leave" ||

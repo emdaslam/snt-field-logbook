@@ -3,6 +3,18 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.32 — 2026-08-13
+
+**Feat: Pre-filled default timings in manual mode** — `<HASH>`
+
+- When a new daily log opens in the manual (normal) build, the timing fields
+  come pre-filled with sensible defaults: departure from HQ `08:00`, arrival at
+  station `09:00`, departure from station `16:30`, arrival at HQ `17:30` (the
+  outbound pair in the morning, the return pair in the afternoon).
+- Editing an existing entry still shows its stored times; the exports keep
+  printing 24-hour `HH:MM` as before, and the personal build is unaffected
+  (fields stay hidden / generated).
+
 ## 1.7.6.31 — 2026-08-13
 
 **Fix: Footplate single-movement return leg (Up / Down) shows the wrong "From" in the Diary and TA journal** — `8626f8f`
