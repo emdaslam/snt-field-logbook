@@ -3,6 +3,23 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.33 — 2026-08-13
+
+**Fix: PDF and Word exports merge the date and nature-of-work cells across a movement's legs**
+
+- In the **Diary** export every away day prints two rows (outbound + return). The
+  **DATE** and **NATURE OF WORK** cells now visually span both rows — and the
+  whole journey's rows on a Footplate day — in the PDF and Word outputs, matching
+  what the Excel export already did. Rest / NH / Leave / CR days merge their
+  label across the movement columns too.
+- In the **TA Journal** the **DATE / DAYS / AMOUNT / NATURE OF WORK** cells of a
+  two-leg day merge across its rows, and the **KMS** note ("ALL ARE ABOVE 8 KMS")
+  spans every TA day in the PDF and Word outputs (Excel already did both).
+- Implemented by teaching the PDF renderer about `rowspan`/`colspan` cells and
+  the Word renderer about `vMerge`/`gridSpan`, then rendering the Diary / TA
+  tables from the same merge map the Excel sheet uses — so PDF, Word and Excel
+  now all show the same merged layout.
+
 ## 1.7.6.32 — 2026-08-13
 
 **Feat: Pre-filled default timings in manual mode** — `6bd5d34`

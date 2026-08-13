@@ -422,6 +422,49 @@ function cellText(c: XlsxCell | string | number): string {
 }
 
 /**
+ * Render a grid and its merge ranges into table HTML for the PDF / Word
+ * outputs, honouring vertical merges (rowspan) and horizontal merges
+ * (colspan) so those formats visually merge the same cells the Excel sheet
+ * merges. `dateCol` marks the column rendered with class="date" (fixed-width
+ * in the PDF); `centerCols` marks columns that get data-align="center".
+ */
+function gridHtml(
+  grid: (string | number | XlsxCell)[][],
+  merges: XlsxMerge[],
+  opts: { dateCol?: number; centerCols?: Set<number> } = {}
+): string {
+  const covered = new Set<string>();
+  const rows: string[] = [];
+  for (let r = 0; r < grid.length; r++) {
+    const tds: string[] = [];
+    for (let c = 0; c < grid[r].length; c++) {
+      const key = `${r},${c}`;
+      if (covered.has(key)) continue;
+      const m = merges.find(([r1, c1]) => r1 === r && c1 === c);
+      let attrs = "";
+      if (m) {
+        const [, , r2, c2] = m;
+        const rs = r2 - r + 1;
+        const cs = c2 - c + 1;
+        if (rs > 1) {
+          attrs += ` rowspan="${rs}"`;
+          for (let rr = r + 1; rr <= r2; rr++) covered.add(`${rr},${c}`);
+        }
+        if (cs > 1) {
+          attrs += ` colspan="${cs}"`;
+          for (let cc = c + 1; cc <= c2; cc++) covered.add(`${r},${cc}`);
+        }
+      }
+      const cls = opts.dateCol === c ? ' class="date"' : "";
+      const align = opts.centerCols?.has(c) ? ' data-align="center"' : "";
+      tds.push(`<td${cls}${align}${attrs}>${esc(cellText(grid[r][c]))}</td>`);
+    }
+    rows.push(`<tr>${tds.join("")}</tr>`);
+  }
+  return rows.join("");
+}
+
+/**
  * Merge several logs of the same day into one nature-of-work cell. When a day
  * has two movements, both pieces of work are joined with " and "; exact
  * duplicates are dropped.
@@ -563,9 +606,7 @@ export function exportDiary(
   } else {
     body += `<table>`;
     body += `<tr><th class="date" data-width="76">DATE</th><th data-width="84">TRAIN NO</th><th data-width="70">TIME DEP</th><th data-width="70">TIME ARR</th><th data-width="58">FROM</th><th data-width="58">TO</th><th>NATURE OF WORK</th></tr>`;
-    for (const g of grid) {
-      body += `<tr>${g.map((c, i) => (i === 0 ? `<td class="date">${esc(cellText(c))}</td>` : `<td>${esc(cellText(c))}</td>`)).join("")}</tr>`;
-    }
+    body += gridHtml(grid, merges, { dateCol: 0 });
     body += `</table>`;
     if (me?.designation) body += `<p class="meta" style="text-align:right">${esc(me.designation.toUpperCase())}</p>`;
   }
@@ -757,17 +798,7 @@ export function exportTaJournal(
   } else {
     body += `<table>`;
     body += `<tr><th class="date" data-width="76" data-align="center">DATE</th><th data-width="58">TRAIN NO</th><th data-width="64" data-align="center">TIME DEP</th><th data-width="64" data-align="center">TIME ARR</th><th data-width="52" data-align="center">FROM</th><th data-width="52" data-align="center">TO</th><th data-width="92" data-align="center">KMS</th><th data-width="46">DAYS</th><th data-width="52">AMOUNT</th><th>NATURE OF WORK</th></tr>`;
-    const centerCols = new Set([0, 2, 3, 4, 5, 6]);
-    for (const g of grid) {
-      const tds = g
-        .map((c, i) => {
-          const cls = i === 0 ? ' class="date"' : "";
-          const align = centerCols.has(i) ? ' data-align="center"' : "";
-          return `<td${cls}${align}>${esc(cellText(c))}</td>`;
-        })
-        .join("");
-      body += `<tr>${tds}</tr>`;
-    }
+    body += gridHtml(grid, merges, { dateCol: 0, centerCols: new Set([0, 2, 3, 4, 5, 6]) });
     body += `</table>`;
 
     body += `<h2>Summary</h2>`;

@@ -94,33 +94,30 @@ function para(
   return `<w:p>${pPr}${runs}</w:p>`;
 }
 
-function tableCells(
-  cells: string[],
+function tableCell(
+  text: string,
   isHead: boolean,
-  rowHasDateCol: boolean,
-  widths: string[]
+  width: string,
+  rowSpan: number,
+  colSpan: number
 ): string {
-  return cells
-    .map((c, i) => {
-      const fill = isHead ? "DBEAFE" : "FFFFFF";
-      const dateCls = rowHasDateCol && i === 0 ? '<w:tcW w:w="1080" w:type="dxa"/>' : "";
-      const w = widths[i] ? `<w:tcW w:w="${widths[i]}" w:type="dxa"/>` : dateCls;
-      return (
-        `<w:tc><w:tcPr>` +
-        (w || "") +
-        `<w:tcMar><w:left w:w="80" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tcMar>` +
-        `<w:shd w:val="clear" w:color="auto" w:fill="${fill}"/></w:tcPr>` +
-        para(c, {
-          bold: isHead,
-          color: isHead ? "1E3A8A" : undefined,
-          sz: isHead ? 16 : 18,
-          after: 60,
-          before: 40,
-        }) +
-        `</w:tc>`
-      );
-    })
-    .join("");
+  const fill = isHead ? "DBEAFE" : "FFFFFF";
+  const tcPr =
+    `<w:tcPr>` +
+    (width ? `<w:tcW w:w="${width}" w:type="dxa"/>` : "") +
+    (colSpan > 1 ? `<w:gridSpan w:val="${colSpan}"/>` : "") +
+    (rowSpan > 1 ? '<w:vMerge w:val="restart"/>' : "") +
+    `<w:tcMar><w:left w:w="80" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tcMar>` +
+    `<w:shd w:val="clear" w:color="auto" w:fill="${fill}"/></w:tcPr>` +
+    para(text, {
+      bold: isHead,
+      color: isHead ? "1E3A8A" : undefined,
+      sz: isHead ? 16 : 18,
+      after: 60,
+      before: 40,
+    }) +
+    `</w:tc>`;
+  return `<w:tc>${tcPr}</w:tc>`;
 }
 
 function buildTable(html: string): string {
@@ -147,21 +144,44 @@ function buildTable(html: string): string {
     });
   }
 
-  const rows = trs
-    .map((r) => {
-      const cells = Array.from(r.querySelectorAll("td, th")).map((c) =>
-        tidy(c.textContent ?? "")
+  // Walk the rows column-accurately so vertical merges (rowspan) become Word
+  // vMerge cells and horizontal merges (colspan) become gridSpan cells; cells
+  // covered by a running merge become empty continuation cells.
+  const active = new Map<number, number>();
+  const rowsHtml: string[] = [];
+  for (const r of trs) {
+    const els = Array.from(r.querySelectorAll("td, th"));
+    if (els.length === 0) continue;
+    const isHead = hasHead && r === trs[0];
+    const rowHasDate = dateCol && !!r.querySelector("td.date, th.date");
+    const cellsHtml: string[] = [];
+    let col = 0;
+    for (const el of els) {
+      while (active.has(col)) {
+        const left = active.get(col)! - 1;
+        if (left <= 0) active.delete(col);
+        else active.set(col, left);
+        cellsHtml.push(`<w:tc><w:tcPr><w:vMerge/></w:tcPr></w:tc>`);
+        col++;
+      }
+      const rowSpan = Math.max(1, parseInt(el.getAttribute("rowspan") || "1", 10) || 1);
+      const colSpan = Math.max(1, parseInt(el.getAttribute("colspan") || "1", 10) || 1);
+      const width = widths[col] ?? (rowHasDate && col === 0 ? "1080" : "");
+      cellsHtml.push(
+        tableCell(tidy(el.textContent ?? ""), isHead, width, rowSpan, colSpan)
       );
-      if (cells.length === 0) return "";
-      const isHead = hasHead && r === trs[0];
-      return `<w:tr><w:trPr><w:cantSplit/></w:trPr>${tableCells(
-        cells,
-        isHead,
-        dateCol,
-        widths
-      )}</w:tr>`;
-    })
-    .join("");
+      if (rowSpan > 1) active.set(col, rowSpan - 1);
+      col += colSpan;
+    }
+    while (active.has(col)) {
+      const left = active.get(col)! - 1;
+      if (left <= 0) active.delete(col);
+      else active.set(col, left);
+      cellsHtml.push(`<w:tc><w:tcPr><w:vMerge/></w:tcPr></w:tc>`);
+      col++;
+    }
+    rowsHtml.push(`<w:tr><w:trPr><w:cantSplit/></w:trPr>${cellsHtml.join("")}</w:tr>`);
+  }
 
   const borders = ["top", "left", "bottom", "right", "insideH", "insideV"]
     .map((b) => `<w:${b} w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>`)
@@ -169,7 +189,7 @@ function buildTable(html: string): string {
   return (
     `<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/>` +
     `<w:tblBorders>${borders}</w:tblBorders><w:tblLayout w:type="autofit"/></w:tblPr>` +
-    rows +
+    rowsHtml.join("") +
     `</w:tbl>`
   );
 }

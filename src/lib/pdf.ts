@@ -58,6 +58,42 @@ function tidy(s: string) {
 }
 
 /**
+ * Parse the <tr> elements of an export table into the autoTable body format,
+ * honouring vertical merges (rowspan) and horizontal merges (colspan): a cell
+ * carrying a span becomes a CellDef with that span, and the cells it covers
+ * are omitted from the later rows / columns.
+ */
+function parseTableBody(
+  trs: Element[]
+): (string | { content: string; rowSpan: number; colSpan?: number })[][] {
+  const active = new Map<number, number>();
+  const body: (string | { content: string; rowSpan: number; colSpan?: number })[][] = [];
+  for (const tr of trs) {
+    const cells = Array.from(tr.querySelectorAll("td"));
+    const row: (string | { content: string; rowSpan: number; colSpan?: number })[] = [];
+    let col = 0;
+    for (const el of cells) {
+      while (active.has(col)) {
+        const left = active.get(col)! - 1;
+        if (left <= 0) active.delete(col);
+        else active.set(col, left);
+        col++;
+      }
+      const rowSpan = Math.max(1, parseInt(el.getAttribute("rowspan") || "1", 10) || 1);
+      const colSpan = Math.max(1, parseInt(el.getAttribute("colspan") || "1", 10) || 1);
+      const text = tidy(el.textContent ?? "");
+      row.push(
+        rowSpan > 1 || colSpan > 1 ? { content: text, rowSpan, colSpan } : text
+      );
+      if (rowSpan > 1) active.set(col, rowSpan - 1);
+      col += colSpan;
+    }
+    body.push(row);
+  }
+  return body;
+}
+
+/**
  * Text of a list item with <br/> converted to line breaks, so an item can
  * carry a second line (e.g. "Material/Remarks:"). Other inline elements keep
  * their text on the current line.
@@ -216,9 +252,7 @@ function buildPdf(title: string, bodyHtml: string, contentSize: number): jsPDF {
         });
       }
       const head = hasHead ? [headCells.map((c) => tidy(c.textContent ?? ""))] : undefined;
-      const bodyRows = (hasHead ? rows.slice(1) : rows).map((r) =>
-        Array.from(r.querySelectorAll("td")).map((c) => tidy(c.textContent ?? ""))
-      );
+      const bodyRows = parseTableBody(hasHead ? rows.slice(1) : rows);
       autoTable(doc, {
         head,
         body: bodyRows,
