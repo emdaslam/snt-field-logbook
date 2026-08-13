@@ -3,6 +3,16 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.31 — 2026-08-13
+
+**Fix: Footplate single-movement return leg (Up / Down) shows the wrong "From" in the Diary and TA journal** — `<HASH>`
+
+- On a one-way footplate (no return train) the third journey row is the road
+  return to HQ **from the other-end station**, not from the boarding station.
+- With a return train (Both) the ride ends back at the boarding station, so that
+  row still goes boarding station → HQ.
+- Fix applies to both the Diary and the TA journal exports (shared leg builder).
+
 ## 1.7.6.30 — 2026-08-13
 
 **Feat: Footplate special movement in the daily log** — `f559e0f`

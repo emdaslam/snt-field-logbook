@@ -384,7 +384,9 @@ function footplateLegs(
       to: b,
     });
   }
-  legs.push({ trainNo: "ROAD", dep: t.retDep, arr: t.retArr, from: b, to: hqCode });
+  // With a return train (Both) the ride ends back at the boarding station;
+  // otherwise (Up/Down) we return to HQ from the other-end station.
+  legs.push({ trainNo: "ROAD", dep: t.retDep, arr: t.retArr, from: fj.direction === "Both" ? b : o, to: hqCode });
   return legs;
 }
 
