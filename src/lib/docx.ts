@@ -143,29 +143,43 @@ function buildTable(html: string): string {
     });
   }
 
+  // A cell's width for its grid column: an explicit header width when present,
+  // else the pinned 1080 twips for the first "date" column, else autofit.
+  const colWidth = (col: number): string =>
+    widths[col] ?? (dateCol && col === 0 ? "1080" : "");
+
   // Walk the rows column-accurately so vertical merges (rowspan) become Word
   // vMerge cells and horizontal merges (colspan) become gridSpan cells; cells
   // covered by a running merge become empty continuation cells.
   const active = new Map<number, number>();
   const rowsHtml: string[] = [];
+  let colCount = 0;
   for (const r of trs) {
     const els = Array.from(r.querySelectorAll("td, th"));
     if (els.length === 0) continue;
     const isHead = hasHead && r === trs[0];
-    const rowHasDate = dateCol && !!r.querySelector("td.date, th.date");
     const cellsHtml: string[] = [];
     let col = 0;
+    const contCell = () => {
+      const w = colWidth(col);
+      cellsHtml.push(
+        `<w:tc><w:tcPr>` +
+          (w ? `<w:tcW w:w="${w}" w:type="dxa"/>` : "") +
+          `<w:vMerge/><w:tcMar><w:left w:w="80" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tcMar>` +
+          `</w:tcPr><w:p/></w:tc>`
+      );
+      col++;
+    };
     for (const el of els) {
       while (active.has(col)) {
         const left = active.get(col)! - 1;
         if (left <= 0) active.delete(col);
         else active.set(col, left);
-        cellsHtml.push(`<w:tc><w:tcPr><w:vMerge/></w:tcPr></w:tc>`);
-        col++;
+        contCell();
       }
       const rowSpan = Math.max(1, parseInt(el.getAttribute("rowspan") || "1", 10) || 1);
       const colSpan = Math.max(1, parseInt(el.getAttribute("colspan") || "1", 10) || 1);
-      const width = widths[col] ?? (rowHasDate && col === 0 ? "1080" : "");
+      const width = colWidth(col);
       cellsHtml.push(
         tableCell(tidy(el.textContent ?? ""), isHead, width, rowSpan, colSpan)
       );
@@ -176,11 +190,16 @@ function buildTable(html: string): string {
       const left = active.get(col)! - 1;
       if (left <= 0) active.delete(col);
       else active.set(col, left);
-      cellsHtml.push(`<w:tc><w:tcPr><w:vMerge/></w:tcPr></w:tc>`);
-      col++;
+      contCell();
     }
+    if (col > colCount) colCount = col;
     rowsHtml.push(`<w:tr><w:trPr><w:cantSplit/></w:trPr>${cellsHtml.join("")}</w:tr>`);
   }
+
+  const gridCols = Array.from(
+    { length: colCount },
+    (_, i) => (colWidth(i) ? `<w:gridCol w:w="${colWidth(i)}"/>` : "<w:gridCol/>")
+  ).join("");
 
   const borders = ["top", "left", "bottom", "right", "insideH", "insideV"]
     .map((b) => `<w:${b} w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>`)
@@ -188,6 +207,7 @@ function buildTable(html: string): string {
   return (
     `<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/>` +
     `<w:tblBorders>${borders}</w:tblBorders><w:tblLayout w:type="autofit"/></w:tblPr>` +
+    `<w:tblGrid>${gridCols}</w:tblGrid>` +
     rowsHtml.join("") +
     `</w:tbl>`
   );

@@ -3,6 +3,18 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.35 — 2026-08-13
+
+**Fix: Word export's second row of each merged day is misaligned**
+
+- The Diary / TA Journal tables carry vertical merges (the date and nature-of-work
+  cells span the two legs of a day). The Word writer was emitting merged
+  continuation cells without an explicit column grid and without a paragraph
+  inside the empty cells, so Word inferred the column positions from widths and
+  shifted the second row's cells. Now every table declares a `<w:tblGrid>` with
+  one column per cell, continuation cells keep their column's width, and each
+  cell contains a real `<w:p>` — the rows line up under the correct headers.
+
 ## 1.7.6.34 — 2026-08-13
 
 **Fix: Word (.docx) exports dropped the table, leaving only the heading**
