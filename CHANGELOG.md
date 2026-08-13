@@ -5,7 +5,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.30 — 2026-08-13
 
-**Feat: Footplate special movement in the daily log** — `<HASH>`
+**Feat: Footplate special movement in the daily log** — `f559e0f`
 
 - A new **Footplate** option in the daily-log Movement selector. Instead of a
   Rest-style special day it behaves like a working tour: HQ → boarding station →
