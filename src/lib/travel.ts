@@ -125,3 +125,42 @@ export function tripTimes(
     retArr: fmt(retArr),
   };
 }
+
+/**
+ * Timings for a Footplate movement day: the HQ → boarding-station → HQ legs
+ * come from {@link tripTimes} (keyed by the boarding station's travel range),
+ * and the train-leg window between arriving at and leaving the boarding
+ * station is split into the outbound (and, when riding back, the return) train
+ * ride. All values sit on the deterministic 5-minute grid.
+ */
+export type JourneyTimes = TripTimes & {
+  trOutDep: string;
+  trOutArr: string;
+  trInDep: string;
+  trInArr: string;
+};
+
+export function journeyTripTimes(
+  logDate: string,
+  taPercent: number,
+  travelMin: number | null | undefined,
+  travelMax: number | null | undefined,
+  hasInbound: boolean,
+  win?: TaGenWindow
+): JourneyTimes {
+  const base = tripTimes(logDate, taPercent, travelMin, travelMax, win);
+  const windowStart = toMinutes(base.outArr);
+  const windowEnd = toMinutes(base.retDep);
+  const span = Math.max(5, windowEnd - windowStart);
+  const trOutDep = step5(windowStart);
+  const trOutArr = step5(hasInbound ? windowStart + Math.floor(span / 2) : windowEnd);
+  const trInDep = step5(windowStart + Math.floor(span / 2));
+  const trInArr = step5(windowEnd);
+  return {
+    ...base,
+    trOutDep: fmt(trOutDep),
+    trOutArr: fmt(trOutArr),
+    trInDep: fmt(trInDep),
+    trInArr: fmt(trInArr),
+  };
+}

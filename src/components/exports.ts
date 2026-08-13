@@ -3,7 +3,7 @@ import { fmtDate, toISODate, formatFootplateShifts, footplateTrainList } from "@
 import { formatInspectionDates } from "@/lib/inspections";
 import { isSpecialMovement } from "@/lib/types";
 import { AUTO_TIMINGS } from "@/lib/timingsMode";
-import { tripTimes } from "@/lib/travel";
+import { tripTimes, journeyTripTimes, type JourneyTimes } from "@/lib/travel";
 import { loadTaGenConfig, type TaGenWindow, type TaRateKey } from "@/lib/taGenConfig";
 import type { XlsxCell, XlsxSheet, XlsxMerge } from "@/lib/xlsx";
 import type {
@@ -14,6 +14,7 @@ import type {
   Tag,
   Staff,
   FootplateDetail,
+  FootplateJourney,
 } from "@/db/schema";
 
 function esc(s: string | null | undefined) {
@@ -281,6 +282,112 @@ function taRateKey(p: number | null | undefined): TaRateKey {
   return p === 100 || p === 30 ? (String(p) as TaRateKey) : "70";
 }
 
+/** Display label for a station — its code when one is set, else its name. */
+function stationLabel(st: Station | undefined): string {
+  return st?.code?.trim() ? st.code : st?.name || "";
+}
+
+/** Wrap a station into the MovementStation shape the timing helpers expect. */
+function asMovementStation(st: Station): MovementStation {
+  return {
+    code: st.code?.trim() ? st.code : st.name,
+    name: st.name,
+    match: st,
+    travelMin: st.travelMin,
+    travelMax: st.travelMax,
+  };
+}
+
+/**
+ * The four clock times for a Footplate day plus the two train-leg times. In the
+ * normal build they come from the journey fields (timeDep / timeArr / the
+ * trains' boarding-alighting times / returnTimeDep / returnTimeArr), shown
+ * verbatim or "not entered in daily log" when missing. In the personal build
+ * they are generated deterministically (see src/lib/travel.ts).
+ */
+function journeyTimes(
+  l: DailyLog,
+  boarding: MovementStation,
+  date: string,
+  taWin?: TaGenWindow
+): JourneyTimes {
+  if (AUTO_TIMINGS) {
+    const fj = l.footplateJourney;
+    return journeyTripTimes(
+      date,
+      l.taPercent ?? 100,
+      boarding.travelMin,
+      boarding.travelMax,
+      Boolean(fj?.inbound),
+      taWin
+    );
+  }
+  const fj = l.footplateJourney;
+  const miss = "not entered in daily log";
+  return {
+    outDep: l.timeDep || miss,
+    outArr: l.timeArr || miss,
+    retDep: l.returnTimeDep || miss,
+    retArr: l.returnTimeArr || miss,
+    trOutDep: fj?.outbound?.depTime || miss,
+    trOutArr: fj?.outbound?.arrTime || miss,
+    trInDep: fj?.inbound?.depTime || miss,
+    trInArr: fj?.inbound?.arrTime || miss,
+  };
+}
+
+type JourneyLeg = {
+  trainNo: string;
+  dep: string;
+  arr: string;
+  from: string;
+  to: string;
+};
+
+/**
+ * The legs of a Footplate day as export rows: HQ → boarding station (ROAD),
+ * the outbound train, the return train when riding back (direction "Both"),
+ * then boarding station → HQ (ROAD). Returns null when the journey is missing
+ * the boarding / other-end stations.
+ */
+function footplateLegs(
+  l: DailyLog,
+  stations: Station[],
+  hqCode: string,
+  t: JourneyTimes
+): JourneyLeg[] | null {
+  const fj: FootplateJourney | null = l.footplateJourney ?? null;
+  if (!fj) return null;
+  const boarding = stations.find((s) => s.id === fj.boardingStationId);
+  const otherEnd = stations.find((s) => s.id === fj.otherEndStationId);
+  if (!boarding || !otherEnd || boarding.id === otherEnd.id) return null;
+  const b = stationLabel(boarding);
+  const o = stationLabel(otherEnd);
+  const legs: JourneyLeg[] = [
+    { trainNo: "ROAD", dep: t.outDep, arr: t.outArr, from: hqCode, to: b },
+  ];
+  if (fj.outbound && (fj.outbound.trainNo || fj.direction === "Up" || fj.direction === "Down")) {
+    legs.push({
+      trainNo: fj.outbound.trainNo || "---",
+      dep: t.trOutDep,
+      arr: t.trOutArr,
+      from: b,
+      to: o,
+    });
+  }
+  if (fj.inbound && fj.direction === "Both") {
+    legs.push({
+      trainNo: fj.inbound.trainNo || "---",
+      dep: t.trInDep,
+      arr: t.trInArr,
+      from: o,
+      to: b,
+    });
+  }
+  legs.push({ trainNo: "ROAD", dep: t.retDep, arr: t.retArr, from: b, to: hqCode });
+  return legs;
+}
+
 /** "AVAILED REST" + "REST" style pair for a Rest / NH / Leave / CR day. */
 function specialPair(l: DailyLog): [string, string] | null {
   switch (l.movementKind) {
@@ -396,6 +503,36 @@ export function exportDiary(
       grid.push([dmy(date), "---", "---", "---", "AT", hqCode, work]);
       continue;
     }
+    // Footplate movement — the journey legs (HQ → boarding, train leg(s),
+    // boarding → HQ) each get their own row, sharing the date and work.
+    if (primary.movementKind === "footplate") {
+      const boarding = primary.footplateJourney
+        ? stations.find((s) => s.id === primary.footplateJourney!.boardingStationId)
+        : undefined;
+      const t = boarding
+        ? journeyTimes(primary, asMovementStation(boarding), date, taCfg ? taCfg[taRateKey(primary.taPercent)] : undefined)
+        : null;
+      const legs = primary.footplateJourney && t ? footplateLegs(primary, stations, hqCode, t) : null;
+      const r = grid.length;
+      if (legs) {
+        legs.forEach((leg, i) => {
+          grid.push([
+            i === 0 ? dmy(date) : "",
+            leg.trainNo,
+            leg.dep,
+            leg.arr,
+            leg.from,
+            leg.to,
+            i === 0 ? work : "",
+          ]);
+        });
+        merges.push([r, 0, r + legs.length - 1, 0], [r, 6, r + legs.length - 1, 6]);
+      } else {
+        grid.push([dmy(date), "---", "---", "---", "FOOTPLATE", "---", work]);
+        merges.push([r, 1, r, 5]);
+      }
+      continue;
+    }
     const t = diaryTimes(primary, st, date, taCfg ? taCfg[taRateKey(primary.taPercent)] : undefined);
     const r = grid.length;
     grid.push([
@@ -484,11 +621,17 @@ export function exportTaJournal(
   for (const dayLogs of days.values()) {
     const primary = preferTaLog(dayLogs, hq);
     if (isSpecialMovement(primary)) continue;
+    const p = primary.taPercent ?? 100;
+    if (p !== 100 && p !== 70 && p !== 30) continue;
+    // A Footplate day is a working tour away from HQ (departure → return), so
+    // it always qualifies for TA — the rate stays the manual 100/70/30 pick.
+    if (primary.movementKind === "footplate") {
+      taDays.push({ log: primary, work: mergeWork(dayLogs) || "-" });
+      continue;
+    }
     const st = movementStation(primary, stations);
     if (!st || (hq && st.match?.id === hq.id)) continue;
     if (st.match?.distanceFromHq !== "above8") continue;
-    const p = primary.taPercent ?? 100;
-    if (p !== 100 && p !== 70 && p !== 30) continue;
     taDays.push({ log: primary, work: mergeWork(dayLogs) || "-" });
   }
   taDays.sort((a, b) => a.log.logDate.localeCompare(b.log.logDate));
@@ -508,10 +651,59 @@ export function exportTaJournal(
   const dataStart = grid.length;
   for (const d of taDays) {
     const l = d.log;
-    const st = movementStation(l, stations)!;
     const p = l.taPercent ?? 100;
-    const t = diaryTimes(l, st, l.logDate, taCfg ? taCfg[taRateKey(l.taPercent)] : undefined);
     const r = grid.length;
+    const emptyRow = (i: number) => (i === 0 ? dmy(l.logDate) : "") as string | number;
+    // Footplate day — each journey leg is its own row (HQ → boarding, train
+    // leg(s), boarding → HQ); the date, days, amount and work span all legs.
+    if (l.movementKind === "footplate") {
+      const boarding = l.footplateJourney
+        ? stations.find((s) => s.id === l.footplateJourney!.boardingStationId)
+        : undefined;
+      const t = boarding
+        ? journeyTimes(l, asMovementStation(boarding), l.logDate, taCfg ? taCfg[taRateKey(l.taPercent)] : undefined)
+        : null;
+      const legs = l.footplateJourney && t ? footplateLegs(l, stations, hqCode, t) : null;
+      if (legs) {
+        legs.forEach((leg, i) => {
+          grid.push([
+            styled(emptyRow(i), { center: true }),
+            leg.trainNo,
+            styled(leg.dep, { center: true }),
+            styled(leg.arr, { center: true }),
+            styled(leg.from, { center: true }),
+            styled(leg.to, { center: true }),
+            styled("", { center: true }),
+            i === 0 ? (p / 100).toFixed(1) : "",
+            i === 0 ? p * 10 : "",
+            styled(i === 0 ? d.work : "", { wrap: true }),
+          ]);
+        });
+        merges.push(
+          [r, 0, r + legs.length - 1, 0],
+          [r, 7, r + legs.length - 1, 7],
+          [r, 8, r + legs.length - 1, 8],
+          [r, 9, r + legs.length - 1, 9]
+        );
+      } else {
+        // Incomplete journey — keep the day visible with a single row.
+        grid.push([
+          styled(dmy(l.logDate), { center: true }),
+          "---",
+          styled("---", { center: true }),
+          styled("---", { center: true }),
+          styled("FOOTPLATE", { center: true }),
+          styled("", { center: true }),
+          styled("", { center: true }),
+          (p / 100).toFixed(1),
+          p * 10,
+          styled(d.work, { wrap: true }),
+        ]);
+      }
+      continue;
+    }
+    const st = movementStation(l, stations)!;
+    const t = diaryTimes(l, st, l.logDate, taCfg ? taCfg[taRateKey(l.taPercent)] : undefined);
     grid.push([
       styled(dmy(l.logDate), { center: true }),
       "ROAD",
@@ -519,7 +711,7 @@ export function exportTaJournal(
       styled(t.outArr, { center: true }),
       styled(hqCode, { center: true }),
       styled(st.code, { center: true }),
-      styled("ALL ARE ABOVE 8 KMS", { center: true }),
+      styled("", { center: true }),
       (p / 100).toFixed(1),
       p * 10,
       styled(d.work, { wrap: true }),
@@ -539,7 +731,10 @@ export function exportTaJournal(
     merges.push([r, 0, r + 1, 0], [r, 7, r + 1, 7], [r, 8, r + 1, 8], [r, 9, r + 1, 9]);
   }
   const dataEnd = grid.length - 1;
-  if (dataStart <= dataEnd) merges.push([dataStart, 6, dataEnd, 6]); // KMS note spans all rows
+  if (dataStart <= dataEnd) {
+    merges.push([dataStart, 6, dataEnd, 6]); // KMS note spans all rows
+    grid[dataStart][6] = styled("ALL ARE ABOVE 8 KMS", { center: true });
+  }
 
   const month = monthStamp(period.label);
   const name = me?.name ? `Name: ${me.name}` : "Name: not updated in profile";

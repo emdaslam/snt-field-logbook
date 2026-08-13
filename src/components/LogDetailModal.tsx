@@ -48,6 +48,9 @@ export function LogDetailModal({
               value={`Dep ${log.timeDep || "—"} → Arr ${log.timeArr || "—"}  ·  Ret Dep ${log.returnTimeDep || "—"} → Arr ${log.returnTimeArr || "—"}`}
             />
           ) : null}
+          {log.movementKind === "footplate" && log.footplateJourney && (
+            <JourneySummary log={log} stationName={stationName} />
+          )}
           <Row label="Work Done" value={log.workDone} multiline />
           <Row
             label="TA"
@@ -181,6 +184,40 @@ export function LogDetailModal({
         </button>
       </div>
     </Modal>
+  );
+}
+
+function JourneySummary({
+  log,
+  stationName,
+}: {
+  log: DailyLog;
+  stationName: (id: number | null) => string;
+}) {
+  const fj = log.footplateJourney;
+  if (!fj) return null;
+  const boarding = fj.boardingStationId ? stationName(fj.boardingStationId) : "—";
+  const other = fj.otherEndStationId ? stationName(fj.otherEndStationId) : "—";
+  const shift = log.footplateShift ? `${log.footplateShift} shift` : fj.shift || "—";
+  return (
+    <div className="mb-3 rounded-lg border border-violet-200 bg-violet-50 p-3">
+      <p className="text-xs font-bold uppercase tracking-wide text-violet-700">
+        🚆 Footplate Journey
+      </p>
+      <p className="text-sm text-violet-950">
+        Boarding {boarding} → {other} ({fj.direction}) · {shift}
+      </p>
+      <p className="mt-1 text-xs text-violet-800">
+        Out {fj.outbound?.trainNo || "—"} · Board {fj.outbound?.depTime || "—"} → Arr{" "}
+        {fj.outbound?.arrTime || "—"}
+      </p>
+      {fj.inbound && (
+        <p className="mt-0.5 text-xs text-violet-800">
+          Return {fj.inbound.trainNo || "—"} · Dep {fj.inbound.depTime || "—"} → Arr{" "}
+          {fj.inbound.arrTime || "—"}
+        </p>
+      )}
+    </div>
   );
 }
 

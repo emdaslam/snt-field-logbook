@@ -407,6 +407,7 @@ function normaliseLog(b: Partial<DailyLog>) {
     footplateDown: b.footplateDown ?? null,
     footplateDay: b.footplateDay ?? null,
     footplateNight: b.footplateNight ?? null,
+    footplateJourney: b.footplateJourney ?? null,
     tagIds: b.tagIds ?? [],
     tagSides: b.tagSides ?? {},
     attachments: b.attachments ?? [],

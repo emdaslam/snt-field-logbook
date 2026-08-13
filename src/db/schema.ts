@@ -101,6 +101,9 @@ export const dailyLogs = pgTable("daily_logs", {
   // and each shift asks its own direction (Up / Down / Both) + train details
   footplateDay: jsonb("footplate_day").$type<FootplateBlock | null>(),
   footplateNight: jsonb("footplate_night").$type<FootplateBlock | null>(),
+  // Structured data of a "Footplate" movement entry — the boarding / other-end
+  // stations, direction, shift, and the outbound / return train legs.
+  footplateJourney: jsonb("footplate_journey").$type<FootplateJourney | null>(),
   inspectionSide: varchar("inspection_side", { length: 160 }),
   // Author of this log — private data is only visible to its owner
   ownerStaffId: integer("owner_staff_id"),
@@ -197,6 +200,26 @@ export type FootplateBlock = {
   direction: string; // "Up" | "Down" | "Both"
   up: FootplateDetail | null;
   down: FootplateDetail | null;
+};
+
+/** A single footplate train leg — the standard train details plus the clock
+ * times the loco inspector boarded at and got off at (HH:MM). */
+export type FootplateJourneyTrain = FootplateDetail & {
+  depTime: string;
+  arrTime: string;
+};
+
+/** A footplate movement (a "Footplate" daily-log entry). The inspector goes
+ * HQ → boarding station, rides the engine of a train in one direction to the
+ * other end, optionally rides another train in the opposite direction back,
+ * then returns to HQ. */
+export type FootplateJourney = {
+  boardingStationId: number;
+  otherEndStationId: number;
+  direction: string; // "Up" | "Down" | "Both"
+  shift: string | null; // "Day" | "Night" | "Day,Night"
+  outbound: FootplateJourneyTrain | null;
+  inbound: FootplateJourneyTrain | null;
 };
 
 export type Attachment = {

@@ -3,6 +3,29 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.30 — 2026-08-13
+
+**Feat: Footplate special movement in the daily log** — `<HASH>`
+
+- A new **Footplate** option in the daily-log Movement selector. Instead of a
+  Rest-style special day it behaves like a working tour: HQ → boarding station →
+  ride the engine of a train Up / Down / Both to the other end, optional
+  opposite-direction return train, then back to HQ. Work Done and TA stay
+  available.
+- The journey captures only the **boarding station** and the **other-end**
+  station (intermediate stations are skipped), the direction (Up / Down /
+  Both), the shift (Day / Night), and for each train leg its **train no. and
+  engine no.** plus the boarding / alighting clock times. The movement row shows
+  `Footplate: <Boarding> → <Other end> (<direction>)`.
+- **Diary export** prints the day as 3 journey rows (HQ → boarding ROAD, the
+  train leg, boarding → HQ ROAD) or 4 rows when riding back, each with its own
+  time / from / to, and the date + work spanning the legs.
+- **TA journal** treats a Footplate day as qualified (boarding station decides
+  the distance rules) and prints the same 3–4 leg rows with the day count and
+  amount spanning them; the TA rate stays the manual 100 / 70 / 30 pick.
+- The personal (auto-timings) build generates the tour clock times
+  deterministically, keeping them inside the configured TA window.
+
 ## 1.7.6.28 — 2026-08-12
 
 **Feat: HQ-movement entries no longer need timings + configurable TA auto-generation windows** — `e7c2879`

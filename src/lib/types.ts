@@ -39,6 +39,7 @@ export const MOVEMENT_TYPES = [
   { value: "leave", label: "Leave" },
   { value: "cr", label: "CR" },
   { value: "nh", label: "NH" },
+  { value: "footplate", label: "Footplate" },
 ] as const;
 export type MovementType = (typeof MOVEMENT_TYPES)[number]["value"] | "station";
 
@@ -48,6 +49,7 @@ export const MOVEMENT_LABEL: Record<string, string> = {
   leave: "Leave",
   cr: "CR",
   nh: "NH",
+  footplate: "Footplate",
 };
 
 export const LEAVE_KINDS = ["CL", "LAP", "SICK"] as const;
@@ -110,5 +112,5 @@ export const STATION_DISTANCE_LABEL: Record<StationDistance, string> = {
 };
 
 /** App version shown in Settings → About. Bump alongside android/app/build.gradle. */
-export const APP_VERSION_BASE = "1.7.6.28";
+export const APP_VERSION_BASE = "1.7.6.30";
 export const APP_VERSION = `${APP_VERSION_BASE}${AUTO_TIMINGS ? "p" : ""}`;
