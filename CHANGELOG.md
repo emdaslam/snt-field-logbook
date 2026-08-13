@@ -5,7 +5,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.32 — 2026-08-13
 
-**Feat: Pre-filled default timings in manual mode** — `<HASH>`
+**Feat: Pre-filled default timings in manual mode** — `6bd5d34`
 
 - When a new daily log opens in the manual (normal) build, the timing fields
   come pre-filled with sensible defaults: departure from HQ `08:00`, arrival at
