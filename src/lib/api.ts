@@ -18,6 +18,7 @@ import type {
   FootplateDetail,
   FootplateBlock,
 } from "@/db/schema";
+import type { PcdoWork } from "@/lib/types";
 
 const asc = <T extends Record<string, unknown>>(rows: T[], key: keyof T) =>
   [...rows].sort((a, b) => String(a[key] ?? "").localeCompare(String(b[key] ?? "")));
@@ -387,6 +388,7 @@ function normaliseLog(b: Partial<DailyLog>) {
     taPercent: num(b.taPercent, 100),
     ownerStaffId: b.ownerStaffId ?? null,
     pcdoWork: b.pcdoWork ?? null,
+    pcdoWorks: Array.isArray(b.pcdoWorks) ? b.pcdoWorks : [],
     pcdoStationId: b.pcdoStationId ?? null,
     pcdoDate: b.pcdoDate || null,
     hasDisconnections: Boolean(b.hasDisconnections),
@@ -412,6 +414,24 @@ function normaliseLog(b: Partial<DailyLog>) {
     tagSides: b.tagSides ?? {},
     attachments: b.attachments ?? [],
   };
+}
+
+/**
+ * The PCDO special works of a log entry. New entries store a department-wise
+ * list (`pcdoWorks`); older entries kept a single free-text `pcdoWork` with no
+ * department — those are returned as one legacy entry under the "" department.
+ */
+export function pcdoWorkEntries(
+  l:
+    | { pcdoWorks?: PcdoWork[] | null; pcdoWork?: string | null }
+    | null
+    | undefined
+): PcdoWork[] {
+  if (!l) return [];
+  const list = Array.isArray(l.pcdoWorks) && l.pcdoWorks.length > 0 ? l.pcdoWorks : null;
+  if (list) return list;
+  const legacy = (l.pcdoWork ?? "").trim();
+  return legacy ? [{ department: "", work: legacy }] : [];
 }
 
 export function fmtDate(d: string | Date | null | undefined) {

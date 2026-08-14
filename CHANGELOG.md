@@ -3,6 +3,20 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.38 — 2026-08-14
+
+**Feat: PCDO special works are now recorded and exported department-wise**
+
+- **Daily log — department-wise PCDO:** when *PCDO — Special Work* is ticked on
+  an entry you now pick one or more departments (Signalling / Engg / OHE /
+  Telecom) and describe the special work done for **each** selected department
+  in its own box. Entries saved before this release (single free-text special
+  work) still open and export as before, grouped under *General*.
+- **PCDO export:** the report is still grouped station-wise, but each station
+  now has a **sub-section per department** with the date and special-work text
+  of that department's entries. The selection preview in the export dialog
+  shows each department's work with its colour-coded badge.
+
 ## 1.7.6.37 — 2026-08-14
 
 **Change: TA Journal "ALL ARE ABOVE 8 KMS" note now runs vertically down the KMS column** — `e4a73dd`

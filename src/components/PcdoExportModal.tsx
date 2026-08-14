@@ -5,7 +5,7 @@ import { useData } from "./DataProvider";
 import { Modal, Field, inputClass, PrimaryButton } from "./ui";
 import { exportPcdo } from "./exports";
 import { recentPcdoPeriods } from "@/lib/pcdo";
-import { fmtDate } from "@/lib/api";
+import { fmtDate, pcdoWorkEntries } from "@/lib/api";
 
 export function PcdoExportModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { logs, stations, stationName, myStationIds } = useData();
@@ -36,19 +36,35 @@ export function PcdoExportModal({ open, onClose }: { open: boolean; onClose: () 
   const baseLogs = mapped.length ? logs.filter(inMappedScope) : logs;
 
   const entries = baseLogs.filter((l) => {
-    if (!l.pcdoWork || !l.pcdoWork.trim()) return false;
+    if (pcdoWorkEntries(l).length === 0) return false;
     const d = l.pcdoDate || l.logDate;
     if (d < period.from || d > period.to) return false;
     if (stationFilter && l.pcdoStationId !== stationFilter) return false;
     return true;
   });
 
-  // Preview grouped station-wise
-  const grouped = new Map<string, typeof entries>();
+  // Preview rows: one per (log × department), so a multi-department entry
+  // shows each of its works under the right department.
+  type PreviewRow = { id: number; station: string; date: string; department: string; work: string };
+  const previewRows: PreviewRow[] = [];
   for (const e of entries) {
-    const k = stationName(e.pcdoStationId);
-    if (!grouped.has(k)) grouped.set(k, []);
-    grouped.get(k)!.push(e);
+    const st = stationName(e.pcdoStationId);
+    for (const w of pcdoWorkEntries(e)) {
+      previewRows.push({
+        id: e.id,
+        station: st,
+        date: e.pcdoDate || e.logDate,
+        department: w.department || "General",
+        work: w.work,
+      });
+    }
+  }
+
+  // Preview grouped station-wise
+  const grouped = new Map<string, PreviewRow[]>();
+  for (const r of previewRows) {
+    if (!grouped.has(r.station)) grouped.set(r.station, []);
+    grouped.get(r.station)!.push(r);
   }
 
   const discEntries = baseLogs.filter((l) => {
@@ -132,7 +148,8 @@ export function PcdoExportModal({ open, onClose }: { open: boolean; onClose: () 
 
       <div className="mb-3 rounded-lg bg-indigo-50 px-3 py-2 text-sm text-indigo-900">
         Covering <strong>{fmtDate(period.from)}</strong> to <strong>{fmtDate(period.to)}</strong> ·{" "}
-        {selectedIds.size} of {entries.length} special work{entries.length !== 1 ? "s" : ""} selected
+        {previewRows.filter((r) => selectedIds.has(r.id)).length} of {previewRows.length} special work
+        {previewRows.length !== 1 ? "s" : ""} selected
       </div>
 
       {entries.length > 0 && (
@@ -146,23 +163,23 @@ export function PcdoExportModal({ open, onClose }: { open: boolean; onClose: () 
       )}
 
       <div className="mb-4 max-h-56 overflow-y-auto rounded-lg border border-slate-200">
-        {entries.length === 0 ? (
+        {previewRows.length === 0 ? (
           <p className="p-4 text-center text-sm text-slate-400">
             No special works recorded in the PCDO section for this period.
           </p>
         ) : (
           [...grouped.entries()]
             .sort((a, b) => a[0].localeCompare(b[0]))
-            .map(([station, items]) => (
+            .map(([station, rows]) => (
               <div key={station} className="border-b border-slate-100 last:border-0">
                 <p className="bg-slate-50 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-blue-900">
-                  {station} ({items.length})
+                  {station} ({rows.length})
                 </p>
-                {items.map((it) => {
-                  const checked = selectedIds.has(it.id);
+                {rows.map((r) => {
+                  const checked = selectedIds.has(r.id);
                   return (
                     <label
-                      key={it.id}
+                      key={`${r.id}-${r.department}`}
                       className={`flex cursor-pointer gap-3 px-3 py-2 text-sm ${
                         checked ? "" : "bg-slate-50 opacity-60"
                       }`}
@@ -170,14 +187,17 @@ export function PcdoExportModal({ open, onClose }: { open: boolean; onClose: () 
                       <input
                         type="checkbox"
                         checked={checked}
-                        onChange={() => toggleRow(it.id)}
+                        onChange={() => toggleRow(r.id)}
                         className="mt-0.5 h-4 w-4 flex-shrink-0 accent-indigo-600"
                       />
                       <span className="w-24 flex-shrink-0 text-xs text-slate-500">
-                        {fmtDate(it.pcdoDate || it.logDate)}
+                        {fmtDate(r.date)}
+                      </span>
+                      <span className="w-20 flex-shrink-0 rounded-full bg-indigo-100 px-2 py-0.5 text-center text-[10px] font-semibold text-indigo-700">
+                        {r.department}
                       </span>
                       <span className={`min-w-0 flex-1 ${checked ? "text-slate-800" : "line-through text-slate-400"}`}>
-                        {it.pcdoWork}
+                        {r.work}
                       </span>
                     </label>
                   );

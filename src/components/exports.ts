@@ -1,5 +1,5 @@
 import { exportDocument } from "@/lib/pdf";
-import { fmtDate, toISODate, formatFootplateShifts, footplateTrainList } from "@/lib/api";
+import { fmtDate, toISODate, formatFootplateShifts, footplateTrainList, pcdoWorkEntries } from "@/lib/api";
 import { formatInspectionDates } from "@/lib/inspections";
 import { isSpecialMovement } from "@/lib/types";
 import { AUTO_TIMINGS } from "@/lib/timingsMode";
@@ -99,8 +99,9 @@ export function exportTomorrowsWork(
 }
 
 /**
- * PCDO report — station-wise list of special works entered in the PCDO
- * section, for a period running 26th of last month → 25th of this month.
+ * PCDO report — special works entered in the PCDO section, for a period
+ * running 26th of last month → 25th of this month. Grouped station-wise with a
+ * department sub-section inside each station.
  */
 export function exportPcdo(
   period: { from: string; to: string; label: string },
@@ -109,6 +110,18 @@ export function exportPcdo(
   stationFilter: number | "" = "",
   selectedIds?: Set<number> | null
 ) {
+  exportDocument(`PCDO ${period.label}`, pcdoReportBody(period, logs, stations, stationFilter, selectedIds), "pcdo");
+}
+
+/** The PCDO special-works report body, grouped station-wise with department
+ * sub-sections. Split out from exportPcdo so it is easy to test headlessly. */
+export function pcdoReportBody(
+  period: { from: string; to: string; label: string },
+  logs: DailyLog[],
+  stations: Station[],
+  stationFilter: number | "" = "",
+  selectedIds?: Set<number> | null
+): string {
   const stationName = (id: number | null) =>
     stations.find((s) => s.id === id)?.name ?? "Unassigned / General";
 
@@ -134,7 +147,7 @@ export function exportPcdo(
 
   const entries = logs
     .filter((l) => {
-      if (!l.pcdoWork || !l.pcdoWork.trim()) return false;
+      if (pcdoWorkEntries(l).length === 0) return false;
       const d = l.pcdoDate || l.logDate;
       if (d < period.from || d > period.to) return false;
       if (stationFilter && l.pcdoStationId !== stationFilter) return false;
@@ -155,31 +168,50 @@ export function exportPcdo(
     })
     .sort((a, b) => (a.pcdoDate || a.logDate).localeCompare(b.pcdoDate || b.logDate));
 
-  // Group station-wise
-  const groups = new Map<string, DailyLog[]>();
+  // One row per (log entry × department): a single entry can report special
+  // works for several departments, so it contributes one row per department.
+  type WorkRow = { station: string; date: string; department: string; work: string };
+  const workRows: WorkRow[] = [];
   for (const e of entries) {
     const k = stationName(e.pcdoStationId);
-    if (!groups.has(k)) groups.set(k, []);
-    groups.get(k)!.push(e);
+    for (const w of pcdoWorkEntries(e)) {
+      workRows.push({ station: k, date: e.pcdoDate || e.logDate, department: w.department, work: w.work });
+    }
+  }
+
+  // Group station-wise, then department-wise inside each station.
+  const groups = new Map<string, WorkRow[]>();
+  for (const r of workRows) {
+    if (!groups.has(r.station)) groups.set(r.station, []);
+    groups.get(r.station)!.push(r);
   }
   const sortedGroups = [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
 
   let body = `<h1>PCDO — Special Works (${esc(period.label)})</h1>`;
   body += `<p class="meta">PCDO period: ${fmtDate(period.from)} to ${fmtDate(period.to)}`;
   if (stationFilter) body += ` · Station: ${esc(stationName(stationFilter as number))}`;
-  body += ` · ${entries.length} special work${entries.length !== 1 ? "s" : ""}</p>`;
+  body += ` · ${workRows.length} special work${workRows.length !== 1 ? "s" : ""}</p>`;
 
   if (sortedGroups.length === 0) {
     body += `<p class="empty">No special works recorded in the PCDO section for this period.</p>`;
   }
 
-  for (const [station, items] of sortedGroups) {
-    body += `<h2>${esc(station)} (${items.length})</h2>`;
-    body += `<table><tr><th class="date">Date of PCDO</th><th>Special Work</th></tr>`;
-    for (const it of items) {
-      body += `<tr><td class="date">${fmtDate(it.pcdoDate || it.logDate)}</td><td>${esc(it.pcdoWork)}</td></tr>`;
+  for (const [station, rows] of sortedGroups) {
+    body += `<h2>${esc(station)} (${rows.length})</h2>`;
+    const deptGroups = new Map<string, WorkRow[]>();
+    for (const r of rows) {
+      const d = r.department || "General";
+      if (!deptGroups.has(d)) deptGroups.set(d, []);
+      deptGroups.get(d)!.push(r);
     }
-    body += `</table>`;
+    for (const [dept, items] of deptGroups) {
+      body += `<h3>${esc(dept)}</h3>`;
+      body += `<table><tr><th class="date">Date of PCDO</th><th>Special Work</th></tr>`;
+      for (const it of items) {
+        body += `<tr><td class="date">${fmtDate(it.date)}</td><td>${esc(it.work)}</td></tr>`;
+      }
+      body += `</table>`;
+    }
   }
 
   /* ---------- Disconnections ---------- */
@@ -219,7 +251,7 @@ export function exportPcdo(
     body += `</table>`;
   }
 
-  exportDocument(`PCDO ${period.label}`, body, "pcdo");
+  return body;
 }
 
 

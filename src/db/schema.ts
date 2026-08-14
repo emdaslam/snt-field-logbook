@@ -10,6 +10,7 @@ import {
   jsonb,
   date,
 } from "drizzle-orm/pg-core";
+import type { PcdoWork } from "@/lib/types";
 
 // Stations
 export const stations = pgTable("stations", {
@@ -110,6 +111,9 @@ export const dailyLogs = pgTable("daily_logs", {
   // PCDO — special works reported in the monthly PCDO return.
   // Station & date always mirror the parent log entry.
   pcdoWork: text("pcdo_work"),
+  // Department-wise special works: one entry per department, each with its own
+  // work text. Supersedes pcdoWork (kept for older app versions / legacy rows).
+  pcdoWorks: jsonb("pcdo_works").$type<PcdoWork[]>().default([]).notNull(),
   pcdoStationId: integer("pcdo_station_id"),
   pcdoDate: date("pcdo_date"),
   // Disconnections given, split by purpose

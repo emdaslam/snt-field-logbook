@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useData } from "./DataProvider";
 import { Chip } from "./ui";
-import { dayName, toISODate, formatFootplateSummary } from "@/lib/api";
+import { dayName, toISODate, formatFootplateSummary, pcdoWorkEntries } from "@/lib/api";
+import { DEPARTMENT_COLORS } from "@/lib/types";
 import { isSharedLog } from "@/lib/backup";
 import type { DailyLog } from "@/db/schema";
 
@@ -240,10 +241,14 @@ export function Timeline({
                   const discTotal =
                     log.discSpecialWork + log.discFailure + log.discMaintenance + log.discNotPermitted;
                   const hasDisc = log.hasDisconnections && discTotal > 0;
-                  const hasPcdo = Boolean(log.pcdoWork && log.pcdoWork.trim());
+                  const pcdoWorks = pcdoWorkEntries(log);
+                  const hasPcdo = pcdoWorks.length > 0;
                   const shared = isSharedLog(log);
                   const summary = shared
-                    ? log.pcdoWork?.trim() ||
+                    ? pcdoWorks
+                        .map((w) => w.work)
+                        .filter(Boolean)
+                        .join(" · ") ||
                       (log.inspectionKind
                         ? `${log.inspectionKind} inspection at ${stationName(log.inspectionStationId)}`
                         : "Shared record")
@@ -274,6 +279,19 @@ export function Timeline({
                             ⭐ PCDO
                           </span>
                         )}
+                        {hasPcdo &&
+                          pcdoWorks.map(
+                            (w) =>
+                              w.department && (
+                                <span
+                                  key={w.department}
+                                  className="rounded-full px-2 py-0.5 text-[10px] font-semibold text-white"
+                                  style={{ backgroundColor: DEPARTMENT_COLORS[w.department] }}
+                                >
+                                  {w.department}
+                                </span>
+                              )
+                          )}
                         {hasDisc && (
                           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
                             ⚡ {discTotal} disc.

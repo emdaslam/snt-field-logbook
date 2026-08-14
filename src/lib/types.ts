@@ -3,6 +3,13 @@ import { AUTO_TIMINGS } from "./timingsMode";
 export const DEPARTMENTS = ["Signalling", "Engg", "OHE", "Telecom"] as const;
 export type Department = (typeof DEPARTMENTS)[number];
 
+/** One PCDO special work reported for a department. An empty `department`
+ * marks a legacy entry that predates department-wise PCDO reporting. */
+export type PcdoWork = {
+  department: string;
+  work: string;
+};
+
 export const PRIORITIES = ["Urgent", "Normal", "Later"] as const;
 export type Priority = (typeof PRIORITIES)[number];
 
@@ -112,5 +119,5 @@ export const STATION_DISTANCE_LABEL: Record<StationDistance, string> = {
 };
 
 /** App version shown in Settings → About. Bump alongside android/app/build.gradle. */
-export const APP_VERSION_BASE = "1.7.6.37";
+export const APP_VERSION_BASE = "1.7.6.38";
 export const APP_VERSION = `${APP_VERSION_BASE}${AUTO_TIMINGS ? "p" : ""}`;

@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useData } from "./DataProvider";
 import { Modal, Chip } from "./ui";
-import { api, fmtDate, dayName, formatFootplateSummary } from "@/lib/api";
+import { api, fmtDate, dayName, formatFootplateSummary, pcdoWorkEntries } from "@/lib/api";
+import { DEPARTMENT_COLORS } from "@/lib/types";
 import { isSharedLog } from "@/lib/backup";
 import { INSPECTION_RULES, addDays, type InspectionKind } from "@/lib/inspections";
 import { AttachmentPreviewModal } from "./AttachmentPreviewModal";
@@ -91,12 +92,26 @@ export function LogDetailModal({
         </>
       )}
 
-      {log.pcdoWork && log.pcdoWork.trim() && (
+      {pcdoWorkEntries(log).length > 0 && (
         <div className="mb-3 rounded-lg border border-indigo-200 bg-indigo-50 p-3">
-          <p className="mb-1 text-xs font-bold uppercase tracking-wide text-indigo-700">
+          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-indigo-700">
             ⭐ PCDO Special Work
           </p>
-          <p className="whitespace-pre-wrap text-sm text-indigo-950">{log.pcdoWork}</p>
+          <div className="space-y-2">
+            {pcdoWorkEntries(log).map((w) => (
+              <div key={w.department || "__legacy"} className="rounded-md bg-white/70 px-2.5 py-2">
+                {w.department && (
+                  <span
+                    className="mr-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold text-white"
+                    style={{ backgroundColor: DEPARTMENT_COLORS[w.department] }}
+                  >
+                    {w.department}
+                  </span>
+                )}
+                <p className="whitespace-pre-wrap text-sm text-indigo-950">{w.work}</p>
+              </div>
+            ))}
+          </div>
           <p className="mt-1.5 text-xs text-indigo-700">
             {log.pcdoStationId ? stationName(log.pcdoStationId) : "No station"} ·{" "}
             {fmtDate(log.pcdoDate || log.logDate)}

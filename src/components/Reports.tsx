@@ -8,7 +8,7 @@ import { DiaryExportModal } from "./DiaryExportModal";
 import { InspectionExportModal } from "./InspectionExportModal";
 import { PeriodPicker, monthPeriod, type Period } from "./PeriodPicker";
 import { getPcdoPeriod } from "@/lib/pcdo";
-import { fmtDate } from "@/lib/api";
+import { fmtDate, pcdoWorkEntries } from "@/lib/api";
 import { PrimaryButton } from "./ui";
 import { StatDetailModal, type StatRow } from "./StatDetailModal";
 import { computeAllSchedules, INSPECTION_RULES, tagReminderConfigs } from "@/lib/inspections";
@@ -61,7 +61,7 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
       pPlans,
       logs: pLogs.length,
       ta: pLogs.reduce((s, l) => s + (l.taPercent ?? 100) / 100, 0),
-      pcdo: pLogs.filter((l) => l.pcdoWork && l.pcdoWork.trim()).length,
+      pcdo: pLogs.reduce((n, l) => n + pcdoWorkEntries(l).length, 0),
       leaves: pLogs.filter((l) => l.movementKind === "leave").length,
       defPending: pDefs.filter((d) => d.status === "Pending").length,
       defDone: pDefs.filter((d) => d.status === "Completed").length,
@@ -144,14 +144,18 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
           onClick={() =>
             setDrill({
               title: "PCDO Special Works",
-              rows: stats.pLogs
-                .filter((l) => l.pcdoWork && l.pcdoWork.trim())
-                .map((l) => ({
-                  key: "p" + l.id,
+              rows: stats.pLogs.flatMap((l) =>
+                pcdoWorkEntries(l).map((w) => ({
+                  key: "p" + l.id + w.department,
                   date: l.pcdoDate || l.logDate,
-                  title: l.pcdoWork ?? "",
-                  sub: l.pcdoStationId ? stationName(l.pcdoStationId) : undefined,
-                })),
+                  title: w.work,
+                  sub: w.department
+                    ? `${w.department} · ${l.pcdoStationId ? stationName(l.pcdoStationId) : "no station"}`
+                    : l.pcdoStationId
+                      ? stationName(l.pcdoStationId)
+                      : undefined,
+                }))
+              ),
             })
           }
         />

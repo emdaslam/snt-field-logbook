@@ -3,8 +3,16 @@
 import { useState } from "react";
 import { useData } from "./DataProvider";
 import { Modal, Field, inputClass, Chip, PrimaryButton } from "./ui";
-import { api, toISODate, fmtDate } from "@/lib/api";
-import { DEPARTMENTS, PRIORITIES, LEAVE_KINDS, MOVEMENT_TYPES, MOVEMENT_LABEL } from "@/lib/types";
+import { api, toISODate, fmtDate, pcdoWorkEntries } from "@/lib/api";
+import {
+  DEPARTMENTS,
+  PRIORITIES,
+  LEAVE_KINDS,
+  MOVEMENT_TYPES,
+  MOVEMENT_LABEL,
+  DEPARTMENT_COLORS,
+  type PcdoWork,
+} from "@/lib/types";
 import { AUTO_TIMINGS } from "@/lib/timingsMode";
 import {
   kindFromTags,
@@ -142,8 +150,18 @@ export function DailyLogForm({
   const [saving, setSaving] = useState(false);
   const [addingStation, setAddingStation] = useState(false);
   const [newStationName, setNewStationName] = useState("");
-  const [pcdoOpen, setPcdoOpen] = useState(Boolean(existing?.pcdoWork));
-  const [pcdoWork, setPcdoWork] = useState(existing?.pcdoWork ?? "");
+  const [pcdoOpen, setPcdoOpen] = useState(pcdoWorkEntries(existing).length > 0);
+  const [pcdoWorks, setPcdoWorks] = useState<PcdoWork[]>(pcdoWorkEntries(existing));
+  const togglePcdoDept = (dept: string) => {
+    setPcdoWorks((prev) =>
+      prev.some((w) => w.department === dept)
+        ? prev.filter((w) => w.department !== dept)
+        : [...prev, { department: dept, work: "" }]
+    );
+  };
+  const setPcdoWork = (dept: string, work: string) => {
+    setPcdoWorks((prev) => prev.map((w) => (w.department === dept ? { ...w, work } : w)));
+  };
   // PCDO & disconnections need a station even for Rest/Leave/CR/NH entries —
   // this holds the manually picked station until a real movement station wins.
   const [pcdoStationOverride, setPcdoStationOverride] = useState<number | null>(
@@ -292,6 +310,10 @@ export function DailyLogForm({
       setError("PCDO station not yet selected. Select a station in Station/Movement or pick the PCDO station.");
       return;
     }
+    if (pcdoOpen && !pcdoWorks.some((w) => w.work.trim())) {
+      setError("Enter the PCDO special work for at least one department.");
+      return;
+    }
     setSaving(true);
     const isFp = movementKind === "footplate";
     const fpShift = isFp
@@ -388,7 +410,19 @@ export function DailyLogForm({
           }
         : null,
       ownerStaffId: existing?.ownerStaffId ?? currentUser?.id ?? null,
-      pcdoWork: pcdoOpen ? pcdoWork : null,
+      pcdoWorks: pcdoOpen
+        ? pcdoWorks
+            .map((w) => ({ department: w.department, work: w.work.trim() }))
+            .filter((w) => w.work)
+        : [],
+      // Legacy single-text field: joined work texts so older app versions (and
+      // any other consumer) still see something; the UI reads pcdoWorks first.
+      pcdoWork: pcdoOpen
+        ? pcdoWorks
+            .map((w) => w.work.trim())
+            .filter(Boolean)
+            .join("\n")
+        : null,
       // PCDO station & date always mirror the log entry
       pcdoStationId: pcdoOpen ? pcdoStationId : null,
       pcdoDate: pcdoOpen ? pcdoDate : null,
@@ -813,16 +847,56 @@ export function DailyLogForm({
 
         {pcdoOpen && (
           <div className="mt-3 space-y-2">
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-slate-700">Special Work Details</span>
-              <textarea
-                className={inputClass}
-                rows={3}
-                value={pcdoWork ?? ""}
-                placeholder="Describe the special work carried out…"
-                onChange={(e) => setPcdoWork(e.target.value)}
-              />
-            </label>
+            <div>
+              <span className="mb-1 block text-xs font-medium text-slate-700">Department</span>
+              <div className="flex flex-wrap gap-1.5">
+                {DEPARTMENTS.map((d) => {
+                  const on = pcdoWorks.some((w) => w.department === d);
+                  return (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => togglePcdoDept(d)}
+                      className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+                        on ? "bg-indigo-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-300"
+                      }`}
+                    >
+                      {d}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-1 text-xs text-slate-500">
+                Pick one or more departments and describe the special work done for each.
+              </p>
+            </div>
+
+            {pcdoWorks.map((w) => (
+              <label key={w.department || "__legacy"} className="block">
+                <span className="mb-1 block text-xs font-medium text-slate-700">
+                  {w.department ? (
+                    <>
+                      <span
+                        className="mr-1.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold text-white"
+                        style={{ backgroundColor: DEPARTMENT_COLORS[w.department] }}
+                      >
+                        {w.department}
+                      </span>
+                      Special Work Details
+                    </>
+                  ) : (
+                    "Special Work Details"
+                  )}
+                </span>
+                <textarea
+                  className={inputClass}
+                  rows={3}
+                  value={w.work}
+                  placeholder={`Describe the ${w.department ? w.department.toLowerCase() : "special"} work carried out…`}
+                  onChange={(e) => setPcdoWork(w.department, e.target.value)}
+                />
+              </label>
+            ))}
             <div className="rounded-md border border-indigo-200 bg-white px-2.5 py-2 text-xs">
               <p className="mb-1 font-semibold text-indigo-800">Taken from this log entry</p>
               <div className="flex flex-wrap gap-x-5 gap-y-1 text-slate-700">
