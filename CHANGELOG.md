@@ -5,7 +5,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.39 — 2026-08-14
 
-**Feat: search results now highlight the matched text**
+**Feat: search results now highlight the matched text** — `3f03710`
 
 - **Global search:** the station/work title and the matching body text in every
   result (logs, deficiencies, planned works) are highlighted in amber where the
