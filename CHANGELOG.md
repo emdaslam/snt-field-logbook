@@ -5,7 +5,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.38 — 2026-08-14
 
-**Feat: PCDO special works are now recorded and exported department-wise**
+**Feat: PCDO special works are now recorded and exported department-wise** — `196bfda`
 
 - **Daily log — department-wise PCDO:** when *PCDO — Special Work* is ticked on
   an entry you now pick one or more departments (Signalling / Engg / OHE /
