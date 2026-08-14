@@ -81,7 +81,13 @@ function parseTableBody(
       }
       const rowSpan = Math.max(1, parseInt(el.getAttribute("rowspan") || "1", 10) || 1);
       const colSpan = Math.max(1, parseInt(el.getAttribute("colspan") || "1", 10) || 1);
-      const text = tidy(el.textContent ?? "");
+      // Cells marked class="vtext" render vertically, one character per line
+      // (the TA journal's KMS note, which already carries per-word blank lines);
+      // other cells are tidied normally.
+      const isV = (el.getAttribute("class") || "").split(/\s+/).includes("vtext");
+      const text = isV
+        ? (el.textContent ?? "").replace(/ +/g, "\n")
+        : tidy(el.textContent ?? "");
       row.push(
         rowSpan > 1 || colSpan > 1 ? { content: text, rowSpan, colSpan } : text
       );

@@ -3,6 +3,16 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.37 — 2026-08-14
+
+**Change: TA Journal "ALL ARE ABOVE 8 KMS" note now runs vertically down the KMS column** — hash
+
+- The note in the merged KMS column is now written one letter per line, reading
+  top-to-bottom, with a blank line between each word (ALL / ARE / ABOVE / 8 / KMS).
+- The KMS column is widened enough for its "KMS" header to stay on one line in
+  every format; NATURE OF WORK keeps the remaining width and the whole table
+  still fits inside the page / text area.
+
 ## 1.7.6.36 — 2026-08-14
 
 **Fix: NATURE OF WORK column missing in the TA Journal PDF / Word exports (and too narrow in the Diary)** — `4809651`

@@ -33,6 +33,14 @@ function monthStamp(label: string): string {
   return m ? `${m[1].toUpperCase()}-${m[2]}` : label;
 }
 
+/** KMS note shown down the merged KMS column of the TA journal. */
+const KMS_NOTE = "ALL ARE ABOVE 8 KMS";
+/** The same note stacked vertically, one letter per line, with a blank line
+ *  between words so "ALL ARE ABOVE 8 KMS" reads as distinct words. */
+const KMS_NOTE_VERT = KMS_NOTE.split(" ")
+  .map((w) => w.split("").join("\n"))
+  .join("\n\n");
+
 /** Trim a day count to at most one decimal and drop a trailing ".0". */
 function daysLabel(d: number): string {
   return (Math.round(d * 10) / 10).toString().replace(/\.0$/, "");
@@ -426,12 +434,14 @@ function cellText(c: XlsxCell | string | number): string {
  * outputs, honouring vertical merges (rowspan) and horizontal merges
  * (colspan) so those formats visually merge the same cells the Excel sheet
  * merges. `dateCol` marks the column rendered with class="date" (fixed-width
- * in the PDF); `centerCols` marks columns that get data-align="center".
+ * in the PDF); `centerCols` marks columns that get data-align="center";
+ * `vTextCols` marks columns whose non-empty cells render their text vertically
+ * (one character per line) via class="vtext" in PDF and Word.
  */
 function gridHtml(
   grid: (string | number | XlsxCell)[][],
   merges: XlsxMerge[],
-  opts: { dateCol?: number; centerCols?: Set<number> } = {}
+  opts: { dateCol?: number; centerCols?: Set<number>; vTextCols?: Set<number> } = {}
 ): string {
   const covered = new Set<string>();
   const rows: string[] = [];
@@ -440,8 +450,13 @@ function gridHtml(
     for (let c = 0; c < grid[r].length; c++) {
       const key = `${r},${c}`;
       if (covered.has(key)) continue;
+      const txt = cellText(grid[r][c]);
       const m = merges.find(([r1, c1]) => r1 === r && c1 === c);
-      let attrs = "";
+      const isV = Boolean(opts.vTextCols?.has(c) && txt.trim());
+      let cls = opts.dateCol === c ? "date" : "";
+      if (isV) cls = cls ? `${cls} vtext` : "vtext";
+      let attrs = cls ? ` class="${cls}"` : "";
+      if (opts.centerCols?.has(c)) attrs += ' data-align="center"';
       if (m) {
         const [, , r2, c2] = m;
         const rs = r2 - r + 1;
@@ -455,9 +470,7 @@ function gridHtml(
           for (let cc = c + 1; cc <= c2; cc++) covered.add(`${r},${cc}`);
         }
       }
-      const cls = opts.dateCol === c ? ' class="date"' : "";
-      const align = opts.centerCols?.has(c) ? ' data-align="center"' : "";
-      tds.push(`<td${cls}${align}${attrs}>${esc(cellText(grid[r][c]))}</td>`);
+      tds.push(`<td${attrs}>${esc(txt)}</td>`);
     }
     rows.push(`<tr>${tds.join("")}</tr>`);
   }
@@ -776,7 +789,7 @@ export function exportTaJournal(
   const dataEnd = grid.length - 1;
   if (dataStart <= dataEnd) {
     merges.push([dataStart, 6, dataEnd, 6]); // KMS note spans all rows
-    grid[dataStart][6] = styled("ALL ARE ABOVE 8 KMS", { center: true });
+    grid[dataStart][6] = styled(KMS_NOTE_VERT, { center: true, wrap: true });
   }
 
   const month = monthStamp(period.label);
@@ -797,8 +810,8 @@ export function exportTaJournal(
     body += `<p class="empty">No TA days in this period.</p>`;
   } else {
     body += `<table>`;
-    body += `<tr><th class="date" data-width="54" data-align="center">DATE</th><th data-width="40">TRAIN NO</th><th data-width="44" data-align="center">TIME DEP</th><th data-width="44" data-align="center">TIME ARR</th><th data-width="40" data-align="center">FROM</th><th data-width="40" data-align="center">TO</th><th data-width="64" data-align="center">KMS</th><th data-width="32">DAYS</th><th data-width="40">AMOUNT</th><th>NATURE OF WORK</th></tr>`;
-    body += gridHtml(grid, merges, { dateCol: 0, centerCols: new Set([0, 2, 3, 4, 5, 6]) });
+    body += `<tr><th class="date" data-width="54" data-align="center">DATE</th><th data-width="40">TRAIN NO</th><th data-width="44" data-align="center">TIME DEP</th><th data-width="44" data-align="center">TIME ARR</th><th data-width="40" data-align="center">FROM</th><th data-width="40" data-align="center">TO</th><th data-width="30" data-align="center">KMS</th><th data-width="32">DAYS</th><th data-width="40">AMOUNT</th><th>NATURE OF WORK</th></tr>`;
+    body += gridHtml(grid, merges, { dateCol: 0, centerCols: new Set([0, 2, 3, 4, 5, 6]), vTextCols: new Set([6]) });
     body += `</table>`;
 
     body += `<h2>Summary</h2>`;
@@ -896,7 +909,7 @@ export function exportTaJournal(
   const sheet: XlsxSheet = {
     rows: summaryRows,
     merges: mergesAll,
-    colWidths: [10.43, 8.14, 9.71, 9.29, 6.71, 8.43, 4.57, 9.71, 11.43, 48, 12.14, 9],
+    colWidths: [10.43, 8.14, 9.71, 9.29, 6.71, 8.43, 4.29, 9.71, 11.43, 51, 12.14, 9],
   };
 
   exportDocument(`TA Journal ${period.label}`, body, "ta", sheet);

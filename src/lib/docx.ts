@@ -87,8 +87,9 @@ function para(
     .map((line, i) => {
       const prefix = opts.bullet && i === 0 ? "•  " : "";
       const content = esc(line.trim());
-      if (!content && !prefix) return "";
-      return `<w:r>${runProps(opts)}<w:t xml:space="preserve">${prefix}${content}</w:t></w:r>`;
+      if (!content && !prefix) return i > 0 ? "<w:r><w:br/></w:r>" : "";
+      const br = i > 0 ? "<w:br/>" : "";
+      return `<w:r>${runProps(opts)}${br}<w:t xml:space="preserve">${prefix}${content}</w:t></w:r>`;
     })
     .join("");
   return `<w:p>${pPr}${runs}</w:p>`;
@@ -99,7 +100,8 @@ function tableCell(
   isHead: boolean,
   width: string,
   rowSpan: number,
-  colSpan: number
+  colSpan: number,
+  centered = false
 ): string {
   const fill = isHead ? "DBEAFE" : "FFFFFF";
   const tcPr =
@@ -115,6 +117,7 @@ function tableCell(
       sz: isHead ? 16 : 18,
       after: 60,
       before: 40,
+      centered,
     });
   return `<w:tc>${tcPr}</w:tc>`;
 }
@@ -180,8 +183,15 @@ function buildTable(html: string): string {
       const rowSpan = Math.max(1, parseInt(el.getAttribute("rowspan") || "1", 10) || 1);
       const colSpan = Math.max(1, parseInt(el.getAttribute("colspan") || "1", 10) || 1);
       const width = colWidth(col);
+      // Cells marked class="vtext" render vertically, one character per line
+      // (the TA journal's KMS note, which already carries per-word blank lines);
+      // other cells are tidied normally.
+      const isV = (el.getAttribute("class") || "").split(/\s+/).includes("vtext");
+      const text = isV
+        ? (el.textContent ?? "").replace(/ +/g, "\n")
+        : tidy(el.textContent ?? "");
       cellsHtml.push(
-        tableCell(tidy(el.textContent ?? ""), isHead, width, rowSpan, colSpan)
+        tableCell(text, isHead, width, rowSpan, colSpan, isV)
       );
       if (rowSpan > 1) active.set(col, rowSpan - 1);
       col += colSpan;
