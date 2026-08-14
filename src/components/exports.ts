@@ -605,7 +605,7 @@ export function exportDiary(
     body += `<p class="empty">No diary entries in this period.</p>`;
   } else {
     body += `<table>`;
-    body += `<tr><th class="date" data-width="76">DATE</th><th data-width="84">TRAIN NO</th><th data-width="70">TIME DEP</th><th data-width="70">TIME ARR</th><th data-width="58">FROM</th><th data-width="58">TO</th><th>NATURE OF WORK</th></tr>`;
+    body += `<tr><th class="date" data-width="56">DATE</th><th data-width="72">TRAIN NO</th><th data-width="60">TIME DEP</th><th data-width="60">TIME ARR</th><th data-width="50">FROM</th><th data-width="50">TO</th><th>NATURE OF WORK</th></tr>`;
     body += gridHtml(grid, merges, { dateCol: 0 });
     body += `</table>`;
     if (me?.designation) body += `<p class="meta" style="text-align:right">${esc(me.designation.toUpperCase())}</p>`;
@@ -797,7 +797,7 @@ export function exportTaJournal(
     body += `<p class="empty">No TA days in this period.</p>`;
   } else {
     body += `<table>`;
-    body += `<tr><th class="date" data-width="76" data-align="center">DATE</th><th data-width="58">TRAIN NO</th><th data-width="64" data-align="center">TIME DEP</th><th data-width="64" data-align="center">TIME ARR</th><th data-width="52" data-align="center">FROM</th><th data-width="52" data-align="center">TO</th><th data-width="92" data-align="center">KMS</th><th data-width="46">DAYS</th><th data-width="52">AMOUNT</th><th>NATURE OF WORK</th></tr>`;
+    body += `<tr><th class="date" data-width="54" data-align="center">DATE</th><th data-width="40">TRAIN NO</th><th data-width="44" data-align="center">TIME DEP</th><th data-width="44" data-align="center">TIME ARR</th><th data-width="40" data-align="center">FROM</th><th data-width="40" data-align="center">TO</th><th data-width="64" data-align="center">KMS</th><th data-width="32">DAYS</th><th data-width="40">AMOUNT</th><th>NATURE OF WORK</th></tr>`;
     body += gridHtml(grid, merges, { dateCol: 0, centerCols: new Set([0, 2, 3, 4, 5, 6]) });
     body += `</table>`;
 

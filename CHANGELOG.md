@@ -3,6 +3,17 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.36 — 2026-08-14
+
+**Fix: NATURE OF WORK column missing in the TA Journal PDF / Word exports (and too narrow in the Diary)** — `<HASH>`
+
+- The TA Journal table's fixed column widths (556 pt) were wider than the page
+  (515 pt), so the PDF renderer squeezed the last column — NATURE OF WORK — to
+  ~10 pt (invisible) and the Word layout overflowed the text area, dropping it.
+- Column widths are rebalanced in both tables so every column fits and the
+  flexible NATURE OF WORK column keeps a healthy width: ~115 pt in the TA
+  journal and ~165 pt in the Diary (both PDF and Word, Excel unchanged).
+
 ## 1.7.6.35 — 2026-08-13
 
 **Fix: Word export's second row of each merged day is misaligned** — `02313ec`
