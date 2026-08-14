@@ -5,7 +5,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.35 — 2026-08-13
 
-**Fix: Word export's second row of each merged day is misaligned**
+**Fix: Word export's second row of each merged day is misaligned** — `02313ec`
 
 - The Diary / TA Journal tables carry vertical merges (the date and nature-of-work
   cells span the two legs of a day). The Word writer was emitting merged
@@ -17,7 +17,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.34 — 2026-08-13
 
-**Fix: Word (.docx) exports dropped the table, leaving only the heading**
+**Fix: Word (.docx) exports dropped the table, leaving only the heading** — `4cbe3cc`
 
 - The Diary and TA Journal Word exports were producing an unreadable table
   (each cell was closed twice, breaking the document's XML) so Word discarded
@@ -27,7 +27,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.33 — 2026-08-13
 
-**Fix: PDF and Word exports merge the date and nature-of-work cells across a movement's legs**
+**Fix: PDF and Word exports merge the date and nature-of-work cells across a movement's legs** — `1608ee9`
 
 - In the **Diary** export every away day prints two rows (outbound + return). The
   **DATE** and **NATURE OF WORK** cells now visually span both rows — and the
