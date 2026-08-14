@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useData } from "./DataProvider";
-import { Modal, Field, inputClass, PrimaryButton, Chip } from "./ui";
+import { Modal, Field, inputClass, PrimaryButton, Chip, Highlight } from "./ui";
 import { api, fmtDate } from "@/lib/api";
 import type { Note } from "@/db/schema";
 
@@ -81,14 +81,14 @@ export function Notes() {
           <p className="px-1 text-xs font-bold uppercase tracking-wide text-amber-700">📌 Pinned</p>
         )}
         {pinned.map((n) => (
-          <NoteCard key={n.id} note={n} onEdit={setEditing} onPin={togglePin} stationName={stationName} refresh={refresh} colorOf={colorOf} />
+          <NoteCard key={n.id} note={n} onEdit={setEditing} onPin={togglePin} stationName={stationName} refresh={refresh} colorOf={colorOf} query={q} />
         ))}
 
         {pinned.length > 0 && rest.length > 0 && (
           <p className="px-1 pt-1 text-xs font-bold uppercase tracking-wide text-slate-400">Other notes</p>
         )}
         {rest.map((n) => (
-          <NoteCard key={n.id} note={n} onEdit={setEditing} onPin={togglePin} stationName={stationName} refresh={refresh} colorOf={colorOf} />
+          <NoteCard key={n.id} note={n} onEdit={setEditing} onPin={togglePin} stationName={stationName} refresh={refresh} colorOf={colorOf} query={q} />
         ))}
       </div>
 
@@ -107,6 +107,7 @@ function NoteCard({
   stationName,
   refresh,
   colorOf,
+  query,
 }: {
   note: Note;
   onEdit: (n: Note) => void;
@@ -114,11 +115,14 @@ function NoteCard({
   stationName: (id: number | null) => string;
   refresh: () => Promise<void>;
   colorOf: (name: string) => string;
+  query: string;
 }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
       <div className="flex items-start justify-between gap-2">
-        <p className="min-w-0 flex-1 font-semibold text-slate-800">{note.title}</p>
+        <p className="min-w-0 flex-1 font-semibold text-slate-800">
+          <Highlight text={note.title} query={query} />
+        </p>
         <button
           onClick={() => onPin(note)}
           className={`flex-shrink-0 rounded-md px-1.5 py-0.5 text-sm ${
@@ -131,7 +135,9 @@ function NoteCard({
       </div>
 
       {note.body && (
-        <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{note.body}</p>
+        <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">
+          <Highlight text={note.body} query={query} />
+        </p>
       )}
 
       <div className="mt-2 flex flex-wrap gap-1.5">

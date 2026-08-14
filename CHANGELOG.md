@@ -3,6 +3,18 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.39 — 2026-08-14
+
+**Feat: search results now highlight the matched text**
+
+- **Global search:** the station/work title and the matching body text in every
+  result (logs, deficiencies, planned works) are highlighted in amber where the
+  search term appears.
+- **Notes search:** the note title and body highlight the matching text as you
+  type in the notes screen too.
+- Highlighting is case-insensitive and mirrors each screen's existing search
+  matching, so whatever currently returns a result now visibly marks the match.
+
 ## 1.7.6.38 — 2026-08-14
 
 **Feat: PCDO special works are now recorded and exported department-wise** — `196bfda`

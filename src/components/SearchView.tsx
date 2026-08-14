@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useData } from "./DataProvider";
-import { Chip } from "./ui";
+import { Chip, Highlight } from "./ui";
 import { fmtDate } from "@/lib/api";
 import { DEPARTMENTS, PRIORITIES, STATUSES, DEPARTMENT_COLORS, PRIORITY_COLORS } from "@/lib/types";
 import type { DailyLog, DeficiencyTask, PlannedWork } from "@/db/schema";
@@ -197,8 +197,14 @@ export function SearchView({
               <span className="text-[10px] font-semibold uppercase tracking-wide text-blue-700">{r.type}</span>
               {r.date && <span className="text-xs text-slate-400">{fmtDate(r.date)}</span>}
             </div>
-            <p className="mt-0.5 font-semibold text-slate-800">{r.title}</p>
-            {r.sub && <p className="text-sm text-slate-500">{r.sub}</p>}
+            <p className="mt-0.5 font-semibold text-slate-800">
+              <Highlight text={r.title} query={q} />
+            </p>
+            {r.sub && (
+              <p className="text-sm text-slate-500">
+                <Highlight text={r.sub} query={q} />
+              </p>
+            )}
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {r.chips.filter((c) => c.label).map((c, i) => <Chip key={i} label={c.label} color={c.color} />)}
             </div>

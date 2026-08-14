@@ -2,6 +2,28 @@
 
 import { type ReactNode, useEffect } from "react";
 
+export function Highlight({ text, query }: { text: string; query: string }) {
+  const q = query.trim();
+  if (!q) return <>{text}</>;
+  const ql = q.toLowerCase();
+  const tl = text.toLowerCase();
+  const parts: ReactNode[] = [];
+  let i = 0;
+  let idx = tl.indexOf(ql);
+  while (idx !== -1) {
+    if (idx > i) parts.push(text.slice(i, idx));
+    parts.push(
+      <mark key={idx} className="rounded-sm bg-amber-200 px-0.5 text-inherit">
+        {text.slice(idx, idx + q.length)}
+      </mark>
+    );
+    i = idx + q.length;
+    idx = tl.indexOf(ql, i);
+  }
+  if (i < text.length) parts.push(text.slice(i));
+  return <>{parts}</>;
+}
+
 export function Chip({
   label,
   color = "#2563eb",
