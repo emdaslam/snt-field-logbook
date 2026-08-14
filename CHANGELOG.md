@@ -5,7 +5,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.36 — 2026-08-14
 
-**Fix: NATURE OF WORK column missing in the TA Journal PDF / Word exports (and too narrow in the Diary)** — `<HASH>`
+**Fix: NATURE OF WORK column missing in the TA Journal PDF / Word exports (and too narrow in the Diary)** — `4809651`
 
 - The TA Journal table's fixed column widths (556 pt) were wider than the page
   (515 pt), so the PDF renderer squeezed the last column — NATURE OF WORK — to
