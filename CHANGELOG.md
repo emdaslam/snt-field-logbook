@@ -5,7 +5,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.37 — 2026-08-14
 
-**Change: TA Journal "ALL ARE ABOVE 8 KMS" note now runs vertically down the KMS column** — hash
+**Change: TA Journal "ALL ARE ABOVE 8 KMS" note now runs vertically down the KMS column** — `e4a73dd`
 
 - The note in the merged KMS column is now written one letter per line, reading
   top-to-bottom, with a blank line between each word (ALL / ARE / ABOVE / 8 / KMS).
