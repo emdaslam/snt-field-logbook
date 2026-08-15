@@ -5,7 +5,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.41 — 2026-08-15
 
-**Change: TA is shown as a percentage, and the TA Journal AMOUNT column now uses a per-staff TA rate** — `…`
+**Change: TA is shown as a percentage, and the TA Journal AMOUNT column now uses a per-staff TA rate** — `3bc6a44`
 
 - The TA claim is now indicated as a percentage (e.g. **70%**) instead of a
   fraction of a day (0.7) — in the daily-log form, the log detail, the reports
