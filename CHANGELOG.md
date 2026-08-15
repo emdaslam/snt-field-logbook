@@ -5,7 +5,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.40 — 2026-08-15
 
-**Change: notes show a preview and expand on tap instead of the full text**
+**Change: notes show a preview and expand on tap instead of the full text** — `420c942`
 
 - The Notes screen now shows each note's title, category/tags and only the first
   few lines of its body; the rest stays hidden.
