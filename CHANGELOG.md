@@ -5,7 +5,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.42 — 2026-08-15
 
-**Fix: TA Auto-Generation timing windows no longer overflow in Settings** — `REPLACE_ME`
+**Fix: TA Auto-Generation timing windows no longer overflow in Settings** — `7a4f096`
 
 - In Settings → TA Auto-Generation, the departure and return time fields now
   stack vertically on narrow screens instead of spilling over one another, and
