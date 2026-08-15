@@ -635,19 +635,19 @@ function TaWindowEditor({
   return (
     <div className="mb-3 rounded-lg border border-slate-200 p-3">
       <p className="mb-2 text-sm font-semibold text-slate-800">{TA_RATE_LABEL[rate]}</p>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="Departure from HQ">
           <div className="flex items-center gap-2">
             <input
               type="time"
-              className={inputClass}
+              className={`${inputClass} min-w-0 flex-1`}
               value={value.depStart}
               onChange={(e) => set({ depStart: e.target.value })}
             />
-            <span className="text-slate-400">to</span>
+            <span className="flex-shrink-0 text-slate-400">to</span>
             <input
               type="time"
-              className={inputClass}
+              className={`${inputClass} min-w-0 flex-1`}
               value={value.depEnd}
               onChange={(e) => set({ depEnd: e.target.value })}
             />
@@ -657,14 +657,14 @@ function TaWindowEditor({
           <div className="flex items-center gap-2">
             <input
               type="time"
-              className={inputClass}
+              className={`${inputClass} min-w-0 flex-1`}
               value={value.retStart}
               onChange={(e) => set({ retStart: e.target.value })}
             />
-            <span className="text-slate-400">to</span>
+            <span className="flex-shrink-0 text-slate-400">to</span>
             <input
               type="time"
-              className={inputClass}
+              className={`${inputClass} min-w-0 flex-1`}
               value={value.retEnd}
               onChange={(e) => set({ retEnd: e.target.value })}
             />
@@ -673,9 +673,9 @@ function TaWindowEditor({
       </div>
       <Field label="Tour duration condition">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-slate-500">more than</span>
+          <span className="w-20 flex-shrink-0 text-sm text-slate-500">more than</span>
           <input
-            className={`${inputClass} w-20`}
+            className={`${inputClass} min-w-0 flex-1`}
             type="number"
             min={1}
             max={24}
@@ -683,9 +683,12 @@ function TaWindowEditor({
             value={value.minHrs}
             onChange={(e) => set({ minHrs: Number(e.target.value) || 0 })}
           />
-          <span className="text-sm text-slate-500">hrs and less than</span>
+          <span className="flex-shrink-0 text-sm text-slate-500">hrs</span>
+        </div>
+        <div className="mt-2 flex items-center gap-2">
+          <span className="w-20 flex-shrink-0 text-sm text-slate-500">less than</span>
           <input
-            className={`${inputClass} w-20`}
+            className={`${inputClass} min-w-0 flex-1`}
             type="number"
             min={1}
             max={24}
@@ -693,7 +696,7 @@ function TaWindowEditor({
             value={value.maxHrs}
             onChange={(e) => set({ maxHrs: Number(e.target.value) || 0 })}
           />
-          <span className="text-sm text-slate-500">hrs</span>
+          <span className="flex-shrink-0 text-sm text-slate-500">hrs</span>
         </div>
       </Field>
     </div>

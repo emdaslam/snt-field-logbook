@@ -3,6 +3,16 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.42 — 2026-08-15
+
+**Fix: TA Auto-Generation timing windows no longer overflow in Settings** — `REPLACE_ME`
+
+- In Settings → TA Auto-Generation, the departure and return time fields now
+  stack vertically on narrow screens instead of spilling over one another, and
+  the inputs shrink to fit instead of overflowing their column.
+- The *Tour duration condition* is shown as two separate rows (more than / less
+  than) with flexible inputs so it never runs off the screen on small phones.
+
 ## 1.7.6.41 — 2026-08-15
 
 **Change: TA is shown as a percentage, and the TA Journal AMOUNT column now uses a per-staff TA rate** — `3bc6a44`
