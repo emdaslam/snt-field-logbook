@@ -117,6 +117,9 @@ function NoteCard({
   colorOf: (name: string) => string;
   query: string;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const showBody = Boolean(note.body);
+
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
       <div className="flex items-start justify-between gap-2">
@@ -134,10 +137,23 @@ function NoteCard({
         </button>
       </div>
 
-      {note.body && (
-        <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">
-          <Highlight text={note.body} query={query} />
-        </p>
+      {showBody && (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="mt-1 block w-full text-left"
+          title={expanded ? "Show less" : "Show full note"}
+        >
+          <p
+            className={`whitespace-pre-wrap text-sm text-slate-600 ${
+              expanded ? "" : "line-clamp-3"
+            }`}
+          >
+            <Highlight text={note.body ?? ""} query={query} />
+          </p>
+          <span className="mt-1 inline-block text-xs font-medium text-blue-600">
+            {expanded ? "Show less" : "Read full note"}
+          </span>
+        </button>
       )}
 
       <div className="mt-2 flex flex-wrap gap-1.5">

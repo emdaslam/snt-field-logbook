@@ -3,6 +3,15 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.40 — 2026-08-15
+
+**Change: notes show a preview and expand on tap instead of the full text**
+
+- The Notes screen now shows each note's title, category/tags and only the first
+  few lines of its body; the rest stays hidden.
+- Tapping the body opens the note to its full content, with a *Show less* link
+  to collapse it again.
+
 ## 1.7.6.39 — 2026-08-14
 
 **Feat: search results now highlight the matched text** — `3f03710`
