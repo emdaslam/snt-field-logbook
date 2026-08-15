@@ -64,7 +64,9 @@ export function DiaryExportModal({
     return p === 100 || p === 70 || p === 30;
   });
   const totalDays = taRows.reduce((a, l) => a + ((l.taPercent ?? 100) / 100), 0);
-  const totalAmount = totalDays * 1000;
+  const taRate = currentUser?.taRate != null && currentUser.taRate !== "" ? Number(currentUser.taRate) : null;
+  const totalAmount = taRate != null ? Math.round(totalDays * taRate) : null;
+  const rateNotSet = taRate == null;
 
   const isTa = mode === "ta";
 
@@ -110,7 +112,7 @@ export function DiaryExportModal({
       <div className="mb-3 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-900">
         {fmtDate(period.from)} — {fmtDate(period.to)} ·{" "}
         {isTa
-          ? `${taRows.length} TA day${taRows.length === 1 ? "" : "s"} · ${totalDays.toFixed(1)} day${totalDays === 1 ? "" : "s"} · ₹${totalAmount}`
+          ? `${taRows.length} TA day${taRows.length === 1 ? "" : "s"} · ${totalDays.toFixed(1)} day${totalDays === 1 ? "" : "s"}${totalAmount != null ? ` · ₹${totalAmount}` : ""}`
           : `${own.length} entr${own.length === 1 ? "y" : "ies"}`}
         {" · "}
         Headquarters: <strong>{hqCode ?? "not set"}</strong>
@@ -120,6 +122,13 @@ export function DiaryExportModal({
         <div className="mb-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
           Only movements to stations recorded as <strong>above 8 km</strong> from the headquarters are
           included in the TA Journal.
+        </div>
+      )}
+
+      {isTa && rateNotSet && (
+        <div className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          TA rate is not set on your profile. Add it in <strong>Settings → My Profile</strong> (or Staff
+          Details) so the AMOUNT column is filled.
         </div>
       )}
 
@@ -135,7 +144,7 @@ export function DiaryExportModal({
                 <tr>
                   <th className="px-2 py-1.5">Date</th>
                   <th className="px-2 py-1.5">Movement</th>
-                  <th className="px-2 py-1.5">DAYS</th>
+                  <th className="px-2 py-1.5">TA %</th>
                   <th className="px-2 py-1.5">AMOUNT</th>
                   <th className="px-2 py-1.5">Work Done</th>
                 </tr>
@@ -153,7 +162,8 @@ export function DiaryExportModal({
             </thead>
             <tbody>
               {(isTa ? taRows : own).map((r) => {
-                const days = ((r.taPercent ?? 100) / 100).toFixed(1);
+                const p = r.taPercent ?? 100;
+                const amount = taRate != null ? Math.round((p / 100) * taRate) : null;
                 return (
                   <tr key={r.id} className="border-t border-slate-100">
                     {isTa ? (
@@ -162,8 +172,8 @@ export function DiaryExportModal({
                         <td className="px-2 py-1.5 text-slate-600">
                           {hqCode ?? "HQ"} → {codeOf(r.stationMovement)}
                         </td>
-                        <td className="px-2 py-1.5 font-medium">{days}</td>
-                        <td className="px-2 py-1.5">₹{Math.round((r.taPercent ?? 100) / 100 * 1000)}</td>
+                        <td className="px-2 py-1.5 font-medium">{p}%</td>
+                        <td className="px-2 py-1.5">{rateNotSet ? "—" : `₹${amount}`}</td>
                         <td className="px-2 py-1.5 text-slate-600">{r.workDone || "-"}</td>
                       </>
                     ) : (

@@ -114,7 +114,7 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
                 date: l.logDate,
                 title: l.workDone?.trim() || l.stationMovement?.trim() || "No entry",
                 sub: l.stationMovement ?? undefined,
-                badge: `${((l.taPercent ?? 100) / 100).toFixed(1)}d`,
+                badge: `${l.taPercent ?? 100}%`,
               })),
             })
           }
@@ -131,7 +131,7 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
                 date: l.logDate,
                 title: l.stationMovement?.trim() || "—",
                 sub: l.workDone ?? undefined,
-                badge: `${((l.taPercent ?? 100) / 100).toFixed(1)} day`,
+                badge: `${l.taPercent ?? 100}%`,
               })),
               footer: `Total: ${stats.ta.toFixed(1)} days`,
             })
@@ -317,7 +317,7 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
                           key: "s" + l.id,
                           date: l.logDate,
                           title: l.workDone?.trim() || "No entry",
-                          badge: `${((l.taPercent ?? 100) / 100).toFixed(1)}d`,
+                          badge: `${l.taPercent ?? 100}%`,
                         })),
                     })
                   }

@@ -694,6 +694,8 @@ export function exportTaJournal(
   const hq = stations.find((s) => s.id === me?.headquartersStationId);
   const hqCode = hqLabel(hq);
   const taCfg = AUTO_TIMINGS ? loadTaGenConfig() : null;
+  const taRate = me?.taRate != null && me.taRate !== "" ? Number(me.taRate) : null;
+  const rateNotSet = taRate == null;
 
   // One entry per TA day. A date with two movements (two daily logs) counts as
   // a single TA day: the TA movement drives the route, and the nature of work
@@ -732,7 +734,9 @@ export function exportTaJournal(
   const days70 = n70 * 0.7;
   const days30 = n30 * 0.3;
   const totalDays = days100 + days70 + days30;
-  const totalAmount = totalDays * 1000;
+  const totalAmount = taRate != null ? Math.round(totalDays * taRate) : null;
+  const rateMissingText = "Rate not set (Settings → Staff Details)";
+  const amountCell = (p: number): string | number => (taRate != null ? Math.round((p / 100) * taRate) : rateMissingText);
 
   const grid: XlsxCell[][] = [];
   const merges: XlsxMerge[] = [];
@@ -762,8 +766,8 @@ export function exportTaJournal(
             styled(leg.from, { center: true }),
             styled(leg.to, { center: true }),
             styled("", { center: true }),
-            i === 0 ? (p / 100).toFixed(1) : "",
-            i === 0 ? p * 10 : "",
+            i === 0 ? `${p}%` : "",
+            i === 0 ? amountCell(p) : "",
             styled(i === 0 ? d.work : "", { wrap: true }),
           ]);
         });
@@ -783,8 +787,8 @@ export function exportTaJournal(
           styled("FOOTPLATE", { center: true }),
           styled("", { center: true }),
           styled("", { center: true }),
-          (p / 100).toFixed(1),
-          p * 10,
+          `${p}%`,
+          amountCell(p),
           styled(d.work, { wrap: true }),
         ]);
       }
@@ -800,8 +804,8 @@ export function exportTaJournal(
       styled(hqCode, { center: true }),
       styled(st.code, { center: true }),
       styled("", { center: true }),
-      (p / 100).toFixed(1),
-      p * 10,
+      `${p}%`,
+      amountCell(p),
       styled(d.work, { wrap: true }),
     ]);
     grid.push([
@@ -842,16 +846,16 @@ export function exportTaJournal(
     body += `<p class="empty">No TA days in this period.</p>`;
   } else {
     body += `<table>`;
-    body += `<tr><th class="date" data-width="54" data-align="center">DATE</th><th data-width="40">TRAIN NO</th><th data-width="44" data-align="center">TIME DEP</th><th data-width="44" data-align="center">TIME ARR</th><th data-width="40" data-align="center">FROM</th><th data-width="40" data-align="center">TO</th><th data-width="30" data-align="center">KMS</th><th data-width="32">DAYS</th><th data-width="40">AMOUNT</th><th>NATURE OF WORK</th></tr>`;
+    body += `<tr><th class="date" data-width="54" data-align="center">DATE</th><th data-width="40">TRAIN NO</th><th data-width="44" data-align="center">TIME DEP</th><th data-width="44" data-align="center">TIME ARR</th><th data-width="40" data-align="center">FROM</th><th data-width="40" data-align="center">TO</th><th data-width="30" data-align="center">KMS</th><th data-width="32">TA %</th><th data-width="40">AMOUNT</th><th>NATURE OF WORK</th></tr>`;
     body += gridHtml(grid, merges, { dateCol: 0, centerCols: new Set([0, 2, 3, 4, 5, 6]), vTextCols: new Set([6]) });
     body += `</table>`;
 
     body += `<h2>Summary</h2>`;
     body += `<table>`;
-    body += `<tr><td><strong>TOTAL NO. OF DAYS</strong></td><td></td><td></td><td><strong>${daysLabel(totalDays)} DAYS</strong></td><td><strong>₹${totalAmount.toLocaleString("en-IN")}</strong></td></tr>`;
-    body += `<tr><td>1.0</td><td>X ${n100}</td><td>= ${daysLabel(days100)} DAYS</td><td></td><td></td></tr>`;
-    body += `<tr><td>0.7</td><td>X ${n70}</td><td>= ${daysLabel(days70)} DAYS</td><td></td><td></td></tr>`;
-    body += `<tr><td>0.3</td><td>X ${n30}</td><td>= ${daysLabel(days30)} DAYS</td><td></td><td></td></tr>`;
+    body += `<tr><td><strong>TOTAL NO. OF DAYS</strong></td><td></td><td></td><td><strong>${daysLabel(totalDays)} DAYS</strong></td><td><strong>${rateNotSet ? esc(rateMissingText) : `₹${totalAmount!.toLocaleString("en-IN")}`}</strong></td></tr>`;
+    body += `<tr><td>100%</td><td>X ${n100}</td><td>= ${daysLabel(days100)} DAYS</td><td></td><td></td></tr>`;
+    body += `<tr><td>70%</td><td>X ${n70}</td><td>= ${daysLabel(days70)} DAYS</td><td></td><td></td></tr>`;
+    body += `<tr><td>30%</td><td>X ${n30}</td><td>= ${daysLabel(days30)} DAYS</td><td></td><td></td></tr>`;
     body += `<tr><td>${"".padEnd(24, "_")}</td><td></td><td></td><td></td><td></td></tr>`;
     body += `<tr><td><strong>TOTAL</strong></td><td></td><td>= ${daysLabel(totalDays)} DAYS</td><td></td><td></td></tr>`;
     body += `</table>`;
@@ -874,7 +878,7 @@ export function exportTaJournal(
       styled("STATION", { center: true }),
       "",
       styled("KMS", { center: true }),
-      "DAYS",
+      "TA %",
       "AMOUNT",
       "NATURE OF WORK",
     ],
@@ -923,11 +927,11 @@ export function exportTaJournal(
     [sigLab, 9, sigLab, 9]
   );
   summaryRows.push(
-    [{ v: "TOTAL NO. OF DAYS", center: true }, "", "", "", "", "", "", `${daysLabel(totalDays)} DAYS`, totalAmount, ""],
+    [{ v: "TOTAL NO. OF DAYS", center: true }, "", "", "", "", "", "", `${daysLabel(totalDays)} DAYS`, rateNotSet ? rateMissingText : (totalAmount as number), ""],
     [""],
-    ["", 1.0, `X ${n100}`, `= ${daysLabel(days100)} DAYS`, "", "", "", "", "", "", days100],
-    ["", 0.7, `X ${n70}`, `= ${daysLabel(days70)} DAYS`, "", "", "", "", "", "", days70],
-    ["", 0.3, `X ${n30}`, `= ${daysLabel(days30)} DAYS`, "", "", "", "", "", "", days30],
+    ["", "100%", `X ${n100}`, `= ${daysLabel(days100)} DAYS`, "", "", "", "", "", "", days100],
+    ["", "70%", `X ${n70}`, `= ${daysLabel(days70)} DAYS`, "", "", "", "", "", "", days70],
+    ["", "30%", `X ${n30}`, `= ${daysLabel(days30)} DAYS`, "", "", "", "", "", "", days30],
     ["", "".padEnd(24, "_"), "", "", ""],
     ["", "TOTAL", "", `= ${daysLabel(totalDays)} DAYS`],
     [""],
@@ -1109,7 +1113,7 @@ export function exportMonthly(
     if (fLogs.length) {
       body += `<table><tr><th>Date</th><th>Movement</th><th>Work Done</th><th>TA</th><th>Tags</th></tr>`;
       for (const l of fLogs) {
-        body += `<tr><td>${fmtDate(l.logDate)}</td><td>${esc(l.stationMovement)}</td><td>${esc(l.workDone)}</td><td>${l.ta ? "₹" + l.ta : "-"}</td><td>${l.tagIds.map(tagName).filter(Boolean).map(esc).join(", ")}</td></tr>`;
+        body += `<tr><td>${fmtDate(l.logDate)}</td><td>${esc(l.stationMovement)}</td><td>${esc(l.workDone)}</td><td>${(l.taPercent ?? 0) > 0 ? `${l.taPercent ?? 100}%` : "-"}</td><td>${l.tagIds.map(tagName).filter(Boolean).map(esc).join(", ")}</td></tr>`;
       }
       body += `</table>`;
     } else body += `<p class="empty">No logs in range.</p>`;

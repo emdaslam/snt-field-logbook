@@ -36,6 +36,8 @@ export const staff = pgTable("staff", {
   phone: varchar("phone", { length: 40 }),
   email: varchar("email", { length: 160 }),
   department: varchar("department", { length: 60 }),
+  // TA rate (₹ per full day) used to fill the AMOUNT column of the TA Journal
+  taRate: numeric("ta_rate", { precision: 12, scale: 2 }),
   stationIds: jsonb("station_ids").$type<number[]>().default([]).notNull(),
   // Headquarters station — the "from" end of every movement in the diary
   headquartersStationId: integer("headquarters_station_id"),

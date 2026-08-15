@@ -55,7 +55,7 @@ export function LogDetailModal({
           <Row label="Work Done" value={log.workDone} multiline />
           <Row
             label="TA"
-            value={`${((log.taPercent ?? 100) / 100).toFixed(1)} day  ·  ${log.taPercent ?? 100}%`}
+            value={`${log.taPercent ?? 100}%`}
           />
           {log.inspectionKind && (
             <div className="mb-3 rounded-lg border border-sky-200 bg-sky-50 p-3">

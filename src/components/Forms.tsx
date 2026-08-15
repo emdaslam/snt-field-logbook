@@ -142,7 +142,6 @@ export function DailyLogForm({
   // Rest / Leave / CR and a date that already has a TA claim: no TA for this entry
   const taLocked = isSpecial || taTakenOnSameDate;
   const taPercentEffective = taLocked ? "0" : taPercent;
-  const taDays = (Number(taPercentEffective) || 0) / 100;
   const selectedTagNames = tagIds
     .map((id) => tags.find((t) => t.id === id)?.name)
     .filter((n): n is string => Boolean(n));
@@ -649,20 +648,20 @@ export function DailyLogForm({
       )}
       {isSpecial ? (
         <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
-          No TA is claimed for {movementLabel} — assumed <strong>0 day</strong>.
+          No TA is claimed for {movementLabel} — assumed <strong>0%</strong>.
         </div>
       ) : (
-      <Field label="TA (days)">
+      <Field label="TA (%)">
         <select
           className={inputClass}
           value={taPercentEffective}
           disabled={taTakenOnSameDate}
           onChange={(e) => setTaPercent(e.target.value)}
         >
-          <option value="100">100 % — 1 day</option>
-          <option value="70">70 % — 0.7 day</option>
-          <option value="30">30 % — 0.3 day</option>
-          <option value="0">0 % — 0 day</option>
+          <option value="100">100 %</option>
+          <option value="70">70 %</option>
+          <option value="30">30 %</option>
+          <option value="0">0 %</option>
         </select>
         {taTakenOnSameDate && (
           <span className="mt-1 block text-xs text-amber-600">
@@ -675,7 +674,7 @@ export function DailyLogForm({
           </span>
         )}
         <span className="mt-1 block text-xs text-slate-500">
-          Claiming <strong>{taDays.toFixed(1)} day</strong> at {taPercentEffective}%
+          Claiming <strong>{taPercentEffective}%</strong>
         </span>
       </Field>
       )}

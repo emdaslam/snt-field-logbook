@@ -494,6 +494,7 @@ function StaffEditor({ existing, onClose }: { existing: Staff | null; onClose: (
     phone: existing?.phone ?? "",
     email: existing?.email ?? "",
     department: existing?.department ?? "Signalling",
+    taRate: existing?.taRate != null && existing.taRate !== "" ? String(existing.taRate) : "",
     stationIds: existing?.stationIds ?? [],
     headquartersStationId: existing?.headquartersStationId ?? null,
     isCurrentUser: existing?.isCurrentUser ?? false,
@@ -519,8 +520,8 @@ function StaffEditor({ existing, onClose }: { existing: Staff | null; onClose: (
         await api.staff.update({ ...o, isCurrentUser: false });
       }
     }
-    if (existing) await api.staff.update({ id: existing.id, ...form });
-    else await api.staff.create(form);
+    if (existing) await api.staff.update({ id: existing.id, ...form, taRate: form.taRate !== "" ? form.taRate : null });
+    else await api.staff.create({ ...form, taRate: form.taRate !== "" ? form.taRate : null });
     await refresh();
     setSaving(false);
     onClose();
@@ -554,6 +555,20 @@ function StaffEditor({ existing, onClose }: { existing: Staff | null; onClose: (
         <select className={inputClass} value={form.department ?? ""} onChange={(e) => setForm({ ...form, department: e.target.value })}>
           {DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}
         </select>
+      </Field>
+      <Field label="TA Rate (₹ per day)">
+        <input
+          className={inputClass}
+          type="number"
+          min={0}
+          step="0.01"
+          placeholder="e.g. 1000"
+          value={form.taRate}
+          onChange={(e) => setForm({ ...form, taRate: e.target.value })}
+        />
+        <span className="mt-1 block text-xs text-slate-500">
+          Used in the TA Journal AMOUNT column — days are multiplied by this rate. Leave blank to keep it unset.
+        </span>
       </Field>
       <Field label="Headquarters Station">
         <select

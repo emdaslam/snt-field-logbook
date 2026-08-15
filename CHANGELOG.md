@@ -3,6 +3,18 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.41 — 2026-08-15
+
+**Change: TA is shown as a percentage, and the TA Journal AMOUNT column now uses a per-staff TA rate** — `…`
+
+- The TA claim is now indicated as a percentage (e.g. **70%**) instead of a
+  fraction of a day (0.7) — in the daily-log form, the log detail, the reports
+  and the exported TA Journal's *TA %* column.
+- Staff details (Settings → Staff Directory) now include a **TA Rate (₹ per day)**.
+  The TA Journal multiplies the days by this rate to fill the **AMOUNT** column.
+- If the current user's TA rate is not set, the export shows a note in the
+  AMOUNT column and a hint on the TA Journal screen pointing to Settings.
+
 ## 1.7.6.40 — 2026-08-15
 
 **Change: notes show a preview and expand on tap instead of the full text** — `420c942`
