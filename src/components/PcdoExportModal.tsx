@@ -1,21 +1,39 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useData } from "./DataProvider";
 import { Modal, Field, inputClass, PrimaryButton } from "./ui";
 import { exportPcdo } from "./exports";
-import { recentPcdoPeriods } from "@/lib/pcdo";
+import { getPcdoPeriod } from "@/lib/pcdo";
 import { fmtDate, pcdoWorkEntries } from "@/lib/api";
+
+/** Month/year label for a period, named after its closing (to) date. */
+function pcdoLabel(toIso: string) {
+  const d = new Date(toIso + "T00:00:00");
+  return Number.isNaN(d.getTime())
+    ? ""
+    : d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+}
 
 export function PcdoExportModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { logs, stations, stationName, myStationIds } = useData();
-  const periods = useMemo(() => recentPcdoPeriods(12), []);
-  const [idx, setIdx] = useState(0);
+  const [period, setPeriod] = useState(() => getPcdoPeriod());
   const [stationFilter, setStationFilter] = useState<number | "">("");
   // Rows unchecked by the user; everything is selected by default.
   const [deselected, setDeselected] = useState<Set<number>>(new Set());
 
-  const period = periods[idx];
+  // Every open defaults to the current PCDO period (26th of last month → 25th of this month).
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
+    if (open) setPeriod(getPcdoPeriod());
+  }
+
+  const setRange = (patch: { from?: string; to?: string }) =>
+    setPeriod((prev) => {
+      const next = { ...prev, ...patch };
+      return { ...next, label: pcdoLabel(next.to) };
+    });
 
   // Disconnections in the same period
   const resolveStationId = (movement: string | null, pcdoId: number | null) => {
@@ -110,21 +128,32 @@ export function PcdoExportModal({ open, onClose }: { open: boolean; onClose: () 
   return (
     <Modal open={open} onClose={onClose} title="Export PCDO (Special Works)" wide>
       <p className="mb-3 text-sm text-slate-600">
-        A PCDO period always runs from the <strong>26th of the previous month</strong> to the{" "}
-        <strong>25th of the current month</strong>. The report is grouped station-wise with the date of each
+        Pick the <strong>from</strong> and <strong>to</strong> dates for the report. The default is the
+        current PCDO period — <strong>26th of the previous month</strong> to{" "}
+        <strong>25th of this month</strong>. The report is grouped station-wise with the date of each
         special work.
       </p>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="PCDO Period">
-          <select className={inputClass} value={idx} onChange={(e) => setIdx(Number(e.target.value))}>
-            {periods.map((p, i) => (
-              <option key={p.from} value={i}>
-                {p.label}
-              </option>
-            ))}
-          </select>
+        <Field label="From">
+          <input
+            type="date"
+            className={inputClass}
+            value={period.from}
+            onChange={(e) => setRange({ from: e.target.value })}
+          />
         </Field>
+        <Field label="To">
+          <input
+            type="date"
+            className={inputClass}
+            value={period.to}
+            onChange={(e) => setRange({ to: e.target.value })}
+          />
+        </Field>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3">
         <Field label="Station">
           <select
             className={inputClass}
@@ -145,6 +174,13 @@ export function PcdoExportModal({ open, onClose }: { open: boolean; onClose: () 
           )}
         </Field>
       </div>
+
+      <button
+        onClick={() => setPeriod(getPcdoPeriod())}
+        className="mb-2 block text-xs font-medium text-blue-700"
+      >
+        Reset to current PCDO period
+      </button>
 
       <div className="mb-3 rounded-lg bg-indigo-50 px-3 py-2 text-sm text-indigo-900">
         Covering <strong>{fmtDate(period.from)}</strong> to <strong>{fmtDate(period.to)}</strong> ·{" "}

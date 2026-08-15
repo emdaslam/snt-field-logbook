@@ -24,22 +24,6 @@ export function getPcdoPeriod(ref: Date = new Date()) {
   };
 }
 
-/** Shift a PCDO period n months backwards/forwards. */
-export function shiftPcdoPeriod(from: string, months: number) {
-  const start = new Date(from + "T00:00:00");
-  return getPcdoPeriod(new Date(start.getFullYear(), start.getMonth() + months, 26));
-}
-
-/** Build a list of recent PCDO periods for a picker. */
-export function recentPcdoPeriods(count = 12, ref: Date = new Date()) {
-  const current = getPcdoPeriod(ref);
-  const out = [current];
-  for (let i = 1; i < count; i++) {
-    out.push(shiftPcdoPeriod(current.from, -i));
-  }
-  return out;
-}
-
 export function isWithin(iso: string | null, from: string, to: string) {
   if (!iso) return false;
   return iso >= from && iso <= to;
