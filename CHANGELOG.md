@@ -3,6 +3,27 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.43 — 2026-08-16
+
+**Feat: Global Search now covers Important Notes** — `c9d244f`
+
+- Notes appear in Global Search together with logs, deficiency tasks and
+  planned works — search their title or body text from any tab, and a *Note*
+  entry in the *All Types* filter narrows the results to notes.
+- Tapping a note result opens the **Important Notes** tab with that note
+  expanded to its full text, scrolled into view, and any active note
+  category/search filter cleared so the note is always visible.
+
+**Change: the backup now includes every app setting as well** — `c9d244f`
+
+- The JSON backup already carried the logbook tables (logs, tasks, stations,
+  staff, tags, notes, note categories); the manifest now also lists **Note
+  Categories** and the exported **App settings**.
+- Backing up now captures the device settings too: font size, entry-text size,
+  reminder lead time, the TA auto-generation windows, the export format and
+  each export's remembered PDF text size. Restoring a backup that contains
+  settings reapplies them, and the app reloads once so they take effect.
+
 ## 1.7.6.42 — 2026-08-15
 
 **Change: PCDO export now accepts a manually picked date range** — `2dc5fc3`
