@@ -3,6 +3,27 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.44 — 2026-08-16
+
+**Feat: Counter resets (UFSBI Block Instrument / MSDAC / BPAC) recorded in the daily log and summarised in the PCDO export** — `c2a7b23`
+
+- **Daily log — Counter Resets section:** tick *Counter Resets* to record resets on the
+  equipment that carry registers. Pick the equipment — **MSDAC**, **UFSBI Block
+  Instrument** or **BPAC** — and enter the number of resets due to **Failures** and due to
+  **Testing**. Several resets can be entered on the same day (one row per equipment /
+  section), and the form shows the running total.
+- **MSDAC counters belong to a station** — the same station as the daily entry, exactly like
+  the disconnection counts; for Rest / Leave / CR / NH special movements you pick the station
+  yourself.
+- **UFSBI and BPAC counters belong to the section between two stations** — the daily-log
+  station and a **next station** you select; the entry reads *Station A → Station B*.
+- **PCDO export:** the report now prints a **Counter Resets** summary right after
+  Disconnections, grouped station-wise with the Failures / Testing / Total per equipment and
+  a grand total (both resets counted). The export dialog also shows the counter resets
+  recorded in the selected period.
+- **Reports tab:** a new **Counter Resets** count with a per-equipment breakdown, and the
+  timeline / log detail now show each entry's resets.
+
 ## 1.7.6.43 — 2026-08-16
 
 **Feat: Global Search now covers Important Notes** — `c9d244f`
