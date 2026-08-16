@@ -452,6 +452,7 @@ export function counterResetsOf(
         r.equipment === "MSDAC" || r.equipment === "UFSBI Block Instrument" || r.equipment === "BPAC"
           ? r.equipment
           : "MSDAC",
+      stationId: r.stationId ?? null,
       nextStationId: r.nextStationId ?? null,
       failures: num(r.failures),
       testing: num(r.testing),

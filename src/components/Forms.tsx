@@ -223,7 +223,7 @@ export function DailyLogForm({
   const [counterRows, setCounterRows] = useState<CounterReset[]>(
     existing?.counterResets?.length ? existing.counterResets : []
   );
-  const emptyCounter: CounterReset = { equipment: "MSDAC", nextStationId: null, failures: 0, testing: 0 };
+  const emptyCounter: CounterReset = { equipment: "MSDAC", stationId: null, nextStationId: null, failures: 0, testing: 0 };
   const addCounterRow = () => setCounterRows((prev) => [...prev, { ...emptyCounter }]);
   const updateCounterRow = (i: number, patch: Partial<CounterReset>) =>
     setCounterRows((prev) => prev.map((r, x) => (x === i ? { ...r, ...patch } : r)));
@@ -331,9 +331,20 @@ export function DailyLogForm({
     if (countersOpen) {
       for (const r of counterRows) {
         const hasCount = (Number(r.failures) || 0) + (Number(r.testing) || 0) > 0;
-        if (r.equipment !== "MSDAC" && hasCount && !r.nextStationId) {
-          setError(`Select the next station for the ${r.equipment} counter reset.`);
-          return;
+        if (r.equipment !== "MSDAC" && hasCount) {
+          if (movementKind !== "station") {
+            if (!r.stationId || !r.nextStationId) {
+              setError(`Select both stations for the ${r.equipment} counter reset.`);
+              return;
+            }
+            if (r.stationId === r.nextStationId) {
+              setError(`The two stations for the ${r.equipment} counter reset must be different.`);
+              return;
+            }
+          } else if (!r.nextStationId) {
+            setError(`Select the next station for the ${r.equipment} counter reset.`);
+            return;
+          }
         }
       }
     }
@@ -458,6 +469,7 @@ export function DailyLogForm({
         ? counterRows
             .map((r) => ({
               equipment: r.equipment,
+              stationId: r.equipment === "MSDAC" || movementKind === "station" ? null : r.stationId,
               nextStationId: r.equipment === "MSDAC" ? null : r.nextStationId,
               failures: Number(r.failures) || 0,
               testing: Number(r.testing) || 0,
@@ -1101,6 +1113,7 @@ export function DailyLogForm({
                         onChange={(e) =>
                           updateCounterRow(i, {
                             equipment: e.target.value as CounterReset["equipment"],
+                            stationId: e.target.value === "MSDAC" ? null : r.stationId,
                             nextStationId:
                               e.target.value === "MSDAC" ? null : r.nextStationId,
                           })
@@ -1147,15 +1160,19 @@ export function DailyLogForm({
                   </div>
                   <p className="mt-1.5 text-xs text-slate-600">
                     {isSection ? (
-                      <>
-                        Between{" "}
-                        <strong className="text-slate-800">
-                          {pcdoStationId
-                            ? stations.find((x) => x.id === pcdoStationId)?.name
-                            : movement || "this station"}
-                        </strong>{" "}
-                        and the next station:
-                      </>
+                      movementKind !== "station" ? (
+                        <>Section between two stations:</>
+                      ) : (
+                        <>
+                          Between{" "}
+                          <strong className="text-slate-800">
+                            {pcdoStationId
+                              ? stations.find((x) => x.id === pcdoStationId)?.name
+                              : movement || "this station"}
+                          </strong>{" "}
+                          and the next station:
+                        </>
+                      )
                     ) : (
                       <>
                         Counter at{" "}
@@ -1169,34 +1186,93 @@ export function DailyLogForm({
                     )}
                   </p>
                   {isSection ? (
-                    <label className="mt-1.5 block">
-                      <span className="mb-1 block text-xs font-medium text-slate-700">
-                        Next station{" "}
-                        <span className="font-normal text-slate-400">(far end of the section)</span>
-                      </span>
-                      <select
-                        className={inputClass}
-                        value={r.nextStationId ?? ""}
-                        onChange={(e) =>
-                          updateCounterRow(i, { nextStationId: e.target.value ? Number(e.target.value) : null })
-                        }
-                      >
-                        <option value="">— Select next station —</option>
-                        {stations
-                          .filter((s) => s.id !== resolvedStation?.id)
-                          .map((s) => (
-                            <option key={s.id} value={s.id}>
-                              {s.name}
-                            </option>
-                          ))}
-                      </select>
-                      {!r.nextStationId && (
-                        <span className="mt-1 block text-xs text-amber-600">
-                          Select the next station so this counter reset is grouped correctly in the
-                          PCDO export.
+                    movementKind !== "station" ? (
+                      <>
+                        <div className="mt-1.5 flex flex-wrap items-end gap-2">
+                          <label className="block min-w-[10rem] flex-1">
+                            <span className="mb-1 block text-xs font-medium text-slate-700">
+                              From station
+                            </span>
+                            <select
+                              className={inputClass}
+                              value={r.stationId ?? ""}
+                              onChange={(e) =>
+                                updateCounterRow(i, {
+                                  stationId: e.target.value ? Number(e.target.value) : null,
+                                })
+                              }
+                            >
+                              <option value="">— Select station —</option>
+                              {stations
+                                .filter((s) => s.id !== r.nextStationId)
+                                .map((s) => (
+                                  <option key={s.id} value={s.id}>
+                                    {s.name}
+                                  </option>
+                                ))}
+                            </select>
+                          </label>
+                          <label className="block min-w-[10rem] flex-1">
+                            <span className="mb-1 block text-xs font-medium text-slate-700">
+                              Next station
+                            </span>
+                            <select
+                              className={inputClass}
+                              value={r.nextStationId ?? ""}
+                              onChange={(e) =>
+                                updateCounterRow(i, {
+                                  nextStationId: e.target.value ? Number(e.target.value) : null,
+                                })
+                              }
+                            >
+                              <option value="">— Select station —</option>
+                              {stations
+                                .filter((s) => s.id !== r.stationId)
+                                .map((s) => (
+                                  <option key={s.id} value={s.id}>
+                                    {s.name}
+                                  </option>
+                                ))}
+                            </select>
+                          </label>
+                        </div>
+                        {(!r.stationId || !r.nextStationId) && (
+                          <span className="mt-1 block text-xs text-amber-600">
+                            Select both stations so this counter reset is grouped correctly in the
+                            PCDO export.
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <label className="mt-1.5 block">
+                        <span className="mb-1 block text-xs font-medium text-slate-700">
+                          Next station{" "}
+                          <span className="font-normal text-slate-400">(far end of the section)</span>
                         </span>
-                      )}
-                    </label>
+                        <select
+                          className={inputClass}
+                          value={r.nextStationId ?? ""}
+                          onChange={(e) =>
+                            updateCounterRow(i, { nextStationId: e.target.value ? Number(e.target.value) : null })
+                          }
+                        >
+                          <option value="">— Select next station —</option>
+                          {stations
+                            .filter((s) => s.id !== resolvedStation?.id)
+                            .map((s) => (
+                              <option key={s.id} value={s.id}>
+                                {s.name}
+                              </option>
+                            ))}
+                        </select>
+                        {!r.nextStationId && (
+                          <span className="mt-1 block text-xs text-amber-600">
+                            Select the next station so this counter reset is grouped correctly in the
+                            PCDO export.
+                          </span>
+                        )}
+                      </label>
+                    )
                   ) : (
                     !resolvedStation && (
                       <label className="mt-1.5 block">

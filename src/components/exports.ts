@@ -262,11 +262,16 @@ export function pcdoReportBody(
     if (list.length === 0) continue;
     const d = e.pcdoDate || e.logDate;
     if (d < period.from || d > period.to) continue;
-    if (stationFilter && logStationId(e) !== stationFilter) continue;
-    const from = logStationName(e);
+    if (
+      stationFilter &&
+      logStationId(e) !== stationFilter &&
+      !list.some((r) => r.stationId === stationFilter)
+    )
+      continue;
     for (const r of list) {
+      const from = r.stationId ? stationName(r.stationId) : logStationName(e);
       const location =
-        r.equipment === "MSDAC" ? from : `${from} → ${stationName(r.nextStationId)}`;
+        r.equipment === "MSDAC" ? from : `${from} - ${stationName(r.nextStationId)}`;
       const key = `${location}|${r.equipment}`;
       const prev = resetAgg.get(key);
       if (prev) {

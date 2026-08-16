@@ -202,7 +202,7 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
                     title: `${r.equipment} — ${
                       r.equipment === "MSDAC"
                         ? stationName(l.pcdoStationId)
-                        : `${stationName(l.pcdoStationId)} → ${stationName(r.nextStationId)}`
+                        : `${r.stationId ? stationName(r.stationId) : stationName(l.pcdoStationId)} - ${stationName(r.nextStationId)}`
                     }`,
                     sub: `Failures ${r.failures} · Testing ${r.testing}`,
                     badge: `${r.failures + r.testing}`,

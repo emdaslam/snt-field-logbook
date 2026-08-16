@@ -148,7 +148,7 @@ export function LogDetailModal({
                   {r.equipment}
                   {r.equipment === "MSDAC"
                     ? ` · ${stationName(log.pcdoStationId)}`
-                    : ` · ${stationName(log.pcdoStationId)} → ${stationName(r.nextStationId)}`}
+                    : ` · ${r.stationId ? stationName(r.stationId) : stationName(log.pcdoStationId)} - ${stationName(r.nextStationId)}`}
                 </span>
                 <span className="text-xs text-teal-800">
                   Failures {r.failures} · Testing {r.testing}

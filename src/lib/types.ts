@@ -20,11 +20,16 @@ export type CounterEquipment = (typeof COUNTER_EQUIPMENT)[number];
 /** A counter reset recorded on a daily log for the PCDO return. The reset is
  *  either due to an equipment failure or due to testing. The station a counter
  *  belongs to mirrors the log's PCDO station (see the disconnection counts);
- *  only UFSBI / BPAC counters also carry a user-picked "next station". */
+ *  only UFSBI / BPAC counters also carry user-picked section end stations. */
 export type CounterReset = {
   equipment: CounterEquipment;
+  /** For UFSBI / BPAC only: the near end of the section. Null when the near
+   *  end is the daily-log station itself (a plain station movement); set
+   *  explicitly when the movement is special (Rest/Leave/CR/NH/Footplate) so
+   *  both ends of the section are recorded. Always null for MSDAC. */
+  stationId: number | null;
   /** For UFSBI / BPAC only: the other end of the section, i.e. the station
-   *  the counter is between the daily-log station and. Always null for MSDAC. */
+   *  the counter is between the near station and. Always null for MSDAC. */
   nextStationId: number | null;
   /** Counter resets due to equipment failures. */
   failures: number;
@@ -141,5 +146,5 @@ export const STATION_DISTANCE_LABEL: Record<StationDistance, string> = {
 };
 
 /** App version shown in Settings → About. Bump alongside android/app/build.gradle. */
-export const APP_VERSION_BASE = "1.7.6.44";
+export const APP_VERSION_BASE = "1.7.6.45";
 export const APP_VERSION = `${APP_VERSION_BASE}${AUTO_TIMINGS ? "p" : ""}`;
