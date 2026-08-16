@@ -3,6 +3,19 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.45 — 2026-08-16
+
+**Fix: counter-reset sections print as "Station A - Station B", and special-movement days ask for both stations** — `f169030`
+
+- The **PCDO export** Counter Resets table (and the Reports breakdown, timeline badge and
+  log-detail card) now writes a UFSBI Block Instrument / BPAC section as *Station A -
+  Station B* instead of *Station A → Station B*.
+- On special-movement days (Rest / Leave / CR / NH / Footplate) the daily log now asks for
+  **both** ends of the section for a UFSBI / BPAC counter reset — a *From station* and a
+  *Next station* — instead of silently reusing the PCDO station. The two stations must
+  differ, and the chosen From station is what the PCDO export and the station filter group
+  by. On ordinary station days the near end still comes from the daily-log station.
+
 ## 1.7.6.44 — 2026-08-16
 
 **Feat: Counter resets (UFSBI Block Instrument / MSDAC / BPAC) recorded in the daily log and summarised in the PCDO export** — `c2a7b23`
