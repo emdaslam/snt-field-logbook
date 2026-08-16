@@ -5,7 +5,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.46 — 2026-08-16
 
-**Fix: the calendar's "Today" (and "Go to date") now also scroll the entry list back to that date** — `(pending)`
+**Fix: the calendar's "Today" (and "Go to date") now also scroll the entry list back to that date** — `6891ced`
 
 - After swiping the entry list away from a date, tapping *Today* in the calendar
   header only moved the calendar highlight — the lower list stayed where it was
