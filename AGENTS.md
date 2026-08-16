@@ -22,15 +22,15 @@ If new changes exist (new CHANGELOG entries whose commits are missing, or new
 remote commits), integrate them into the working copy first:
 
 1. Pull the latest code (`git pull origin master`).
-2. Rebuild the affected artifacts so the working copy is fully current. The
-   single codebase builds **both** APK variants (normal + personal `p`) via
-   `scripts/build-variants.sh [normal|p|both]` (default `both`) — or just one
-   variant when only that side changed:
-   - Both: `npm run apk:build` (web bundles → `cap sync android` → `gradlew
-     assembleDebug` → stages `.apk-download/SnTFieldlogbook-v<version>.apk`
-     and `...v<version>p.apk`).
-   - Normal only (manual-timing changes): `npm run apk:build normal`.
-   - Personal only (auto-timing changes): `npm run apk:build p`.
+2. Do NOT rebuild APKs that are already present in the repo. The upstream
+   commits carry their own built APKs (`.apk-download/SnTFieldlogbook-v…apk`);
+   take those as-is. Rebuild only when making NEW changes that bump the version,
+   never just to "refresh" already-committed artifacts — a rebuild produces a
+   binary-only diff with no functional value.
+   When a NEW change does need a build, `npm run apk:build` builds both variants
+   (web bundles → `cap sync android` → `gradlew assembleDebug` → stages
+   `.apk-download/SnTFieldlogbook-v<version>.apk` and `...v<version>p.apk`);
+   `npm run apk:build normal` or `npm run apk:build p` builds one side only.
 3. If the incoming changes bump the version, update `CHANGELOG.md` and the
    download page (`.apk-download/index.html`) to match.
 4. Commit and push the integrated state.
