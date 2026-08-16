@@ -1,12 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useData } from "./DataProvider";
 import { Modal, Field, inputClass, PrimaryButton, Chip, Highlight } from "./ui";
 import { api, fmtDate } from "@/lib/api";
 import type { Note } from "@/db/schema";
 
-export function Notes() {
+export function Notes({ focusNote }: { focusNote?: Note | null }) {
   const { notes, noteCategories, stationName, refresh, autoSync } = useData();
   const colorOf = (name: string) =>
     noteCategories.find((c) => c.name === name)?.color ?? "#64748b";
@@ -15,6 +15,20 @@ export function Notes() {
   const [editing, setEditing] = useState<Note | null>(null);
   const [adding, setAdding] = useState(false);
   const [managing, setManaging] = useState(false);
+  // The note opened from Global Search: clear the search/filters so it is
+  // visible and expand that one card. Adjusted during render (React's
+  // recommended pattern for deriving state from a prop), like PcdoExportModal.
+  const [focusId, setFocusId] = useState<number | null>(null);
+  const [prevFocus, setPrevFocus] = useState<Note | null>(null);
+  if (focusNote && focusNote !== prevFocus) {
+    setPrevFocus(focusNote);
+    setFocusId(focusNote.id);
+    setQ("");
+    setCat("");
+  } else if (!focusNote && prevFocus !== null) {
+    setPrevFocus(null);
+    setFocusId(null);
+  }
 
   const filtered = useMemo(() => {
     const ql = q.toLowerCase();
@@ -81,14 +95,14 @@ export function Notes() {
           <p className="px-1 text-xs font-bold uppercase tracking-wide text-amber-700">📌 Pinned</p>
         )}
         {pinned.map((n) => (
-          <NoteCard key={n.id} note={n} onEdit={setEditing} onPin={togglePin} stationName={stationName} refresh={refresh} colorOf={colorOf} query={q} />
+          <NoteCard key={n.id} note={n} onEdit={setEditing} onPin={togglePin} stationName={stationName} refresh={refresh} colorOf={colorOf} query={q} initiallyExpanded={focusId === n.id} />
         ))}
 
         {pinned.length > 0 && rest.length > 0 && (
           <p className="px-1 pt-1 text-xs font-bold uppercase tracking-wide text-slate-400">Other notes</p>
         )}
         {rest.map((n) => (
-          <NoteCard key={n.id} note={n} onEdit={setEditing} onPin={togglePin} stationName={stationName} refresh={refresh} colorOf={colorOf} query={q} />
+          <NoteCard key={n.id} note={n} onEdit={setEditing} onPin={togglePin} stationName={stationName} refresh={refresh} colorOf={colorOf} query={q} initiallyExpanded={focusId === n.id} />
         ))}
       </div>
 
@@ -108,6 +122,7 @@ function NoteCard({
   refresh,
   colorOf,
   query,
+  initiallyExpanded = false,
 }: {
   note: Note;
   onEdit: (n: Note) => void;
@@ -116,12 +131,21 @@ function NoteCard({
   refresh: () => Promise<void>;
   colorOf: (name: string) => string;
   query: string;
+  initiallyExpanded?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(initiallyExpanded);
   const showBody = Boolean(note.body);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  // A note opened from Global Search scrolls into view when it first mounts.
+  useEffect(() => {
+    if (initiallyExpanded) {
+      cardRef.current?.scrollIntoView({ block: "center" });
+    }
+  }, [initiallyExpanded]);
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+    <div ref={cardRef} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
       <div className="flex items-start justify-between gap-2">
         <p className="min-w-0 flex-1 font-semibold text-slate-800">
           <Highlight text={note.title} query={query} />

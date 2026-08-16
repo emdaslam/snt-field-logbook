@@ -22,14 +22,23 @@ export function BackupModal({ open, onClose }: { open: boolean; onClose: () => v
 
   const filename = `snt-backup-${new Date().toISOString().slice(0, 10)}.json`;
 
+  // Reset the box every time the modal opens (render-phase adjustment, like
+  // PcdoExportModal) so the fetch below always starts from a clean slate.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
+    if (open) {
+      setJson("");
+      setError(null);
+      setSummary(null);
+      setStatus("Preparing backup…");
+    }
+  }
+
   // Fetch the backup payload as soon as the modal opens
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    setJson("");
-    setError(null);
-    setSummary(null);
-    setStatus("Preparing backup…");
     (async () => {
       try {
         const text = JSON.stringify(await api.backup.export(), null, 2);
@@ -157,8 +166,9 @@ export function BackupModal({ open, onClose }: { open: boolean; onClose: () => v
     <Modal open={open} onClose={onClose} title="Export Backup (JSON)" wide>
       <p className="mb-2 text-sm text-slate-600">
         A complete snapshot of everything you have entered — every daily log (including attached photos and
-        files), deficiency task, planned work, station, staff member and tag. Importing this file restores all
-        of it exactly.
+        files), deficiency task, planned work, important note, station, staff member and tag — plus every app
+        setting (font size, entry-text size, reminder lead time, TA auto-generation windows, export format,
+        …). Importing this file restores all of it exactly.
       </p>
 
       <div

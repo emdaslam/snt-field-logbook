@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Modal, PrimaryButton } from "./ui";
 import { useData } from "./DataProvider";
 import { BackupManifest } from "./BackupManifest";
@@ -14,32 +14,32 @@ export function RestoreModal({ open, onClose }: { open: boolean; onClose: () => 
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [preview, setPreview] = useState<BackupSummary | null>(null);
   const [restored, setRestored] = useState<BackupSummary | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Live-preview whatever JSON is currently in the box
-  useEffect(() => {
-    if (!text.trim()) {
-      setPreview(null);
-      return;
-    }
-    try {
-      const s = summarizeBackup(JSON.parse(text));
-      setPreview(s.valid ? s : null);
-    } catch {
-      setPreview(null);
-    }
-  }, [text]);
-
-  useEffect(() => {
+  // Reset the box every time the modal closes (render-phase adjustment, like
+  // PcdoExportModal) so each open starts clean.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
     if (!open) {
       setText("");
       setStatus(null);
       setError(null);
       setRestored(null);
     }
-  }, [open]);
+  }
+
+  // Live-preview whatever JSON is currently in the box
+  const preview = useMemo(() => {
+    if (!text.trim()) return null;
+    try {
+      const s = summarizeBackup(JSON.parse(text));
+      return s.valid ? s : null;
+    } catch {
+      return null;
+    }
+  }, [text]);
 
   async function loadFile(file: File) {
     try {
@@ -76,13 +76,24 @@ export function RestoreModal({ open, onClose }: { open: boolean; onClose: () => 
       // full dataset so the manual restore is also reflected in the cloud.
       markAllDirty();
 
+      void autoSync();
+      await refresh();
+
+      // App settings live in localStorage and are read once at startup, so a
+      // restore that brought any back needs a reload for them to take effect.
+      const hadSettings =
+        p.settings && typeof p.settings === "object" && Object.keys(p.settings).length > 0;
+
+      if (hadSettings) {
+        setStatus("✅ Restored — reloading the app to apply the restored settings…");
+        window.setTimeout(() => window.location.reload(), 900);
+        return;
+      }
+
       // Read the store back and confirm everything landed
       const nowSummary = summarizeBackup(await api.backup.export());
       const expected = summarizeBackup(parsed as Record<string, never>);
       setRestored(nowSummary);
-
-      void autoSync();
-      await refresh();
 
       if (nowSummary.totalRecords === expected.totalRecords) {
         setStatus(

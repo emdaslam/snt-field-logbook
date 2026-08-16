@@ -21,7 +21,7 @@ import { DailyLogForm, DeficiencyForm, PlannedWorkForm } from "./Forms";
 import { Onboarding } from "./Onboarding";
 import { isNative } from "@/lib/native";
 import { toISODate, fmtDate } from "@/lib/api";
-import type { DailyLog, Attachment, DeficiencyTask, PlannedWork } from "@/db/schema";
+import type { DailyLog, Attachment, DeficiencyTask, PlannedWork, Note } from "@/db/schema";
 
 type View = "home" | "tasks" | "search" | "reports" | "notes" | "attachments" | "settings";
 
@@ -103,6 +103,8 @@ export function AppShell() {
   const [selAttachment, setSelAttachment] = useState<Attachment | null>(null);
   const [searchDef, setSearchDef] = useState<DeficiencyTask | null>(null);
   const [searchPlan, setSearchPlan] = useState<PlannedWork | null>(null);
+  // A note picked in Global Search — the Notes screen opens it expanded.
+  const [searchNote, setSearchNote] = useState<Note | null>(null);
   const [taskTab, setTaskTab] = useState<"deficiencies" | "planned" | "archive">("deficiencies");
   const [highlightId, setHighlightId] = useState<string | null>(null);
 
@@ -578,10 +580,11 @@ export function AppShell() {
                 onOpenLog={(l) => setDetailLog(l)}
                 onOpenDef={(d) => setSearchDef(d)}
                 onOpenPlan={(p) => setSearchPlan(p)}
+                onOpenNote={(n) => { setView("notes"); setSearchNote(n); }}
               />
             )}
             {view === "reports" && <Reports onOpenMonthly={() => setMonthlyOpen(true)} />}
-            {view === "notes" && <Notes />}
+            {view === "notes" && <Notes focusNote={searchNote} />}
             {view === "attachments" && <AttachmentsView onSelect={setSelAttachment} />}
             {view === "settings" && <Settings />}
           </div>
@@ -612,7 +615,7 @@ export function AppShell() {
         ] as [View, string, string][]).map(([key, label, path]) => (
           <button
             key={key}
-            onClick={() => setView(key)}
+            onClick={() => { setView(key); if (key === "notes") setSearchNote(null); }}
             className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium ${
               view === key ? "text-blue-800" : "text-slate-400"
             }`}
@@ -643,7 +646,7 @@ export function AppShell() {
             {(["home", "tasks", "search", "reports", "notes", "attachments", "settings"] as View[]).map((v) => (
               <button
                 key={v}
-                onClick={() => { setView(v); setDrawer(false); }}
+                onClick={() => { setView(v); if (v === "notes") setSearchNote(null); setDrawer(false); }}
                 className={`mb-1 block w-full rounded-lg px-3 py-2.5 text-left text-sm capitalize ${
                   view === v ? "bg-emerald-500 font-semibold" : "hover:bg-blue-800"
                 }`}

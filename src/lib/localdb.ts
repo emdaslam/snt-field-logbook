@@ -7,6 +7,8 @@
  * expects, with a simple auto-increment id per table.
  */
 
+import { collectAppSettings, applyAppSettings } from "./appSettings";
+
 export const TABLES = [
   "stations",
   "staff",
@@ -133,8 +135,9 @@ export async function remove(table: TableName, id: number): Promise<void> {
 export async function exportAll(): Promise<Record<string, unknown>> {
   const out: Record<string, unknown> = {
     exportedAt: new Date().toISOString(),
-    version: 2,
+    version: 3,
     offline: true,
+    settings: collectAppSettings(),
   };
   for (const t of TABLES) out[t] = await readTable(t);
   return out;
@@ -154,6 +157,9 @@ export async function importAll(payload: Record<string, unknown>): Promise<void>
       });
       await writeTable(t, clean);
     }
+  }
+  if (payload.settings && typeof payload.settings === "object") {
+    applyAppSettings(payload.settings as Record<string, string>);
   }
 }
 

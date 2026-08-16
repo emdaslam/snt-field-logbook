@@ -9,6 +9,7 @@ export type BackupPayload = {
   plannedWorks?: unknown[];
   notes?: unknown[];
   noteCategories?: unknown[];
+  settings?: Record<string, string>;
 };
 
 export const BACKUP_TABLES = [
@@ -19,11 +20,13 @@ export const BACKUP_TABLES = [
   { key: "staff", label: "Staff" },
   { key: "tags", label: "Tags" },
   { key: "notes", label: "Important Notes" },
+  { key: "noteCategories", label: "Note Categories" },
 ] as const;
 
 export type BackupSummary = {
   counts: Record<string, number>;
   attachments: number;
+  settings: number;
   totalRecords: number;
   exportedAt: string | null;
   valid: boolean;
@@ -51,6 +54,11 @@ export function summarizeBackup(payload: BackupPayload | null): BackupSummary {
     }
   }
 
+  const settings =
+    payload?.settings && typeof payload.settings === "object"
+      ? Object.keys(payload.settings).length
+      : 0;
+
   const valid =
     !!payload &&
     typeof payload === "object" &&
@@ -59,6 +67,7 @@ export function summarizeBackup(payload: BackupPayload | null): BackupSummary {
   return {
     counts,
     attachments,
+    settings,
     totalRecords,
     exportedAt: typeof payload?.exportedAt === "string" ? payload.exportedAt : null,
     valid,

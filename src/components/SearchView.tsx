@@ -5,20 +5,22 @@ import { useData } from "./DataProvider";
 import { Chip, Highlight } from "./ui";
 import { fmtDate } from "@/lib/api";
 import { DEPARTMENTS, PRIORITIES, STATUSES, DEPARTMENT_COLORS, PRIORITY_COLORS } from "@/lib/types";
-import type { DailyLog, DeficiencyTask, PlannedWork } from "@/db/schema";
+import type { DailyLog, DeficiencyTask, PlannedWork, Note } from "@/db/schema";
 
-type ResultType = "Log" | "Deficiency" | "Planned Work";
+type ResultType = "Log" | "Deficiency" | "Planned Work" | "Note";
 
 export function SearchView({
   onOpenLog,
   onOpenDef,
   onOpenPlan,
+  onOpenNote,
 }: {
   onOpenLog: (l: DailyLog) => void;
   onOpenDef: (d: DeficiencyTask) => void;
   onOpenPlan: (p: PlannedWork) => void;
+  onOpenNote: (n: Note) => void;
 }) {
-  const { logs, deficiencies, planned, tags, stations, staff, stationName } = useData();
+  const { logs, deficiencies, planned, notes, noteCategories, tags, stations, staff, stationName } = useData();
   const [q, setQ] = useState("");
   const [typeF, setTypeF] = useState<ResultType | "">("");
   const [stationF, setStationF] = useState<number | "">("");
@@ -117,8 +119,31 @@ export function SearchView({
         });
       }
     }
+    if (!typeF || typeF === "Note") {
+      for (const n of notes) {
+        if (stationF && n.stationId !== stationF) continue;
+        if (deptF || prioF || tagF || statusF || staffF || attachF) continue;
+        const text = `${n.title} ${n.body ?? ""}`.toLowerCase();
+        if (ql && !text.includes(ql)) continue;
+        const cat = noteCategories.find((c) => c.name === n.category);
+        out.push({
+          key: "n" + n.id,
+          type: "Note",
+          id: n.id,
+          title: n.title,
+          sub: n.body || "",
+          chips: [
+            { label: n.category, color: cat?.color ?? "#64748b" },
+            ...(n.stationId ? [{ label: stationName(n.stationId), color: "#0e7490" }] : []),
+            ...(n.pinned ? [{ label: "Pinned", color: "#f59e0b" }] : []),
+            ...(n.refDate ? [{ label: fmtDate(n.refDate), color: "#7c3aed" }] : []),
+          ],
+          date: n.refDate ?? "",
+        });
+      }
+    }
     return out;
-  }, [q, typeF, stationF, deptF, prioF, tagF, statusF, staffF, attachF, logs, deficiencies, planned, tags, stationName]);
+  }, [q, typeF, stationF, deptF, prioF, tagF, statusF, staffF, attachF, logs, deficiencies, planned, notes, noteCategories, tags, stationName]);
 
   const selCls = "w-full min-w-0 rounded-full border border-slate-300 bg-white px-2.5 py-1 text-xs text-slate-700";
 
@@ -128,7 +153,7 @@ export function SearchView({
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search logs, tasks & planned works…"
+          placeholder="Search logs, tasks, notes & planned works…"
           className="w-full rounded-full border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
         />
         <div className="grid grid-cols-3 gap-2">
@@ -137,6 +162,7 @@ export function SearchView({
             <option>Log</option>
             <option>Deficiency</option>
             <option>Planned Work</option>
+            <option>Note</option>
           </select>
           <select className={selCls} value={stationF} onChange={(e) => setStationF(e.target.value ? Number(e.target.value) : "")}>
             <option value="">All Stations</option>
@@ -186,6 +212,9 @@ export function SearchView({
               } else if (r.type === "Deficiency") {
                 const d = deficiencies.find((x) => x.id === r.id);
                 if (d) onOpenDef(d);
+              } else if (r.type === "Note") {
+                const n = notes.find((x) => x.id === r.id);
+                if (n) onOpenNote(n);
               } else {
                 const p = planned.find((x) => x.id === r.id);
                 if (p) onOpenPlan(p);

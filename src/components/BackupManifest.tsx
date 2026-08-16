@@ -35,6 +35,16 @@ export function BackupManifest({
             {summary.attachments}
           </span>
         </div>
+        <div className="flex items-baseline justify-between text-sm">
+          <span className="text-slate-600">App settings</span>
+          <span
+            className={`font-semibold tabular-nums ${
+              summary.settings > 0 ? "text-emerald-700" : "text-slate-300"
+            }`}
+          >
+            {summary.settings > 0 ? `${summary.settings} saved` : "—"}
+          </span>
+        </div>
       </div>
       <div className="mt-2 flex items-baseline justify-between border-t border-slate-100 pt-2 text-sm">
         <span className="font-medium text-slate-700">Total records</span>
