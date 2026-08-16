@@ -10,6 +10,28 @@ export type PcdoWork = {
   work: string;
 };
 
+/** The equipment that carries a counter (register) whose resets are reported
+ *  in the monthly PCDO return. MSDAC counters belong to a single station;
+ *  UFSBI Block Instrument and BPAC counters belong to the section between two
+ *  stations. */
+export const COUNTER_EQUIPMENT = ["MSDAC", "UFSBI Block Instrument", "BPAC"] as const;
+export type CounterEquipment = (typeof COUNTER_EQUIPMENT)[number];
+
+/** A counter reset recorded on a daily log for the PCDO return. The reset is
+ *  either due to an equipment failure or due to testing. The station a counter
+ *  belongs to mirrors the log's PCDO station (see the disconnection counts);
+ *  only UFSBI / BPAC counters also carry a user-picked "next station". */
+export type CounterReset = {
+  equipment: CounterEquipment;
+  /** For UFSBI / BPAC only: the other end of the section, i.e. the station
+   *  the counter is between the daily-log station and. Always null for MSDAC. */
+  nextStationId: number | null;
+  /** Counter resets due to equipment failures. */
+  failures: number;
+  /** Counter resets due to testing. */
+  testing: number;
+};
+
 export const PRIORITIES = ["Urgent", "Normal", "Later"] as const;
 export type Priority = (typeof PRIORITIES)[number];
 
@@ -119,5 +141,5 @@ export const STATION_DISTANCE_LABEL: Record<StationDistance, string> = {
 };
 
 /** App version shown in Settings → About. Bump alongside android/app/build.gradle. */
-export const APP_VERSION_BASE = "1.7.6.43";
+export const APP_VERSION_BASE = "1.7.6.44";
 export const APP_VERSION = `${APP_VERSION_BASE}${AUTO_TIMINGS ? "p" : ""}`;

@@ -1,5 +1,5 @@
 import { exportDocument } from "@/lib/pdf";
-import { fmtDate, toISODate, formatFootplateShifts, footplateTrainList, pcdoWorkEntries } from "@/lib/api";
+import { fmtDate, toISODate, formatFootplateShifts, footplateTrainList, pcdoWorkEntries, counterResetsOf } from "@/lib/api";
 import { formatInspectionDates } from "@/lib/inspections";
 import { isSpecialMovement } from "@/lib/types";
 import { AUTO_TIMINGS } from "@/lib/timingsMode";
@@ -248,6 +248,56 @@ export function pcdoReportBody(
       body += `<tr><td>${esc(station)}</td><td>${t.sw}</td><td>${t.fa}</td><td>${t.mt}</td><td>${t.np}</td><td><strong>${t.total}</strong></td></tr>`;
     }
     body += `<tr><td><strong>Grand Total</strong></td><td><strong>${grand.sw}</strong></td><td><strong>${grand.fa}</strong></td><td><strong>${grand.mt}</strong></td><td><strong>${grand.np}</strong></td><td><strong>${grand.total}</strong></td></tr>`;
+    body += `</table>`;
+  }
+
+  /* ---------- Counter Resets ---------- */
+  type ResetRow = { location: string; equipment: string; failures: number; testing: number };
+  // One row per (location × equipment); the station is the same one the
+  // disconnections use (explicit PCDO station, else the movement's station),
+  // and UFSBI / BPAC locations also name the far ("next") station.
+  const resetAgg = new Map<string, ResetRow>();
+  for (const e of logs) {
+    const list = counterResetsOf(e);
+    if (list.length === 0) continue;
+    const d = e.pcdoDate || e.logDate;
+    if (d < period.from || d > period.to) continue;
+    if (stationFilter && logStationId(e) !== stationFilter) continue;
+    const from = logStationName(e);
+    for (const r of list) {
+      const location =
+        r.equipment === "MSDAC" ? from : `${from} → ${stationName(r.nextStationId)}`;
+      const key = `${location}|${r.equipment}`;
+      const prev = resetAgg.get(key);
+      if (prev) {
+        prev.failures += r.failures;
+        prev.testing += r.testing;
+      } else {
+        resetAgg.set(key, { location, equipment: r.equipment, failures: r.failures, testing: r.testing });
+      }
+    }
+  }
+  const sortedResets = [...resetAgg.values()].sort(
+    (a, b) => a.location.localeCompare(b.location) || a.equipment.localeCompare(b.equipment)
+  );
+  const resetGrand = sortedResets.reduce(
+    (a, r) => ({ fa: a.fa + r.failures, tt: a.tt + r.testing }),
+    { fa: 0, tt: 0 }
+  );
+  const resetGrandTotal = resetGrand.fa + resetGrand.tt;
+
+  body += `<h1 style="margin-top:34px">Counter Resets (${esc(period.label)})</h1>`;
+  body += `<p class="meta">PCDO period: ${fmtDate(period.from)} to ${fmtDate(period.to)} · ${resetGrandTotal} reset${resetGrandTotal !== 1 ? "s" : ""} (${resetGrand.fa} from failures, ${resetGrand.tt} from testing)</p>`;
+
+  if (sortedResets.length === 0) {
+    body += `<p class="empty">No counter resets recorded for this period.</p>`;
+  } else {
+    body += `<h2>Summary — Station-wise</h2>`;
+    body += `<table><tr><th>Station / Section</th><th>Equipment</th><th>Failures</th><th>Testing</th><th>Total</th></tr>`;
+    for (const r of sortedResets) {
+      body += `<tr><td>${esc(r.location)}</td><td>${esc(r.equipment)}</td><td>${r.failures}</td><td>${r.testing}</td><td><strong>${r.failures + r.testing}</strong></td></tr>`;
+    }
+    body += `<tr><td><strong>Grand Total</strong></td><td></td><td><strong>${resetGrand.fa}</strong></td><td><strong>${resetGrand.tt}</strong></td><td><strong>${resetGrandTotal}</strong></td></tr>`;
     body += `</table>`;
   }
 

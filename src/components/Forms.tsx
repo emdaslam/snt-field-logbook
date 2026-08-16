@@ -11,7 +11,9 @@ import {
   MOVEMENT_TYPES,
   MOVEMENT_LABEL,
   DEPARTMENT_COLORS,
+  COUNTER_EQUIPMENT,
   type PcdoWork,
+  type CounterReset,
 } from "@/lib/types";
 import { AUTO_TIMINGS } from "@/lib/timingsMode";
 import {
@@ -217,6 +219,15 @@ export function DailyLogForm({
   const [discFailure, setDiscFailure] = useState(String(existing?.discFailure ?? 0));
   const [discMaintenance, setDiscMaintenance] = useState(String(existing?.discMaintenance ?? 0));
   const [discNotPermitted, setDiscNotPermitted] = useState(String(existing?.discNotPermitted ?? 0));
+  const [countersOpen, setCountersOpen] = useState((existing?.counterResets?.length ?? 0) > 0);
+  const [counterRows, setCounterRows] = useState<CounterReset[]>(
+    existing?.counterResets?.length ? existing.counterResets : []
+  );
+  const emptyCounter: CounterReset = { equipment: "MSDAC", nextStationId: null, failures: 0, testing: 0 };
+  const addCounterRow = () => setCounterRows((prev) => [...prev, { ...emptyCounter }]);
+  const updateCounterRow = (i: number, patch: Partial<CounterReset>) =>
+    setCounterRows((prev) => prev.map((r, x) => (x === i ? { ...r, ...patch } : r)));
+  const removeCounterRow = (i: number) => setCounterRows((prev) => prev.filter((_, x) => x !== i));
   // Side (towards station id) recorded for tags marked "asks for side"
   const [tagSides, setTagSides] = useState<Record<number, number>>(existing?.tagSides ?? {});
   const [error, setError] = useState("");
@@ -292,6 +303,10 @@ export function DailyLogForm({
     (Number(discFailure) || 0) +
     (Number(discMaintenance) || 0) +
     (Number(discNotPermitted) || 0);
+  const counterTotal = counterRows.reduce(
+    (n, r) => n + (Number(r.failures) || 0) + (Number(r.testing) || 0),
+    0
+  );
 
   async function createStation() {
     const name = newStationName.trim();
@@ -312,6 +327,15 @@ export function DailyLogForm({
     if (pcdoOpen && !pcdoWorks.some((w) => w.work.trim())) {
       setError("Enter the PCDO special work for at least one department.");
       return;
+    }
+    if (countersOpen) {
+      for (const r of counterRows) {
+        const hasCount = (Number(r.failures) || 0) + (Number(r.testing) || 0) > 0;
+        if (r.equipment !== "MSDAC" && hasCount && !r.nextStationId) {
+          setError(`Select the next station for the ${r.equipment} counter reset.`);
+          return;
+        }
+      }
     }
     setSaving(true);
     const isFp = movementKind === "footplate";
@@ -430,6 +454,16 @@ export function DailyLogForm({
       discFailure: discOpen ? Number(discFailure) || 0 : 0,
       discMaintenance: discOpen ? Number(discMaintenance) || 0 : 0,
       discNotPermitted: discOpen ? Number(discNotPermitted) || 0 : 0,
+      counterResets: countersOpen
+        ? counterRows
+            .map((r) => ({
+              equipment: r.equipment,
+              nextStationId: r.equipment === "MSDAC" ? null : r.nextStationId,
+              failures: Number(r.failures) || 0,
+              testing: Number(r.testing) || 0,
+            }))
+            .filter((r) => r.failures > 0 || r.testing > 0)
+        : [],
       tagIds,
       tagSides,
       attachments,
@@ -1032,6 +1066,185 @@ export function DailyLogForm({
               </label>
             )}
           </>
+        )}
+      </div>
+
+      {/* Counter Resets */}
+      <div className="mb-3 rounded-lg border border-teal-200 bg-teal-50/60 p-3">
+        <label className="flex cursor-pointer items-center gap-2">
+          <input
+            type="checkbox"
+            checked={countersOpen}
+            onChange={(e) => setCountersOpen(e.target.checked)}
+            className="h-4 w-4 accent-teal-600"
+          />
+          <span className="text-sm font-semibold text-teal-900">Counter Resets</span>
+        </label>
+        <p className="mt-1 text-xs text-teal-800/80">
+          Tick to record counter resets on equipment with registers — MSDAC at this station, or UFSBI
+          Block Instrument / BPAC between this station and the next station. Resets are counted by
+          cause (failure or testing). Included in the PCDO export.
+        </p>
+
+        {countersOpen && (
+          <div className="mt-3 space-y-3">
+            {counterRows.map((r, i) => {
+              const isSection = r.equipment !== "MSDAC";
+              return (
+                <div key={i} className="rounded-lg border border-teal-200 bg-white p-2.5">
+                  <div className="flex flex-wrap items-end gap-2">
+                    <label className="block min-w-[11rem] flex-1">
+                      <span className="mb-1 block text-xs font-medium text-slate-700">Equipment</span>
+                      <select
+                        className={inputClass}
+                        value={r.equipment}
+                        onChange={(e) =>
+                          updateCounterRow(i, {
+                            equipment: e.target.value as CounterReset["equipment"],
+                            nextStationId:
+                              e.target.value === "MSDAC" ? null : r.nextStationId,
+                          })
+                        }
+                      >
+                        {COUNTER_EQUIPMENT.map((eq) => (
+                          <option key={eq} value={eq}>
+                            {eq}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block w-24">
+                      <span className="mb-1 block text-xs font-medium text-slate-700">
+                        Failures
+                      </span>
+                      <input
+                        type="number"
+                        min="0"
+                        className={inputClass}
+                        value={r.failures}
+                        onChange={(e) => updateCounterRow(i, { failures: Number(e.target.value) || 0 })}
+                      />
+                    </label>
+                    <label className="block w-24">
+                      <span className="mb-1 block text-xs font-medium text-slate-700">
+                        Testing
+                      </span>
+                      <input
+                        type="number"
+                        min="0"
+                        className={inputClass}
+                        value={r.testing}
+                        onChange={(e) => updateCounterRow(i, { testing: Number(e.target.value) || 0 })}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => removeCounterRow(i)}
+                      className="mb-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-red-200 text-sm font-semibold text-red-600 hover:bg-red-50"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <p className="mt-1.5 text-xs text-slate-600">
+                    {isSection ? (
+                      <>
+                        Between{" "}
+                        <strong className="text-slate-800">
+                          {pcdoStationId
+                            ? stations.find((x) => x.id === pcdoStationId)?.name
+                            : movement || "this station"}
+                        </strong>{" "}
+                        and the next station:
+                      </>
+                    ) : (
+                      <>
+                        Counter at{" "}
+                        <strong className="text-slate-800">
+                          {pcdoStationId
+                            ? stations.find((x) => x.id === pcdoStationId)?.name
+                            : movement || "this station"}
+                        </strong>
+                        {!resolvedStation && " — pick the station below"}
+                      </>
+                    )}
+                  </p>
+                  {isSection ? (
+                    <label className="mt-1.5 block">
+                      <span className="mb-1 block text-xs font-medium text-slate-700">
+                        Next station{" "}
+                        <span className="font-normal text-slate-400">(far end of the section)</span>
+                      </span>
+                      <select
+                        className={inputClass}
+                        value={r.nextStationId ?? ""}
+                        onChange={(e) =>
+                          updateCounterRow(i, { nextStationId: e.target.value ? Number(e.target.value) : null })
+                        }
+                      >
+                        <option value="">— Select next station —</option>
+                        {stations
+                          .filter((s) => s.id !== resolvedStation?.id)
+                          .map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.name}
+                            </option>
+                          ))}
+                      </select>
+                      {!r.nextStationId && (
+                        <span className="mt-1 block text-xs text-amber-600">
+                          Select the next station so this counter reset is grouped correctly in the
+                          PCDO export.
+                        </span>
+                      )}
+                    </label>
+                  ) : (
+                    !resolvedStation && (
+                      <label className="mt-1.5 block">
+                        <span className="mb-1 block text-xs font-medium text-slate-700">
+                          Counter station{" "}
+                          <span className="font-normal text-slate-500">
+                            (shared with the PCDO station above)
+                          </span>
+                        </span>
+                        <select
+                          className={inputClass}
+                          value={pcdoStationOverride ?? ""}
+                          onChange={(e) =>
+                            setPcdoStationOverride(e.target.value ? Number(e.target.value) : null)
+                          }
+                        >
+                          <option value="">— Select station —</option>
+                          {stations.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.name}
+                            </option>
+                          ))}
+                        </select>
+                        {!pcdoStationOverride && (
+                          <span className="mt-1 block text-xs text-amber-600">
+                            Pick a station so these counter resets are grouped correctly in the PCDO
+                            export.
+                          </span>
+                        )}
+                      </label>
+                    )
+                  )}
+                </div>
+              );
+            })}
+            <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={addCounterRow}
+                className="rounded-lg border border-teal-600 px-3 py-1.5 text-sm font-semibold text-teal-700 hover:bg-teal-50"
+              >
+                + Add counter reset
+              </button>
+              <p className="text-xs font-semibold text-teal-900">
+                Total resets: {counterTotal}
+              </p>
+            </div>
+          </div>
         )}
       </div>
 

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useData } from "./DataProvider";
 import { Chip } from "./ui";
-import { dayName, toISODate, formatFootplateSummary, pcdoWorkEntries } from "@/lib/api";
+import { dayName, toISODate, formatFootplateSummary, pcdoWorkEntries, counterResetTotal } from "@/lib/api";
 import { DEPARTMENT_COLORS } from "@/lib/types";
 import { isSharedLog } from "@/lib/backup";
 import type { DailyLog } from "@/db/schema";
@@ -241,6 +241,8 @@ export function Timeline({
                   const discTotal =
                     log.discSpecialWork + log.discFailure + log.discMaintenance + log.discNotPermitted;
                   const hasDisc = log.hasDisconnections && discTotal > 0;
+                  const counterTotal = counterResetTotal(log);
+                  const hasCounter = counterTotal > 0;
                   const pcdoWorks = pcdoWorkEntries(log);
                   const hasPcdo = pcdoWorks.length > 0;
                   const shared = isSharedLog(log);
@@ -295,6 +297,11 @@ export function Timeline({
                         {hasDisc && (
                           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
                             ⚡ {discTotal} disc.
+                          </span>
+                        )}
+                        {hasCounter && (
+                          <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-semibold text-teal-700">
+                            🔢 {counterTotal} resets
                           </span>
                         )}
                         {log.inspectionKind && (

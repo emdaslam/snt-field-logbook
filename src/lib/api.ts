@@ -18,7 +18,7 @@ import type {
   FootplateDetail,
   FootplateBlock,
 } from "@/db/schema";
-import type { PcdoWork } from "@/lib/types";
+import type { PcdoWork, CounterReset } from "@/lib/types";
 
 const asc = <T extends Record<string, unknown>>(rows: T[], key: keyof T) =>
   [...rows].sort((a, b) => String(a[key] ?? "").localeCompare(String(b[key] ?? "")));
@@ -157,6 +157,7 @@ export const api = {
           discFailure: num(r.discFailure),
           discMaintenance: num(r.discMaintenance),
           discNotPermitted: num(r.discNotPermitted),
+          counterResets: counterResetsOf(r),
         })),
         "logDate"
       );
@@ -398,6 +399,7 @@ function normaliseLog(b: Partial<DailyLog>) {
     discFailure: num(b.discFailure),
     discMaintenance: num(b.discMaintenance),
     discNotPermitted: num(b.discNotPermitted),
+    counterResets: counterResetsOf(b),
     inspectionKind: b.inspectionKind ?? null,
     inspectionStationId: b.inspectionStationId ?? null,
     inspectionTowardsStationId: b.inspectionTowardsStationId ?? null,
@@ -434,6 +436,32 @@ export function pcdoWorkEntries(
   if (list) return list;
   const legacy = (l.pcdoWork ?? "").trim();
   return legacy ? [{ department: "", work: legacy }] : [];
+}
+
+/** The counter resets recorded on a log entry, sanitised (an old entry that
+ *  predates counter resets simply has none). */
+export function counterResetsOf(
+  l: { counterResets?: CounterReset[] | null } | null | undefined
+): CounterReset[] {
+  if (!l) return [];
+  if (!Array.isArray(l.counterResets)) return [];
+  return l.counterResets
+    .filter((r) => r && typeof r === "object")
+    .map((r) => ({
+      equipment:
+        r.equipment === "MSDAC" || r.equipment === "UFSBI Block Instrument" || r.equipment === "BPAC"
+          ? r.equipment
+          : "MSDAC",
+      nextStationId: r.nextStationId ?? null,
+      failures: num(r.failures),
+      testing: num(r.testing),
+    }))
+    .filter((r) => r.failures > 0 || r.testing > 0);
+}
+
+/** Total counter resets (failure + testing) recorded on a log entry. */
+export function counterResetTotal(l: { counterResets?: CounterReset[] | null } | null | undefined): number {
+  return counterResetsOf(l).reduce((n, r) => n + r.failures + r.testing, 0);
 }
 
 export function fmtDate(d: string | Date | null | undefined) {

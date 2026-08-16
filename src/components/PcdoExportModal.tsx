@@ -5,7 +5,8 @@ import { useData } from "./DataProvider";
 import { Modal, Field, inputClass, PrimaryButton } from "./ui";
 import { exportPcdo } from "./exports";
 import { getPcdoPeriod } from "@/lib/pcdo";
-import { fmtDate, pcdoWorkEntries } from "@/lib/api";
+import { fmtDate, pcdoWorkEntries, counterResetsOf } from "@/lib/api";
+import { COUNTER_EQUIPMENT } from "@/lib/types";
 
 /** Month/year label for a period, named after its closing (to) date. */
 function pcdoLabel(toIso: string) {
@@ -103,6 +104,29 @@ export function PcdoExportModal({ open, onClose }: { open: boolean; onClose: () 
     { sw: 0, fa: 0, mt: 0, np: 0 }
   );
   const discGrand = discTotals.sw + discTotals.fa + discTotals.mt + discTotals.np;
+
+  // Counter resets in the same period, split per equipment type
+  const resetEntries = baseLogs.filter((l) => {
+    if (counterResetsOf(l).length === 0) return false;
+    const d = l.pcdoDate || l.logDate;
+    if (d < period.from || d > period.to) return false;
+    if (stationFilter && resolveStationId(l.stationMovement, l.pcdoStationId) !== stationFilter) return false;
+    return true;
+  });
+  const resetByEquipment = new Map<string, { failures: number; testing: number }>();
+  for (const l of resetEntries) {
+    for (const r of counterResetsOf(l)) {
+      const prev = resetByEquipment.get(r.equipment) ?? { failures: 0, testing: 0 };
+      prev.failures += r.failures;
+      prev.testing += r.testing;
+      resetByEquipment.set(r.equipment, prev);
+    }
+  }
+  const resetTotals = {
+    failures: [...resetByEquipment.values()].reduce((n, e) => n + e.failures, 0),
+    testing: [...resetByEquipment.values()].reduce((n, e) => n + e.testing, 0),
+  };
+  const resetGrand = resetTotals.failures + resetTotals.testing;
 
   // Only ids still present in the current listing count as deselected, so
   // switching period/station simply starts everyone selected again.
@@ -256,6 +280,33 @@ export function PcdoExportModal({ open, onClose }: { open: boolean; onClose: () 
             <span>Maintenance: <strong>{discTotals.mt}</strong></span>
             <span>Not Permitted: <strong>{discTotals.np}</strong></span>
             <span className="border-l border-amber-300 pl-5">Total: <strong>{discGrand}</strong></span>
+          </div>
+        )}
+      </div>
+
+      <div className="mb-4 rounded-lg border border-teal-200 bg-teal-50 p-3">
+        <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-teal-900">
+          Counter Resets in this period
+        </p>
+        {resetGrand === 0 ? (
+          <p className="text-sm text-teal-800/70">None recorded.</p>
+        ) : (
+          <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-teal-900">
+            {COUNTER_EQUIPMENT.filter((eq) => resetByEquipment.has(eq)).map((eq) => {
+              const e = resetByEquipment.get(eq)!;
+              return (
+                <span key={eq}>
+                  {eq}: <strong>{e.failures + e.testing}</strong>{" "}
+                  <span className="text-xs text-teal-700">(failures {e.failures} · testing {e.testing})</span>
+                </span>
+              );
+            })}
+            <span className="border-l border-teal-300 pl-5">
+              Total: <strong>{resetGrand}</strong>{" "}
+              <span className="text-xs text-teal-700">
+                ({resetTotals.failures} from failures · {resetTotals.testing} from testing)
+              </span>
+            </span>
           </div>
         )}
       </div>

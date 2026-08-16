@@ -8,7 +8,7 @@ import { DiaryExportModal } from "./DiaryExportModal";
 import { InspectionExportModal } from "./InspectionExportModal";
 import { PeriodPicker, monthPeriod, type Period } from "./PeriodPicker";
 import { getPcdoPeriod } from "@/lib/pcdo";
-import { fmtDate, pcdoWorkEntries } from "@/lib/api";
+import { fmtDate, pcdoWorkEntries, counterResetsOf, counterResetTotal } from "@/lib/api";
 import { PrimaryButton } from "./ui";
 import { StatDetailModal, type StatRow } from "./StatDetailModal";
 import { computeAllSchedules, INSPECTION_RULES, tagReminderConfigs } from "@/lib/inspections";
@@ -43,6 +43,8 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
       { sw: 0, fa: 0, mt: 0, np: 0 }
     );
 
+    const counter = pLogs.reduce((n, l) => n + counterResetTotal(l), 0);
+
     // Station-wise breakdown of logs in the period
     const byStation = new Map<string, number>();
     for (const l of pLogs) {
@@ -69,6 +71,7 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
       planDone: pPlans.filter((p) => p.status === "Completed").length,
       disc,
       discTotal: disc.sw + disc.fa + disc.mt + disc.np,
+      counter,
       byStation: [...byStation.entries()].sort((a, b) => b[1] - a[1]),
       attachments: pLogs.reduce((n, l) => n + l.attachments.length, 0),
     };
@@ -184,6 +187,32 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
           }
         />
         <Stat
+          label="Counter Resets"
+          value={stats.counter}
+          color="#0d9488"
+          onClick={() =>
+            setDrill({
+              title: "Counter Resets",
+              rows: stats.pLogs
+                .filter((l) => counterResetTotal(l) > 0)
+                .flatMap((l) =>
+                  counterResetsOf(l).map((r) => ({
+                    key: "cr" + l.id + r.equipment,
+                    date: l.logDate,
+                    title: `${r.equipment} — ${
+                      r.equipment === "MSDAC"
+                        ? stationName(l.pcdoStationId)
+                        : `${stationName(l.pcdoStationId)} → ${stationName(r.nextStationId)}`
+                    }`,
+                    sub: `Failures ${r.failures} · Testing ${r.testing}`,
+                    badge: `${r.failures + r.testing}`,
+                  }))
+                ),
+              footer: `Total: ${stats.counter} counter resets`,
+            })
+          }
+        />
+        <Stat
           label="Deficiencies Pending"
           value={stats.defPending}
           color="#dc2626"
@@ -287,6 +316,33 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
             <Mini label="Failure" value={stats.disc.fa} />
             <Mini label="Maintenance" value={stats.disc.mt} />
             <Mini label="Not Permitted" value={stats.disc.np} />
+          </div>
+        </div>
+      )}
+
+      {stats.counter > 0 && (
+        <div className="rounded-xl border border-teal-200 bg-teal-50 p-4">
+          <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-teal-900">
+            Counter Resets Breakdown
+          </h3>
+          <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-teal-900">
+            {(() => {
+              const per = new Map<string, { fa: number; tt: number }>();
+              for (const l of stats.pLogs) {
+                for (const r of counterResetsOf(l)) {
+                  const prev = per.get(r.equipment) ?? { fa: 0, tt: 0 };
+                  prev.fa += r.failures;
+                  prev.tt += r.testing;
+                  per.set(r.equipment, prev);
+                }
+              }
+              return [...per.entries()].map(([eq, e]) => (
+                <span key={eq}>
+                  <strong>{eq}</strong>: {e.fa + e.tt}{" "}
+                  <span className="text-xs text-teal-700">(failures {e.fa} · testing {e.tt})</span>
+                </span>
+              ));
+            })()}
           </div>
         </div>
       )}

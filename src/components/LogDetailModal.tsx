@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useData } from "./DataProvider";
 import { Modal, Chip } from "./ui";
-import { api, fmtDate, dayName, formatFootplateSummary, pcdoWorkEntries } from "@/lib/api";
+import { api, fmtDate, dayName, formatFootplateSummary, pcdoWorkEntries, counterResetsOf, counterResetTotal } from "@/lib/api";
 import { DEPARTMENT_COLORS } from "@/lib/types";
 import { isSharedLog } from "@/lib/backup";
 import { INSPECTION_RULES, addDays, type InspectionKind } from "@/lib/inspections";
@@ -36,8 +36,8 @@ export function LogDetailModal({
             🔗 Shared by a colleague at {stationName(log.pcdoStationId)}
           </p>
           <p className="mt-0.5 text-xs text-teal-700">
-            Only PCDO special works and disconnection counts are shared between staff. Their movement,
-            work done, TA, tags and attachments stay private.
+            Only PCDO special works, disconnection counts and counter resets are shared between
+            staff. Their movement, work done, TA, tags and attachments stay private.
           </p>
         </div>
       ) : (
@@ -129,6 +129,32 @@ export function LogDetailModal({
             <Metric label="Failure" value={log.discFailure} />
             <Metric label="Maintenance" value={log.discMaintenance} />
             <Metric label="Not Permitted" value={log.discNotPermitted} />
+          </div>
+        </div>
+      )}
+
+      {counterResetTotal(log) > 0 && (
+        <div className="mb-3 rounded-lg border border-teal-200 bg-teal-50 p-3">
+          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-teal-700">
+            🔢 Counter Resets · {counterResetTotal(log)} total
+          </p>
+          <div className="space-y-1.5">
+            {counterResetsOf(log).map((r, i) => (
+              <div
+                key={i}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-white/70 px-2.5 py-1.5 text-sm"
+              >
+                <span className="font-medium text-teal-950">
+                  {r.equipment}
+                  {r.equipment === "MSDAC"
+                    ? ` · ${stationName(log.pcdoStationId)}`
+                    : ` · ${stationName(log.pcdoStationId)} → ${stationName(r.nextStationId)}`}
+                </span>
+                <span className="text-xs text-teal-800">
+                  Failures {r.failures} · Testing {r.testing}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       )}

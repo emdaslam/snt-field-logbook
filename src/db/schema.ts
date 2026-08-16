@@ -10,7 +10,7 @@ import {
   jsonb,
   date,
 } from "drizzle-orm/pg-core";
-import type { PcdoWork } from "@/lib/types";
+import type { PcdoWork, CounterReset } from "@/lib/types";
 
 // Stations
 export const stations = pgTable("stations", {
@@ -124,6 +124,9 @@ export const dailyLogs = pgTable("daily_logs", {
   discFailure: integer("disc_failure").default(0).notNull(),
   discMaintenance: integer("disc_maintenance").default(0).notNull(),
   discNotPermitted: integer("disc_not_permitted").default(0).notNull(),
+  // Counter resets on equipment with registers (MSDAC at a station, UFSBI /
+  // BPAC between two stations), split by the cause (failure / testing).
+  counterResets: jsonb("counter_resets").$type<CounterReset[]>().default([]).notNull(),
   tagIds: jsonb("tag_ids").$type<number[]>().default([]).notNull(),
   // Side (towards station id) recorded per tag that needs one.
   tagSides: jsonb("tag_sides").$type<Record<number, number>>().default({}).notNull(),
