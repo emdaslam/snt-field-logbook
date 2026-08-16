@@ -3,6 +3,21 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.48 — 2026-08-16
+
+**Feat: Settings swipe polish — tab headings follow the swipe, content slides in smoothly, and swipes work over the blank areas too** — `HEAD`
+
+- **Smooth transition:** switching tabs (by swipe or by tapping a tab chip) now
+  slides the incoming tab in from the direction the swipe came from, instead of
+  swapping the content instantly.
+- **Headings move:** the tab-chip row scrolls so the active chip is centred and
+  visible whenever the tab changes.
+- **Blank areas swipe:** the swipe gesture is now caught across the whole
+  Settings screen (including the empty space below and around the sections),
+  not just on the section cards. Vertical scrolling and horizontal scrolling of
+  the chip row are unaffected, and swiping over an open dialog never changes
+  the tab behind it.
+
 ## 1.7.6.47 — 2026-08-16
 
 **Feat: Settings tabs can be switched with a horizontal swipe** — `HEAD`

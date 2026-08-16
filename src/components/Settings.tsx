@@ -54,17 +54,31 @@ export function Settings() {
   const [reminderDraft, setReminderDraft] = useState("");
   const [taGen, setTaGen] = useState<TaGenConfig>(() => loadTaGenConfig());
 
-  // Horizontal swipe switches between the settings tabs. Vertical pans keep
-  // scrolling the page (see touchAction: "pan-y" on the content wrapper).
+  // Horizontal swipe between the tab groups: the content slides in smoothly
+  // (see .settings-tab-enter-* in globals.css) and the heading row scrolls the
+  // active tab chip into view. touchAction: "pan-y" on the root keeps vertical
+  // scrolling native while horizontal moves reach us (even on blank areas).
+  const [lastDir, setLastDir] = useState<1 | -1>(1);
+  const chipsRef = useRef<HTMLDivElement>(null);
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
 
-  function goToGroup(dir: 1 | -1) {
-    const idx = GROUPS.findIndex((g) => g.id === group);
-    const next = GROUPS[idx + dir];
-    if (next) setGroup(next.id);
-  }
+  const groupIndex = GROUPS.findIndex((g) => g.id === group);
+  const modalOpen = !!(editStaff || addStaff || editStation || editingTag || backupOpen || restoreOpen);
+
+  // Keep the active tab chip visible/centred in the heading row.
+  useEffect(() => {
+    const active = chipsRef.current?.querySelector<HTMLElement>(`[data-group="${group}"]`);
+    active?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+  }, [group]);
+
+  const selectGroup = (g: GroupId) => {
+    const i = GROUPS.findIndex((x) => x.id === g);
+    setLastDir(i >= groupIndex ? 1 : -1);
+    setGroup(g);
+  };
 
   const onTouchStart = (e: React.TouchEvent) => {
+    if (modalOpen) return;
     const t = e.touches[0];
     swipeStart.current = { x: t.clientX, y: t.clientY };
   };
@@ -77,7 +91,8 @@ export function Settings() {
     // Only clearly-horizontal gestures switch tabs; vertical pans scroll.
     if (Math.abs(dx) <= Math.abs(dy) || Math.abs(dx) < SWIPE_THRESHOLD) return;
     swipeStart.current = null;
-    goToGroup(dx < 0 ? 1 : -1);
+    const next = GROUPS[groupIndex + (dx < 0 ? 1 : -1)];
+    if (next) selectGroup(next.id);
   };
   const onTouchEnd = () => {
     swipeStart.current = null;
@@ -89,15 +104,23 @@ export function Settings() {
       : ids.map((id) => stations.find((s) => s.id === id)?.name ?? "?").join(", ");
 
   return (
-    <div className="space-y-4 p-4 pb-24">
+    <div
+      className="space-y-4 p-4 pb-24"
+      style={{ touchAction: "pan-y" }}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      onTouchCancel={onTouchEnd}
+    >
       {/* Horizontal group selector */}
       <div className="sticky top-0 z-10 -mx-4 bg-slate-100 px-4 pb-2 pt-1">
-        <div className="flex gap-2 overflow-x-auto">
+        <div ref={chipsRef} className="flex gap-2 overflow-x-auto">
           {GROUPS.map((g) => (
             <button
               key={g.id}
               type="button"
-              onClick={() => setGroup(g.id)}
+              data-group={g.id}
+              onClick={() => selectGroup(g.id)}
               className={`flex-shrink-0 whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-semibold transition ${
                 group === g.id
                   ? "bg-blue-900 text-white shadow"
@@ -111,12 +134,8 @@ export function Settings() {
       </div>
 
       <div
-        className="space-y-4"
-        style={{ touchAction: "pan-y" }}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-        onTouchCancel={onTouchEnd}
+        key={group}
+        className={`space-y-4 ${lastDir === 1 ? "settings-tab-enter-right" : "settings-tab-enter-left"}`}
       >
       {group === "account" && (
         <>

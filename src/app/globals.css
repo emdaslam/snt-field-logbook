@@ -25,3 +25,34 @@ html[data-content-scale="150"] {
 .entry-text-lg {
   font-size: calc(var(--entry-scale) * 1rem) !important;
 }
+
+/*
+ * Settings tab transitions: the incoming tab slides in from the side the swipe
+ * came from. The keyed wrapper re-mounts on every tab change, replaying this.
+ */
+@keyframes settings-tab-enter-right {
+  from {
+    transform: translateX(16%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes settings-tab-enter-left {
+  from {
+    transform: translateX(-16%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+.settings-tab-enter-right {
+  animation: settings-tab-enter-right 220ms cubic-bezier(0.32, 0.72, 0.28, 1);
+}
+.settings-tab-enter-left {
+  animation: settings-tab-enter-left 220ms cubic-bezier(0.32, 0.72, 0.28, 1);
+}
