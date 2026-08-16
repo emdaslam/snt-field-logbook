@@ -3,6 +3,15 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.47 — 2026-08-16
+
+**Feat: Settings tabs can be switched with a horizontal swipe** — `HEAD`
+
+- Swiping left or right over the Settings content moves between the tab groups
+  (Account & Directory, Tags & Notifications, Backup & Drive, Appearance & Font
+  Size, About). Vertical scrolling is unaffected — only clearly horizontal
+  gestures change the tab.
+
 ## 1.7.6.46 — 2026-08-16
 
 **Fix: the calendar's "Today" (and "Go to date") now also scroll the entry list back to that date** — `6891ced`

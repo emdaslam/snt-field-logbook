@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useData } from "./DataProvider";
 import { api } from "@/lib/api";
 import { inputClass, PrimaryButton, Chip, Modal, Field } from "./ui";
@@ -37,6 +37,9 @@ const GROUPS = [
 ] as const;
 type GroupId = (typeof GROUPS)[number]["id"];
 
+/** Minimum horizontal drag distance (px) that commits a tab swipe. */
+const SWIPE_THRESHOLD = 48;
+
 export function Settings() {
   const { stations, staff, tags, currentUser, refresh, fontSize, setFontSize, contentScale, setContentScale, reminderDays, setReminderDays } = useData();
   const [group, setGroup] = useState<GroupId>("account");
@@ -50,6 +53,35 @@ export function Settings() {
   const [editingReminder, setEditingReminder] = useState(false);
   const [reminderDraft, setReminderDraft] = useState("");
   const [taGen, setTaGen] = useState<TaGenConfig>(() => loadTaGenConfig());
+
+  // Horizontal swipe switches between the settings tabs. Vertical pans keep
+  // scrolling the page (see touchAction: "pan-y" on the content wrapper).
+  const swipeStart = useRef<{ x: number; y: number } | null>(null);
+
+  function goToGroup(dir: 1 | -1) {
+    const idx = GROUPS.findIndex((g) => g.id === group);
+    const next = GROUPS[idx + dir];
+    if (next) setGroup(next.id);
+  }
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    swipeStart.current = { x: t.clientX, y: t.clientY };
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    const s = swipeStart.current;
+    if (!s) return;
+    const t = e.touches[0];
+    const dx = t.clientX - s.x;
+    const dy = t.clientY - s.y;
+    // Only clearly-horizontal gestures switch tabs; vertical pans scroll.
+    if (Math.abs(dx) <= Math.abs(dy) || Math.abs(dx) < SWIPE_THRESHOLD) return;
+    swipeStart.current = null;
+    goToGroup(dx < 0 ? 1 : -1);
+  };
+  const onTouchEnd = () => {
+    swipeStart.current = null;
+  };
 
   const stationLabel = (ids: number[]) =>
     ids.length === 0
@@ -78,6 +110,14 @@ export function Settings() {
         </div>
       </div>
 
+      <div
+        className="space-y-4"
+        style={{ touchAction: "pan-y" }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchEnd}
+      >
       {group === "account" && (
         <>
       {/* Current User Profile */}
@@ -459,6 +499,8 @@ export function Settings() {
         </p>
       </Section>
       )}
+
+      </div>
 
       {(editStaff || addStaff) && (
         <StaffEditor
