@@ -54,6 +54,10 @@ export function AppShell() {
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
   const [focusedDate, setFocusedDate] = useState<string | null>(null);
+  // Bumped on every explicit "go to date" so the timeline re-scrolls even when
+  // the target equals the currently selected date (which otherwise bails out of
+  // the state change after the user scrolled the list away on their own).
+  const [goToSignal, setGoToSignal] = useState(0);
   const notifRef = useRef<HTMLDivElement>(null);
   const exportRef = useRef<HTMLDivElement>(null);
 
@@ -310,6 +314,7 @@ export function AppShell() {
     setSelectedDate(target);
     setFocusedDate(target);
     setCalCursor(new Date(Number(target.slice(0, 4)), Number(target.slice(5, 7)) - 1, 1));
+    setGoToSignal((n) => n + 1);
   };
 
   /**
@@ -321,6 +326,7 @@ export function AppShell() {
     const target = clampToRange(iso, false);
     setSelectedDate(target);
     setFocusedDate(target);
+    setGoToSignal((n) => n + 1);
   };
 
   const tagsById = useMemo(() => new Map(tags.map((t) => [t.id, t])), [tags]);
@@ -557,6 +563,7 @@ export function AppShell() {
             <div className="min-h-0 flex-1">
               <Timeline
                 selectedDate={selectedDate}
+                goToSignal={goToSignal}
                 onOpen={(l) => { setDetailLog(l); }}
                 onVisibleDateChange={(iso) => {
                   setFocusedDate(iso);

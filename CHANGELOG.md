@@ -3,6 +3,17 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.46 — 2026-08-16
+
+**Fix: the calendar's "Today" (and "Go to date") now also scroll the entry list back to that date** — `(pending)`
+
+- After swiping the entry list away from a date, tapping *Today* in the calendar
+  header only moved the calendar highlight — the lower list stayed where it was
+  scrolled because the selected date hadn't actually changed.
+- Tapping *Today* or *Go to date* now always re-scrolls the timeline so the
+  chosen day sits directly under the calendar, even when it was already the
+  selected date.
+
 ## 1.7.6.45 — 2026-08-16
 
 **Fix: counter-reset sections print as "Station A - Station B", and special-movement days ask for both stations** — `f169030`

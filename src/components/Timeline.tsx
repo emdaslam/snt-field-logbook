@@ -43,10 +43,14 @@ function buildDateRange(
 
 export function Timeline({
   selectedDate,
+  goToSignal = 0,
   onOpen,
   onVisibleDateChange,
 }: {
   selectedDate: string | null;
+  /** Increments each time the caller explicitly asks to navigate to a date, so
+   *  the list re-scrolls even if selectedDate itself did not change. */
+  goToSignal?: number;
   onOpen: (log: DailyLog) => void;
   onVisibleDateChange?: (iso: string) => void;
 }) {
@@ -139,7 +143,7 @@ export function Timeline({
       suppressScroll.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDate]);
+  }, [selectedDate, goToSignal]);
 
   // Keep the trailing spacer as tall as the viewport
   useEffect(() => {
