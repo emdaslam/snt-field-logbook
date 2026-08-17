@@ -3,6 +3,15 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.51 — 2026-08-17
+
+**Fix: Deficiencies Pending / Done and Planned Pending / Done always stay side by side in the Reports tab** — `63ac7ca`
+
+- The *Deficiencies Pending* and *Deficiencies Done* tiles now sit next to each
+  other, and the *Planned Pending* / *Planned Done* tiles do too.
+- Each pair is rendered in its own two-column grid, so adding new stats to the
+  Reports tab in the future can never push the pairs apart again.
+
 ## 1.7.6.50 — 2026-08-17
 
 **Fix: converting a deficiency to planned work no longer counts it as completed** — `76d0d68`
