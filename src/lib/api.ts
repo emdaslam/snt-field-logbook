@@ -17,6 +17,9 @@ import type {
   PlannedWork,
   FootplateDetail,
   FootplateBlock,
+  Material,
+  MaterialReceipt,
+  MaterialUsage,
 } from "@/db/schema";
 import type { PcdoWork, CounterReset } from "@/lib/types";
 
@@ -363,6 +366,90 @@ export const api = {
         }
       }
       await ldb.remove("noteCategories", id);
+    },
+  },
+
+  materials: {
+    list: async () => asc(await ldb.readTable<Material>("materials"), "name"),
+    create: (b: Partial<Material>) => {
+      markDataDirty();
+      return ldb.insert("materials", {
+        name: String(b.name ?? "").trim() || "Unnamed material",
+        requiredQty: num(b.requiredQty),
+        unit: b.unit ?? "Nos",
+      }) as unknown as Promise<Material>;
+    },
+    update: (b: Partial<Material>) => {
+      markDataDirty();
+      return ldb.update("materials", b.id as number, {
+        name: String(b.name ?? "").trim() || "Unnamed material",
+        requiredQty: num(b.requiredQty),
+        unit: b.unit ?? "Nos",
+      }) as unknown as Promise<Material>;
+    },
+    remove: async (id: number) => {
+      markDataDirty();
+      // Receipts and usages belong to the material — remove them along with it.
+      const [receipts, usages] = await Promise.all([
+        ldb.readTable<MaterialReceipt>("materialReceipts"),
+        ldb.readTable<MaterialUsage>("materialUsages"),
+      ]);
+      await ldb.writeTable(
+        "materialReceipts",
+        receipts.filter((r) => r.materialId !== id)
+      );
+      await ldb.writeTable(
+        "materialUsages",
+        usages.filter((u) => u.materialId !== id)
+      );
+      return ldb.remove("materials", id);
+    },
+  },
+
+  materialReceipts: {
+    list: async (materialId?: number | null) => {
+      const rows = await ldb.readTable<MaterialReceipt>("materialReceipts");
+      return (materialId ? rows.filter((r) => r.materialId === materialId) : rows).sort((a, b) =>
+        b.date.localeCompare(a.date)
+      );
+    },
+    create: (b: Partial<MaterialReceipt>) => {
+      markDataDirty();
+      return ldb.insert("materialReceipts", {
+        materialId: num(b.materialId),
+        qty: num(b.qty),
+        date: b.date || toISODate(new Date()),
+        stationId: b.stationId ?? null,
+        room: b.room ?? "",
+        remarks: b.remarks ?? "",
+      }) as unknown as Promise<MaterialReceipt>;
+    },
+    remove: (id: number) => {
+      markDataDirty();
+      return ldb.remove("materialReceipts", id);
+    },
+  },
+
+  materialUsages: {
+    list: async (materialId?: number | null) => {
+      const rows = await ldb.readTable<MaterialUsage>("materialUsages");
+      return (materialId ? rows.filter((r) => r.materialId === materialId) : rows).sort((a, b) =>
+        b.date.localeCompare(a.date)
+      );
+    },
+    create: (b: Partial<MaterialUsage>) => {
+      markDataDirty();
+      return ldb.insert("materialUsages", {
+        materialId: num(b.materialId),
+        qty: num(b.qty),
+        date: b.date || toISODate(new Date()),
+        purpose: b.purpose ?? "",
+        stationId: b.stationId ?? null,
+      }) as unknown as Promise<MaterialUsage>;
+    },
+    remove: (id: number) => {
+      markDataDirty();
+      return ldb.remove("materialUsages", id);
     },
   },
 

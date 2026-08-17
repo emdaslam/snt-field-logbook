@@ -10,6 +10,7 @@ import { Settings } from "./Settings";
 import { Notes } from "./Notes";
 import { Reports } from "./Reports";
 import { AttachmentsView } from "./AttachmentsView";
+import { Materials } from "./Materials";
 import { AttachmentPreviewModal } from "./AttachmentPreviewModal";
 import { MonthlyExportModal } from "./MonthlyExportModal";
 import { TomorrowWorkModal } from "./TomorrowWorkModal";
@@ -23,7 +24,7 @@ import { isNative } from "@/lib/native";
 import { toISODate, fmtDate } from "@/lib/api";
 import type { DailyLog, Attachment, DeficiencyTask, PlannedWork, Note } from "@/db/schema";
 
-type View = "home" | "tasks" | "search" | "reports" | "notes" | "attachments" | "settings";
+type View = "home" | "tasks" | "search" | "reports" | "notes" | "attachments" | "materials" | "settings";
 
 export function AppShell() {
   const {
@@ -358,6 +359,7 @@ export function AppShell() {
     reports: "Reports",
     notes: "Important Notes",
     attachments: "Attachments",
+    materials: "Materials",
     settings: "Settings",
   };
 
@@ -593,6 +595,7 @@ export function AppShell() {
             {view === "reports" && <Reports onOpenMonthly={() => setMonthlyOpen(true)} />}
             {view === "notes" && <Notes focusNote={searchNote} />}
             {view === "attachments" && <AttachmentsView onSelect={setSelAttachment} />}
+            {view === "materials" && <Materials />}
             {view === "settings" && <Settings />}
           </div>
         )}
@@ -650,7 +653,7 @@ export function AppShell() {
                 </div>
               )}
             </div>
-            {(["home", "tasks", "search", "reports", "notes", "attachments", "settings"] as View[]).map((v) => (
+            {(["home", "tasks", "search", "reports", "notes", "attachments", "materials", "settings"] as View[]).map((v) => (
               <button
                 key={v}
                 onClick={() => { setView(v); if (v === "notes") setSearchNote(null); setDrawer(false); }}
@@ -666,7 +669,9 @@ export function AppShell() {
                       ? "Important Notes"
                       : v === "attachments"
                         ? "Attachments"
-                        : v}
+                        : v === "materials"
+                          ? "Materials"
+                          : v}
               </button>
             ))}
           </div>

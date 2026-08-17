@@ -67,6 +67,10 @@ export const DEPARTMENT_COLORS: Record<string, string> = {
   Telecom: "#0e7490",
 };
 
+/** Units a material requirement/receipt/usage is counted in. */
+export const MATERIAL_UNITS = ["Nos", "Kg", "Sets", "Units"] as const;
+export type MaterialUnit = (typeof MATERIAL_UNITS)[number];
+
 /** Non-station movement options shown in the daily log's Movement selector. */
 export const MOVEMENT_TYPES = [
   { value: "rest", label: "Rest" },
@@ -146,5 +150,5 @@ export const STATION_DISTANCE_LABEL: Record<StationDistance, string> = {
 };
 
 /** App version shown in Settings → About. Bump alongside android/app/build.gradle. */
-export const APP_VERSION_BASE = "1.7.6.52";
+export const APP_VERSION_BASE = "1.7.6.54";
 export const APP_VERSION = `${APP_VERSION_BASE}${AUTO_TIMINGS ? "p" : ""}`;

@@ -129,6 +129,9 @@ const DATA_KEYS = [
   "plannedWorks",
   "notes",
   "noteCategories",
+  "materials",
+  "materialReceipts",
+  "materialUsages",
 ] as const;
 
 export function buildDataPayload(payload: Record<string, unknown>): Record<string, unknown> {

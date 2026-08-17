@@ -9,6 +9,9 @@ export type BackupPayload = {
   plannedWorks?: unknown[];
   notes?: unknown[];
   noteCategories?: unknown[];
+  materials?: unknown[];
+  materialReceipts?: unknown[];
+  materialUsages?: unknown[];
   settings?: Record<string, string>;
 };
 
@@ -16,6 +19,9 @@ export const BACKUP_TABLES = [
   { key: "dailyLogs", label: "Daily Logs" },
   { key: "deficiencyTasks", label: "Deficiency Tasks" },
   { key: "plannedWorks", label: "Planned Works" },
+  { key: "materials", label: "Materials" },
+  { key: "materialReceipts", label: "Material Receipts" },
+  { key: "materialUsages", label: "Material Usage" },
   { key: "stations", label: "Stations" },
   { key: "staff", label: "Staff" },
   { key: "tags", label: "Tags" },

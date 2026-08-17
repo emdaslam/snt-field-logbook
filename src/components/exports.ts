@@ -15,6 +15,9 @@ import type {
   Staff,
   FootplateDetail,
   FootplateJourney,
+  Material,
+  MaterialReceipt,
+  MaterialUsage,
 } from "@/db/schema";
 
 function esc(s: string | null | undefined) {
@@ -1251,4 +1254,189 @@ export function exportMonthly(
   }
 
   exportDocument("Monthly S&T Report", body, "monthly");
+}
+
+/** Format a quantity, dropping trailing zeros (50 → "50", 2.5 → "2.5"). */
+function fmtQty(n: number): string {
+  const r = Math.round(n * 1000) / 1000;
+  return String(r).replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
+}
+
+/** Total quantity received for a material. */
+function materialReceivedTotal(materialId: number, receipts: MaterialReceipt[]): number {
+  return receipts.filter((r) => r.materialId === materialId).reduce((n, r) => n + r.qty, 0);
+}
+
+/** Total quantity used for a material. */
+function materialUsedTotal(materialId: number, usages: MaterialUsage[]): number {
+  return usages.filter((u) => u.materialId === materialId).reduce((n, u) => n + u.qty, 0);
+}
+
+export type StationMaterialRow = {
+  materialId: number;
+  name: string;
+  unit: string;
+  received: number;
+  used: number;
+  inHand: number;
+};
+
+export type StationMaterialSummary = {
+  stationId: number | null;
+  stationLabel: string;
+  rows: StationMaterialRow[];
+  receivedTotal: number;
+  usedTotal: number;
+  inHandTotal: number;
+};
+
+/** Aggregate receipts and usage per station, per material. Stations that only
+ *  appear on receipts or only on usage rows still get a summary (the empty
+ *  side shows 0). The label comes from the caller's stationName callback. */
+export function stationMaterialSummaries(
+  materials: Material[],
+  receipts: MaterialReceipt[],
+  usages: MaterialUsage[],
+  stationName: (id: number | null) => string
+): StationMaterialSummary[] {
+  const byStation = new Map<number | null, Map<number, { received: number; used: number }>>();
+  const agg = (stationId: number | null, materialId: number, receivedDelta: number, usedDelta: number) => {
+    const mat = byStation.get(stationId) ?? new Map<number, { received: number; used: number }>();
+    const cur = mat.get(materialId) ?? { received: 0, used: 0 };
+    cur.received += receivedDelta;
+    cur.used += usedDelta;
+    mat.set(materialId, cur);
+    byStation.set(stationId, mat);
+  };
+  for (const r of receipts) agg(r.stationId, r.materialId, r.qty, 0);
+  for (const u of usages) agg(u.stationId, u.materialId, 0, u.qty);
+
+  const out: StationMaterialSummary[] = [];
+  for (const [stationId, mat] of byStation) {
+    const rows: StationMaterialRow[] = [];
+    let receivedTotal = 0;
+    let usedTotal = 0;
+    for (const [materialId, e] of mat) {
+      const m = materials.find((x) => x.id === materialId);
+      rows.push({
+        materialId,
+        name: m?.name ?? "Unnamed material",
+        unit: m?.unit ?? "",
+        received: e.received,
+        used: e.used,
+        inHand: e.received - e.used,
+      });
+      receivedTotal += e.received;
+      usedTotal += e.used;
+    }
+    rows.sort((a, b) => a.name.localeCompare(b.name));
+    out.push({
+      stationId,
+      stationLabel: stationName(stationId),
+      rows,
+      receivedTotal,
+      usedTotal,
+      inHandTotal: receivedTotal - usedTotal,
+    });
+  }
+  return out.sort((a, b) => a.stationLabel.localeCompare(b.stationLabel));
+}
+
+/**
+ * Materials report — the required list, every receipt (how many, at which
+ * station, which room, where exactly it was placed) and every issue (how many
+ * used and for what purpose), with running balances. "Required" is the
+ * outstanding requirement (the original requirement minus what was received),
+ * so it drops as material arrives.
+ */
+export function exportMaterials(
+  materials: Material[],
+  receipts: MaterialReceipt[],
+  usages: MaterialUsage[],
+  stations: Station[]
+) {
+  exportDocument("Materials Report", materialsReportBody(materials, receipts, usages, stations), "materials");
+}
+
+/** HTML body of the materials report (see exportMaterials). Split out so it is
+ *  easy to verify headlessly. */
+export function materialsReportBody(
+  materials: Material[],
+  receipts: MaterialReceipt[],
+  usages: MaterialUsage[],
+  stations: Station[]
+): string {
+  const stationName = (id: number | null) =>
+    id == null ? "Station not set" : stations.find((s) => s.id === id)?.name ?? "Unassigned";
+  const qty = (n: number, unit: string) => `${fmtQty(n)} ${unit}`;
+  const row = materials
+    .map((m) => {
+      const received = materialReceivedTotal(m.id, receipts);
+      const used = materialUsedTotal(m.id, usages);
+      const inHand = received - used;
+      const remaining = Math.max(0, m.requiredQty - received);
+      return `<tr><td><strong>${esc(m.name)}</strong></td><td data-align="center">${qty(remaining, m.unit)}</td><td data-align="center">${qty(received, m.unit)}</td><td data-align="center">${qty(used, m.unit)}</td><td data-align="center">${qty(inHand, m.unit)}</td></tr>`;
+    })
+    .join("");
+
+  let body = `<h1>Materials Report</h1>`;
+  body += `<p class="meta">Generated ${fmtDate(toISODate(new Date()))} · ${materials.length} material${materials.length !== 1 ? "s" : ""} on the required list</p>`;
+
+  if (materials.length === 0) {
+    body += `<p class="empty">No materials on the required list yet. Add materials in the app first.</p>`;
+    return body;
+  }
+
+  body += `<h2>Summary</h2>`;
+  body += `<table><tr><th>Material</th><th data-align="center">Required</th><th data-align="center">Received</th><th data-align="center">Used</th><th data-align="center">In Hand</th></tr>${row}</table>`;
+
+  /* ---------- Station-wise summary ---------- */
+  const stationSummaries = stationMaterialSummaries(materials, receipts, usages, stationName);
+  body += `<h2>Station-wise Summary</h2>`;
+  if (stationSummaries.length === 0) {
+    body += `<p class="empty">No receipts or usage recorded yet.</p>`;
+  } else {
+    body += `<table><tr><th>Station</th><th>Material</th><th data-align="center">Received</th><th data-align="center">Used</th><th data-align="center">In Hand</th></tr>`;
+    for (const s of stationSummaries) {
+      for (const r of s.rows) {
+        body += `<tr><td>${esc(s.stationLabel)}</td><td>${esc(r.name)}</td><td data-align="center">${qty(r.received, r.unit)}</td><td data-align="center">${qty(r.used, r.unit)}</td><td data-align="center">${qty(r.inHand, r.unit)}</td></tr>`;
+      }
+      body += `<tr><td><strong>${esc(s.stationLabel)} — Total</strong></td><td></td><td data-align="center"><strong>${fmtQty(s.receivedTotal)}</strong></td><td data-align="center"><strong>${fmtQty(s.usedTotal)}</strong></td><td data-align="center"><strong>${fmtQty(s.inHandTotal)}</strong></td></tr>`;
+    }
+    body += `</table>`;
+  }
+
+  for (const m of materials) {
+    const received = materialReceivedTotal(m.id, receipts);
+    const used = materialUsedTotal(m.id, usages);
+    const remaining = Math.max(0, m.requiredQty - received);
+    const mReceipts = receipts
+      .filter((r) => r.materialId === m.id)
+      .sort((a, b) => b.date.localeCompare(a.date));
+    const mUsages = usages
+      .filter((u) => u.materialId === m.id)
+      .sort((a, b) => b.date.localeCompare(a.date));
+    body += `<h2>${esc(m.name)}</h2>`;
+    body += `<p class="meta">Required: ${qty(remaining, m.unit)} · Received: ${qty(received, m.unit)} · Used: ${qty(used, m.unit)} · In hand: ${qty(received - used, m.unit)}</p>`;
+
+    body += `<h3>Received (${mReceipts.length})</h3>`;
+    if (mReceipts.length) {
+      body += `<table><tr><th class="date">Date</th><th data-align="center">Qty</th><th>Station</th><th>Room</th><th>Remarks</th></tr>`;
+      for (const r of mReceipts) {
+        body += `<tr><td>${dmy(r.date)}</td><td data-align="center">${qty(r.qty, m.unit)}</td><td>${esc(stationName(r.stationId) || "-")}</td><td>${esc(r.room) || "-"}</td><td>${esc(r.remarks) || "-"}</td></tr>`;
+      }
+      body += `</table>`;
+    } else body += `<p class="empty">No receipts recorded.</p>`;
+
+    body += `<h3>Used (${mUsages.length})</h3>`;
+    if (mUsages.length) {
+      body += `<table><tr><th class="date">Date</th><th data-align="center">Qty</th><th>Station</th><th>Purpose</th></tr>`;
+      for (const u of mUsages) {
+        body += `<tr><td>${dmy(u.date)}</td><td data-align="center">${qty(u.qty, m.unit)}</td><td>${esc(stationName(u.stationId) || "-")}</td><td>${esc(u.purpose) || "-"}</td></tr>`;
+      }
+      body += `</table>`;
+    } else body += `<p class="empty">No usage recorded.</p>`;
+  }
+
+  return body;
 }

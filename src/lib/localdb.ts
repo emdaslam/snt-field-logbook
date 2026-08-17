@@ -18,6 +18,9 @@ export const TABLES = [
   "plannedWorks",
   "notes",
   "noteCategories",
+  "materials",
+  "materialReceipts",
+  "materialUsages",
 ] as const;
 
 export type TableName = (typeof TABLES)[number];
@@ -81,11 +84,10 @@ export async function readTable<T = Row>(table: TableName): Promise<T[]> {
   return rows as unknown as T[];
 }
 
-async function writeTable(table: TableName, rows: Row[]) {
+export async function writeTable(table: TableName, rows: Row[]) {
   cache.set(table, rows);
   await idbSet(table, rows);
 }
-
 function nextId(rows: Row[]) {
   return rows.reduce((m, r) => Math.max(m, Number(r.id) || 0), 0) + 1;
 }
@@ -135,7 +137,7 @@ export async function remove(table: TableName, id: number): Promise<void> {
 export async function exportAll(): Promise<Record<string, unknown>> {
   const out: Record<string, unknown> = {
     exportedAt: new Date().toISOString(),
-    version: 3,
+    version: 4,
     offline: true,
     settings: collectAppSettings(),
   };

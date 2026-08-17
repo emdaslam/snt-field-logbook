@@ -249,3 +249,39 @@ export type Tag = typeof tags.$inferSelect;
 export type DailyLog = typeof dailyLogs.$inferSelect;
 export type DeficiencyTask = typeof deficiencyTasks.$inferSelect;
 export type PlannedWork = typeof plannedWorks.$inferSelect;
+
+/** A material on the required list, with the quantity needed (in its unit). */
+export type Material = {
+  id: number;
+  name: string;
+  requiredQty: number;
+  /** "Nos" | "Kg" | "Sets" | "Units" — the unit the quantity is counted in. */
+  unit: string;
+  createdAt: string;
+};
+
+/** One delivery of a material: how many were received and where they were kept
+ *  (station + room) with a remark recording exactly where they were placed. */
+export type MaterialReceipt = {
+  id: number;
+  materialId: number;
+  qty: number;
+  /** ISO date the material was received. */
+  date: string;
+  stationId: number | null;
+  room: string;
+  remarks: string;
+  createdAt: string;
+};
+
+/** One issue of a material: how many were used and for what purpose. */
+export type MaterialUsage = {
+  id: number;
+  materialId: number;
+  qty: number;
+  /** ISO date the material was used. */
+  date: string;
+  purpose: string;
+  stationId: number | null;
+  createdAt: string;
+};
