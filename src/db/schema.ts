@@ -162,6 +162,9 @@ export const plannedWorks = pgTable("planned_works", {
   description: text("description"),
   plannedDate: date("planned_date").notNull(),
   stationId: integer("station_id"),
+  /** Id of the deficiency task this planned work was converted from. When the
+   * planned work is completed, the linked deficiency is marked Completed. */
+  convertFromId: integer("convert_from_id"),
   department: varchar("department", { length: 60 }).default("Signalling").notNull(),
   materialRemarks: text("material_remarks"),
   ownerStaffId: integer("owner_staff_id"),

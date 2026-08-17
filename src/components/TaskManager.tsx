@@ -74,8 +74,21 @@ export function TaskManager({
 
   async function toggleStatus(kind: "def" | "plan", id: number, status: string) {
     const next = status === "Pending" ? "Completed" : "Pending";
-    if (kind === "def") await api.deficiencies.update({ id, status: next });
-    else await api.planned.update({ id, status: next });
+    if (kind === "def") {
+      await api.deficiencies.update({ id, status: next });
+    } else {
+      const plan = allPlans.find((p) => p.id === id);
+      await api.planned.update({ id, status: next });
+      // A planned work converted from a deficiency carries it through: the
+      // deficiency only becomes Completed when this plan is, and goes back to
+      // Planned when the plan is reopened.
+      if (plan?.convertFromId) {
+        await api.deficiencies.update({
+          id: plan.convertFromId,
+          status: next === "Completed" ? "Completed" : "Planned",
+        });
+      }
+    }
     void autoSync();
     await refresh();
   }
@@ -266,6 +279,11 @@ export function TaskManager({
                     onDelete={async () => {
                       if (confirm("Delete planned work?")) {
                         await api.planned.remove(p.id);
+                        // Removing the plan un-converts the deficiency back to
+                        // Pending so the work isn't silently lost.
+                        if (p.convertFromId) {
+                          await api.deficiencies.update({ id: p.convertFromId, status: "Pending" });
+                        }
                         await refresh();
                       }
                     }}

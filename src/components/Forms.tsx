@@ -1721,7 +1721,8 @@ export function PlannedWorkForm({
   onClose: () => void;
   existing?: PlannedWork | null;
   /** When set, the form starts pre-filled from a deficiency and converts it
-   * into a planned work (the deficiency is marked Complete on save). */
+   * into a planned work. The deficiency is set to Planned (not Completed) so
+   * it only counts as a completed deficiency once the planned work is done. */
   convertFrom?: DeficiencyTask | null;
 }) {
   const { stations, refresh, currentUser, autoSync } = useData();
@@ -1748,6 +1749,7 @@ export function PlannedWorkForm({
       description,
       plannedDate,
       stationId,
+      convertFromId: existing?.convertFromId ?? convertFrom?.id ?? null,
       department,
       materialRemarks,
       attachments,
@@ -1755,10 +1757,11 @@ export function PlannedWorkForm({
     };
     if (existing) await api.planned.update(payload);
     else await api.planned.create(payload);
-    // Converting: the deficiency it came from becomes Complete so the two
-    // records don't both stay open for the same piece of work.
+    // Converting: the deficiency it came from is only Planned until its
+    // planned work is actually completed, so it neither stays pending nor
+    // counts as a completed deficiency yet.
     if (convertFrom && !existing) {
-      await api.deficiencies.update({ id: convertFrom.id, status: "Completed" });
+      await api.deficiencies.update({ id: convertFrom.id, status: "Planned" });
     }
     void autoSync();
     await refresh();
@@ -1774,8 +1777,9 @@ export function PlannedWorkForm({
     >
       {convertFrom && (
         <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          Converting the deficiency “{convertFrom.title}” — saving marks it{" "}
-          <strong>Complete</strong> and creates a planned work.
+          Converting the deficiency “{convertFrom.title}” — saving moves it to
+          your planned works. It will be counted as a completed deficiency only
+          when this planned work is completed.
         </div>
       )}
       <Field label="Work Title">

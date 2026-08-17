@@ -238,6 +238,7 @@ export const api = {
         description: b.description ?? null,
         plannedDate: b.plannedDate ?? "",
         stationId: b.stationId ?? null,
+        convertFromId: b.convertFromId ?? null,
         department: b.department ?? "Signalling",
         materialRemarks: b.materialRemarks ?? null,
         ownerStaffId: b.ownerStaffId ?? null,
