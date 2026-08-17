@@ -80,9 +80,8 @@ export const dailyLogs = pgTable("daily_logs", {
   movementKind: varchar("movement_kind", { length: 10 }),
   // For leave: CL / LAP / SICK
   leaveKind: varchar("leave_kind", { length: 10 }),
-  // For CR: the rest day(s) the user worked on (which earned the compensatory rest)
+  // For CR: the rest day the user worked on (which earned the compensatory rest)
   crFrom: date("cr_from"),
-  crTo: date("cr_to"),
   workDone: text("work_done"),
   ta: numeric("ta", { precision: 12, scale: 2 }),
   // TA claim percentage: 100 / 70 / 30  (100% = 1 full day)

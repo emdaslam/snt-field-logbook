@@ -386,7 +386,6 @@ function normaliseLog(b: Partial<DailyLog>) {
     movementKind: b.movementKind ?? null,
     leaveKind: b.leaveKind ?? null,
     crFrom: b.crFrom ?? null,
-    crTo: b.crTo ?? null,
     workDone: b.workDone ?? null,
     ta: null,
     taPercent: num(b.taPercent, 100),

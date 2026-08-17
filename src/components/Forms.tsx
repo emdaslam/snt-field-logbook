@@ -129,7 +129,6 @@ export function DailyLogForm({
   );
   const [leaveKind, setLeaveKind] = useState(existing?.leaveKind ?? "");
   const [crFrom, setCrFrom] = useState(existing?.crFrom ?? "");
-  const [crTo, setCrTo] = useState(existing?.crTo ?? "");
   const [workDone, setWorkDone] = useState(existing?.workDone ?? "");
   const [taPercent, setTaPercent] = useState(String(existing?.taPercent ?? 70));
   const [tagIds, setTagIds] = useState<number[]>(existing?.tagIds ?? []);
@@ -246,7 +245,6 @@ export function DailyLogForm({
       setMovementKind(v);
       setLeaveKind("");
       setCrFrom("");
-      setCrTo("");
       setWorkDone("");
       setTaPercent("0");
       setMovement(v === "rest" ? "Rest" : v === "leave" ? "Leave" : v === "cr" ? "CR" : "NH");
@@ -266,13 +264,9 @@ export function DailyLogForm({
     setMovement(`Leave (${k})`);
   };
 
-  const setCrDates = (from: string, to: string) => {
-    setCrFrom(from);
-    setCrTo(to);
-    if (from && to) setMovement(`CR (worked ${fmtDate(from)} → ${fmtDate(to)})`);
-    else if (from) setMovement(`CR (worked ${fmtDate(from)})`);
-    else if (to) setMovement(`CR (worked till ${fmtDate(to)})`);
-    else setMovement("CR");
+  const setCrDate = (d: string) => {
+    setCrFrom(d);
+    setMovement(d ? `CR (worked ${fmtDate(d)})` : "CR");
   };
 
   // PCDO station mirrors the log entry; when the movement isn't a station
@@ -388,7 +382,6 @@ export function DailyLogForm({
       movementKind: movementKind !== "station" ? movementKind : null,
       leaveKind: movementKind === "leave" ? leaveKind || null : null,
       crFrom: movementKind === "cr" ? crFrom || null : null,
-      crTo: movementKind === "cr" ? crTo || null : null,
       workDone: isSpecial ? null : workDone,
       ta: null,
       taPercent: taLocked ? 0 : Number(taPercent) || 0,
@@ -588,28 +581,17 @@ export function DailyLogForm({
         {movementKind === "cr" && (
           <div className="mt-2 rounded-lg border border-sky-200 bg-sky-50 p-2.5">
             <p className="mb-1.5 text-xs font-medium text-sky-800">Worked on rest day</p>
-            <div className="grid grid-cols-2 gap-2">
-              <label className="block">
-                <span className="mb-0.5 block text-[11px] text-slate-600">From</span>
-                <input
-                  type="date"
-                  className={inputClass}
-                  value={crFrom}
-                  onChange={(e) => setCrDates(e.target.value, crTo)}
-                />
-              </label>
-              <label className="block">
-                <span className="mb-0.5 block text-[11px] text-slate-600">To</span>
-                <input
-                  type="date"
-                  className={inputClass}
-                  value={crTo}
-                  onChange={(e) => setCrDates(crFrom, e.target.value)}
-                />
-              </label>
-            </div>
-            {!crFrom && !crTo && (
-              <p className="mt-1.5 text-xs text-amber-600">Select the rest day(s) you worked on.</p>
+            <label className="block">
+              <span className="mb-0.5 block text-[11px] text-slate-600">Date</span>
+              <input
+                type="date"
+                className={inputClass}
+                value={crFrom}
+                onChange={(e) => setCrDate(e.target.value)}
+              />
+            </label>
+            {!crFrom && (
+              <p className="mt-1.5 text-xs text-amber-600">Select the rest day you worked on.</p>
             )}
           </div>
         )}

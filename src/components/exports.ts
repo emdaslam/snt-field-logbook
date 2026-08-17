@@ -495,7 +495,7 @@ function specialPair(l: DailyLog): [string, string] | null {
     case "leave":
       return ["AVAILED LEAVE", "LEAVE"];
     case "cr":
-      return ["AVAILED CR", "CR"];
+      return [l.crFrom ? `AVAILED CR OF ${dmy(l.crFrom)}` : "AVAILED CR", "CR"];
     default:
       return null;
   }
