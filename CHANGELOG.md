@@ -5,7 +5,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.49 — 2026-08-17
 
-**Feat: TA Journal and Diary PDF/Word exports now follow the official G.A.31 railway form** — `uncommitted`
+**Feat: TA Journal and Diary PDF/Word exports now follow the official G.A.31 railway form** — `d67c711`
 
 - **TA Journal header:** title is "SOUTH COAST RAILWAY. GUNTAKAL DIVISION" with
   a small "In lieu of G.A.31" note on its right, the centred
@@ -31,7 +31,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.48 — 2026-08-16
 
-**Feat: Settings swipe polish — tab headings follow the swipe, content slides in smoothly, and swipes work over the blank areas too** — `HEAD`
+**Feat: Settings swipe polish — tab headings follow the swipe, content slides in smoothly, and swipes work over the blank areas too** — `5f970ae`
 
 - **Smooth transition:** switching tabs (by swipe or by tapping a tab chip) now
   slides the incoming tab in from the direction the swipe came from, instead of
@@ -46,7 +46,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.47 — 2026-08-16
 
-**Feat: Settings tabs can be switched with a horizontal swipe** — `HEAD`
+**Feat: Settings tabs can be switched with a horizontal swipe** — `aadb259`
 
 - Swiping left or right over the Settings content moves between the tab groups
   (Account & Directory, Tags & Notifications, Backup & Drive, Appearance & Font
