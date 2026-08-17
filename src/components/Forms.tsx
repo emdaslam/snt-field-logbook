@@ -269,9 +269,9 @@ export function DailyLogForm({
   const setCrDates = (from: string, to: string) => {
     setCrFrom(from);
     setCrTo(to);
-    if (from && to) setMovement(`CR (${fmtDate(from)} → ${fmtDate(to)})`);
-    else if (from) setMovement(`CR (from ${fmtDate(from)})`);
-    else if (to) setMovement(`CR (till ${fmtDate(to)})`);
+    if (from && to) setMovement(`CR (worked ${fmtDate(from)} → ${fmtDate(to)})`);
+    else if (from) setMovement(`CR (worked ${fmtDate(from)})`);
+    else if (to) setMovement(`CR (worked till ${fmtDate(to)})`);
     else setMovement("CR");
   };
 
@@ -587,7 +587,7 @@ export function DailyLogForm({
 
         {movementKind === "cr" && (
           <div className="mt-2 rounded-lg border border-sky-200 bg-sky-50 p-2.5">
-            <p className="mb-1.5 text-xs font-medium text-sky-800">CR availed on</p>
+            <p className="mb-1.5 text-xs font-medium text-sky-800">Worked on rest day</p>
             <div className="grid grid-cols-2 gap-2">
               <label className="block">
                 <span className="mb-0.5 block text-[11px] text-slate-600">From</span>
@@ -609,7 +609,7 @@ export function DailyLogForm({
               </label>
             </div>
             {!crFrom && !crTo && (
-              <p className="mt-1.5 text-xs text-amber-600">Select the date(s) for which CR is availed.</p>
+              <p className="mt-1.5 text-xs text-amber-600">Select the rest day(s) you worked on.</p>
             )}
           </div>
         )}

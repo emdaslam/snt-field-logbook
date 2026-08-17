@@ -80,7 +80,7 @@ export const dailyLogs = pgTable("daily_logs", {
   movementKind: varchar("movement_kind", { length: 10 }),
   // For leave: CL / LAP / SICK
   leaveKind: varchar("leave_kind", { length: 10 }),
-  // For CR: the date(s) for which the compensatory rest is availed
+  // For CR: the rest day(s) the user worked on (which earned the compensatory rest)
   crFrom: date("cr_from"),
   crTo: date("cr_to"),
   workDone: text("work_done"),
