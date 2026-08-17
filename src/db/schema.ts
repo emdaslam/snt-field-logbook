@@ -36,6 +36,10 @@ export const staff = pgTable("staff", {
   phone: varchar("phone", { length: 40 }),
   email: varchar("email", { length: 160 }),
   department: varchar("department", { length: 60 }),
+  // Pay metric (e.g. "L-VI") and pay (e.g. "42,300/-") printed in the TA
+  // Journal header, mirroring the official G.A.31 claim form.
+  payMetric: varchar("pay_metric", { length: 40 }),
+  pay: varchar("pay", { length: 60 }),
   // TA rate (₹ per full day) used to fill the AMOUNT column of the TA Journal
   taRate: numeric("ta_rate", { precision: 12, scale: 2 }),
   stationIds: jsonb("station_ids").$type<number[]>().default([]).notNull(),

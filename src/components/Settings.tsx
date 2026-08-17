@@ -555,6 +555,8 @@ function StaffEditor({ existing, onClose }: { existing: Staff | null; onClose: (
     phone: existing?.phone ?? "",
     email: existing?.email ?? "",
     department: existing?.department ?? "Signalling",
+    payMetric: existing?.payMetric ?? "",
+    pay: existing?.pay ?? "",
     taRate: existing?.taRate != null && existing.taRate !== "" ? String(existing.taRate) : "",
     stationIds: existing?.stationIds ?? [],
     headquartersStationId: existing?.headquartersStationId ?? null,
@@ -617,6 +619,17 @@ function StaffEditor({ existing, onClose }: { existing: Staff | null; onClose: (
           {DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}
         </select>
       </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Pay Metric">
+          <input className={inputClass} value={form.payMetric ?? ""} onChange={(e) => setForm({ ...form, payMetric: e.target.value })} placeholder="e.g. L-VI" />
+        </Field>
+        <Field label="Pay">
+          <input className={inputClass} value={form.pay ?? ""} onChange={(e) => setForm({ ...form, pay: e.target.value })} placeholder="e.g. 42,300/-" />
+        </Field>
+      </div>
+      <span className="mb-3 block text-xs text-slate-500">
+        Pay Metric and Pay appear in the TA Journal header, matching the official form.
+      </span>
       <Field label="TA Rate (₹ per day)">
         <input
           className={inputClass}

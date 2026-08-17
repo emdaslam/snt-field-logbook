@@ -3,6 +3,32 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.49 — 2026-08-17
+
+**Feat: TA Journal and Diary PDF/Word exports now follow the official G.A.31 railway form** — `uncommitted`
+
+- **TA Journal header:** title is "SOUTH COAST RAILWAY. GUNTAKAL DIVISION" with
+  a small "In lieu of G.A.31" note on its right, the centred
+  "TRAVELLING ALLOWANCE JOURNAL" heading, and two fixed-column info rows
+  (Name / Designation / P.F.NO / Pay Metric, then Headquarters / Month / B.U.No
+  / Pay) matching the reference sheet.
+- **Two-tier table header:** DATE · TRAIN · TIME (NO / TIME DEPT / TIME ARR) ·
+  STATION (FROM / TO) · KMS · DAYS · AMOUNT · NATURE OF WORK, with the merged
+  TIME / STATION spans centred across their columns.
+- **Form-style numbers:** dates print as d-m-yyyy ("1-6-2026"), the DAYS column
+  as "100.00%"/"70.00%", amounts as "₹ 1,000", and the vertical KMS note is kept
+  ("ALL ARE ABOVE 8 KMS").
+- **Summary in the form layout:** a "TOTAL NO. OF DAYS … ₹ …" row closes the
+  main table, followed by the 100% X n / 70% X n / 30% X n calculation lines,
+  underline and "TOTAL = n DAYS", exactly like the official form.
+- **New profile fields:** Pay Metric (e.g. "L-VI") and Pay (e.g. "42,300/-")
+  in Settings → Staff Details feed the TA Journal header.
+- **Diary:** the title is now centred ("DIARY OF SRI … FOR THE MONTH OF
+  JUNE-2026") and the old meta line was dropped; dates stay dd-mm-yyyy and the
+  designation remains right-aligned at the foot.
+- **Excel export untouched** — the TA/Diary .xlsx sheets keep exactly their
+  previous layout; only the PDF and Word outputs were restyled.
+
 ## 1.7.6.48 — 2026-08-16
 
 **Feat: Settings swipe polish — tab headings follow the swipe, content slides in smoothly, and swipes work over the blank areas too** — `HEAD`

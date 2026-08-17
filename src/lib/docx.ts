@@ -68,6 +68,8 @@ function para(
     keepNext?: boolean;
     borderBottom?: string;
     centered?: boolean;
+    alignRight?: boolean;
+    indent?: number;
   } = {}
 ): string {
   if (!text.trim()) return "";
@@ -75,7 +77,9 @@ function para(
   if (opts.keepNext) pPrParts.push("<w:keepNext/>");
   pPrParts.push(`<w:spacing w:before="${opts.before ?? 0}" w:after="${opts.after ?? 160}"/>`);
   if (opts.centered) pPrParts.push(`<w:jc w:val="center"/>`);
+  if (opts.alignRight) pPrParts.push(`<w:jc w:val="right"/>`);
   if (opts.bullet) pPrParts.push(`<w:ind w:left="283" w:hanging="283"/>`);
+  if (opts.indent) pPrParts.push(`<w:ind w:left="${opts.indent}"/>`);
   if (opts.borderBottom) {
     pPrParts.push(
       `<w:pBdr><w:bottom w:val="single" w:sz="8" w:space="1" w:color="${opts.borderBottom}"/></w:pBdr>`
@@ -92,6 +96,29 @@ function para(
       return `<w:r>${runProps(opts)}${br}<w:t xml:space="preserve">${prefix}${content}</w:t></w:r>`;
     })
     .join("");
+  return `<w:p>${pPr}${runs}</w:p>`;
+}
+
+/** One paragraph with fixed columns: each <span> jumps to the next tab stop
+ *  (offsets in pts become twips). Used by the TA Journal's header info block
+ *  and the days summary so Word mirrors the PDF column alignment. */
+function colsPara(spans: string[], offsets: number[]): string {
+  const indent = Math.round((offsets[0] ?? 0) * 20);
+  const tabs = offsets
+    .slice(1)
+    .map(
+      (o) =>
+        `<w:tab w:val="left" w:pos="${Math.round(Math.max(0, o - (offsets[0] ?? 0)) * 20)}"/>`
+    )
+    .join("");
+  const runs = spans
+    .map((t, i) => {
+      if (!t) return "";
+      const tab = i === 0 ? "" : "<w:tab/>";
+      return `<w:r>${runProps({ sz: 18 })}${tab}<w:t xml:space="preserve">${esc(t)}</w:t></w:r>`;
+    })
+    .join("");
+  const pPr = `<w:pPr>${tabs ? `<w:tabs>${tabs}</w:tabs>` : ""}<w:ind w:left="${indent}"/><w:spacing w:before="0" w:after="160"/></w:pPr>`;
   return `<w:p>${pPr}${runs}</w:p>`;
 }
 
@@ -126,8 +153,11 @@ function buildTable(html: string): string {
   const parsed = new DOMParser().parseFromString(`<div>${html}</div>`, "text/html");
   const trs = Array.from(parsed.body.firstElementChild?.querySelectorAll("tr") ?? []);
   if (trs.length === 0) return "";
-  const headCells = Array.from(trs[0].querySelectorAll("th"));
-  const hasHead = headCells.length > 0;
+  // Consecutive leading <tr> rows whose cells are <th> form the header (the TA
+  // Journal uses a two-tier header with rowspan/colspan merges).
+  let headCount = 0;
+  while (headCount < trs.length && trs[headCount].querySelector("th")) headCount++;
+  const hasHead = headCount > 0;
 
   // Pin a fixed-width first "date" column if any cell is marked class="date".
   let dateCol = false;
@@ -137,13 +167,30 @@ function buildTable(html: string): string {
       break;
     }
   }
-  // Honour explicit per-column widths from data-width on the header row.
+  // Honour explicit per-column widths from data-width on the header cells,
+  // resolved to real column indexes through the rowspan/colspan walk so a
+  // two-tier header maps "TIME DEPT" etc. to the right grid column.
   const widths: string[] = [];
   if (hasHead) {
-    headCells.forEach((c, i) => {
-      const w = c.getAttribute("data-width");
-      if (w) widths[i] = String(Math.round(Number(w) * 20));
-    });
+    const active = new Map<number, number>();
+    for (const r of trs.slice(0, headCount)) {
+      const els = Array.from(r.querySelectorAll("td, th"));
+      let col = 0;
+      for (const el of els) {
+        while (active.has(col)) {
+          const left = active.get(col)! - 1;
+          if (left <= 0) active.delete(col);
+          else active.set(col, left);
+          col++;
+        }
+        const w = el.getAttribute("data-width");
+        if (w) widths[col] = String(Math.round(Number(w) * 20));
+        const rowSpan = Math.max(1, parseInt(el.getAttribute("rowspan") || "1", 10) || 1);
+        const colSpan = Math.max(1, parseInt(el.getAttribute("colspan") || "1", 10) || 1);
+        if (rowSpan > 1) active.set(col, rowSpan - 1);
+        col += colSpan;
+      }
+    }
   }
 
   // A cell's width for its grid column: an explicit header width when present,
@@ -160,7 +207,6 @@ function buildTable(html: string): string {
   for (const r of trs) {
     const els = Array.from(r.querySelectorAll("td, th"));
     if (els.length === 0) continue;
-    const isHead = hasHead && r === trs[0];
     const cellsHtml: string[] = [];
     let col = 0;
     const contCell = () => {
@@ -183,6 +229,9 @@ function buildTable(html: string): string {
       const rowSpan = Math.max(1, parseInt(el.getAttribute("rowspan") || "1", 10) || 1);
       const colSpan = Math.max(1, parseInt(el.getAttribute("colspan") || "1", 10) || 1);
       const width = colWidth(col);
+      // A <th> is a header cell wherever it appears (so a two-tier header is
+      // styled and centred like the reference sheet).
+      const isHead = el.tagName === "TH";
       // Cells marked class="vtext" render vertically, one character per line
       // (the TA journal's KMS note, which already carries per-word blank lines);
       // other cells are tidied normally.
@@ -190,8 +239,9 @@ function buildTable(html: string): string {
       const text = isV
         ? (el.textContent ?? "").replace(/ +/g, "\n")
         : tidy(el.textContent ?? "");
+      const centered = isV || el.getAttribute("data-align") === "center";
       cellsHtml.push(
-        tableCell(text, isHead, width, rowSpan, colSpan, isV)
+        tableCell(text, isHead, width, rowSpan, colSpan, centered)
       );
       if (rowSpan > 1) active.set(col, rowSpan - 1);
       col += colSpan;
@@ -241,17 +291,27 @@ export function buildDocx(title: string, bodyHtml: string): Uint8Array {
 
     if (tag === "h1") {
       if (!text) continue;
-      parts.push(
-        para(text, {
-          bold: true,
-          color: "1E3A8A",
-          sz: 30,
-          after: 280,
-          keepNext: true,
-          borderBottom: "1E3A8A",
-          centered: el.className.includes("centered"),
-        })
-      );
+      const rightNote = el.getAttribute("data-right-note");
+      if (rightNote) {
+        parts.push(
+          `<w:p><w:pPr><w:tabs><w:tab w:val="right" w:pos="9360"/></w:tabs><w:spacing w:before="0" w:after="280"/><w:keepNext/><w:jc w:val="center"/></w:pPr>` +
+            `<w:r>${runProps({ bold: true, color: "1E3A8A", sz: 30 })}<w:t xml:space="preserve">${esc(text)}</w:t></w:r>` +
+            `<w:r>${runProps({ color: "1E293B", sz: 16 })}<w:tab/><w:t xml:space="preserve">${esc(rightNote)}</w:t></w:r>` +
+            `</w:p>`
+        );
+      } else {
+        parts.push(
+          para(text, {
+            bold: true,
+            color: "1E3A8A",
+            sz: 30,
+            after: 280,
+            keepNext: true,
+            borderBottom: "1E3A8A",
+            centered: el.className.includes("centered"),
+          })
+        );
+      }
     } else if (tag === "h2") {
       if (!text) continue;
       parts.push(
@@ -277,6 +337,13 @@ export function buildDocx(title: string, bodyHtml: string): Uint8Array {
       );
     } else if (tag === "p") {
       if (!text) continue;
+      const colsAttr = el.getAttribute("data-cols");
+      if (colsAttr) {
+        const spans = Array.from(el.querySelectorAll("span")).map((s) => tidy(s.textContent ?? ""));
+        const offsets = colsAttr.split(",").map((s) => Number(s.trim()) || 0);
+        parts.push(colsPara(spans, offsets));
+        continue;
+      }
       const meta = el.className.includes("meta") || el.className.includes("empty");
       parts.push(
         para(text, {
@@ -284,6 +351,8 @@ export function buildDocx(title: string, bodyHtml: string): Uint8Array {
           color: meta ? "64748B" : undefined,
           sz: 18,
           after: 160,
+          indent: Math.round((Number(el.getAttribute("data-left")) || 0) * 20),
+          alignRight: el.className.includes("right"),
         })
       );
     } else if (tag === "ul") {

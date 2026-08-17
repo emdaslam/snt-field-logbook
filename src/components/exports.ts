@@ -528,7 +528,7 @@ function cellText(c: XlsxCell | string | number): string {
 function gridHtml(
   grid: (string | number | XlsxCell)[][],
   merges: XlsxMerge[],
-  opts: { dateCol?: number; centerCols?: Set<number>; vTextCols?: Set<number> } = {}
+  opts: { dateCol?: number; centerCols?: Set<number>; vTextCols?: Set<number>; fontCols?: Set<number> } = {}
 ): string {
   const covered = new Set<string>();
   const rows: string[] = [];
@@ -544,6 +544,9 @@ function gridHtml(
       if (isV) cls = cls ? `${cls} vtext` : "vtext";
       let attrs = cls ? ` class="${cls}"` : "";
       if (opts.centerCols?.has(c)) attrs += ' data-align="center"';
+      // data-font lets the PDF renderer pick a font that carries the rupee
+      // sign (jsPDF's standard Helvetica can't draw U+20B9).
+      if (opts.fontCols?.has(c) && txt.trim()) attrs += ' data-font="rupee"';
       if (m) {
         const [, , r2, c2] = m;
         const rs = r2 - r + 1;
@@ -562,6 +565,32 @@ function gridHtml(
     rows.push(`<tr>${tds.join("")}</tr>`);
   }
   return rows.join("");
+}
+
+/**
+ * PDF / Word display form of a TA grid cell. The official G.A.31 form prints
+ * dates as d-m-yyyy ("1-6-2026"), the DAYS column as "100.00%" and amounts as
+ * ₹ 1,000 — while the Excel sheet keeps its own (untouched) format. Only the
+ * rendered PDF / Word body uses this; the xlsx grid is left exactly as built.
+ */
+function pdfGridOf(grid: (string | number | XlsxCell)[][]): (string | number | XlsxCell)[][] {
+  return grid.map((row) =>
+    row.map((c, ci) => {
+      const t = cellText(c);
+      if (ci === 0 && t) {
+        const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(t);
+        if (m) return `${Number(m[1])}-${Number(m[2])}-${m[3]}`;
+      }
+      if (ci === 7 && t) {
+        const m = /^(\d+)(?:\.(\d+))?%$/.exec(t);
+        if (m) return `${Number(m[1]).toFixed(2)}%`;
+      }
+      if (ci === 8 && t && /^\d+$/.test(t)) {
+        return `₹ ${Number(t).toLocaleString("en-IN")}`;
+      }
+      return c;
+    })
+  );
 }
 
 /**
@@ -611,7 +640,8 @@ export function exportDiary(
   period: { from: string; to: string; label: string },
   logs: DailyLog[],
   stations: Station[],
-  me: Staff | undefined
+  me: Staff | undefined,
+  out: (title: string, body: string, type: string, sheet?: XlsxSheet) => void = exportDocument
 ) {
   const hq = stations.find((s) => s.id === me?.headquartersStationId);
   const hqCode = hqLabel(hq);
@@ -698,8 +728,7 @@ export function exportDiary(
     ? `DIARY OF SRI ${who} FOR THE MONTH OF ${monthStamp(period.label)}`
     : `Diary — ${period.label}`;
 
-  let body = `<h1>${esc(titleText)}</h1>`;
-  body += `<p class="meta">${fmtDate(period.from)} to ${fmtDate(period.to)} · Headquarters: ${esc(hqCode)}</p>`;
+  let body = `<h1 class="centered">${esc(titleText)}</h1>`;
 
   if (rows.length === 0) {
     body += `<p class="empty">No diary entries in this period.</p>`;
@@ -708,7 +737,7 @@ export function exportDiary(
     body += `<tr><th class="date" data-width="56">DATE</th><th data-width="72">TRAIN NO</th><th data-width="60">TIME DEP</th><th data-width="60">TIME ARR</th><th data-width="50">FROM</th><th data-width="50">TO</th><th>NATURE OF WORK</th></tr>`;
     body += gridHtml(grid, merges, { dateCol: 0 });
     body += `</table>`;
-    if (me?.designation) body += `<p class="meta" style="text-align:right">${esc(me.designation.toUpperCase())}</p>`;
+    if (me?.designation) body += `<p class="meta right">${esc(me.designation.toUpperCase())}</p>`;
   }
 
   const allMerges: XlsxMerge[] = [
@@ -725,7 +754,7 @@ export function exportDiary(
     colWidths: [10.3, 8.7, 8.7, 8.7, 7.3, 7.3, 52.3],
   };
 
-  exportDocument(`Diary ${period.label}`, body, "diary", sheet);
+  out(`Diary ${period.label}`, body, "diary", sheet);
 }
 
 
@@ -744,7 +773,8 @@ export function exportTaJournal(
   period: { from: string; to: string; label: string },
   logs: DailyLog[],
   stations: Station[],
-  me: Staff | undefined
+  me: Staff | undefined,
+  out: (title: string, body: string, type: string, sheet?: XlsxSheet) => void = exportDocument
 ) {
   const hq = stations.find((s) => s.id === me?.headquartersStationId);
   const hqCode = hqLabel(hq);
@@ -888,36 +918,36 @@ export function exportTaJournal(
   const designation = me?.designation ? `Designation: ${me.designation}` : "Designation: not updated in profile";
   const pf = me?.pfNo ? `P.F.NO: ${me.pfNo}` : "P.F.NO: not updated in profile";
   const bu = me?.buNo ? `B.U.No: ${me.buNo}` : "B.U.No: not updated in profile";
+  const payMetric = me?.payMetric?.trim() ? `Pay Metric:${me.payMetric.trim()}` : "";
+  const pay = me?.pay?.trim() ? `Pay: ${me.pay.trim()}` : "";
 
   const cert =
     "I here certify that the above mentioned employee was absent on duty from his headquarters station during the period charged for in the bill on Railway Business.";
 
-  let body = `<h1 class="centered">SOUTH COAST RAILWAY. GUNTAKAL DIVISION</h1>`;
+  let body = `<h1 class="centered" data-right-note="In lieu of G.A.31">SOUTH COAST RAILWAY. GUNTAKAL DIVISION</h1>`;
   body += `<h2 class="centered">TRAVELLING ALLOWANCE JOURNAL</h2>`;
-  body += `<p class="meta">${esc(name)} · ${esc(designation)} · ${esc(pf)}</p>`;
-  body += `<p class="meta">${esc(`Headquarters: ${hqCode}`)} · Month: ${esc(month)} · ${esc(bu)}</p>`;
+  body += `<p class="cols" data-cols="0,160,280,430"><span>${esc(name)}</span><span>${esc(designation)}</span><span>${esc(pf)}</span><span>${esc(payMetric)}</span></p>`;
+  body += `<p class="cols" data-cols="0,160,280,430"><span>${esc(`Headquarters: ${hqCode}`)}</span><span>${esc(`Month: ${month}`)}</span><span>${esc(bu)}</span><span>${esc(pay)}</span></p>`;
 
   if (taDays.length === 0) {
     body += `<p class="empty">No TA days in this period.</p>`;
   } else {
     body += `<table>`;
-    body += `<tr><th class="date" data-width="54" data-align="center">DATE</th><th data-width="40">TRAIN NO</th><th data-width="44" data-align="center">TIME DEP</th><th data-width="44" data-align="center">TIME ARR</th><th data-width="40" data-align="center">FROM</th><th data-width="40" data-align="center">TO</th><th data-width="30" data-align="center">KMS</th><th data-width="32">TA %</th><th data-width="40">AMOUNT</th><th>NATURE OF WORK</th></tr>`;
-    body += gridHtml(grid, merges, { dateCol: 0, centerCols: new Set([0, 2, 3, 4, 5, 6]), vTextCols: new Set([6]) });
+    body += `<tr><th rowspan="2" class="date" data-width="54" data-align="center">DATE</th><th data-align="center">TRAIN</th><th colspan="2" data-align="center">TIME</th><th colspan="2" data-align="center">STATION</th><th rowspan="2" data-width="30" data-align="center">KMS</th><th rowspan="2" data-width="32" data-align="center">DAYS</th><th rowspan="2" data-width="40" data-align="center">AMOUNT</th><th rowspan="2">NATURE OF WORK</th></tr>`;
+    body += `<tr><th data-width="40" data-align="center">NO</th><th data-width="44" data-align="center">TIME DEPT</th><th data-width="44" data-align="center">TIME ARR</th><th data-width="40" data-align="center">FROM</th><th data-width="40" data-align="center">TO</th></tr>`;
+    body += gridHtml(pdfGridOf(grid), merges, { dateCol: 0, centerCols: new Set([0, 1, 2, 3, 4, 5, 6, 7, 8]), vTextCols: new Set([6]), fontCols: new Set([8]) });
+    body += `<tr><td colspan="7" data-align="center"><strong>TOTAL NO. OF DAYS</strong></td><td><strong>${daysLabel(totalDays)} DAYS</strong></td><td data-font="rupee" data-align="center"><strong>${rateNotSet ? esc(rateMissingText) : `₹ ${totalAmount!.toLocaleString("en-IN")}`}</strong></td><td></td></tr>`;
     body += `</table>`;
 
-    body += `<h2>Summary</h2>`;
-    body += `<table>`;
-    body += `<tr><td><strong>TOTAL NO. OF DAYS</strong></td><td></td><td></td><td><strong>${daysLabel(totalDays)} DAYS</strong></td><td><strong>${rateNotSet ? esc(rateMissingText) : `₹${totalAmount!.toLocaleString("en-IN")}`}</strong></td></tr>`;
-    body += `<tr><td>100%</td><td>X ${n100}</td><td>= ${daysLabel(days100)} DAYS</td><td></td><td></td></tr>`;
-    body += `<tr><td>70%</td><td>X ${n70}</td><td>= ${daysLabel(days70)} DAYS</td><td></td><td></td></tr>`;
-    body += `<tr><td>30%</td><td>X ${n30}</td><td>= ${daysLabel(days30)} DAYS</td><td></td><td></td></tr>`;
-    body += `<tr><td>${"".padEnd(24, "_")}</td><td></td><td></td><td></td><td></td></tr>`;
-    body += `<tr><td><strong>TOTAL</strong></td><td></td><td>= ${daysLabel(totalDays)} DAYS</td><td></td><td></td></tr>`;
-    body += `</table>`;
+    body += `<p class="cols" data-cols="46,83,115"><span>100%</span><span>X ${n100}</span><span>= ${daysLabel(days100)} DAYS</span></p>`;
+    body += `<p class="cols" data-cols="46,83,115"><span>70%</span><span>X ${n70}</span><span>= ${daysLabel(days70)} DAYS</span></p>`;
+    body += `<p class="cols" data-cols="46,83,115"><span>30%</span><span>X ${n30}</span><span>= ${daysLabel(days30)} DAYS</span></p>`;
+    body += `<p class="cols" data-cols="55"><span>${"".padEnd(24, "_")}</span></p>`;
+    body += `<p class="cols" data-cols="88"><span><strong>TOTAL</strong> = ${daysLabel(totalDays)} DAYS</span></p>`;
 
-    body += `<p class="meta" style="margin-top:12px">${esc(cert)}</p>`;
-    body += `<p class="meta" style="margin-top:28px">____________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;____________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;________________________</p>`;
-    body += `<p class="meta">CONTROLLING OFFICER&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;HEAD OF OFFICE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SIGNATURE OF OFFICER/ CLAIMING TA</p>`;
+    body += `<p class="meta">${esc(cert)}</p>`;
+    body += `<p class="cols" data-cols="0,190,390"><span>${"".padEnd(20, "_")}</span><span>${"".padEnd(19, "_")}</span><span>${"".padEnd(22, "_")}</span></p>`;
+    body += `<p class="cols" data-cols="0,195,365"><span>CONTROLLING OFFICER</span><span>HEAD OF OFFICE</span><span>SIGNATURE OF OFFICER/ CLAIMING TA</span></p>`;
   }
 
   const summaryRows: XlsxSheet["rows"] = [
@@ -1003,7 +1033,7 @@ export function exportTaJournal(
     colWidths: [10.43, 8.14, 9.71, 9.29, 6.71, 8.43, 4.29, 9.71, 11.43, 51, 12.14, 9],
   };
 
-  exportDocument(`TA Journal ${period.label}`, body, "ta", sheet);
+  out(`TA Journal ${period.label}`, body, "ta", sheet);
 }
 
 

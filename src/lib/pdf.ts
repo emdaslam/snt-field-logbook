@@ -5,6 +5,7 @@ import {
   CONTENT_FONT_MIN,
   DEFAULT_CONTENT_FONT_SIZE,
 } from "@/lib/types";
+import { registerPdfFonts } from "./pdfFonts";
 import type { XlsxSheet } from "./xlsx";
 
 const NAVY: [number, number, number] = [30, 58, 138];
@@ -63,14 +64,14 @@ function tidy(s: string) {
  * carrying a span becomes a CellDef with that span, and the cells it covers
  * are omitted from the later rows / columns.
  */
-function parseTableBody(
-  trs: Element[]
-): (string | { content: string; rowSpan: number; colSpan?: number })[][] {
+type PdfCell = string | { content: string; rowSpan: number; colSpan: number; styles?: { font?: string; fontStyle?: "bold"; halign?: "left" | "center" | "right" } };
+
+function parseTableBody(trs: Element[]): PdfCell[][] {
   const active = new Map<number, number>();
-  const body: (string | { content: string; rowSpan: number; colSpan?: number })[][] = [];
+  const body: PdfCell[][] = [];
   for (const tr of trs) {
     const cells = Array.from(tr.querySelectorAll("td"));
-    const row: (string | { content: string; rowSpan: number; colSpan?: number })[] = [];
+    const row: PdfCell[] = [];
     let col = 0;
     for (const el of cells) {
       while (active.has(col)) {
@@ -88,11 +89,22 @@ function parseTableBody(
       const text = isV
         ? (el.textContent ?? "").replace(/ +/g, "\n")
         : tidy(el.textContent ?? "");
-      row.push(
-        rowSpan > 1 || colSpan > 1 ? { content: text, rowSpan, colSpan } : text
-      );
+      const styles: { font?: string; fontStyle?: "bold"; halign?: "left" | "center" | "right" } = {};
+      const font = el.getAttribute("data-font");
+      if (font) styles.font = font;
+      if (el.querySelector("strong")) styles.fontStyle = "bold";
+      const align = el.getAttribute("data-align");
+      if (align === "center") styles.halign = "center";
+      const styled = Object.keys(styles).length > 0 ? { styles } : {};
+      const cell: PdfCell =
+        rowSpan > 1 || colSpan > 1
+          ? { content: text, rowSpan, colSpan, ...styled }
+          : Object.keys(styles).length > 0
+            ? { content: text, rowSpan: 1, colSpan: 1, ...styled }
+            : text;
       if (rowSpan > 1) active.set(col, rowSpan - 1);
       col += colSpan;
+      row.push(cell);
     }
     body.push(row);
   }
@@ -128,8 +140,9 @@ function liText(el: HTMLElement): string {
  * `contentSize` is the numeric pt size of the body text (10–96); headings and
  * tables scale relative to it so the whole document stays proportional.
  */
-function buildPdf(title: string, bodyHtml: string, contentSize: number): jsPDF {
+export function buildPdf(title: string, bodyHtml: string, contentSize: number): jsPDF {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
+  registerPdfFonts(doc);
   const fs = contentSize / 9;
   const margin = 40;
   const pageW = doc.internal.pageSize.getWidth();
@@ -162,6 +175,14 @@ function buildPdf(title: string, bodyHtml: string, contentSize: number): jsPDF {
       // Centered headings (e.g. the TA Journal header) are centred on the page.
       const centered = el.className.includes("centered");
       doc.text(lines, centered ? pageW / 2 : margin, y, centered ? { align: "center" } : undefined);
+      // A right-hand note on the title's baseline (the TA Journal's "In lieu of
+      // G.A.31"), drawn small and light so it never competes with the heading.
+      const rightNote = el.getAttribute("data-right-note");
+      if (rightNote) {
+        doc.setFont("helvetica", "normal").setFontSize(8 * fs).setTextColor(30, 41, 59);
+        doc.text(rightNote, pageW - margin, y, { align: "right" });
+        doc.setFont("helvetica", "bold").setFontSize(15 * fs).setTextColor(...NAVY);
+      }
       y += lines.length * (18 * fs) + 4;
       doc.setDrawColor(...NAVY).setLineWidth(1.5).line(margin, y, pageW - margin, y);
       y += 14;
@@ -190,13 +211,34 @@ function buildPdf(title: string, bodyHtml: string, contentSize: number): jsPDF {
         : lines.length * (1.15 * size);
     } else if (tag === "p") {
       if (!text) continue;
-      pageBreak(22 * fs);
-      const meta = el.className.includes("meta") || el.className.includes("empty");
+      const cls = el.className;
+      // A "cols" paragraph renders its <span> children at fixed column offsets
+      // (from data-cols="40,200,...") — used by the TA Journal header info
+      // block and the days summary, where the reference sheet aligns columns.
+      const colsAttr = el.getAttribute("data-cols");
+      if (cls.includes("cols") && colsAttr) {
+        pageBreak(22 * fs);
+        const offsets = colsAttr.split(",").map((s) => Number(s.trim()) || 0);
+        const spans = Array.from(el.querySelectorAll("span")).map((s) => tidy(s.textContent ?? ""));
+        doc.setFont("helvetica", "normal").setFontSize(9 * fs).setTextColor(15, 23, 42);
+        const cols = offsets.map((o) => margin + o);
+        spans.forEach((t, i) => {
+          if (!t) return;
+          const x = cols[i] ?? cols[cols.length - 1];
+          const lines = doc.splitTextToSize(t, Math.max(50, maxW - (x - margin))) as string[];
+          doc.text(lines, x, y);
+        });
+        y += 13 * fs + 4;
+        continue;
+      }
+      const left = Number(el.getAttribute("data-left")) || 0;
+      const meta = cls.includes("meta") || cls.includes("empty");
+      const right = cls.includes("right");
       doc.setFont("helvetica", meta ? "italic" : "normal").setFontSize(9 * fs);
       if (meta) doc.setTextColor(...GREY);
       else doc.setTextColor(15, 23, 42);
-      const lines = doc.splitTextToSize(text, maxW) as string[];
-      doc.text(lines, margin, y);
+      const lines = doc.splitTextToSize(text, right ? maxW : maxW - left) as string[];
+      doc.text(lines, right ? pageW - margin : margin + left, y, right ? { align: "right" } : undefined);
       y += lines.length * (12 * fs) + 8;
     } else if (tag === "ul") {
       for (const li of Array.from(el.children)) {
@@ -216,52 +258,107 @@ function buildPdf(title: string, bodyHtml: string, contentSize: number): jsPDF {
       }
       y += 16;
     } else if (tag === "table") {
-      const rows = Array.from(el.querySelectorAll("tr"));
-      if (!rows.length) continue;
-      const headCells = Array.from(rows[0].querySelectorAll("th"));
-      const hasHead = headCells.length > 0;
-      // A fixed-width "date" column (cells marked class="date") keeps dates on
-      // one line instead of wrapping in a proportionally-narrow column.
-      const columnStyles: Record<
-        number,
-        { cellWidth?: number; halign?: "left" | "center" | "right"; valign?: "top" | "middle" | "bottom" }
-      > = {};
-      let dateCol: number | null = null;
-      for (const r of rows) {
-        const marked = r.querySelector("td.date, th.date");
-        if (marked) {
-          dateCol = Array.from(r.querySelectorAll("td, th")).indexOf(marked as Element);
-          break;
+      const allRows = Array.from(el.querySelectorAll("tr"));
+      if (!allRows.length) continue;
+      // Consecutive leading <tr> rows whose cells are <th> form the header
+      // (the TA Journal uses a two-tier header with rowspan/colspan merges).
+      let headCount = 0;
+      while (headCount < allRows.length && allRows[headCount].querySelector("th")) headCount++;
+      const headRows = allRows.slice(0, headCount);
+      const bodyRows = allRows.slice(headCount);
+      const hasHead = headRows.length > 0;
+
+      type HeadCell = { content: string; rowSpan: number; colSpan: number; colIndex: number; el: Element };
+      const headCells: HeadCell[][] = [];
+      const activeSpan = new Map<number, number>();
+      for (const tr of headRows) {
+        const cells = Array.from(tr.querySelectorAll("th"));
+        const row: HeadCell[] = [];
+        let col = 0;
+        for (const c of cells) {
+          while (activeSpan.has(col)) {
+            const left = activeSpan.get(col)! - 1;
+            if (left <= 0) activeSpan.delete(col);
+            else activeSpan.set(col, left);
+            col++;
+          }
+          const rowSpan = Math.max(1, parseInt(c.getAttribute("rowspan") || "1", 10) || 1);
+          const colSpan = Math.max(1, parseInt(c.getAttribute("colspan") || "1", 10) || 1);
+          row.push({ content: tidy(c.textContent ?? ""), rowSpan, colSpan, colIndex: col, el: c });
+          if (rowSpan > 1) activeSpan.set(col, rowSpan - 1);
+          col += colSpan;
         }
+        headCells.push(row);
       }
-      if (dateCol !== null) columnStyles[dateCol] = { cellWidth: 72 };
-      // Explicit per-column widths via data-width on the header row; these let
-      // a report pin narrow date/movement columns and hand the rest to a wide
-      // "Work Done" column instead of letting autoTable squeeze it.
-      // data-align="center" centres that column on both axes (used by the TA
-      // journal for dates / timings / from / to / KMS).
-      if (hasHead) {
-        headCells.forEach((c, i) => {
-          const w = c.getAttribute("data-width");
-          const a = c.getAttribute("data-align");
-          const entry: {
-            cellWidth?: number;
-            halign?: "left" | "center" | "right";
-            valign?: "top" | "middle" | "bottom";
-          } = { ...columnStyles[i] };
-          if (w) entry.cellWidth = Number(w);
-          if (a === "center") {
+
+      // Per-column width / alignment from the header cells' data-width and
+      // data-align (single-column cells only — a colspan cell carries its own
+      // styles instead, so a merged "TIME" label can stay centred across the
+      // two timing columns).
+      type ColStyle = {
+        cellWidth?: number;
+        halign?: "left" | "center" | "right";
+        valign?: "top" | "middle" | "bottom";
+      };
+      const columnStyles: Record<number, ColStyle> = {};
+      for (const row of headCells) {
+        for (const c of row) {
+          const w = c.el.getAttribute("data-width");
+          const a = c.el.getAttribute("data-align");
+          const entry: ColStyle = { ...columnStyles[c.colIndex] };
+          if (w && c.colSpan === 1) entry.cellWidth = Number(w);
+          if (a === "center" && c.colSpan === 1) {
             entry.halign = "center";
             entry.valign = "middle";
           }
-          columnStyles[i] = entry;
-        });
+          columnStyles[c.colIndex] = entry;
+        }
       }
-      const head = hasHead ? [headCells.map((c) => tidy(c.textContent ?? ""))] : undefined;
-      const bodyRows = parseTableBody(hasHead ? rows.slice(1) : rows);
+
+      // A fixed-width "date" column (cells marked class="date") keeps dates on
+      // one line instead of wrapping in a proportionally-narrow column.
+      let dateCol: number | null = null;
+      outer: for (const row of headCells) {
+        for (const c of row) {
+          if ((c.el.getAttribute("class") || "").split(/\s+/).includes("date")) {
+            dateCol = c.colIndex;
+            break outer;
+          }
+        }
+      }
+      if (dateCol === null) {
+        for (const r of bodyRows) {
+          const marked = r.querySelector("td.date");
+          if (marked) {
+            dateCol = Array.from(r.querySelectorAll("td")).indexOf(marked as HTMLTableCellElement);
+            break;
+          }
+        }
+      }
+      if (dateCol !== null && !columnStyles[dateCol]?.cellWidth) {
+        columnStyles[dateCol] = { ...(columnStyles[dateCol] ?? {}), cellWidth: 72 };
+      }
+
+      const head: { content: string; rowSpan?: number; colSpan?: number; styles?: ColStyle }[][] | undefined =
+        hasHead
+          ? headCells.map((row) =>
+              row.map((c) => {
+                const cell: { content: string; rowSpan?: number; colSpan?: number; styles?: ColStyle } = {
+                  content: c.content,
+                };
+                if (c.rowSpan > 1) cell.rowSpan = c.rowSpan;
+                if (c.colSpan > 1) cell.colSpan = c.colSpan;
+                if (c.colSpan > 1 && c.el.getAttribute("data-align") === "center") {
+                  cell.styles = { halign: "center", valign: "middle" };
+                }
+                return cell;
+              })
+            )
+          : undefined;
+      const body = parseTableBody(bodyRows);
       autoTable(doc, {
         head,
-        body: bodyRows,
+        body,
         startY: y,
         margin: { left: margin, right: margin },
         styles: { fontSize: 8 * fs, cellPadding: 4, overflow: "linebreak", textColor: [15, 23, 42] },
