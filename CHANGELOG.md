@@ -3,6 +3,24 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.50 — 2026-08-17
+
+**Fix: converting a deficiency to planned work no longer counts it as completed** — `76d0d68`
+
+- Converting a deficiency ("Convert to Plan") previously marked the deficiency
+  **Completed** on the spot, so the *Deficiencies Done* count rose even though
+  the work had only been planned, not executed.
+- The conversion now sets the deficiency to a new **Planned** status: it leaves
+  the pending deficiency list and moves to the planned works account, and it is
+  counted as neither pending nor done.
+- The planned work remembers which deficiency it came from. When that planned
+  work is marked **Complete**, the linked deficiency becomes Completed and only
+  then shows in *Deficiencies Done* and the Archive.
+- Reopening a converted planned work (Mark Incomplete) returns the deficiency
+  to Planned; deleting the planned work reverts the deficiency to Pending so
+  the work is never silently lost.
+- The conversion notice inside the form explains the new behaviour.
+
 ## 1.7.6.49 — 2026-08-17
 
 **Feat: TA Journal and Diary PDF/Word exports now follow the official G.A.31 railway form** — `d67c711`
