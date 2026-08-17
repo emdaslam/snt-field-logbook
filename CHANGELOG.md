@@ -3,6 +3,29 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.54 — 2026-08-17
+
+**Feat: Materials tab in the hamburger menu — required list with receipts, usage and a station-wise summary** — `ccac1e7`
+
+- New **Materials** tab (hamburger menu) keeps the materials required for
+  maintenance work. Each material has a name, a required quantity and a unit
+  (Nos / Kg / Sets / Units, or any custom unit typed via **Add new unit…**; a
+  unit is optional).
+- **Receive** records each delivery — quantity, date, station, room and a
+  remark for exactly where it was placed. **Use** records quantity, date,
+  station and purpose.
+- **Required** shows the *outstanding* quantity (required − received), so it
+  drops automatically as material is received.
+- **+ Req** adds extra requirement on top of the current amount without
+  opening the edit form.
+- A **Station-wise Summary** table lists every station with the material
+  received / used / in hand there and per-station totals — shown both in the
+  Materials tab and in the PDF export.
+- The PDF export covers the required list with received / used / in hand per
+  material and the station-wise summary.
+- Deleting a material also removes its receipts and usage records. All three
+  tables sync to Drive and are included in JSON backups.
+
 ## 1.7.6.52 — 2026-08-17
 
 **Fix: the CR entry now asks which rest day was worked, not when the CR is availed** — `348bfd3`
