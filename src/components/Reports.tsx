@@ -213,6 +213,28 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
           }
         />
         <Stat
+          label="Leaves"
+          value={stats.leaves}
+          color="#db2777"
+          onClick={() =>
+            setDrill({
+              title: "Leaves",
+              rows: stats.pLogs
+                .filter((l) => l.movementKind === "leave")
+                .map((l) => ({
+                  key: "lv" + l.id,
+                  date: l.logDate,
+                  title: l.stationMovement?.trim() || "Leave",
+                  sub: l.leaveKind ? `Leave type: ${l.leaveKind}` : undefined,
+                })),
+              footer: `Total: ${stats.leaves} leave${stats.leaves === 1 ? "" : "s"}`,
+            })
+          }
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Stat
           label="Deficiencies Pending"
           value={stats.defPending}
           color="#dc2626"
@@ -249,6 +271,9 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
             })
           }
         />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
         <Stat
           label="Planned Pending"
           value={stats.planPending}
@@ -282,25 +307,6 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
                   title: p.title,
                   sub: stationName(p.stationId),
                 })),
-            })
-          }
-        />
-        <Stat
-          label="Leaves"
-          value={stats.leaves}
-          color="#db2777"
-          onClick={() =>
-            setDrill({
-              title: "Leaves",
-              rows: stats.pLogs
-                .filter((l) => l.movementKind === "leave")
-                .map((l) => ({
-                  key: "lv" + l.id,
-                  date: l.logDate,
-                  title: l.stationMovement?.trim() || "Leave",
-                  sub: l.leaveKind ? `Leave type: ${l.leaveKind}` : undefined,
-                })),
-              footer: `Total: ${stats.leaves} leave${stats.leaves === 1 ? "" : "s"}`,
             })
           }
         />
