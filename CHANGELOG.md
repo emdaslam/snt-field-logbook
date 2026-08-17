@@ -5,15 +5,17 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.52 — 2026-08-17
 
-**Fix: the CR entry now asks which rest day was worked, not when the CR is availed** — `d1dee0c`
+**Fix: the CR entry now asks which rest day was worked, not when the CR is availed** — `348bfd3`
 
 - CR (Compensatory Rest) is taken when the user works on a rest day. Selecting
   **CR** in the daily log used to show a "CR availed on" From/To date range,
   which asked for the dates the rest was taken.
-- It now asks **"Worked on rest day"** — the From/To dates of the rest day(s)
-  the user actually worked on, which earned the compensatory rest.
-- The movement text and stored dates (`cr_from` / `cr_to`) now carry those
-  worked-on rest dates, e.g. `CR (worked 12 Aug → 13 Aug)`.
+- It now asks **"Worked on rest day"** — a single **Date** for the rest day the
+  user actually worked on, which earned the compensatory rest.
+- The movement text and stored date (`cr_from`) now carry that worked-on rest
+  date, e.g. `CR (worked 12 Aug 2026)`.
+- The Diary / Excel exports write **"AVAILED CR OF &lt;date&gt;"** (e.g.
+  `AVAILED CR OF 12-08-2026`) instead of a bare "AVAILED CR".
 
 ## 1.7.6.51 — 2026-08-17
 
