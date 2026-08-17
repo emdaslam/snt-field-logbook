@@ -3,6 +3,18 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.52 — 2026-08-17
+
+**Fix: the CR entry now asks which rest day was worked, not when the CR is availed** — `d1dee0c`
+
+- CR (Compensatory Rest) is taken when the user works on a rest day. Selecting
+  **CR** in the daily log used to show a "CR availed on" From/To date range,
+  which asked for the dates the rest was taken.
+- It now asks **"Worked on rest day"** — the From/To dates of the rest day(s)
+  the user actually worked on, which earned the compensatory rest.
+- The movement text and stored dates (`cr_from` / `cr_to`) now carry those
+  worked-on rest dates, e.g. `CR (worked 12 Aug → 13 Aug)`.
+
 ## 1.7.6.51 — 2026-08-17
 
 **Fix: Deficiencies Pending / Done and Planned Pending / Done always stay side by side in the Reports tab** — `63ac7ca`
