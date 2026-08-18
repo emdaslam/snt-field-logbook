@@ -3,6 +3,25 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.55 — 2026-08-18
+
+**Feat: Materials grouped by equipment + custom equipment; hamburger menu trimmed** — `1b28ca6`
+
+- The **Materials** tab now groups the required list by **equipment**. Every
+  material starts under **general**, and materials entered before this release
+  (which had no equipment) are grouped under **general** too.
+- Default equipment groups, in order: **general**, point, signal, block
+  instrument, IPS, BPAC, MSDAC, TRACK CIRCUIT, PANEL, WIRE COILS, CABLE,
+  BATTERY, GENERATOR, RELAYS, DATALOGGER, EI, records.
+- **+ New Equipment** (Materials tab) or **Add new equipment…** in the Add /
+  Edit Material form creates a custom equipment group, shown after the
+  defaults. Custom equipment syncs to Drive and is included in JSON backups.
+- The PDF export's summary is grouped by equipment in the same order, and each
+  material's detail section shows which equipment it belongs to.
+- The hamburger menu now shows only **Home, Important Notes, Attachments,
+  Materials** and **Settings** — Reports, Task Manager and Search were removed
+  from it (they remain available in the bottom navigation).
+
 ## 1.7.6.54 — 2026-08-17
 
 **Feat: Materials tab in the hamburger menu — required list with receipts, usage and a station-wise summary** — `ccac1e7`
