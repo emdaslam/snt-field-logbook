@@ -3,6 +3,21 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.57 — 2026-08-18
+
+**Feat: tutorials for the newly added Materials features, shown once per update with a "Skip tutorials" option**
+
+- A **What's New** tutorial opens once after each update (and right after the
+  first-run onboarding for new installs). It teaches the newly added features in
+  six slides: the **Materials tab**, **Receive & Use**, **Add / + Req**,
+  **equipment groups**, the **collapsible group dropdowns** and the
+  **Station-wise Summary**.
+- **Skip tutorials** dismisses it permanently for users who are not interested;
+  pressing through to **Done** marks it shown for the current version so it will
+  not re-open after the next app start.
+- The same tutorials can be replayed any time from **Settings → About → Watch
+  tutorials**.
+
 ## 1.7.6.56 — 2026-08-18
 
 **Feat: Equipment groups and the station-wise summary are collapsible dropdowns**
