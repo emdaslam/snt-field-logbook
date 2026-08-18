@@ -3,6 +3,26 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.58 — 2026-08-18
+
+**Feat: "What's New" tutorials now catch you up across every version you missed, not just the last one**
+
+- Tutorials are defined **per major change** instead of once per app version. The
+  current catalog covers the major feature releases: **1.7.6.38** (PCDO
+  department-wise), **1.7.6.39** (search highlighting), **1.7.6.43** (search
+  covers notes + backups include settings), **1.7.6.44** (counter resets),
+  **1.7.6.54** (Materials tab) and **1.7.6.55** (equipment groups).
+- If a user jumps several versions at once (for example from 1.7.6.37 straight
+  to this build), every missed major-change tutorial is queued in order, oldest
+  first, so nothing is skipped over — the progress bar at the top shows how many
+  updates are left.
+- Progress is remembered per version: finish one update's slides and the queue
+  advances to the next; close the app mid-way and it resumes where you stopped.
+- The **Skip tutorials** button still dismisses them permanently, and everything
+  can be replayed any time from **Settings → About → Watch tutorials**.
+- Brand-new installs skip the version queue entirely — the first-run onboarding
+  tour covers the basics instead.
+
 ## 1.7.6.57 — 2026-08-18
 
 **Feat: tutorials for the newly added Materials features, shown once per update with a "Skip tutorials" option**
