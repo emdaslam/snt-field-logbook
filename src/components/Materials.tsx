@@ -44,6 +44,8 @@ export function Materials() {
   const [receipts, setReceipts] = useState<MaterialReceipt[]>([]);
   const [usages, setUsages] = useState<MaterialUsage[]>([]);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [expandedEquipment, setExpandedEquipment] = useState<Set<string>>(new Set());
+  const [expandedStations, setExpandedStations] = useState<Set<number | null>>(new Set());
   const [materialForm, setMaterialForm] = useState<{ open: boolean; existing?: Material | null }>({ open: false });
   const [receiveForm, setReceiveForm] = useState<Material | null>(null);
   const [useForm, setUseForm] = useState<Material | null>(null);
@@ -129,6 +131,24 @@ export function Materials() {
 
   const toggleExpanded = (id: number) => {
     setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleEquipment = (name: string) => {
+    setExpandedEquipment((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  };
+
+  const toggleStation = (id: number | null) => {
+    setExpandedStations((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -334,19 +354,30 @@ export function Materials() {
         </div>
       ) : (
         <div>
-          {equipmentGroups.map((group) => (
-            <div key={group.equipment}>
-              <div className="flex items-center justify-between bg-blue-900 px-3 py-1.5">
-                <p className="text-xs font-bold uppercase tracking-wide text-white">{group.equipment}</p>
-                <p className="rounded-full bg-blue-800 px-2 py-0.5 text-[11px] font-semibold text-blue-200">
-                  {group.items.length}
-                </p>
+          {equipmentGroups.map((group) => {
+            const open = expandedEquipment.has(group.equipment);
+            return (
+              <div key={group.equipment}>
+                <button
+                  onClick={() => toggleEquipment(group.equipment)}
+                  className="flex w-full items-center justify-between gap-2 bg-blue-900 px-3 py-1.5 text-left"
+                >
+                  <p className="text-xs font-bold uppercase tracking-wide text-white">{group.equipment}</p>
+                  <span className="flex flex-shrink-0 items-center gap-2">
+                    <span className="rounded-full bg-blue-800 px-2 py-0.5 text-[11px] font-semibold text-blue-200">
+                      {group.items.length}
+                    </span>
+                    <span className="text-[11px] font-bold text-blue-200">{open ? "▴" : "▾"}</span>
+                  </span>
+                </button>
+                {open && (
+                  <div className="divide-y divide-slate-100 bg-white">
+                    {group.items.map((s) => materialCard(s))}
+                  </div>
+                )}
               </div>
-              <div className="divide-y divide-slate-100 bg-white">
-                {group.items.map((s) => materialCard(s))}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -367,38 +398,48 @@ export function Materials() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {stationSummaries.map((s) => (
-                  <Fragment key={s.stationId ?? "none"}>
-                    <tr className="bg-slate-50">
-                      <td className="px-3 py-1.5 font-bold text-slate-700" colSpan={5}>
-                        {s.stationLabel}
-                      </td>
-                    </tr>
-                    {s.rows.map((r) => (
-                      <tr key={r.materialId}>
-                        <td className="px-3 py-1.5"></td>
-                        <td className="py-1.5 font-medium text-slate-800">{r.name}</td>
-                        <td className="px-2 py-1.5 text-right">
-                          {qtyLabel(r.received, r.unit)}
-                        </td>
-                        <td className="px-2 py-1.5 text-right">
-                          {qtyLabel(r.used, r.unit)}
-                        </td>
-                        <td className="px-3 py-1.5 text-right">
-                          {qtyLabel(r.inHand, r.unit)}
+                {stationSummaries.map((s) => {
+                  const open = expandedStations.has(s.stationId);
+                  return (
+                    <Fragment key={s.stationId ?? "none"}>
+                      <tr className="cursor-pointer bg-slate-50" onClick={() => toggleStation(s.stationId)}>
+                        <td className="px-3 py-1.5" colSpan={5}>
+                          <span className="flex items-center justify-between">
+                            <span className="font-bold text-slate-700">{s.stationLabel}</span>
+                            <span className="text-[11px] font-bold text-slate-400">{open ? "▴" : "▾"}</span>
+                          </span>
                         </td>
                       </tr>
-                    ))}
-                    <tr className="bg-slate-50/60">
-                      <td className="px-3 py-1.5 text-[11px] font-semibold text-slate-500" colSpan={2}>
-                        Total at {s.stationLabel}
-                      </td>
-                      <td className="px-2 py-1.5 text-right font-semibold text-slate-700">{fmtQty(s.receivedTotal)}</td>
-                      <td className="px-2 py-1.5 text-right font-semibold text-slate-700">{fmtQty(s.usedTotal)}</td>
-                      <td className="px-3 py-1.5 text-right font-semibold text-slate-700">{fmtQty(s.inHandTotal)}</td>
-                    </tr>
-                  </Fragment>
-                ))}
+                      {open && (
+                        <>
+                          {s.rows.map((r) => (
+                            <tr key={r.materialId}>
+                              <td className="px-3 py-1.5"></td>
+                              <td className="py-1.5 font-medium text-slate-800">{r.name}</td>
+                              <td className="px-2 py-1.5 text-right">
+                                {qtyLabel(r.received, r.unit)}
+                              </td>
+                              <td className="px-2 py-1.5 text-right">
+                                {qtyLabel(r.used, r.unit)}
+                              </td>
+                              <td className="px-3 py-1.5 text-right">
+                                {qtyLabel(r.inHand, r.unit)}
+                              </td>
+                            </tr>
+                          ))}
+                          <tr className="bg-slate-50/60">
+                            <td className="px-3 py-1.5 text-[11px] font-semibold text-slate-500" colSpan={2}>
+                              Total at {s.stationLabel}
+                            </td>
+                            <td className="px-2 py-1.5 text-right font-semibold text-slate-700">{fmtQty(s.receivedTotal)}</td>
+                            <td className="px-2 py-1.5 text-right font-semibold text-slate-700">{fmtQty(s.usedTotal)}</td>
+                            <td className="px-3 py-1.5 text-right font-semibold text-slate-700">{fmtQty(s.inHandTotal)}</td>
+                          </tr>
+                        </>
+                      )}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
