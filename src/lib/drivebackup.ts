@@ -132,6 +132,7 @@ const DATA_KEYS = [
   "materials",
   "materialReceipts",
   "materialUsages",
+  "equipmentTypes",
 ] as const;
 
 export function buildDataPayload(payload: Record<string, unknown>): Record<string, unknown> {

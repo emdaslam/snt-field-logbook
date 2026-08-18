@@ -5,8 +5,8 @@ import { useData } from "./DataProvider";
 import { Modal, Field, inputClass, PrimaryButton } from "./ui";
 import { api, toISODate } from "@/lib/api";
 import { exportMaterials, stationMaterialSummaries } from "./exports";
-import { MATERIAL_UNITS } from "@/lib/types";
-import type { Material, MaterialReceipt, MaterialUsage } from "@/db/schema";
+import { MATERIAL_UNITS, EQUIPMENT_DEFAULTS } from "@/lib/types";
+import type { Material, MaterialReceipt, MaterialUsage, EquipmentType } from "@/db/schema";
 
 type MatSummary = {
   material: Material;
@@ -49,17 +49,21 @@ export function Materials() {
   const [useForm, setUseForm] = useState<Material | null>(null);
   const [addReqForm, setAddReqForm] = useState<Material | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ kind: "material" | "receipt" | "usage"; id: number } | null>(null);
+  const [equipmentTypes, setEquipmentTypes] = useState<EquipmentType[]>([]);
+  const [equipmentForm, setEquipmentForm] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const load = async () => {
-    const [m, r, u] = await Promise.all([
+    const [m, r, u, e] = await Promise.all([
       api.materials.list(),
       api.materialReceipts.list(),
       api.materialUsages.list(),
+      api.equipmentTypes.list(),
     ]);
     setMaterials(m);
     setReceipts(r);
     setUsages(u);
+    setEquipmentTypes(e);
   };
 
   useEffect(() => {
@@ -94,6 +98,28 @@ export function Materials() {
   const totalReceived = summaries.reduce((n, s) => n + s.received, 0);
   const totalUsed = summaries.reduce((n, s) => n + s.used, 0);
   const totalRemaining = summaries.reduce((n, s) => n + s.remaining, 0);
+
+  /** Materials grouped by equipment. "general" is the catch-all every material
+   *  starts in; the default list keeps its fixed order, custom equipment added
+   *  later follows it, and anything not in the list trails at the end. */
+  const equipmentGroups = useMemo(() => {
+    const groups = new Map<string, MatSummary[]>();
+    for (const s of summaries) {
+      const eq = (s.material.equipment || "general").trim() || "general";
+      const list = groups.get(eq) ?? [];
+      list.push(s);
+      groups.set(eq, list);
+    }
+    const known = new Set(equipmentTypes.map((e) => e.name));
+    const defaults = EQUIPMENT_DEFAULTS.filter((d) => groups.has(d));
+    const defaultsSet = EQUIPMENT_DEFAULTS as readonly string[];
+    const custom = equipmentTypes.map((e) => e.name).filter((n) => !defaultsSet.includes(n) && groups.has(n));
+    const leftover = [...groups.keys()].filter((n) => !known.has(n));
+    return [...defaults, ...custom, ...leftover].map((equipment) => ({
+      equipment,
+      items: groups.get(equipment)!,
+    }));
+  }, [summaries, equipmentTypes]);
 
   const stationSummaries = useMemo(
     () =>
@@ -143,162 +169,184 @@ export function Materials() {
       bad ? "bg-red-50 text-red-600" : value > 0 ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
     }`;
 
+  const materialCard = (s: MatSummary) => {
+    const m = s.material;
+    const open = expanded.has(m.id);
+    return (
+      <div key={m.id} className="px-3 py-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-slate-800">{m.name}</p>
+            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+              <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+                Required: {qtyLabel(s.remaining, m.unit)}
+              </span>
+              <span className={statClass(s.received, false)}>Received: {fmtQty(s.received)}</span>
+              <span className={statClass(s.used, false)}>Used: {fmtQty(s.used)}</span>
+              <span className={statClass(s.inHand, s.inHand < 0)}>In hand: {fmtQty(s.inHand)}</span>
+            </div>
+          </div>
+          <div className="flex flex-shrink-0 items-center gap-1">
+            <button
+              onClick={() => setReceiveForm(m)}
+              className="rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+            >
+              Receive
+            </button>
+            <button
+              onClick={() => setUseForm(m)}
+              className="rounded-lg bg-amber-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
+            >
+              Use
+            </button>
+            <button
+              onClick={() => setAddReqForm(m)}
+              className="rounded-lg bg-blue-600 px-2 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+              title="Add more to the requirement"
+            >
+              + Req
+            </button>
+            <button
+              onClick={() => toggleExpanded(m.id)}
+              className={`rounded-lg border border-slate-300 px-2 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 ${
+                open ? "bg-slate-100" : ""
+              }`}
+              title="Details"
+            >
+              {open ? "▴" : "▾"}
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-1.5 flex items-center gap-3">
+          <button
+            onClick={() => setMaterialForm({ open: true, existing: m })}
+            className="text-xs font-medium text-blue-700 hover:underline"
+          >
+            Edit
+          </button>
+          <button
+            onClick={() => setConfirmDelete({ kind: "material", id: m.id })}
+            className="text-xs font-medium text-red-500 hover:underline"
+          >
+            Delete
+          </button>
+        </div>
+
+        {open && (
+          <div className="mt-3 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <div>
+              <p className="mb-1 text-xs font-bold uppercase text-slate-500">
+                Received ({s.receipts.length})
+              </p>
+              {s.receipts.length === 0 ? (
+                <p className="text-xs text-slate-400">No receipts yet — tap Receive.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {s.receipts.map((r) => (
+                    <div key={r.id} className="flex items-start justify-between gap-2 rounded-lg bg-white p-2 text-xs">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-slate-800">
+                          {qtyLabel(r.qty, m.unit)} · {fmtDate(r.date)}
+                        </p>
+                        <p className="text-slate-600">
+                          {stationName(r.stationId) || "Station not set"}
+                          {r.room ? ` · ${r.room}` : ""}
+                        </p>
+                        {r.remarks && <p className="text-slate-500">Placed: {r.remarks}</p>}
+                      </div>
+                      <button
+                        onClick={() => setConfirmDelete({ kind: "receipt", id: r.id })}
+                        className="flex-shrink-0 text-slate-300 hover:text-red-500"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div>
+              <p className="mb-1 text-xs font-bold uppercase text-slate-500">Used ({s.usages.length})</p>
+              {s.usages.length === 0 ? (
+                <p className="text-xs text-slate-400">No usage recorded yet — tap Use.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {s.usages.map((u) => (
+                    <div key={u.id} className="flex items-start justify-between gap-2 rounded-lg bg-white p-2 text-xs">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-slate-800">
+                          {qtyLabel(u.qty, m.unit)} · {fmtDate(u.date)}
+                        </p>
+                        <p className="text-slate-600">{u.purpose || "Purpose not recorded"}</p>
+                        <p className="text-slate-500">{stationName(u.stationId) || ""}</p>
+                      </div>
+                      <button
+                        onClick={() => setConfirmDelete({ kind: "usage", id: u.id })}
+                        className="flex-shrink-0 text-slate-300 hover:text-red-500"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="pb-24">
-      <div className="flex items-center justify-between gap-2 border-b border-slate-200 bg-blue-50 px-3 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-blue-50 px-3 py-2">
         <p className="text-xs text-slate-600">
           <strong>{totalMaterials}</strong> material{totalMaterials !== 1 ? "s" : ""} · received{" "}
           <strong>{fmtQty(totalReceived)}</strong> · used <strong>{fmtQty(totalUsed)}</strong> · still required{" "}
           <strong>{fmtQty(totalRemaining)}</strong>
         </p>
-        <button
-          onClick={doExport}
-          disabled={materials.length === 0 || busy}
-          className="flex-shrink-0 rounded-lg bg-blue-800 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          📄 Export PDF
-        </button>
+        <div className="flex flex-shrink-0 items-center gap-1.5">
+          <button
+            onClick={() => setEquipmentForm(true)}
+            className="rounded-lg border border-blue-800 px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-100"
+          >
+            + New Equipment
+          </button>
+          <button
+            onClick={doExport}
+            disabled={materials.length === 0 || busy}
+            className="rounded-lg bg-blue-800 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            📄 Export PDF
+          </button>
+        </div>
       </div>
 
       {materials.length === 0 ? (
         <div className="p-6 text-center">
           <p className="mb-4 text-sm text-slate-500">
             No materials on the required list yet. Add the materials you need — with the quantity
-            (in any unit you choose, e.g. Nos / Kg / Sets / Units) — then record how many you receive
-            and where you keep them, and how many you use and for what purpose.
+            (in any unit you choose, e.g. Nos / Kg / Sets / Units) and the equipment they belong to —
+            then record how many you receive and where you keep them, and how many you use and for what purpose.
           </p>
           <PrimaryButton onClick={() => setMaterialForm({ open: true })}>+ Add Material</PrimaryButton>
         </div>
       ) : (
-        <div className="divide-y divide-slate-100 bg-white">
-          {summaries.map((s) => {
-            const m = s.material;
-            const open = expanded.has(m.id);
-            return (
-              <div key={m.id} className="px-3 py-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-800">{m.name}</p>
-                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                      <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
-                        Required: {qtyLabel(s.remaining, m.unit)}
-                      </span>
-                      <span className={statClass(s.received, false)}>Received: {fmtQty(s.received)}</span>
-                      <span className={statClass(s.used, false)}>Used: {fmtQty(s.used)}</span>
-                      <span className={statClass(s.inHand, s.inHand < 0)}>In hand: {fmtQty(s.inHand)}</span>
-                    </div>
-                  </div>
-                  <div className="flex flex-shrink-0 items-center gap-1">
-                    <button
-                      onClick={() => setReceiveForm(m)}
-                      className="rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
-                    >
-                      Receive
-                    </button>
-                    <button
-                      onClick={() => setUseForm(m)}
-                      className="rounded-lg bg-amber-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
-                    >
-                      Use
-                    </button>
-                    <button
-                      onClick={() => setAddReqForm(m)}
-                      className="rounded-lg bg-blue-600 px-2 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
-                      title="Add more to the requirement"
-                    >
-                      + Req
-                    </button>
-                    <button
-                      onClick={() => toggleExpanded(m.id)}
-                      className={`rounded-lg border border-slate-300 px-2 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 ${
-                        open ? "bg-slate-100" : ""
-                      }`}
-                      title="Details"
-                    >
-                      {open ? "▴" : "▾"}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="mt-1.5 flex items-center gap-3">
-                  <button
-                    onClick={() => setMaterialForm({ open: true, existing: m })}
-                    className="text-xs font-medium text-blue-700 hover:underline"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => setConfirmDelete({ kind: "material", id: m.id })}
-                    className="text-xs font-medium text-red-500 hover:underline"
-                  >
-                    Delete
-                  </button>
-                </div>
-
-                {open && (
-                  <div className="mt-3 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <div>
-                      <p className="mb-1 text-xs font-bold uppercase text-slate-500">
-                        Received ({s.receipts.length})
-                      </p>
-                      {s.receipts.length === 0 ? (
-                        <p className="text-xs text-slate-400">No receipts yet — tap Receive.</p>
-                      ) : (
-                        <div className="space-y-1.5">
-                          {s.receipts.map((r) => (
-                            <div key={r.id} className="flex items-start justify-between gap-2 rounded-lg bg-white p-2 text-xs">
-                              <div className="min-w-0">
-                                <p className="font-semibold text-slate-800">
-                                  {qtyLabel(r.qty, m.unit)} · {fmtDate(r.date)}
-                                </p>
-                                <p className="text-slate-600">
-                                  {stationName(r.stationId) || "Station not set"}
-                                  {r.room ? ` · ${r.room}` : ""}
-                                </p>
-                                {r.remarks && <p className="text-slate-500">Placed: {r.remarks}</p>}
-                              </div>
-                              <button
-                                onClick={() => setConfirmDelete({ kind: "receipt", id: r.id })}
-                                className="flex-shrink-0 text-slate-300 hover:text-red-500"
-                              >
-                                ×
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <p className="mb-1 text-xs font-bold uppercase text-slate-500">Used ({s.usages.length})</p>
-                      {s.usages.length === 0 ? (
-                        <p className="text-xs text-slate-400">No usage recorded yet — tap Use.</p>
-                      ) : (
-                        <div className="space-y-1.5">
-                          {s.usages.map((u) => (
-                            <div key={u.id} className="flex items-start justify-between gap-2 rounded-lg bg-white p-2 text-xs">
-                              <div className="min-w-0">
-                                <p className="font-semibold text-slate-800">
-                                  {qtyLabel(u.qty, m.unit)} · {fmtDate(u.date)}
-                                </p>
-                                <p className="text-slate-600">{u.purpose || "Purpose not recorded"}</p>
-                                <p className="text-slate-500">{stationName(u.stationId) || ""}</p>
-                              </div>
-                              <button
-                                onClick={() => setConfirmDelete({ kind: "usage", id: u.id })}
-                                className="flex-shrink-0 text-slate-300 hover:text-red-500"
-                              >
-                                ×
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
+        <div>
+          {equipmentGroups.map((group) => (
+            <div key={group.equipment}>
+              <div className="flex items-center justify-between bg-blue-900 px-3 py-1.5">
+                <p className="text-xs font-bold uppercase tracking-wide text-white">{group.equipment}</p>
+                <p className="rounded-full bg-blue-800 px-2 py-0.5 text-[11px] font-semibold text-blue-200">
+                  {group.items.length}
+                </p>
               </div>
-            );
-          })}
+              <div className="divide-y divide-slate-100 bg-white">
+                {group.items.map((s) => materialCard(s))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -368,9 +416,13 @@ export function Materials() {
       {materialForm.open && (
         <MaterialForm
           existing={materialForm.existing ?? null}
+          equipmentTypes={equipmentTypes}
           onClose={() => setMaterialForm({ open: false })}
           onSaved={afterMutate}
         />
+      )}
+      {equipmentForm && (
+        <EquipmentForm onClose={() => setEquipmentForm(false)} onSaved={afterMutate} />
       )}
       {receiveForm && (
         <ReceiveForm material={receiveForm} stations={stations} onClose={() => setReceiveForm(null)} onSaved={afterMutate} />
@@ -410,10 +462,12 @@ export function Materials() {
 
 function MaterialForm({
   existing,
+  equipmentTypes,
   onClose,
   onSaved,
 }: {
   existing: Material | null;
+  equipmentTypes: EquipmentType[];
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
@@ -422,17 +476,40 @@ function MaterialForm({
   const hasPresetUnit = !!existing?.unit && (MATERIAL_UNITS as readonly string[]).includes(existing.unit);
   const [unit, setUnit] = useState<string>(hasPresetUnit ? existing!.unit : existing?.unit ? "custom" : "");
   const [customUnit, setCustomUnit] = useState(existing?.unit && !hasPresetUnit ? existing.unit : "");
+  // Equipment defaults to "general"; an existing material's equipment is always
+  // offered even if it is no longer in the equipment list.
+  const equipmentOptions = useMemo(() => {
+    const names = equipmentTypes.map((e) => e.name);
+    const current = (existing?.equipment || "general").trim() || "general";
+    return names.includes(current) ? names : [...names, current];
+  }, [equipmentTypes, existing]);
+  const [equipment, setEquipment] = useState((existing?.equipment || "general").trim() || "general");
+  const [newEquipment, setNewEquipment] = useState(false);
+  const [newEquipmentName, setNewEquipmentName] = useState("");
+  const [equipmentError, setEquipmentError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
     if (!name.trim()) return;
     const qty = Number(requiredQty);
     if (!Number.isFinite(qty) || qty < 0) return;
+    let finalEquipment = equipment;
+    if (newEquipment) {
+      const eqName = newEquipmentName.trim();
+      if (!eqName) return;
+      const res = await api.equipmentTypes.create({ name: eqName });
+      if ("error" in res && res.error) {
+        setEquipmentError(res.error);
+        return;
+      }
+      finalEquipment = res.name;
+    }
     const finalUnit = unit === "custom" ? customUnit.trim() : unit;
     setSaving(true);
     try {
-      if (existing) await api.materials.update({ id: existing.id, name: name.trim(), requiredQty: qty, unit: finalUnit });
-      else await api.materials.create({ name: name.trim(), requiredQty: qty, unit: finalUnit });
+      if (existing)
+        await api.materials.update({ id: existing.id, name: name.trim(), requiredQty: qty, unit: finalUnit, equipment: finalEquipment });
+      else await api.materials.create({ name: name.trim(), requiredQty: qty, unit: finalUnit, equipment: finalEquipment });
       await onSaved();
       onClose();
     } finally {
@@ -455,6 +532,44 @@ function MaterialForm({
           placeholder="e.g. Relay contacts, Copper wire…"
           autoFocus
         />
+      </Field>
+      <Field label="Equipment">
+        {newEquipment ? (
+          <div className="space-y-1.5">
+            <input
+              className={inputClass}
+              value={newEquipmentName}
+              onChange={(e) => { setNewEquipmentName(e.target.value); setEquipmentError(null); }}
+              placeholder="e.g. ASP, DC Track…"
+              autoFocus
+            />
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => { setNewEquipment(false); setEquipmentError(null); }}
+                className="text-xs font-medium text-slate-500 hover:underline"
+              >
+                Cancel new equipment
+              </button>
+              {equipmentError && <p className="text-xs font-medium text-red-600">{equipmentError}</p>}
+            </div>
+          </div>
+        ) : (
+          <select
+            className={inputClass}
+            value={equipment}
+            onChange={(e) => {
+              if (e.target.value === "__new__") { setNewEquipment(true); return; }
+              setEquipment(e.target.value);
+            }}
+          >
+            {equipmentOptions.map((e) => (
+              <option key={e} value={e}>
+                {e}
+              </option>
+            ))}
+            <option value="__new__">Add new equipment…</option>
+          </select>
+        )}
       </Field>
       <Field label="Quantity required">
         <input
@@ -512,6 +627,69 @@ function MaterialForm({
         </button>
         <button
           onClick={save}
+          disabled={saving || !name.trim() || (newEquipment && !newEquipmentName.trim())}
+          className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Save
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+function EquipmentForm({
+  onClose,
+  onSaved,
+}: {
+  onClose: () => void;
+  onSaved: () => Promise<void>;
+}) {
+  const [name, setName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    const eqName = name.trim();
+    if (!eqName) return;
+    setSaving(true);
+    try {
+      const res = await api.equipmentTypes.create({ name: eqName });
+      if ("error" in res && res.error) {
+        setError(res.error);
+        return;
+      }
+      await onSaved();
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal open onClose={onClose} title="Add New Equipment">
+      <p className="mb-3 text-xs text-slate-500">
+        Add a new equipment group. Materials filed under it will show in their own section of the
+        required list, after the default equipment.
+      </p>
+      <Field label="Equipment name">
+        <input
+          className={inputClass}
+          value={name}
+          onChange={(e) => { setName(e.target.value); setError(null); }}
+          placeholder="e.g. ASP, DC Track…"
+          autoFocus
+        />
+      </Field>
+      {error && <p className="mb-2 text-xs font-medium text-red-600">{error}</p>}
+      <div className="flex justify-end gap-2">
+        <button
+          onClick={onClose}
+          className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={save}
           disabled={saving || !name.trim()}
           className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -544,6 +722,7 @@ function AddRequirementForm({
         name: material.name,
         requiredQty: material.requiredQty + q,
         unit: material.unit,
+        equipment: material.equipment || "general",
       });
       await onSaved();
       onClose();

@@ -71,6 +71,29 @@ export const DEPARTMENT_COLORS: Record<string, string> = {
 export const MATERIAL_UNITS = ["Nos", "Kg", "Sets", "Units"] as const;
 export type MaterialUnit = (typeof MATERIAL_UNITS)[number];
 
+/** The equipment groups materials are filed under, in display order.
+ *  "general" is the catch-all every material starts in. */
+export const EQUIPMENT_DEFAULTS = [
+  "general",
+  "point",
+  "signal",
+  "block instrument",
+  "IPS",
+  "BPAC",
+  "MSDAC",
+  "TRACK CIRCUIT",
+  "PANEL",
+  "WIRE COILS",
+  "CABLE",
+  "BATTERY",
+  "GENERATOR",
+  "RELAYS",
+  "DATALOGGER",
+  "EI",
+  "records",
+] as const;
+export type EquipmentName = (typeof EQUIPMENT_DEFAULTS)[number] | (string & {});
+
 /** Non-station movement options shown in the daily log's Movement selector. */
 export const MOVEMENT_TYPES = [
   { value: "rest", label: "Rest" },
@@ -150,5 +173,5 @@ export const STATION_DISTANCE_LABEL: Record<StationDistance, string> = {
 };
 
 /** App version shown in Settings → About. Bump alongside android/app/build.gradle. */
-export const APP_VERSION_BASE = "1.7.6.54";
+export const APP_VERSION_BASE = "1.7.6.55";
 export const APP_VERSION = `${APP_VERSION_BASE}${AUTO_TIMINGS ? "p" : ""}`;

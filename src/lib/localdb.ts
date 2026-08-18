@@ -21,6 +21,7 @@ export const TABLES = [
   "materials",
   "materialReceipts",
   "materialUsages",
+  "equipmentTypes",
 ] as const;
 
 export type TableName = (typeof TABLES)[number];
@@ -137,7 +138,7 @@ export async function remove(table: TableName, id: number): Promise<void> {
 export async function exportAll(): Promise<Record<string, unknown>> {
   const out: Record<string, unknown> = {
     exportedAt: new Date().toISOString(),
-    version: 4,
+    version: 5,
     offline: true,
     settings: collectAppSettings(),
   };
@@ -192,6 +193,26 @@ const DEFAULT_NOTE_CATEGORIES = [
   { name: "General", color: "#64748b" },
 ];
 
+const DEFAULT_EQUIPMENT = [
+  "general",
+  "point",
+  "signal",
+  "block instrument",
+  "IPS",
+  "BPAC",
+  "MSDAC",
+  "TRACK CIRCUIT",
+  "PANEL",
+  "WIRE COILS",
+  "CABLE",
+  "BATTERY",
+  "GENERATOR",
+  "RELAYS",
+  "DATALOGGER",
+  "EI",
+  "records",
+];
+
 /** Seed only on a genuinely empty database, so a restore is never polluted. */
 export async function seedIfEmpty(): Promise<void> {
   const [tags, cats, stations, staff, logs] = await Promise.all([
@@ -211,10 +232,14 @@ export async function seedIfEmpty(): Promise<void> {
       "noteCategories",
       DEFAULT_NOTE_CATEGORIES.map((c, i) => ({ ...c, id: i + 1, createdAt: new Date().toISOString() }))
     );
+    await writeTable(
+      "equipmentTypes",
+      DEFAULT_EQUIPMENT.map((n, i) => ({ name: n, id: i + 1, createdAt: new Date().toISOString() }))
+    );
     return;
   }
 
-  // Top up the two reference tables if they alone are empty
+  // Top up the reference tables if they alone are empty
   if (tags.length === 0) {
     await writeTable(
       "tags",
@@ -226,6 +251,25 @@ export async function seedIfEmpty(): Promise<void> {
       "noteCategories",
       DEFAULT_NOTE_CATEGORIES.map((c, i) => ({ ...c, id: i + 1, createdAt: new Date().toISOString() }))
     );
+  }
+
+  // Top up default equipment names added after first install.
+  const eqRows = await readTable<Row>("equipmentTypes");
+  if (eqRows.length === 0) {
+    await writeTable(
+      "equipmentTypes",
+      DEFAULT_EQUIPMENT.map((n, i) => ({ name: n, id: i + 1, createdAt: new Date().toISOString() }))
+    );
+  } else {
+    const have = new Set(eqRows.map((r) => String(r.name).toLowerCase()));
+    const missing = DEFAULT_EQUIPMENT.filter((n) => !have.has(n.toLowerCase()));
+    if (missing.length > 0) {
+      let auto = eqRows.reduce((m, r) => Math.max(m, Number(r.id) || 0), 0);
+      await writeTable("equipmentTypes", [
+        ...eqRows,
+        ...missing.map((n) => ({ name: n, id: ++auto, createdAt: new Date().toISOString() })),
+      ]);
+    }
   }
 
   // Top up default tags added after first install (e.g. "point oiling").

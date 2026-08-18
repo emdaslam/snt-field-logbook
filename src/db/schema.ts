@@ -257,6 +257,15 @@ export type Material = {
   requiredQty: number;
   /** "Nos" | "Kg" | "Sets" | "Units" — the unit the quantity is counted in. */
   unit: string;
+  /** The equipment this material belongs to ("general" when none chosen). */
+  equipment: string;
+  createdAt: string;
+};
+
+/** One user-defined equipment group materials are filed under. */
+export type EquipmentType = {
+  id: number;
+  name: string;
   createdAt: string;
 };
 

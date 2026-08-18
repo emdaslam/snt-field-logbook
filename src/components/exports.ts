@@ -1,7 +1,7 @@
 import { exportDocument } from "@/lib/pdf";
 import { fmtDate, toISODate, formatFootplateShifts, footplateTrainList, pcdoWorkEntries, counterResetsOf } from "@/lib/api";
 import { formatInspectionDates } from "@/lib/inspections";
-import { isSpecialMovement } from "@/lib/types";
+import { isSpecialMovement, EQUIPMENT_DEFAULTS } from "@/lib/types";
 import { AUTO_TIMINGS } from "@/lib/timingsMode";
 import { tripTimes, journeyTripTimes, type JourneyTimes } from "@/lib/travel";
 import { loadTaGenConfig, type TaGenWindow, type TaRateKey } from "@/lib/taGenConfig";
@@ -1369,15 +1369,37 @@ export function materialsReportBody(
   const stationName = (id: number | null) =>
     id == null ? "Station not set" : stations.find((s) => s.id === id)?.name ?? "Unassigned";
   const qty = (n: number, unit: string) => `${fmtQty(n)} ${unit}`;
-  const row = materials
-    .map((m) => {
+  const equipmentOf = (m: Material) => (m.equipment || "general").trim() || "general";
+  // Equipment order: the fixed default list first, then anything else in
+  // first-appearance order (custom equipment added by the user).
+  const equipmentOrder: string[] = [];
+  const seenEq = new Set<string>();
+  for (const d of EQUIPMENT_DEFAULTS) {
+    if (materials.some((m) => equipmentOf(m) === d)) {
+      seenEq.add(d);
+      equipmentOrder.push(d);
+    }
+  }
+  for (const m of materials) {
+    const eq = equipmentOf(m);
+    if (!seenEq.has(eq)) {
+      seenEq.add(eq);
+      equipmentOrder.push(eq);
+    }
+  }
+  const byEquipment = (eq: string) => materials.filter((m) => equipmentOf(m) === eq);
+
+  let summaryRows = "";
+  for (const eq of equipmentOrder) {
+    summaryRows += `<tr><td colspan="5"><strong>${esc(eq)}</strong></td></tr>`;
+    for (const m of byEquipment(eq)) {
       const received = materialReceivedTotal(m.id, receipts);
       const used = materialUsedTotal(m.id, usages);
       const inHand = received - used;
       const remaining = Math.max(0, m.requiredQty - received);
-      return `<tr><td><strong>${esc(m.name)}</strong></td><td data-align="center">${qty(remaining, m.unit)}</td><td data-align="center">${qty(received, m.unit)}</td><td data-align="center">${qty(used, m.unit)}</td><td data-align="center">${qty(inHand, m.unit)}</td></tr>`;
-    })
-    .join("");
+      summaryRows += `<tr><td>${esc(m.name)}</td><td data-align="center">${qty(remaining, m.unit)}</td><td data-align="center">${qty(received, m.unit)}</td><td data-align="center">${qty(used, m.unit)}</td><td data-align="center">${qty(inHand, m.unit)}</td></tr>`;
+    }
+  }
 
   let body = `<h1>Materials Report</h1>`;
   body += `<p class="meta">Generated ${fmtDate(toISODate(new Date()))} · ${materials.length} material${materials.length !== 1 ? "s" : ""} on the required list</p>`;
@@ -1387,8 +1409,8 @@ export function materialsReportBody(
     return body;
   }
 
-  body += `<h2>Summary</h2>`;
-  body += `<table><tr><th>Material</th><th data-align="center">Required</th><th data-align="center">Received</th><th data-align="center">Used</th><th data-align="center">In Hand</th></tr>${row}</table>`;
+  body += `<h2>Summary (grouped by equipment)</h2>`;
+  body += `<table><tr><th>Material</th><th data-align="center">Required</th><th data-align="center">Received</th><th data-align="center">Used</th><th data-align="center">In Hand</th></tr>${summaryRows}</table>`;
 
   /* ---------- Station-wise summary ---------- */
   const stationSummaries = stationMaterialSummaries(materials, receipts, usages, stationName);
@@ -1406,36 +1428,38 @@ export function materialsReportBody(
     body += `</table>`;
   }
 
-  for (const m of materials) {
-    const received = materialReceivedTotal(m.id, receipts);
-    const used = materialUsedTotal(m.id, usages);
-    const remaining = Math.max(0, m.requiredQty - received);
-    const mReceipts = receipts
-      .filter((r) => r.materialId === m.id)
-      .sort((a, b) => b.date.localeCompare(a.date));
-    const mUsages = usages
-      .filter((u) => u.materialId === m.id)
-      .sort((a, b) => b.date.localeCompare(a.date));
-    body += `<h2>${esc(m.name)}</h2>`;
-    body += `<p class="meta">Required: ${qty(remaining, m.unit)} · Received: ${qty(received, m.unit)} · Used: ${qty(used, m.unit)} · In hand: ${qty(received - used, m.unit)}</p>`;
+  for (const eq of equipmentOrder) {
+    for (const m of byEquipment(eq)) {
+      const received = materialReceivedTotal(m.id, receipts);
+      const used = materialUsedTotal(m.id, usages);
+      const remaining = Math.max(0, m.requiredQty - received);
+      const mReceipts = receipts
+        .filter((r) => r.materialId === m.id)
+        .sort((a, b) => b.date.localeCompare(a.date));
+      const mUsages = usages
+        .filter((u) => u.materialId === m.id)
+        .sort((a, b) => b.date.localeCompare(a.date));
+      body += `<h2>${esc(m.name)}</h2>`;
+      body += `<p class="meta">Equipment: ${esc(eq)} · Required: ${qty(remaining, m.unit)} · Received: ${qty(received, m.unit)} · Used: ${qty(used, m.unit)} · In hand: ${qty(received - used, m.unit)}</p>`;
 
-    body += `<h3>Received (${mReceipts.length})</h3>`;
-    if (mReceipts.length) {
-      body += `<table><tr><th class="date">Date</th><th data-align="center">Qty</th><th>Station</th><th>Room</th><th>Remarks</th></tr>`;
-      for (const r of mReceipts) {
-        body += `<tr><td>${dmy(r.date)}</td><td data-align="center">${qty(r.qty, m.unit)}</td><td>${esc(stationName(r.stationId) || "-")}</td><td>${esc(r.room) || "-"}</td><td>${esc(r.remarks) || "-"}</td></tr>`;
-      }
-      body += `</table>`;
-    } else body += `<p class="empty">No receipts recorded.</p>`;
+      body += `<h3>Received (${mReceipts.length})</h3>`;
+      if (mReceipts.length) {
+        body += `<table><tr><th class="date">Date</th><th data-align="center">Qty</th><th>Station</th><th>Room</th><th>Remarks</th></tr>`;
+        for (const r of mReceipts) {
+          body += `<tr><td>${dmy(r.date)}</td><td data-align="center">${qty(r.qty, m.unit)}</td><td>${esc(stationName(r.stationId) || "-")}</td><td>${esc(r.room) || "-"}</td><td>${esc(r.remarks) || "-"}</td></tr>`;
+        }
+        body += `</table>`;
+      } else body += `<p class="empty">No receipts recorded.</p>`;
 
-    body += `<h3>Used (${mUsages.length})</h3>`;
-    if (mUsages.length) {
-      body += `<table><tr><th class="date">Date</th><th data-align="center">Qty</th><th>Station</th><th>Purpose</th></tr>`;
-      for (const u of mUsages) {
-        body += `<tr><td>${dmy(u.date)}</td><td data-align="center">${qty(u.qty, m.unit)}</td><td>${esc(stationName(u.stationId) || "-")}</td><td>${esc(u.purpose) || "-"}</td></tr>`;
-      }
-      body += `</table>`;
-    } else body += `<p class="empty">No usage recorded.</p>`;
+      body += `<h3>Used (${mUsages.length})</h3>`;
+      if (mUsages.length) {
+        body += `<table><tr><th class="date">Date</th><th data-align="center">Qty</th><th>Station</th><th>Purpose</th></tr>`;
+        for (const u of mUsages) {
+          body += `<tr><td>${dmy(u.date)}</td><td data-align="center">${qty(u.qty, m.unit)}</td><td>${esc(stationName(u.stationId) || "-")}</td><td>${esc(u.purpose) || "-"}</td></tr>`;
+        }
+        body += `</table>`;
+      } else body += `<p class="empty">No usage recorded.</p>`;
+    }
   }
 
   return body;

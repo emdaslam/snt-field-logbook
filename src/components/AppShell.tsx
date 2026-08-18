@@ -653,7 +653,7 @@ export function AppShell() {
                 </div>
               )}
             </div>
-            {(["home", "tasks", "search", "reports", "notes", "attachments", "materials", "settings"] as View[]).map((v) => (
+            {(["home", "notes", "attachments", "materials", "settings"] as View[]).map((v) => (
               <button
                 key={v}
                 onClick={() => { setView(v); if (v === "notes") setSearchNote(null); setDrawer(false); }}
@@ -661,17 +661,13 @@ export function AppShell() {
                   view === v ? "bg-emerald-500 font-semibold" : "hover:bg-blue-800"
                 }`}
               >
-                {v === "tasks"
-                  ? "Task Manager"
-                  : v === "search"
-                    ? "Search"
-                    : v === "notes"
-                      ? "Important Notes"
-                      : v === "attachments"
-                        ? "Attachments"
-                        : v === "materials"
-                          ? "Materials"
-                          : v}
+                {v === "notes"
+                  ? "Important Notes"
+                  : v === "attachments"
+                    ? "Attachments"
+                    : v === "materials"
+                      ? "Materials"
+                      : v}
               </button>
             ))}
           </div>

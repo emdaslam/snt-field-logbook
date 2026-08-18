@@ -20,6 +20,7 @@ import type {
   Material,
   MaterialReceipt,
   MaterialUsage,
+  EquipmentType,
 } from "@/db/schema";
 import type { PcdoWork, CounterReset } from "@/lib/types";
 
@@ -377,6 +378,7 @@ export const api = {
         name: String(b.name ?? "").trim() || "Unnamed material",
         requiredQty: num(b.requiredQty),
         unit: b.unit ?? "Nos",
+        equipment: String(b.equipment ?? "").trim() || "general",
       }) as unknown as Promise<Material>;
     },
     update: (b: Partial<Material>) => {
@@ -385,6 +387,7 @@ export const api = {
         name: String(b.name ?? "").trim() || "Unnamed material",
         requiredQty: num(b.requiredQty),
         unit: b.unit ?? "Nos",
+        equipment: String(b.equipment ?? "").trim() || "general",
       }) as unknown as Promise<Material>;
     },
     remove: async (id: number) => {
@@ -403,6 +406,24 @@ export const api = {
         usages.filter((u) => u.materialId !== id)
       );
       return ldb.remove("materials", id);
+    },
+  },
+
+  equipmentTypes: {
+    list: async () => asc(await ldb.readTable<EquipmentType>("equipmentTypes"), "name"),
+    create: async (b: Partial<EquipmentType>) => {
+      const name = String(b.name ?? "").trim();
+      if (!name) return { error: "Name is required" } as EquipmentType & { error?: string };
+      const rows = await ldb.readTable<EquipmentType>("equipmentTypes");
+      if (rows.some((e) => e.name.toLowerCase() === name.toLowerCase())) {
+        return { error: "That equipment already exists" } as EquipmentType & { error?: string };
+      }
+      markDataDirty();
+      return ldb.insert("equipmentTypes", { name }) as unknown as Promise<EquipmentType & { error?: string }>;
+    },
+    remove: (id: number) => {
+      markDataDirty();
+      return ldb.remove("equipmentTypes", id);
     },
   },
 
