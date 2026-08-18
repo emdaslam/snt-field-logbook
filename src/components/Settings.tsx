@@ -5,6 +5,7 @@ import { useData } from "./DataProvider";
 import { api } from "@/lib/api";
 import { inputClass, PrimaryButton, Chip, Modal, Field } from "./ui";
 import { DEPARTMENTS, STATION_DISTANCE_OPTIONS, STATION_DISTANCE_LABEL, type StationDistance } from "@/lib/types";
+import { FeatureTutorials } from "./FeatureTutorials";
 import { BackupModal } from "./BackupModal";
 import { RestoreModal } from "./RestoreModal";
 import { FONT_SIZES, FONT_SIZE_LABEL, APP_VERSION } from "@/lib/types";
@@ -50,6 +51,7 @@ export function Settings() {
   const [backupOpen, setBackupOpen] = useState(false);
   const [restoreOpen, setRestoreOpen] = useState(false);
   const [editingTag, setEditingTag] = useState<{ tag: Tag | null } | null>(null);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
   const [editingReminder, setEditingReminder] = useState(false);
   const [reminderDraft, setReminderDraft] = useState("");
   const [taGen, setTaGen] = useState<TaGenConfig>(() => loadTaGenConfig());
@@ -516,6 +518,12 @@ export function Settings() {
           deficiencies, planned works, PCDO records, reminders and PDF exports. Data stays on this device
           and can be backed up to Google Drive.
         </p>
+        <button
+          onClick={() => setTutorialOpen(true)}
+          className="mt-4 rounded-lg bg-blue-800 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-900"
+        >
+          Watch tutorials
+        </button>
       </Section>
       )}
 
@@ -541,6 +549,7 @@ export function Settings() {
       )}
       <BackupModal open={backupOpen} onClose={() => setBackupOpen(false)} />
       <RestoreModal open={restoreOpen} onClose={() => setRestoreOpen(false)} />
+      {tutorialOpen && <FeatureTutorials onClose={() => setTutorialOpen(false)} />}
     </div>
   );
 }

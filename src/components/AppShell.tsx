@@ -20,7 +20,9 @@ import { DiaryExportModal } from "./DiaryExportModal";
 import { InspectionExportModal } from "./InspectionExportModal";
 import { DailyLogForm, DeficiencyForm, PlannedWorkForm } from "./Forms";
 import { Onboarding } from "./Onboarding";
+import { FeatureTutorials } from "./FeatureTutorials";
 import { isNative } from "@/lib/native";
+import { APP_VERSION_BASE } from "@/lib/types";
 import { toISODate, fmtDate } from "@/lib/api";
 import type { DailyLog, Attachment, DeficiencyTask, PlannedWork, Note } from "@/db/schema";
 
@@ -81,6 +83,18 @@ export function AppShell() {
     }
   });
   const showOnboarding = !onboardingDone && stations.length === 0;
+
+  // One-time-per-update "What's New" tutorial for the newly added features.
+  // Hidden when the user skipped tutorials, and marked shown when finished.
+  const [whatsNew, setWhatsNew] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      if (localStorage.getItem("snt.tutorialsSkipped") === "1") return false;
+      return localStorage.getItem("snt.whatsNewShown") !== APP_VERSION_BASE;
+    } catch {
+      return false;
+    }
+  });
 
   // Close the header dropdowns when tapping anywhere outside them
   useEffect(() => {
@@ -724,6 +738,10 @@ export function AppShell() {
             await refresh();
           }}
         />
+      )}
+
+      {whatsNew && !showOnboarding && (
+        <FeatureTutorials onClose={() => setWhatsNew(false)} />
       )}
     </div>
   );
