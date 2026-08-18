@@ -3,6 +3,17 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.56 — 2026-08-18
+
+**Feat: Equipment groups and the station-wise summary are collapsible dropdowns**
+
+- In the **Materials** tab every equipment group is now a dropdown: its
+  materials are hidden by default and drop down when the group header is
+  pressed (the header shows a ▾ / ▴ arrow and the material count).
+- The **Station-wise Summary** below it works the same way — each station is a
+  collapsible row that expands to show the materials received / used / in hand
+  there and the station total.
+
 ## 1.7.6.55 — 2026-08-18
 
 **Feat: Materials grouped by equipment + custom equipment; hamburger menu trimmed** — `1b28ca6`
