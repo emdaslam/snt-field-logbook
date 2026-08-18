@@ -701,7 +701,9 @@ export function AppShell() {
       )}
 
       {/* Forms & modals */}
-      {logForm && <DailyLogForm open onClose={() => setLogForm(false)} />}
+      {logForm && (
+        <DailyLogForm open onClose={() => setLogForm(false)} initialDate={view === "home" ? selectedDate ?? undefined : undefined} />
+      )}
       {editLog && <DailyLogForm open onClose={() => setEditLog(null)} existing={editLog} />}
       {defForm && <DeficiencyForm open onClose={() => setDefForm(false)} defaultStationId={defaultDefStationId} />}
       {planForm && <PlannedWorkForm open onClose={() => setPlanForm(false)} />}

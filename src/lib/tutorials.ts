@@ -160,6 +160,18 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.6.60",
+    tag: "Add on a selected date",
+    subtitle: "New daily logs start on the calendar date you picked.",
+    slides: [
+      {
+        glyph: "🗓",
+        title: "Log for the chosen day",
+        body: "After selecting a date in the calendar, tap + → Add Daily Log and the form opens on that selected date instead of today.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {

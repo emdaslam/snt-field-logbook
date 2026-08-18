@@ -3,6 +3,14 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.60 — 2026-08-18
+
+**Feat: a new daily log starts on the calendar date you have selected** — `(pending)`
+
+- Selecting a date in the calendar and then tapping **+ → Add Daily Log** now
+  opens the form pre-set to that selected date, instead of always defaulting to
+  today. The date field stays editable, so you can still switch days.
+
 ## 1.7.6.59 — 2026-08-18
 
 **Feat: a Dark theme, switchable from Settings → Appearance → Theme** — `7b5468f`

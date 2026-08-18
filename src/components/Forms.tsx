@@ -102,13 +102,15 @@ export function DailyLogForm({
   open,
   onClose,
   existing,
+  initialDate,
 }: {
   open: boolean;
   onClose: () => void;
   existing?: DailyLog | null;
+  initialDate?: string;
 }) {
   const { tags, stations, logs, refresh, currentUser, autoSync } = useData();
-  const [logDate, setLogDate] = useState(existing?.logDate ?? toISODate(new Date()));
+  const [logDate, setLogDate] = useState(existing?.logDate ?? initialDate ?? toISODate(new Date()));
   const [movement, setMovement] = useState(existing?.stationMovement ?? "");
   const [timeDep, setTimeDep] = useState(existing?.timeDep ?? (!AUTO_TIMINGS ? "08:00" : ""));
   const [timeArr, setTimeArr] = useState(existing?.timeArr ?? (!AUTO_TIMINGS ? "09:00" : ""));
