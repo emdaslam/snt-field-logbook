@@ -10,7 +10,7 @@ export function BackupManifest({
   title?: string;
 }) {
   return (
-    <div className="mb-3 rounded-lg border border-slate-200 bg-white p-3">
+    <div className="mb-3 rounded-lg border border-slate-200 bg-surface p-3">
       <p className="mb-2 text-xs font-bold uppercase tracking-wide text-blue-900">{title}</p>
       <div className="grid grid-cols-2 gap-x-4 gap-y-1">
         {BACKUP_TABLES.map((t) => (

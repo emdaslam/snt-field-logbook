@@ -17,7 +17,7 @@ import {
   kindFromTagName,
   tagReminderConfigs,
 } from "@/lib/inspections";
-import { FONT_SIZE_ROOT, type FontSize } from "@/lib/types";
+import { FONT_SIZE_ROOT, type AppTheme, type FontSize } from "@/lib/types";
 import { isNative, scheduleDailyReminders } from "@/lib/native";
 import { driveStatus, syncWithDrive, type DriveResult } from "@/lib/drive";
 import type {
@@ -72,6 +72,8 @@ type Ctx = {
   /** Manual Drive sync (may show the Google picker if not signed in). */
   doDriveSync: () => Promise<DriveResult>;
   // Appearance
+  theme: AppTheme;
+  setTheme: (v: AppTheme) => void;
   fontSize: FontSize;
   setFontSize: (v: FontSize) => void;
   // Scale (%) for the written content text (log entries, deficiencies, planned works)
@@ -121,6 +123,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [dirty, setDirty] = useState(false);
   const [myStationsOnly, setMyStationsOnlyState] = useState(false);
   const [fontSize, setFontSizeState] = useState<FontSize>("large");
+  const [theme, setThemeState] = useState<AppTheme>(() => {
+    if (typeof window === "undefined") return "light";
+    try {
+      return localStorage.getItem("snt.theme") === "dark" ? "dark" : "light";
+    } catch {
+      return "light";
+    }
+  });
   const [autoDriveSync, setAutoDriveSyncState] = useState(true);
   const [reminderDays, setReminderDaysState] = useState(3);
   const [contentScale, setContentScaleState] = useState(100);
@@ -128,6 +138,25 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const applyFontSize = useCallback((v: FontSize) => {
     if (typeof document !== "undefined") {
       document.documentElement.style.fontSize = FONT_SIZE_ROOT[v];
+    }
+  }, []);
+
+  const applyTheme = useCallback((v: AppTheme) => {
+    if (typeof document !== "undefined") {
+      document.documentElement.dataset.theme = v;
+    }
+  }, []);
+
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme, applyTheme]);
+
+  const setTheme = useCallback((v: AppTheme) => {
+    setThemeState(v);
+    try {
+      localStorage.setItem("snt.theme", v);
+    } catch {
+      /* ignore */
     }
   }, []);
 
@@ -596,6 +625,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         inScopeMovement,
         fontSize,
         setFontSize,
+        theme,
+        setTheme,
         contentScale,
         setContentScale,
         reminderDays,

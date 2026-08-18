@@ -187,7 +187,7 @@ function MultiSelectDropdown({
       <button
         type="button"
         onClick={() => onOpenChange(!open)}
-        className="flex w-full items-center justify-between gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+        className="flex w-full items-center justify-between gap-2 rounded-lg border border-slate-300 bg-surface px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
       >
         <span className="truncate">{summary}</span>
         <svg
@@ -203,7 +203,7 @@ function MultiSelectDropdown({
         </svg>
       </button>
       {open && (
-        <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
+        <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-200 bg-surface p-2 shadow-lg">
           {options.length === 0 && (
             <p className="px-2 py-1.5 text-xs text-slate-400">{emptyText ?? "Nothing to choose"}</p>
           )}

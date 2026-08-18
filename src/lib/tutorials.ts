@@ -143,6 +143,23 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.6.59",
+    tag: "Dark theme",
+    subtitle: "Choose between the default Light look and a Dark theme.",
+    slides: [
+      {
+        glyph: "◐",
+        title: "Theme picker",
+        body: "Settings → Appearance → Theme now offers Light and Dark. Light is the default look; Dark switches the app to dark surfaces with lighter text throughout.",
+      },
+      {
+        glyph: "▣",
+        title: "Remembered for you",
+        body: "Your theme choice is saved on this device and is included in JSON backups, so a restore brings your theme back with it.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {

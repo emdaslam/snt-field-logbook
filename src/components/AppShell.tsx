@@ -409,7 +409,7 @@ export function AppShell() {
               )}
             </button>
             {notifOpen && (
-              <div className="absolute right-0 top-full mt-1 max-h-[70vh] w-[min(288px,calc(100vw-88px))] overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 text-slate-800 shadow-xl">
+              <div className="absolute right-0 top-full mt-1 max-h-[70vh] w-[min(288px,calc(100vw-88px))] overflow-y-auto rounded-xl border border-slate-200 bg-surface p-2 text-slate-800 shadow-xl">
                 <p className="px-2 py-1 text-xs font-bold uppercase text-blue-900">Alerts</p>
                 {notifications.length === 0 && <p className="px-2 py-3 text-sm text-slate-400">No active alerts</p>}
                 {notifications.map((n) => (
@@ -436,7 +436,7 @@ export function AppShell() {
               </svg>
             </button>
             {exportMenu && (
-              <div className="absolute right-0 top-full mt-1 w-[min(240px,calc(100vw-88px))] rounded-xl border border-slate-200 bg-white p-1.5 text-slate-800 shadow-xl">
+              <div className="absolute right-0 top-full mt-1 w-[min(240px,calc(100vw-88px))] rounded-xl border border-slate-200 bg-surface p-1.5 text-slate-800 shadow-xl">
                 <button
                   onClick={() => { setTomorrowOpen(true); setExportMenu(false); }}
                   className="block w-full rounded-lg px-3 py-2.5 text-left text-sm hover:bg-blue-50"
@@ -532,7 +532,7 @@ export function AppShell() {
                 className={`flex-shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition ${
                   myStationsOnly
                     ? "bg-emerald-600 text-white"
-                    : "border border-slate-300 bg-white text-slate-600"
+                    : "border border-slate-300 bg-surface text-slate-600"
                 }`}
                 title={
                   myStationNames.length
@@ -544,7 +544,7 @@ export function AppShell() {
               </button>
             </div>
             {/* Top half: calendar */}
-            <div className="border-b border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 bg-surface shadow-sm">
               <Calendar
                 activeDates={activeDates}
                 dateTagColors={dateTagColors}
@@ -625,7 +625,7 @@ export function AppShell() {
       </main>
 
       {/* Bottom nav */}
-      <nav className="z-20 flex border-t border-slate-200 bg-white">
+      <nav className="z-20 flex border-t border-slate-200 bg-surface">
         {([
           ["home", "Home", "M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"],
           ["tasks", "Tasks", "M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"],
@@ -681,14 +681,14 @@ export function AppShell() {
               </button>
             ))}
           </div>
-          <div className="flex-1 bg-slate-900/40" />
+          <div className="flex-1 bg-black/40" />
         </div>
       )}
 
       {/* FAB sheet */}
       {fabOpen && (
-        <div className="fixed inset-0 z-40 flex items-end justify-center bg-slate-900/50" onClick={() => setFabOpen(false)}>
-          <div className="w-full max-w-md rounded-t-2xl bg-white p-4 pb-8" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/50" onClick={() => setFabOpen(false)}>
+          <div className="w-full max-w-md rounded-t-2xl bg-surface p-4 pb-8" onClick={(e) => e.stopPropagation()}>
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-slate-300" />
             <h3 className="mb-3 text-center text-sm font-semibold text-blue-900">Quick Add</h3>
             <div className="space-y-2">
@@ -717,7 +717,7 @@ export function AppShell() {
       <AttachmentPreviewModal attachment={selAttachment} onClose={() => setSelAttachment(null)} />
 
       {exitToast && (
-        <div className="pointer-events-none fixed bottom-28 left-1/2 z-50 -translate-x-1/2 whitespace-nowrap rounded-full bg-slate-900/90 px-4 py-2 text-xs font-medium text-white shadow-lg">
+        <div className="pointer-events-none fixed bottom-28 left-1/2 z-50 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/90 px-4 py-2 text-xs font-medium text-white shadow-lg">
           Press back again to exit
         </div>
       )}

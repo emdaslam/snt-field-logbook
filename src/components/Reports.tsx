@@ -354,7 +354,7 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
       )}
 
       {stats.byStation.length > 0 && (
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="rounded-xl border border-slate-200 bg-surface p-4 shadow-sm">
           <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-blue-900">
             Logs by Station
           </h3>
@@ -395,7 +395,7 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
       )}
 
       {schedules.length > 0 && (
-        <div className="rounded-xl border border-sky-200 bg-white p-4 shadow-sm">
+        <div className="rounded-xl border border-sky-200 bg-surface p-4 shadow-sm">
           <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-sky-900">
             Inspection Schedule
           </h3>
@@ -429,7 +429,7 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
         </div>
       )}
 
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="rounded-xl border border-slate-200 bg-surface p-4 shadow-sm">
         <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-blue-900">Generate Reports</h3>
         <div className="flex flex-col gap-2">
           <PrimaryButton onClick={() => setTomorrowOpen(true)}>
@@ -499,7 +499,7 @@ function Stat({
     <button
       onClick={onClick}
       disabled={!onClick}
-      className="rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition enabled:hover:border-blue-300 enabled:hover:shadow-md"
+      className="rounded-xl border border-slate-200 bg-surface p-4 text-left shadow-sm transition enabled:hover:border-blue-300 enabled:hover:shadow-md"
     >
       <p className="text-2xl font-bold" style={{ color }}>
         {value}
@@ -512,7 +512,7 @@ function Stat({
 
 function Mini({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-lg bg-white py-2">
+    <div className="rounded-lg bg-surface py-2">
       <p className="text-xl font-bold text-amber-900">{value}</p>
       <p className="text-[10px] text-amber-700">{label}</p>
     </div>

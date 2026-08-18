@@ -264,7 +264,7 @@ export function Materials() {
               ) : (
                 <div className="space-y-1.5">
                   {s.receipts.map((r) => (
-                    <div key={r.id} className="flex items-start justify-between gap-2 rounded-lg bg-white p-2 text-xs">
+                    <div key={r.id} className="flex items-start justify-between gap-2 rounded-lg bg-surface p-2 text-xs">
                       <div className="min-w-0">
                         <p className="font-semibold text-slate-800">
                           {qtyLabel(r.qty, m.unit)} · {fmtDate(r.date)}
@@ -293,7 +293,7 @@ export function Materials() {
               ) : (
                 <div className="space-y-1.5">
                   {s.usages.map((u) => (
-                    <div key={u.id} className="flex items-start justify-between gap-2 rounded-lg bg-white p-2 text-xs">
+                    <div key={u.id} className="flex items-start justify-between gap-2 rounded-lg bg-surface p-2 text-xs">
                       <div className="min-w-0">
                         <p className="font-semibold text-slate-800">
                           {qtyLabel(u.qty, m.unit)} · {fmtDate(u.date)}
@@ -371,7 +371,7 @@ export function Materials() {
                   </span>
                 </button>
                 {open && (
-                  <div className="divide-y divide-slate-100 bg-white">
+                  <div className="divide-y divide-slate-100 bg-surface">
                     {group.items.map((s) => materialCard(s))}
                   </div>
                 )}
@@ -382,7 +382,7 @@ export function Materials() {
       )}
 
       {stationSummaries.length > 0 && (
-        <div className="mt-3 bg-white">
+        <div className="mt-3 bg-surface">
           <p className="border-b border-slate-200 px-3 py-2 text-xs font-bold uppercase text-slate-500">
             Station-wise Summary
           </p>
@@ -560,7 +560,7 @@ function MaterialForm({
 
   const chipClass = (active: boolean) =>
     `rounded-full px-3 py-1.5 text-sm font-medium ${
-      active ? "bg-blue-800 text-white" : "border border-slate-300 bg-white text-slate-600"
+      active ? "bg-blue-800 text-white" : "border border-slate-300 bg-surface text-slate-600"
     }`;
 
   return (
@@ -643,7 +643,7 @@ function MaterialForm({
           {unit !== "" && (
             <button
               onClick={() => setUnit("")}
-              className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-400 hover:bg-slate-50"
+              className="rounded-full border border-slate-300 bg-surface px-3 py-1.5 text-sm font-medium text-slate-400 hover:bg-slate-50"
             >
               None
             </button>

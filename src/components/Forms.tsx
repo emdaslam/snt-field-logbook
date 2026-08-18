@@ -564,7 +564,7 @@ export function DailyLogForm({
                   onClick={() => setLeave(k)}
                   className={`flex-1 rounded-lg border px-3 py-1.5 text-sm font-medium ${
                     leaveKind === k
-                      ? "border-violet-600 bg-white text-violet-800"
+                      ? "border-violet-600 bg-surface text-violet-800"
                       : "border-violet-200 text-violet-600"
                   }`}
                 >
@@ -885,7 +885,7 @@ export function DailyLogForm({
                       type="button"
                       onClick={() => togglePcdoDept(d)}
                       className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
-                        on ? "bg-indigo-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-300"
+                        on ? "bg-indigo-600 text-white" : "bg-surface text-slate-600 ring-1 ring-slate-300"
                       }`}
                     >
                       {d}
@@ -924,7 +924,7 @@ export function DailyLogForm({
                 />
               </label>
             ))}
-            <div className="rounded-md border border-indigo-200 bg-white px-2.5 py-2 text-xs">
+            <div className="rounded-md border border-indigo-200 bg-surface px-2.5 py-2 text-xs">
               <p className="mb-1 font-semibold text-indigo-800">Taken from this log entry</p>
               <div className="flex flex-wrap gap-x-5 gap-y-1 text-slate-700">
                 <span>
@@ -1085,7 +1085,7 @@ export function DailyLogForm({
             {counterRows.map((r, i) => {
               const isSection = r.equipment !== "MSDAC";
               return (
-                <div key={i} className="rounded-lg border border-teal-200 bg-white p-2.5">
+                <div key={i} className="rounded-lg border border-teal-200 bg-surface p-2.5">
                   <div className="flex flex-wrap items-end gap-2">
                     <label className="block min-w-[11rem] flex-1">
                       <span className="mb-1 block text-xs font-medium text-slate-700">Equipment</span>
@@ -1825,9 +1825,9 @@ function TrainDetails({
   const set = (k: keyof FootplateDetail) => (e: React.ChangeEvent<HTMLInputElement>) =>
     onChange({ ...value, [k]: e.target.value });
   const cls =
-    "w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm outline-none focus:border-cyan-500";
+    "w-full rounded-md border border-slate-300 bg-surface px-2 py-1.5 text-sm outline-none focus:border-cyan-500";
   return (
-    <div className="mt-2 rounded-lg border border-cyan-200 bg-white p-2.5">
+    <div className="mt-2 rounded-lg border border-cyan-200 bg-surface p-2.5">
       <p className="mb-2 text-xs font-bold uppercase tracking-wide text-cyan-800">{label}</p>
       <div className="grid grid-cols-2 gap-2">
         <label className="block">
@@ -1873,7 +1873,7 @@ function ShiftDetails({
   setDown: (v: FootplateDetail) => void;
 }) {
   return (
-    <div className="mt-2 rounded-lg border border-cyan-200 bg-white p-2.5">
+    <div className="mt-2 rounded-lg border border-cyan-200 bg-surface p-2.5">
       <p className="mb-2 text-xs font-bold uppercase tracking-wide text-cyan-800">{label}</p>
       <span className="mb-1 block text-[11px] text-slate-600">Direction</span>
       <div className="flex gap-2">
@@ -1919,9 +1919,9 @@ function JourneyTrainDetails({
   const set = (k: keyof FootplateJourneyTrain) => (e: React.ChangeEvent<HTMLInputElement>) =>
     onChange({ ...value, [k]: e.target.value });
   const cls =
-    "w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm outline-none focus:border-cyan-500";
+    "w-full rounded-md border border-slate-300 bg-surface px-2 py-1.5 text-sm outline-none focus:border-cyan-500";
   return (
-    <div className="mt-2 rounded-lg border border-cyan-200 bg-white p-2.5">
+    <div className="mt-2 rounded-lg border border-cyan-200 bg-surface p-2.5">
       <p className="mb-2 text-xs font-bold uppercase tracking-wide text-cyan-800">{label}</p>
       <div className="grid grid-cols-2 gap-2">
         <label className="block">

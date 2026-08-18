@@ -99,7 +99,7 @@ export function LogDetailModal({
           </p>
           <div className="space-y-2">
             {pcdoWorkEntries(log).map((w) => (
-              <div key={w.department || "__legacy"} className="rounded-md bg-white/70 px-2.5 py-2">
+              <div key={w.department || "__legacy"} className="rounded-md bg-surface/70 px-2.5 py-2">
                 {w.department && (
                   <span
                     className="mr-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold text-white"
@@ -142,7 +142,7 @@ export function LogDetailModal({
             {counterResetsOf(log).map((r, i) => (
               <div
                 key={i}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-white/70 px-2.5 py-1.5 text-sm"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-surface/70 px-2.5 py-1.5 text-sm"
               >
                 <span className="font-medium text-teal-950">
                   {r.equipment}
@@ -275,7 +275,7 @@ function Row({ label, value, multiline }: { label: string; value: string | null;
 
 function Metric({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-md bg-white py-1.5">
+    <div className="rounded-md bg-surface py-1.5">
       <p className="text-lg font-bold text-amber-900">{value}</p>
       <p className="text-[10px] text-amber-700">{label}</p>
     </div>

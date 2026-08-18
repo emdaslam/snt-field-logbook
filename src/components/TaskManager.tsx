@@ -117,7 +117,7 @@ export function TaskManager({
 
   return (
     <div className="pb-24">
-      <div className="sticky top-0 z-10 flex border-b border-slate-200 bg-white">
+      <div className="sticky top-0 z-10 flex border-b border-slate-200 bg-surface">
         {(["deficiencies", "planned", "archive"] as Tab[]).map((t) => (
           <button
             key={t}
@@ -144,7 +144,7 @@ export function TaskManager({
             onChange={(e) =>
               tab === "deficiencies" ? setDefDept(e.target.value) : setPlanDept(e.target.value)
             }
-            className="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-700"
+            className="rounded-md border border-slate-300 bg-surface px-2 py-1 text-sm text-slate-700"
           >
             <option value="">All departments</option>
             {DEPARTMENTS.map((d) => (
@@ -156,7 +156,7 @@ export function TaskManager({
             onChange={(e) =>
               tab === "deficiencies" ? setDefStation(e.target.value) : setPlanStation(e.target.value)
             }
-            className="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-700"
+            className="rounded-md border border-slate-300 bg-surface px-2 py-1 text-sm text-slate-700"
           >
             <option value="">All stations</option>
             {[...stations]
@@ -192,7 +192,7 @@ export function TaskManager({
               <div
                 key={d.id}
                 ref={(el) => { rowRefs.current["def-" + d.id] = el; }}
-                className={`rounded-xl border bg-white p-3 shadow-sm transition ${
+                className={`rounded-xl border bg-surface p-3 shadow-sm transition ${
                   highlightId === "def-" + d.id
                     ? "border-amber-400 ring-2 ring-amber-300"
                     : "border-slate-200"
@@ -246,7 +246,7 @@ export function TaskManager({
                 <div
                   key={p.id}
                   ref={(el) => { rowRefs.current["plan-" + p.id] = el; }}
-                  className={`rounded-xl border bg-white p-3 shadow-sm transition ${
+                  className={`rounded-xl border bg-surface p-3 shadow-sm transition ${
                     highlightId === "plan-" + p.id
                       ? "border-amber-400 ring-2 ring-amber-300"
                       : "border-slate-200"
@@ -296,7 +296,7 @@ export function TaskManager({
 
         {tab === "archive" && (
           <>
-            <div className="flex flex-wrap items-end gap-2 rounded-xl border border-slate-200 bg-white p-3">
+            <div className="flex flex-wrap items-end gap-2 rounded-xl border border-slate-200 bg-surface p-3">
               <label className="text-xs text-slate-600">
                 From
                 <input type="date" value={archiveFrom} onChange={(e) => setArchiveFrom(e.target.value)} className="mt-1 block rounded-md border border-slate-300 px-2 py-1 text-sm" />
@@ -313,7 +313,7 @@ export function TaskManager({
             </div>
             {completed.length === 0 && <Empty text="No completed items in range" />}
             {completed.map((c) => (
-              <div key={c.id} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+              <div key={c.id} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-surface p-3 shadow-sm">
                 <span className="text-emerald-600">✓</span>
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-slate-700 line-through decoration-slate-300">{c.title}</p>
@@ -416,7 +416,7 @@ function RowActions({
 
 function Empty({ text }: { text: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-400">
+    <div className="rounded-xl border border-dashed border-slate-300 bg-surface p-8 text-center text-sm text-slate-400">
       {text}
     </div>
   );

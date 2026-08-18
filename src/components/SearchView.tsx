@@ -145,7 +145,7 @@ export function SearchView({
     return out;
   }, [q, typeF, stationF, deptF, prioF, tagF, statusF, staffF, attachF, logs, deficiencies, planned, notes, noteCategories, tags, stationName]);
 
-  const selCls = "w-full min-w-0 rounded-full border border-slate-300 bg-white px-2.5 py-1 text-xs text-slate-700";
+  const selCls = "w-full min-w-0 rounded-full border border-slate-300 bg-surface px-2.5 py-1 text-xs text-slate-700";
 
   return (
     <div className="pb-24">
@@ -154,7 +154,7 @@ export function SearchView({
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search logs, tasks, notes & planned works…"
-          className="w-full rounded-full border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+          className="w-full rounded-full border border-slate-300 bg-surface px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
         />
         <div className="grid grid-cols-3 gap-2">
           <select className={selCls} value={typeF} onChange={(e) => setTypeF(e.target.value as ResultType | "")}>
@@ -192,7 +192,7 @@ export function SearchView({
             className={`w-full min-w-0 rounded-full border px-2.5 py-1 text-xs transition ${
               attachF
                 ? "border-emerald-500 bg-emerald-500 font-semibold text-white shadow-sm"
-                : "border-slate-300 bg-white text-slate-700"
+                : "border-slate-300 bg-surface text-slate-700"
             }`}
             onClick={() => setAttachF((v) => !v)}
           >
@@ -220,7 +220,7 @@ export function SearchView({
                 if (p) onOpenPlan(p);
               }
             }}
-            className="block w-full rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:bg-slate-50 active:bg-slate-100"
+            className="block w-full rounded-xl border border-slate-200 bg-surface p-3 text-left shadow-sm transition hover:bg-slate-50 active:bg-slate-100"
           >
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-semibold uppercase tracking-wide text-blue-700">{r.type}</span>

@@ -12,8 +12,8 @@ export function Onboarding({ onComplete }: { onComplete: () => void }) {
   const [mine, setMine] = useState<MyStation[]>([]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
-      <div className="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-surface shadow-2xl">
         <div className="bg-blue-900 px-5 pb-5 pt-6 text-white">
           <h2 className="text-lg font-bold">Welcome to the Field Logbook</h2>
           <p className="mt-0.5 text-xs text-blue-200">Three quick steps and you&apos;re ready to log.</p>

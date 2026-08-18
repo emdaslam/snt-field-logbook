@@ -8,7 +8,7 @@ import { DEPARTMENTS, STATION_DISTANCE_OPTIONS, STATION_DISTANCE_LABEL, type Sta
 import { FeatureTutorials } from "./FeatureTutorials";
 import { BackupModal } from "./BackupModal";
 import { RestoreModal } from "./RestoreModal";
-import { FONT_SIZES, FONT_SIZE_LABEL, APP_VERSION } from "@/lib/types";
+import { FONT_SIZES, FONT_SIZE_LABEL, THEMES, THEME_LABEL, APP_VERSION } from "@/lib/types";
 import { AUTO_TIMINGS } from "@/lib/timingsMode";
 import {
   TA_RATE_KEYS,
@@ -42,7 +42,7 @@ type GroupId = (typeof GROUPS)[number]["id"];
 const SWIPE_THRESHOLD = 48;
 
 export function Settings() {
-  const { stations, staff, tags, currentUser, refresh, fontSize, setFontSize, contentScale, setContentScale, reminderDays, setReminderDays } = useData();
+  const { stations, staff, tags, currentUser, refresh, fontSize, setFontSize, theme, setTheme, contentScale, setContentScale, reminderDays, setReminderDays } = useData();
   const [group, setGroup] = useState<GroupId>("account");
   const [newStation, setNewStation] = useState({ name: "", code: "", distanceFromHq: "below8", travelMin: "", travelMax: "" });
   const [editStation, setEditStation] = useState<Station | null>(null);
@@ -126,7 +126,7 @@ export function Settings() {
               className={`flex-shrink-0 whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-semibold transition ${
                 group === g.id
                   ? "bg-blue-900 text-white shadow"
-                  : "border border-slate-300 bg-white text-slate-600"
+                  : "border border-slate-300 bg-surface text-slate-600"
               }`}
             >
               {g.label}
@@ -450,6 +450,25 @@ export function Settings() {
         <>
       {/* Appearance */}
       <Section title="Appearance">
+        <p className="mb-2 text-sm text-slate-600">Theme</p>
+        <div className="flex gap-2">
+          {THEMES.map((t) => (
+            <button
+              key={t}
+              onClick={() => setTheme(t)}
+              className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium capitalize ${
+                theme === t
+                  ? "border-blue-600 bg-blue-50 text-blue-800"
+                  : "border-slate-300 text-slate-600"
+              }`}
+            >
+              {THEME_LABEL[t]}
+            </button>
+          ))}
+        </div>
+        <p className="mb-3 mt-2 text-xs text-slate-400">
+          Light is the default look. Dark uses dark surfaces and lighter text throughout the app.
+        </p>
         <p className="mb-2 text-sm text-slate-600">Font size (applies to the whole app)</p>
         <div className="flex gap-2">
           {FONT_SIZES.map((f) => (
@@ -1155,7 +1174,7 @@ function DriveSyncSection() {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="rounded-xl border border-slate-200 bg-surface p-4 shadow-sm">
       <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-blue-900">{title}</h3>
       {children}
     </div>

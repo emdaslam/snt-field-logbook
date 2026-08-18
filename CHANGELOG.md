@@ -3,6 +3,15 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.59 — 2026-08-18
+
+**Feat: a Dark theme, switchable from Settings → Appearance → Theme** — `(pending)`
+
+- A new **Theme** picker in Appearance offers **Light** (the default look) and
+  **Dark**. Dark switches the whole app to dark surfaces with lighter text.
+- The theme is remembered on the device and is saved with JSON backups, so a
+  restore brings it back.
+
 ## 1.7.6.58 — 2026-08-18
 
 **Feat: "What's New" tutorials now catch you up across every version you missed, not just the last one**

@@ -34,7 +34,7 @@ export function PeriodPicker({
   const activeIdx = months.findIndex((m) => m.from === period.from && m.to === period.to);
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+    <div className="rounded-xl border border-slate-200 bg-surface p-3 shadow-sm">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-xs font-bold uppercase tracking-wide text-blue-900">Report Period</span>
         <button
@@ -74,7 +74,7 @@ export function PeriodPicker({
         <select
           value={activeIdx < 0 ? 0 : activeIdx}
           onChange={(e) => onChange(months[Number(e.target.value)])}
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+          className="w-full rounded-lg border border-slate-300 bg-surface px-3 py-2 text-sm"
         >
           {months.map((m, i) => (
             <option key={m.from} value={i}>

@@ -118,7 +118,7 @@ export function TomorrowWorkModal({ open, onClose }: { open: boolean; onClose: (
         <p className="mb-2 text-sm font-medium text-slate-700">
           Stations ({stationFilter.length} selected — none means all)
         </p>
-        <div className="max-h-36 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2">
+        <div className="max-h-36 overflow-y-auto rounded-lg border border-slate-200 bg-surface p-2">
           {stations.length === 0 && <p className="text-xs text-slate-400">No stations yet.</p>}
           {stations.map((s) => (
             <label key={s.id} className="flex cursor-pointer items-center gap-2 py-1 text-sm text-slate-700">
@@ -224,14 +224,14 @@ export function TomorrowWorkModal({ open, onClose }: { open: boolean; onClose: (
 
       <h4 className="mb-2 text-xs font-bold uppercase tracking-wide text-blue-900">Note (optional)</h4>
       <textarea
-        className="mb-4 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+        className="mb-4 w-full rounded-lg border border-slate-300 bg-surface px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
         rows={2}
         placeholder="Anything to print on the PDF, e.g. tools, safety reminders…"
         value={note}
         onChange={(e) => setNote(e.target.value)}
       />
 
-      <div className="sticky bottom-0 -mx-5 flex items-center justify-between border-t border-slate-200 bg-white px-5 pt-3">
+      <div className="sticky bottom-0 -mx-5 flex items-center justify-between border-t border-slate-200 bg-surface px-5 pt-3">
         <span className="text-sm text-slate-500">{total} item{total !== 1 ? "s" : ""} selected</span>
         <PrimaryButton onClick={generate}>{saving ? "Generating…" : "Export PDF"}</PrimaryButton>
       </div>

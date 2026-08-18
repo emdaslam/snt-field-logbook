@@ -205,7 +205,7 @@ export function Timeline({
               ref={(el) => {
                 rowRefs.current[iso] = el;
               }}
-              className={`flex gap-3 rounded-xl border bg-white p-3 shadow-sm transition ${
+              className={`flex gap-3 rounded-xl border bg-surface p-3 shadow-sm transition ${
                 isSelected
                   ? "border-emerald-400 ring-2 ring-emerald-200"
                   : isToday

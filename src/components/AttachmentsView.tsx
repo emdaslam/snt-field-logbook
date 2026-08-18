@@ -36,7 +36,7 @@ export function AttachmentsView({ onSelect }: { onSelect: (a: Attachment | null)
           No attachments yet — add photos or PDFs to a daily log.
         </p>
       ) : (
-        <div className="divide-y divide-slate-100 bg-white">
+        <div className="divide-y divide-slate-100 bg-surface">
           {items.map((it, i) => (
             <button
               key={i}

@@ -128,7 +128,7 @@ export function InspectionExportModal({ open, onClose }: { open: boolean; onClos
       <label className="mb-3 block">
         <span className="mb-1 block text-sm font-medium text-slate-700">Station inspected</span>
         <select
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+          className="w-full rounded-lg border border-slate-300 bg-surface px-3 py-2 text-sm"
           value={stationFilter}
           onChange={(e) => setStationFilter(e.target.value ? Number(e.target.value) : "")}
         >
