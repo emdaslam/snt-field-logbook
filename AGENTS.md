@@ -37,6 +37,26 @@ remote commits), integrate them into the working copy first:
 
 Only then start the task the user actually asked for.
 
+## 2.5 Every change: classify major/minor, add tutorials, release APKs
+
+For **every** code change, the following release steps are mandatory:
+
+1. **Classify the change.** If the user did not state whether the change is
+   major or minor, **ask** (with `question`): a change is *major* when it adds
+   or significantly changes a user-facing feature; otherwise it is *minor*
+   (bug fix, refactor, styling, wording, etc.). Record the classification in
+   the CHANGELOG entry.
+2. **Major changes get a tutorial.** For every major change, add a
+   `VersionTutorial` entry (with slides) to the tutorial catalog in
+   `src/lib/tutorials.ts` for the new version. The catalog is version-ordered
+   (ascending); `getPendingTutorials()` shows it to any user upgrading from an
+   older version. Minor changes never get tutorial entries.
+3. **Release the APKs.** Every change ships both APK variants
+   (`npm run apk:build` → `.apk-download/SnTFieldlogbook-v<version>.apk` and
+   `...v<version>p.apk`), verify them with `apksigner` (SHA-1
+   `7B:C9:5F:C1:7F:0F:E4:93:52:1B:48:09:54:46:13:48:4E:73:B7:81`), and stage
+   them in `.apk-download/`. Never skip the build or the staging step.
+
 ## 3. Changes must always be committed and pushed
 
 - Every change (code, docs, changelog) is committed to `master` and pushed to
