@@ -5,7 +5,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.59 — 2026-08-18
 
-**Feat: a Dark theme, switchable from Settings → Appearance → Theme** — `(pending)`
+**Feat: a Dark theme, switchable from Settings → Appearance → Theme** — `7b5468f`
 
 - A new **Theme** picker in Appearance offers **Light** (the default look) and
   **Dark**. Dark switches the whole app to dark surfaces with lighter text.
