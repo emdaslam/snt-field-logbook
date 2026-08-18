@@ -5,7 +5,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.6.60 — 2026-08-18
 
-**Feat: a new daily log starts on the calendar date you have selected** — `(pending)`
+**Feat: a new daily log starts on the calendar date you have selected** — `81510de`
 
 - Selecting a date in the calendar and then tapping **+ → Add Daily Log** now
   opens the form pre-set to that selected date, instead of always defaulting to
