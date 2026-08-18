@@ -549,7 +549,7 @@ export function Settings() {
       )}
       <BackupModal open={backupOpen} onClose={() => setBackupOpen(false)} />
       <RestoreModal open={restoreOpen} onClose={() => setRestoreOpen(false)} />
-      {tutorialOpen && <FeatureTutorials onClose={() => setTutorialOpen(false)} />}
+      {tutorialOpen && <FeatureTutorials replay onClose={() => setTutorialOpen(false)} />}
     </div>
   );
 }

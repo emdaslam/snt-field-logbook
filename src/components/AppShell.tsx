@@ -21,6 +21,7 @@ import { InspectionExportModal } from "./InspectionExportModal";
 import { DailyLogForm, DeficiencyForm, PlannedWorkForm } from "./Forms";
 import { Onboarding } from "./Onboarding";
 import { FeatureTutorials } from "./FeatureTutorials";
+import { getPendingTutorials, markTutorialsSeen, type VersionTutorial } from "@/lib/tutorials";
 import { isNative } from "@/lib/native";
 import { APP_VERSION_BASE } from "@/lib/types";
 import { toISODate, fmtDate } from "@/lib/api";
@@ -84,17 +85,12 @@ export function AppShell() {
   });
   const showOnboarding = !onboardingDone && stations.length === 0;
 
-  // One-time-per-update "What's New" tutorial for the newly added features.
-  // Hidden when the user skipped tutorials, and marked shown when finished.
-  const [whatsNew, setWhatsNew] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      if (localStorage.getItem("snt.tutorialsSkipped") === "1") return false;
-      return localStorage.getItem("snt.whatsNewShown") !== APP_VERSION_BASE;
-    } catch {
-      return false;
-    }
-  });
+  // "What's New" tutorials for every major change the user has not seen yet.
+  // Computed once from the version whose tutorials were last finished; hidden
+  // while onboarding runs and cleared by the Tutorials modal when it closes.
+  const [tutorialQueue, setTutorialQueue] = useState<VersionTutorial[]>(() =>
+    typeof window === "undefined" ? [] : getPendingTutorials(),
+  );
 
   // Close the header dropdowns when tapping anywhere outside them
   useEffect(() => {
@@ -731,17 +727,19 @@ export function AppShell() {
           onComplete={async () => {
             try {
               localStorage.setItem("snt.onboardingDone", "1");
+              markTutorialsSeen(APP_VERSION_BASE);
             } catch {
               /* storage unavailable */
             }
             setOnboardingDone(true);
+            setTutorialQueue([]);
             await refresh();
           }}
         />
       )}
 
-      {whatsNew && !showOnboarding && (
-        <FeatureTutorials onClose={() => setWhatsNew(false)} />
+      {tutorialQueue.length > 0 && !showOnboarding && (
+        <FeatureTutorials tutorials={tutorialQueue} onClose={() => setTutorialQueue([])} />
       )}
     </div>
   );

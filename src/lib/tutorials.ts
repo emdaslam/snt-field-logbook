@@ -1,0 +1,203 @@
+"use client";
+
+import { APP_VERSION_BASE } from "./types";
+
+export type TutorialSlide = { glyph: string; title: string; body: string };
+
+export type VersionTutorial = {
+  version: string;
+  tag: string;
+  subtitle: string;
+  slides: TutorialSlide[];
+};
+
+const LS_LAST_VERSION = "snt.lastTutorialVersion";
+const LS_SKIP = "snt.tutorialsSkipped";
+const LS_LEGACY_SHOWN = "snt.whatsNewShown";
+
+/**
+ * Catalog of "major" changes, one entry per version that deserves a tutorial.
+ * Sorted ascending — the queue shows them oldest first so a user jumping from
+ * an old version to the latest sees everything they missed in order.
+ */
+export const TUTORIAL_CATALOG: VersionTutorial[] = [
+  {
+    version: "1.7.6.38",
+    tag: "PCDO department-wise",
+    subtitle: "Special works are now recorded and exported department-wise.",
+    slides: [
+      {
+        glyph: "▦",
+        title: "Pick the departments",
+        body: "When “PCDO — Special Work” is ticked on a daily log, you now choose one or more departments — Signalling, Engg, OHE, Telecom — and describe the work done for each in its own box.",
+      },
+      {
+        glyph: "▤",
+        title: "Export by department",
+        body: "The PCDO export is still grouped station-wise, but each station now has a sub-section per department with the date and its special-work text, each with a colour-coded badge.",
+      },
+    ],
+  },
+  {
+    version: "1.7.6.39",
+    tag: "Search highlight",
+    subtitle: "Matches light up as you type.",
+    slides: [
+      {
+        glyph: "⌕",
+        title: "Highlighted matches",
+        body: "In Global Search, the station or work title and the matching body text of every result are highlighted in amber wherever the search term appears.",
+      },
+      {
+        glyph: "◈",
+        title: "Everywhere you search",
+        body: "Notes search highlights matches in the note title and body too. Highlighting is case-insensitive and mirrors each screen’s existing search matching.",
+      },
+    ],
+  },
+  {
+    version: "1.7.6.43",
+    tag: "Search covers notes",
+    subtitle: "Global Search finds your notes, and backups now include settings.",
+    slides: [
+      {
+        glyph: "☰",
+        title: "Search covers notes",
+        body: "Global Search now finds Important Notes too — search their title or body from any tab, and the All Types filter gains a Note option to narrow results to notes.",
+      },
+      {
+        glyph: "▸",
+        title: "Open the note in place",
+        body: "Tapping a note result opens the Important Notes tab with that note expanded and scrolled into view, with any category or search filter cleared.",
+      },
+      {
+        glyph: "▤",
+        title: "Backup includes settings",
+        body: "Backups now capture app settings as well — font size, reminder lead time, TA windows, export format and PDF text size. Restoring reapplies them and reloads the app.",
+      },
+    ],
+  },
+  {
+    version: "1.7.6.44",
+    tag: "Counter resets",
+    subtitle: "Record resets in the daily log and print them in the PCDO export.",
+    slides: [
+      {
+        glyph: "▦",
+        title: "Counter Resets in the daily log",
+        body: "Tick Counter Resets to record resets on the equipment that carry registers — MSDAC, UFSBI Block Instrument or BPAC — with counts for Failures and for Testing. Several resets can be entered on the same day.",
+      },
+      {
+        glyph: "⇄",
+        title: "Station vs section",
+        body: "MSDAC counters belong to the entry’s station. UFSBI and BPAC counters belong to the section between two stations — the entry reads Station A → Station B, and you pick the next station.",
+      },
+      {
+        glyph: "▤",
+        title: "In the PCDO export and Reports",
+        body: "The PCDO export prints a Counter Resets summary right after Disconnections, grouped station-wise with Failures / Testing / Total. The Reports tab shows a Counter Resets count with a per-equipment breakdown.",
+      },
+    ],
+  },
+  {
+    version: "1.7.6.54",
+    tag: "Materials tab",
+    subtitle: "Keep every required material, log receipts and usage, and see the station-wise summary.",
+    slides: [
+      {
+        glyph: "▦",
+        title: "Materials tab",
+        body: "The hamburger menu now has a Materials tab that keeps every material required for maintenance work, with the required quantity and its unit.",
+      },
+      {
+        glyph: "⇄",
+        title: "Receive & Use",
+        body: "Tap Receive to log a delivery (quantity, date, station, room and where it was placed) and Use to log what was consumed. The outstanding Required figure drops by itself as material arrives.",
+      },
+      {
+        glyph: "＋",
+        title: "Add & + Req",
+        body: "The + button adds a new material. “+ Req” adds extra requirement on top of the current amount without opening the edit form.",
+      },
+    ],
+  },
+  {
+    version: "1.7.6.55",
+    tag: "Equipment groups",
+    subtitle: "Materials are grouped by equipment, with custom groups of your own.",
+    slides: [
+      {
+        glyph: "▣",
+        title: "Grouped by equipment",
+        body: "The required list is grouped by equipment — general, point, signal, block instrument and more. Materials entered before this release are grouped under general.",
+      },
+      {
+        glyph: "＋",
+        title: "Custom equipment",
+        body: "“+ New Equipment” or “Add new equipment…” in the Add / Edit form creates a custom group, shown after the defaults. Custom equipment syncs to Drive and is included in JSON backups.",
+      },
+      {
+        glyph: "▤",
+        title: "Grouped in exports too",
+        body: "The PDF export’s summary is grouped by equipment in the same order, and each material’s detail section shows which equipment it belongs to.",
+      },
+    ],
+  },
+];
+
+function compareVersion(a: string, b: string): number {
+  const pa = a.split(".").map(Number);
+  const pb = b.split(".").map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (d !== 0) return d;
+  }
+  return 0;
+}
+
+/**
+ * Tutorials the user has not seen yet, oldest first.
+ *
+ * - `snt.tutorialsSkipped = "1"` suppresses tutorials permanently.
+ * - `snt.lastTutorialVersion` is the newest version whose tutorial was seen;
+ *   anything newer in the catalog is queued.
+ * - First run of this system: if the user already saw the 1.7.6.57 what's-new
+ *   (which covered the Materials work through 1.7.6.56) we treat them as
+ *   up-to-date there; otherwise they have seen nothing, so every major change
+ *   is queued.
+ */
+export function getPendingTutorials(): VersionTutorial[] {
+  if (typeof window === "undefined") return [];
+  try {
+    if (localStorage.getItem(LS_SKIP) === "1") return [];
+    let last = localStorage.getItem(LS_LAST_VERSION);
+    if (last === null) {
+      last = localStorage.getItem(LS_LEGACY_SHOWN) ? "1.7.6.56" : "0.0.0";
+      localStorage.setItem(LS_LAST_VERSION, last);
+    }
+    return TUTORIAL_CATALOG.filter(
+      (t) =>
+        compareVersion(t.version, last) > 0 &&
+        compareVersion(t.version, APP_VERSION_BASE) <= 0,
+    );
+  } catch {
+    return [];
+  }
+}
+
+export function markTutorialsSeen(version: string): void {
+  try {
+    localStorage.setItem(LS_LAST_VERSION, version);
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+export function markTutorialsSkipped(): void {
+  try {
+    localStorage.setItem(LS_SKIP, "1");
+    localStorage.setItem(LS_LAST_VERSION, APP_VERSION_BASE);
+  } catch {
+    /* storage unavailable */
+  }
+}
