@@ -172,6 +172,28 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.6.62",
+    tag: "Variable TA at a KMs marker",
+    subtitle: "Stations split across the 8 km line now ask which side you worked on.",
+    slides: [
+      {
+        glyph: "▤",
+        title: "Variable station setting",
+        body: "In Settings → Manage Stations a station can now be marked Variable. You set the KMs marker at which its “greater than 8 km” side starts — one side of the station is within 8 km, the other is beyond it.",
+      },
+      {
+        glyph: "◍",
+        title: "Asked during logging",
+        body: "When you log work at a variable station, the daily log asks “Worked at [KMs] KMs?”. Answer Yes to claim TA for that day; No records the work within 8 km without TA.",
+      },
+      {
+        glyph: "▤",
+        title: "Shown in the exports",
+        body: "TA Journal and Diary entries that qualify carry “at [KMs]” at the end of the work text, and only Yes answers are written into the TA Journal.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {

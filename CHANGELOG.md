@@ -3,6 +3,23 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.62 — 2026-08-19
+
+**Feat: Variable TA for stations split across the 8 km boundary**
+
+- Some stations sit right on the 8 km line: one side of the station is within
+  8 km of headquarters and the other side is beyond it. A station can now be
+  marked **Variable** in Settings → Manage Stations, with a **KMs marker** —
+  the KMs at which the "greater than 8 km" side starts.
+- When you log work at a variable station, the daily log asks **"Worked at
+  [KMs] KMs?"**. Answer **Yes** to claim TA for that day (the work was done on
+  the > 8 km side); **No** records the work as within 8 km, with no TA.
+- Only **Yes** answers are written into the **TA Journal**. The work text of
+  qualifying entries (TA Journal and Diary) carries **"at [KMs]"** at the end,
+  e.g. *"Attended signal failure at 12 KMs"*.
+- The TA Journal preview in the export dialog shows the same "at [KMs]" suffix
+  and the same inclusion rule.
+
 ## 1.7.6.61 — 2026-08-19
 
 **Minor: Drive backup and restore now show their progress as a percentage**

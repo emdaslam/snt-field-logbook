@@ -166,20 +166,24 @@ export const DEFAULT_CONTENT_FONT_SIZE = 10;
 
 /**
  * Distance of a station from the headquarters station: "below8" means at or
- * under 8 km, "above8" means over 8 km. The headquarters station itself is
- * always "below8" with 0 minutes of travel time.
+ * under 8 km, "above8" means over 8 km, "variable" means one side of the
+ * station is within 8 km and the other side is beyond it (a station-level TA
+ * split whose marker is stored in stations.variableKm). The headquarters
+ * station itself is always "below8" with 0 minutes of travel time.
  */
 export const STATION_DISTANCE_OPTIONS = [
   { value: "below8", label: "Below 8 km" },
   { value: "above8", label: "Above 8 km" },
+  { value: "variable", label: "Variable (split at a KMs marker)" },
 ] as const;
 export type StationDistance = (typeof STATION_DISTANCE_OPTIONS)[number]["value"];
 
 export const STATION_DISTANCE_LABEL: Record<StationDistance, string> = {
   below8: "Below 8 km",
   above8: "Above 8 km",
+  variable: "Variable",
 };
 
 /** App version shown in Settings → About. Bump alongside android/app/build.gradle. */
-export const APP_VERSION_BASE = "1.7.6.61";
+export const APP_VERSION_BASE = "1.7.6.62";
 export const APP_VERSION = `${APP_VERSION_BASE}${AUTO_TIMINGS ? "p" : ""}`;

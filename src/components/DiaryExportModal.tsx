@@ -59,7 +59,12 @@ export function DiaryExportModal({
     const st = stations.find(
       (s) => s.name.toLowerCase() === t || (s.code && s.code.toLowerCase() === t)
     );
-    if (!st || st.distanceFromHq !== "above8") return false;
+    if (!st) return false;
+    if (st.distanceFromHq === "variable") {
+      if (l.taAtVariableKm !== true) return false;
+    } else if (st.distanceFromHq !== "above8") {
+      return false;
+    }
     const p = l.taPercent ?? 100;
     return p === 100 || p === 70 || p === 30;
   });
@@ -120,7 +125,8 @@ export function DiaryExportModal({
 
       {isTa && (
         <div className="mb-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
-          Only movements to stations recorded as <strong>above 8 km</strong> from the headquarters are
+          Only movements to stations recorded as <strong>above 8 km</strong> from the headquarters — or to a{" "}
+          <strong>variable</strong> station where the log says the work was done at/after its KMs marker — are
           included in the TA Journal.
         </div>
       )}
@@ -174,7 +180,19 @@ export function DiaryExportModal({
                         </td>
                         <td className="px-2 py-1.5 font-medium">{p}%</td>
                         <td className="px-2 py-1.5">{rateNotSet ? "—" : `₹${amount}`}</td>
-                        <td className="px-2 py-1.5 text-slate-600">{r.workDone || "-"}</td>
+                        <td className="px-2 py-1.5 text-slate-600">
+                          {(() => {
+                            const t = (r.stationMovement ?? "").trim().toLowerCase();
+                            const st = stations.find(
+                              (s) => s.name.toLowerCase() === t || (s.code && s.code.toLowerCase() === t)
+                            );
+                            const km =
+                              st?.distanceFromHq === "variable" && r.taAtVariableKm === true
+                                ? st.variableKm
+                                : null;
+                            return `${r.workDone || "-"}${km != null && km > 0 ? ` at ${km} KMs` : ""}`;
+                          })()}
+                        </td>
                       </>
                     ) : (
                       <>

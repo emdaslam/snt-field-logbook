@@ -53,6 +53,12 @@ export function LogDetailModal({
             <JourneySummary log={log} stationName={stationName} />
           )}
           <Row label="Work Done" value={log.workDone} multiline />
+          {log.taAtVariableKm != null && (
+            <Row
+              label="Variable station side"
+              value={log.taAtVariableKm ? "At/after the KMs marker (> 8 km)" : "Within 8 km"}
+            />
+          )}
           <Row
             label="TA"
             value={`${log.taPercent ?? 100}%`}

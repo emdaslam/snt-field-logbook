@@ -668,7 +668,7 @@ export function exportDiary(
   const merges: XlsxMerge[] = [];
   for (const [date, dayLogs] of days) {
     const primary = preferTaLog(dayLogs, hq);
-    const work = mergeWork(dayLogs) || "-";
+    let work = mergeWork(dayLogs) || "-";
     const sp = specialPair(primary);
     if (sp) {
       const r = grid.length;
@@ -677,6 +677,16 @@ export function exportDiary(
       continue;
     }
     const st = movementStation(primary, stations);
+    // A variable-distance station carries its KMs marker in the work text when
+    // the log confirms the work was done at/after that marker (> 8 km side).
+    if (
+      st?.match?.distanceFromHq === "variable" &&
+      primary.taAtVariableKm === true &&
+      st.match.variableKm != null &&
+      st.match.variableKm > 0
+    ) {
+      work = `${work} at ${st.match.variableKm} KMs`;
+    }
     if (!st || (hq && st.match?.id === hq.id)) {
       grid.push([dmy(date), "---", "---", "---", "AT", hqCode, work]);
       continue;
@@ -809,7 +819,21 @@ export function exportTaJournal(
     }
     const st = movementStation(primary, stations);
     if (!st || (hq && st.match?.id === hq.id)) continue;
-    if (st.match?.distanceFromHq !== "above8") continue;
+    const dist = st.match?.distanceFromHq;
+    // A station fixed at "above8" always qualifies. A "variable" station
+    // qualifies only when the log says the work was done at/after its KMs
+    // marker (the > 8 km side), and the work text then carries that marker.
+    if (dist === "variable") {
+      if (primary.taAtVariableKm !== true) continue;
+      const km = st.match?.variableKm;
+      const base = mergeWork(dayLogs) || "-";
+      taDays.push({
+        log: primary,
+        work: km != null && km > 0 ? `${base} at ${km} KMs` : base,
+      });
+      continue;
+    }
+    if (dist !== "above8") continue;
     taDays.push({ log: primary, work: mergeWork(dayLogs) || "-" });
   }
   taDays.sort((a, b) => a.log.logDate.localeCompare(b.log.logDate));

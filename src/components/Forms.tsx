@@ -133,6 +133,12 @@ export function DailyLogForm({
   const [crFrom, setCrFrom] = useState(existing?.crFrom ?? "");
   const [workDone, setWorkDone] = useState(existing?.workDone ?? "");
   const [taPercent, setTaPercent] = useState(String(existing?.taPercent ?? 70));
+  // For stations with a variable distance (one side ≤ 8 km, the other > 8 km):
+  // whether the day's work was done at/after the station's KMs marker, which is
+  // what makes the entry claimable in the TA Journal.
+  const [taAtVariableKm, setTaAtVariableKm] = useState<boolean | null>(
+    existing?.taAtVariableKm ?? null
+  );
   const [tagIds, setTagIds] = useState<number[]>(existing?.tagIds ?? []);
   const [attachments, setAttachments] = useState<Attachment[]>(existing?.attachments ?? []);
   const [inspectionSide, setInspectionSide] = useState(existing?.inspectionSide ?? "");
@@ -144,7 +150,17 @@ export function DailyLogForm({
   const movementLabel = MOVEMENT_LABEL[movementKind] ?? movementKind;
   // Rest / Leave / CR and a date that already has a TA claim: no TA for this entry
   const taLocked = isSpecial || taTakenOnSameDate;
-  const taPercentEffective = taLocked ? "0" : taPercent;
+  // A station with a variable distance only qualifies for TA when the work was
+  // done at/after its KMs marker (the "greater than 8 km" side).
+  const variableStation = stations.find((s) => s.name === movement);
+  const isVariableSplit =
+    movementKind === "station" &&
+    variableStation?.distanceFromHq === "variable" &&
+    currentUser?.headquartersStationId != null &&
+    variableStation.id !== currentUser.headquartersStationId;
+  const variableKm = isVariableSplit ? (variableStation.variableKm ?? null) : null;
+  const variableTaPending = isVariableSplit && taAtVariableKm !== true;
+  const taPercentEffective = taLocked || variableTaPending ? "0" : taPercent;
   const selectedTagNames = tagIds
     .map((id) => tags.find((t) => t.id === id)?.name)
     .filter((n): n is string => Boolean(n));
@@ -254,6 +270,7 @@ export function DailyLogForm({
     }
     setMovementKind("station");
     setMovement(v);
+    setTaAtVariableKm(null);
     setPcdoStationOverride(null);
     const st = stations.find((s) => s.name === v);
     if (st && currentUser?.headquartersStationId != null && st.id === currentUser.headquartersStationId) {
@@ -386,7 +403,10 @@ export function DailyLogForm({
       crFrom: movementKind === "cr" ? crFrom || null : null,
       workDone: isSpecial ? null : workDone,
       ta: null,
-      taPercent: taLocked ? 0 : Number(taPercent) || 0,
+      taPercent: taLocked || variableTaPending ? 0 : Number(taPercent) || 0,
+      // Only meaningful for stations with a variable distance — answers the
+      // "did you work at/after the KMs marker?" question for the TA Journal.
+      taAtVariableKm: isVariableSplit ? taAtVariableKm === true : null,
       // A footplate movement records the footplate inspection (the engine ride
       // over the route), so it feeds the periodic-inspection tracking and the
       // Inspection export even when the footplate tag isn't ticked.
@@ -674,6 +694,45 @@ export function DailyLogForm({
               These times are printed verbatim in the Diary and TA Journal exports.
             </p>
           </div>
+        </Field>
+      )}
+      {isVariableSplit && (
+        <Field label={variableKm != null ? `Worked at ${variableKm} KMs?` : "Worked at the station's KMs marker?"}>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setTaAtVariableKm(true)}
+              className={`flex-1 rounded-lg border px-3 py-1.5 text-sm font-medium ${
+                taAtVariableKm === true
+                  ? "border-emerald-600 bg-emerald-600 text-white"
+                  : "border-slate-300 text-slate-600"
+              }`}
+            >
+              Yes — at/after {variableKm} KMs
+            </button>
+            <button
+              type="button"
+              onClick={() => setTaAtVariableKm(false)}
+              className={`flex-1 rounded-lg border px-3 py-1.5 text-sm font-medium ${
+                taAtVariableKm === false
+                  ? "border-slate-600 bg-slate-600 text-white"
+                  : "border-slate-300 text-slate-600"
+              }`}
+            >
+              No — within 8 km
+            </button>
+          </div>
+          {variableTaPending ? (
+            <span className="mt-1 block text-xs text-amber-600">
+              This station{"'"}s distance is variable — TA is only claimed when the work was done at/after{" "}
+              {variableKm != null ? `${variableKm} KMs` : "the station's KMs marker"}.
+            </span>
+          ) : (
+            <span className="mt-1 block text-xs text-slate-500">
+              {variableKm != null ? `at/after ${variableKm} KMs` : "at/after the station's KMs marker"} — the
+              entry will be included in the TA Journal.
+            </span>
+          )}
         </Field>
       )}
       {isSpecial ? (

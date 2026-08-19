@@ -52,6 +52,7 @@ export const api = {
         name: b.name ?? "",
         code: b.code ?? null,
         distanceFromHq: b.distanceFromHq ?? "below8",
+        variableKm: b.variableKm ?? null,
         travelMin: b.travelMin ?? 0,
         travelMax: b.travelMax ?? 0,
       }) as unknown as Promise<Station>;
@@ -62,6 +63,7 @@ export const api = {
         name: b.name,
         code: b.code ?? null,
         distanceFromHq: b.distanceFromHq ?? "below8",
+        variableKm: b.variableKm ?? null,
         travelMin: b.travelMin ?? 0,
         travelMax: b.travelMax ?? 0,
       }) as unknown as Promise<Station>;
@@ -497,6 +499,7 @@ function normaliseLog(b: Partial<DailyLog>) {
     workDone: b.workDone ?? null,
     ta: null,
     taPercent: num(b.taPercent, 100),
+    taAtVariableKm: b.taAtVariableKm ?? null,
     ownerStaffId: b.ownerStaffId ?? null,
     pcdoWork: b.pcdoWork ?? null,
     pcdoWorks: Array.isArray(b.pcdoWorks) ? b.pcdoWorks : [],

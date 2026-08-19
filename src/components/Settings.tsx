@@ -45,7 +45,7 @@ const SWIPE_THRESHOLD = 48;
 export function Settings() {
   const { stations, staff, tags, currentUser, refresh, fontSize, setFontSize, theme, setTheme, contentScale, setContentScale, reminderDays, setReminderDays } = useData();
   const [group, setGroup] = useState<GroupId>("account");
-  const [newStation, setNewStation] = useState({ name: "", code: "", distanceFromHq: "below8", travelMin: "", travelMax: "" });
+  const [newStation, setNewStation] = useState({ name: "", code: "", distanceFromHq: "below8", variableKm: "", travelMin: "", travelMax: "" });
   const [editStation, setEditStation] = useState<Station | null>(null);
   const [editStaff, setEditStaff] = useState<Staff | null>(null);
   const [addStaff, setAddStaff] = useState(false);
@@ -176,6 +176,20 @@ export function Settings() {
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>
+          {newStation.distanceFromHq === "variable" && (
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-slate-400">at</span>
+              <input
+                className="w-16 rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                type="number"
+                min={0}
+                step={0.1}
+                placeholder="KMs"
+                value={newStation.variableKm}
+                onChange={(e) => setNewStation({ ...newStation, variableKm: e.target.value })}
+              />
+            </div>
+          )}
           <div className="flex items-center gap-1">
             <span className="text-xs text-slate-400">min</span>
             <input
@@ -203,10 +217,14 @@ export function Settings() {
               const max = Math.max(min, Math.round(Number(newStation.travelMax)) || 0);
               await api.stations.create({
                 ...newStation,
+                variableKm:
+                  newStation.distanceFromHq === "variable"
+                    ? Math.max(0, Number(newStation.variableKm)) || null
+                    : null,
                 travelMin: min,
                 travelMax: max,
               });
-              setNewStation({ name: "", code: "", distanceFromHq: "below8", travelMin: "", travelMax: "" });
+              setNewStation({ name: "", code: "", distanceFromHq: "below8", variableKm: "", travelMin: "", travelMax: "" });
               await refresh();
             }}
             className="rounded-lg bg-emerald-600 px-3 text-sm font-semibold text-white"
@@ -225,7 +243,11 @@ export function Settings() {
                     {isHq && <Chip label="HQ" color="#059669" />}
                   </span>
                   <span className="ml-2 text-xs text-slate-400">
-                    {STATION_DISTANCE_LABEL[(s.distanceFromHq ?? "below8") as StationDistance]} ·{" "}
+                    {STATION_DISTANCE_LABEL[(s.distanceFromHq ?? "below8") as StationDistance]}
+                    {s.distanceFromHq === "variable" && s.variableKm != null
+                      ? ` · at ${s.variableKm} KMs`
+                      : ""}
+                    {" · "}
                     {s.travelMin === s.travelMax
                       ? `${s.travelMin ?? 0} min`
                       : `${s.travelMin ?? 0}–${s.travelMax ?? 0} min`} from HQ
@@ -813,6 +835,7 @@ function StationEditor({ station, onClose }: { station: Station; onClose: () => 
     name: station.name,
     code: station.code ?? "",
     distanceFromHq: isHq ? "below8" : (station.distanceFromHq ?? "below8"),
+    variableKm: station.variableKm != null ? String(station.variableKm) : "",
     travelMin: isHq ? "0" : String(station.travelMin ?? 0),
     travelMax: isHq ? "0" : String(station.travelMax ?? 0),
   });
@@ -829,6 +852,10 @@ function StationEditor({ station, onClose }: { station: Station; onClose: () => 
       code: form.code.trim() || null,
       // The headquarters station is always "below 8 km" with 0 minutes of travel.
       distanceFromHq: isHq ? "below8" : (form.distanceFromHq as StationDistance),
+      variableKm:
+        !isHq && form.distanceFromHq === "variable"
+          ? Math.max(0, Number(form.variableKm)) || null
+          : null,
       travelMin: isHq ? 0 : min,
       travelMax: isHq ? 0 : max,
     });
@@ -862,6 +889,23 @@ function StationEditor({ station, onClose }: { station: Station; onClose: () => 
             ))}
           </select>
         </Field>
+        {!isHq && form.distanceFromHq === "variable" && (
+          <Field label="Variable KMs marker">
+            <input
+              className={inputClass}
+              type="number"
+              min={0}
+              step={0.1}
+              placeholder="KMs"
+              value={form.variableKm}
+              onChange={(e) => setForm({ ...form, variableKm: e.target.value })}
+            />
+            <span className="mt-1 block text-xs text-slate-500">
+              The KMs at which the “greater than 8 km” side starts. During a log at this
+              station you will be asked whether the work was done at/after this marker.
+            </span>
+          </Field>
+        )}
         <Field label="Travel time from HQ (min)">
           <div className="flex items-center gap-2">
             <input

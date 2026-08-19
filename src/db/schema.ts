@@ -19,7 +19,10 @@ export const stations = pgTable("stations", {
   code: varchar("code", { length: 30 }),
   // Distance from the headquarters station: "below8" (≤ 8 km) or "above8" (> 8 km).
   // The headquarters station itself is always "below8" with 0 minutes travel time.
+  // "variable" means one side of the station is within 8 km and the other side is
+  // beyond it; variableKm holds the KMs at which the "greater than 8 km" side starts.
   distanceFromHq: varchar("distance_from_hq", { length: 10 }).default("below8").notNull(),
+  variableKm: integer("variable_km"),
   // Travel time range (minutes) from the headquarters to this station.
   travelMin: integer("travel_min").default(0).notNull(),
   travelMax: integer("travel_max").default(0).notNull(),
@@ -86,6 +89,10 @@ export const dailyLogs = pgTable("daily_logs", {
   ta: numeric("ta", { precision: 12, scale: 2 }),
   // TA claim percentage: 100 / 70 / 30  (100% = 1 full day)
   taPercent: integer("ta_percent").default(100).notNull(),
+  // For stations with a variable distance (one side ≤ 8 km, the other > 8 km):
+  // true when the day's work was done at/after the station's variableKm marker,
+  // making the entry claimable in the TA Journal. null for fixed-distance stations.
+  taAtVariableKm: boolean("ta_at_variable_km"),
   // Periodic inspection recorded by this entry
   inspectionKind: varchar("inspection_kind", { length: 20 }),
   // Station the inspection was carried out AT (mirrors the log entry station)
