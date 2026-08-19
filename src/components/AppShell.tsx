@@ -42,6 +42,7 @@ export function AppShell() {
     refresh,
     syncing: autoSyncing,
     driveSyncing,
+    driveProgress,
     dirty,
     doDriveSync,
     lastSynced,
@@ -479,20 +480,31 @@ export function AppShell() {
           {/* Sync */}
           <button
             onClick={doSync}
-            className="rounded-lg p-1.5 hover:bg-blue-800"
+            className="flex items-center gap-1 rounded-lg p-1.5 hover:bg-blue-800"
             aria-label="Sync"
             title={
               autoSyncing || driveSyncing
-                ? "Syncing…"
+                ? driveProgress && driveProgress.total > 0
+                  ? `Backing up… ${Math.round((driveProgress.done / driveProgress.total) * 100)}% (${
+                      driveProgress.total - driveProgress.done
+                    } of ${driveProgress.total} files left)`
+                  : "Syncing…"
                 : dirty
                   ? "Changes pending — tap to sync"
                   : "All changes synced to Drive"
             }
           >
             {autoSyncing || driveSyncing ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin">
-                <path d="M21 2v6h-6M3 22v-6h6M3.5 9a9 9 0 0 1 14.85-3.36L21 8M20.5 15a9 9 0 0 1-14.85 3.36L3 16" />
-              </svg>
+              <>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin">
+                  <path d="M21 2v6h-6M3 22v-6h6M3.5 9a9 9 0 0 1 14.85-3.36L21 8M20.5 15a9 9 0 0 1-14.85 3.36L3 16" />
+                </svg>
+                {driveProgress && driveProgress.total > 0 && (
+                  <span className="min-w-5 text-center text-[10px] font-bold text-emerald-300">
+                    {Math.round((driveProgress.done / driveProgress.total) * 100)}%
+                  </span>
+                )}
+              </>
             ) : dirty ? (
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-amber-300">
                 <path d="M21 2v6h-6M3 22v-6h6M3.5 9a9 9 0 0 1 14.85-3.36L21 8M20.5 15a9 9 0 0 1-14.85 3.36L3 16" />

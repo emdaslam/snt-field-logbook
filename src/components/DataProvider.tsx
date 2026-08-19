@@ -19,7 +19,7 @@ import {
 } from "@/lib/inspections";
 import { FONT_SIZE_ROOT, type AppTheme, type FontSize } from "@/lib/types";
 import { isNative, scheduleDailyReminders } from "@/lib/native";
-import { driveStatus, syncWithDrive, type DriveResult } from "@/lib/drive";
+import { driveStatus, syncWithDrive, type DriveResult, type DriveProgress } from "@/lib/drive";
 import type {
   Station,
   Staff,
@@ -64,6 +64,8 @@ type Ctx = {
   online: boolean;
   syncing: boolean;
   driveSyncing: boolean;
+  /** Live upload/download progress of a Drive backup or restore, or null when idle. */
+  driveProgress: DriveProgress | null;
   lastSynced: Date | null;
   syncError: string | null;
   /** True while the local database has changes not yet pushed to Drive. */
@@ -118,6 +120,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [online, setOnline] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [driveSyncing, setDriveSyncing] = useState(false);
+  const [driveProgress, setDriveProgress] = useState<DriveProgress | null>(null);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -318,8 +321,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const doDriveSync = useCallback(
     async (interactive = true): Promise<DriveResult> => {
       setDriveSyncing(true);
+      setDriveProgress(null);
       try {
-        const r = await syncWithDrive(interactive);
+        const r = await syncWithDrive(interactive, setDriveProgress);
         if (r.ok) {
           setDirty(false);
           if (r.imported) await refresh();
@@ -327,6 +331,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         return r;
       } finally {
         setDriveSyncing(false);
+        setDriveProgress(null);
       }
     },
     [refresh]
@@ -612,6 +617,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         online,
         syncing,
         driveSyncing,
+        driveProgress,
         lastSynced,
         syncError,
         dirty,

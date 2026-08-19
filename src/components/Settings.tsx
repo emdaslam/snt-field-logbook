@@ -26,6 +26,7 @@ import {
   signOutFromDrive,
   pullFromDrive,
   type DriveResult,
+  type DriveProgress,
 } from "@/lib/drive";
 import type { Staff, Station, Tag } from "@/db/schema";
 
@@ -1011,13 +1012,14 @@ function TagEditor({ existing, onClose }: { existing: Tag | null; onClose: () =>
 }
 
 function DriveSyncSection() {
-  const { refresh, autoDriveSync, setAutoDriveSync, doDriveSync, clearDirty } = useData();
+  const { refresh, autoDriveSync, setAutoDriveSync, doDriveSync, clearDirty, driveProgress } = useData();
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [lastSynced, setLastSynced] = useState<string | null>(null);
   const [busy, setBusy] = useState<"signin" | "signout" | "sync" | "import" | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [importProgress, setImportProgress] = useState<DriveProgress | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -1072,16 +1074,19 @@ function DriveSyncSection() {
   async function doImport() {
     setBusy("import");
     setMsg(null);
-    const r = await pullFromDrive();
+    setImportProgress(null);
+    const r = await pullFromDrive(undefined, setImportProgress);
     report(r);
     if (r.ok) {
       clearDirty();
       if (r.imported) await refresh();
     }
+    setImportProgress(null);
     setBusy(null);
   }
 
   const status = driveStatus();
+  const activeProgress = importProgress ?? driveProgress;
 
   return (
     <Section title="Google Drive Sync">
@@ -1124,6 +1129,9 @@ function DriveSyncSection() {
               Import from Drive
             </button>
           </div>
+          {activeProgress && (
+            <DriveProgressBar progress={activeProgress} />
+          )}
           {msg && (
             <p className={`text-xs ${msg.ok ? "text-emerald-600" : "text-red-600"}`}>{msg.text}</p>
           )}
@@ -1177,6 +1185,31 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     <div className="rounded-xl border border-slate-200 bg-surface p-4 shadow-sm">
       <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-blue-900">{title}</h3>
       {children}
+    </div>
+  );
+}
+
+/** Live percentage of a Drive backup (upload) or restore (download). */
+function DriveProgressBar({ progress }: { progress: DriveProgress }) {
+  const pct = progress.total > 0 ? Math.min(100, Math.round((progress.done / progress.total) * 100)) : 0;
+  const left = Math.max(0, progress.total - progress.done);
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+      <div className="mb-1 flex items-center justify-between text-xs text-slate-700">
+        <span className="font-medium">
+          {progress.phase === "restore" ? "Restoring from Drive…" : "Backing up to Drive…"}
+        </span>
+        <span className="font-semibold text-blue-800">{pct}%</span>
+      </div>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
+        <div
+          className="h-full rounded-full bg-emerald-500 transition-all duration-200"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <p className="mt-1 text-[11px] text-slate-400">
+        {left} of {progress.total} file{progress.total !== 1 ? "s" : ""} left
+      </p>
     </div>
   );
 }

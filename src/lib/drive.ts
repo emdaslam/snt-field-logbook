@@ -49,6 +49,14 @@ export type DriveResult = {
   imported?: boolean;
 };
 
+export type DriveProgress = {
+  done: number;
+  total: number;
+  phase: "backup" | "restore";
+};
+
+export type DriveProgressFn = (p: DriveProgress) => void;
+
 export type LastSyncInfo = {
   at: string;
   ok: boolean;
@@ -346,7 +354,7 @@ async function deleteFile(id: string, interactive: boolean): Promise<void> {
  * (splitting everything into day files) and then supersedes the old single
  * JSON backup, which is deleted only once the sharded copy is safe on Drive.
  */
-export async function pushToDrive(interactive = true): Promise<DriveResult> {
+export async function pushToDrive(interactive = true, onProgress?: DriveProgressFn): Promise<DriveResult> {
   if (!isNative()) return { ok: false, message: "Drive sync works only in the Android app." };
   try {
     const auth = await currentAuth(interactive);
@@ -380,28 +388,46 @@ export async function pushToDrive(interactive = true): Promise<DriveResult> {
     let uploadedBytes = 0;
     let changed = false;
 
+    // Count the work ahead of time so progress can be reported as a
+    // percentage of the whole backup: touched/missing day uploads, orphan
+    // day deletions, the data file, the index and the superseded legacy file.
+    const dayUploads = [...groups].filter(
+      ([date]) => !(seeded && !dirtyDays.has(date) && byName.has(dayFileName(date)))
+    );
+    const orphanDeletes = files.filter((f) => {
+      const d = dateFromDayFile(f.name);
+      return d !== null && !groups.has(d);
+    });
+    const dataUpload = !seeded || dataDirty || !byName.has(DATA_NAME) ? 1 : 0;
+    const total =
+      dayUploads.length + orphanDeletes.length + dataUpload + (byName.has(LEGACY_NAME) ? 1 : 0) + 1;
+    let done = 0;
+    const tick = () => {
+      done++;
+      onProgress?.({ done, total, phase: "backup" });
+    };
+
     // Upload every touched or missing day; drop day files whose date is gone.
-    for (const [date, dayLogs] of groups) {
-      if (seeded && !dirtyDays.has(date) && byName.has(dayFileName(date))) continue;
+    for (const [date, dayLogs] of dayUploads) {
       const body = JSON.stringify({ date, exportedAt, logs: dayLogs });
       await uploadFile(byName.get(dayFileName(date)) ?? null, dayFileName(date), body, interactive);
       uploadedBytes += body.length;
       changed = true;
+      tick();
     }
-    for (const f of files) {
-      const d = dateFromDayFile(f.name);
-      if (d !== null && !groups.has(d)) {
-        await deleteFile(f.id, interactive);
-        changed = true;
-      }
+    for (const f of orphanDeletes) {
+      await deleteFile(f.id, interactive);
+      changed = true;
+      tick();
     }
 
     // Non-log tables: re-upload only when they changed or are missing.
     const dataBody = JSON.stringify(buildDataPayload(payload));
-    if (!seeded || dataDirty || !byName.has(DATA_NAME)) {
+    if (dataUpload) {
       await uploadFile(byName.get(DATA_NAME) ?? null, DATA_NAME, dataBody, interactive);
       uploadedBytes += dataBody.length;
       changed = true;
+      tick();
     }
 
     if (!changed) {
@@ -415,10 +441,14 @@ export async function pushToDrive(interactive = true): Promise<DriveResult> {
     // advances (this is what last-write-wins compares against).
     const indexBody = JSON.stringify({ version: 2, exportedAt, days: localDates });
     await uploadFile(byName.get(INDEX_NAME) ?? null, INDEX_NAME, indexBody, interactive);
+    tick();
 
     // The old single-file backup is superseded once the sharded copy is safe.
     const legacyId = byName.get(LEGACY_NAME);
-    if (legacyId) await deleteFile(legacyId, interactive);
+    if (legacyId) {
+      await deleteFile(legacyId, interactive);
+      tick();
+    }
 
     setVersion(exportedAt);
     markShardedSeeded();
@@ -435,7 +465,11 @@ export async function pushToDrive(interactive = true): Promise<DriveResult> {
 }
 
 /** Download everything sharded on Drive and import it in one go. */
-async function pullSharded(interactive: boolean, byName: Map<string, string>): Promise<DriveResult> {
+async function pullSharded(
+  interactive: boolean,
+  byName: Map<string, string>,
+  onProgress?: DriveProgressFn
+): Promise<DriveResult> {
   const indexId = byName.get(INDEX_NAME);
   if (!indexId) throw new Error("Drive backup looks invalid");
   const index = JSON.parse(await downloadFile(indexId, interactive)) as {
@@ -454,7 +488,14 @@ async function pullSharded(interactive: boolean, byName: Map<string, string>): P
 
   const dataId = byName.get(DATA_NAME);
   if (!dataId) throw new Error("Drive backup looks invalid");
+  const total = index.days.length + 2; // index + data file + one per day
+  let done = 1; // the index is already fetched
+  const tick = () => {
+    done++;
+    onProgress?.({ done, total, phase: "restore" });
+  };
   const data = JSON.parse(await downloadFile(dataId, interactive)) as Record<string, unknown>;
+  tick();
 
   const allLogs: unknown[] = [];
   for (const date of index.days) {
@@ -462,6 +503,7 @@ async function pullSharded(interactive: boolean, byName: Map<string, string>): P
     if (!id) throw new Error(`Drive backup is incomplete (missing ${date}).`);
     const day = JSON.parse(await downloadFile(id, interactive)) as { logs?: unknown[] };
     if (Array.isArray(day.logs)) allLogs.push(...day.logs);
+    tick();
   }
 
   const payload: Record<string, unknown> = {
@@ -503,7 +545,7 @@ async function importLegacy(legacyId: string, interactive: boolean): Promise<Dri
 }
 
 /** Pull the Drive backup and restore it if it is newer than the last sync. */
-export async function pullFromDrive(interactive = true): Promise<DriveResult> {
+export async function pullFromDrive(interactive = true, onProgress?: DriveProgressFn): Promise<DriveResult> {
   if (!isNative()) return { ok: false, message: "Drive sync works only in the Android app." };
   try {
     const auth = await currentAuth(interactive);
@@ -512,7 +554,7 @@ export async function pullFromDrive(interactive = true): Promise<DriveResult> {
     const byName = new Map(files.map((f) => [f.name, f.id]));
 
     const indexId = byName.get(INDEX_NAME);
-    if (indexId) return pullSharded(interactive, byName);
+    if (indexId) return pullSharded(interactive, byName, onProgress);
 
     const legacyId = byName.get(LEGACY_NAME);
     if (legacyId) return importLegacy(legacyId, interactive);
@@ -536,7 +578,7 @@ export async function pullFromDrive(interactive = true): Promise<DriveResult> {
  * `interactive` controls whether a missing/expired session may show the
  * account picker. Auto-sync passes false so it stays completely silent.
  */
-export async function syncWithDrive(interactive = true): Promise<DriveResult> {
+export async function syncWithDrive(interactive = true, onProgress?: DriveProgressFn): Promise<DriveResult> {
   if (!isNative()) return { ok: false, message: "Drive sync works only in the Android app." };
   try {
     const auth = await currentAuth(interactive);
@@ -551,11 +593,11 @@ export async function syncWithDrive(interactive = true): Promise<DriveResult> {
       const local = getVersion();
       const remoteNewer = !!remote && (local === null || remote > local);
       if (!remoteNewer) {
-        const pushed = await pushToDrive(interactive);
+        const pushed = await pushToDrive(interactive, onProgress);
         if (!pushed.ok) return pushed;
         return { ok: true, message: pushed.message };
       }
-      return pullSharded(interactive, byName);
+      return pullSharded(interactive, byName, onProgress);
     }
 
     const legacyId = byName.get(LEGACY_NAME);
@@ -564,10 +606,10 @@ export async function syncWithDrive(interactive = true): Promise<DriveResult> {
       // when it is newer, then push the sharded format and only then let
       // pushToDrive remove the legacy file — nothing is lost in between.
       await importLegacy(legacyId, interactive);
-      return pushToDrive(interactive);
+      return pushToDrive(interactive, onProgress);
     }
 
-    return pushToDrive(interactive);
+    return pushToDrive(interactive, onProgress);
   } catch (e) {
     const message = errorMessage(e);
     recordSync({ ok: false, message });
