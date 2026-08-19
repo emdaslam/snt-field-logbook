@@ -3,6 +3,17 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.63 — 2026-08-19
+
+**Minor: Variable KMs marker is now free text and editable on any station**
+
+- The **KMs marker** of a Variable station is no longer restricted to numbers —
+  it accepts text such as `8+` or `12/4`, so the marker can match the on-ground
+  kilometre notation. The marker can be set both when adding a station and when
+  editing an existing (older) station in Settings → Manage Stations → Edit.
+- Existing stations that were created before the Variable feature can now be
+  switched to **Variable** and given their KMs marker in the same edit dialog.
+
 ## 1.7.6.62 — 2026-08-19
 
 **Feat: Variable TA for stations split across the 8 km boundary**
