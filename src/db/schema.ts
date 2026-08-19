@@ -20,9 +20,10 @@ export const stations = pgTable("stations", {
   // Distance from the headquarters station: "below8" (≤ 8 km) or "above8" (> 8 km).
   // The headquarters station itself is always "below8" with 0 minutes travel time.
   // "variable" means one side of the station is within 8 km and the other side is
-  // beyond it; variableKm holds the KMs at which the "greater than 8 km" side starts.
+  // beyond it; variableKm holds the KMs marker (free text, e.g. "8+") at which the
+  // "greater than 8 km" side starts.
   distanceFromHq: varchar("distance_from_hq", { length: 10 }).default("below8").notNull(),
-  variableKm: integer("variable_km"),
+  variableKm: text("variable_km"),
   // Travel time range (minutes) from the headquarters to this station.
   travelMin: integer("travel_min").default(0).notNull(),
   travelMax: integer("travel_max").default(0).notNull(),

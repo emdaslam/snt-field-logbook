@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useData } from "./DataProvider";
 import { api } from "@/lib/api";
 import { inputClass, PrimaryButton, Chip, Modal, Field } from "./ui";
-import { DEPARTMENTS, STATION_DISTANCE_OPTIONS, STATION_DISTANCE_LABEL, type StationDistance } from "@/lib/types";
+import { DEPARTMENTS, STATION_DISTANCE_OPTIONS, STATION_DISTANCE_LABEL, variableKmText, type StationDistance } from "@/lib/types";
 import { FeatureTutorials } from "./FeatureTutorials";
 import { BackupModal } from "./BackupModal";
 import { RestoreModal } from "./RestoreModal";
@@ -180,10 +180,9 @@ export function Settings() {
             <div className="flex items-center gap-1">
               <span className="text-xs text-slate-400">at</span>
               <input
-                className="w-16 rounded-lg border border-slate-300 px-2 py-2 text-sm"
-                type="number"
-                min={0}
-                step={0.1}
+                className="w-20 rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                type="text"
+                maxLength={12}
                 placeholder="KMs"
                 value={newStation.variableKm}
                 onChange={(e) => setNewStation({ ...newStation, variableKm: e.target.value })}
@@ -219,7 +218,7 @@ export function Settings() {
                 ...newStation,
                 variableKm:
                   newStation.distanceFromHq === "variable"
-                    ? Math.max(0, Number(newStation.variableKm)) || null
+                    ? newStation.variableKm.trim() || null
                     : null,
                 travelMin: min,
                 travelMax: max,
@@ -244,7 +243,7 @@ export function Settings() {
                   </span>
                   <span className="ml-2 text-xs text-slate-400">
                     {STATION_DISTANCE_LABEL[(s.distanceFromHq ?? "below8") as StationDistance]}
-                    {s.distanceFromHq === "variable" && s.variableKm != null
+                    {s.distanceFromHq === "variable" && variableKmText(s.variableKm) != null
                       ? ` · at ${s.variableKm} KMs`
                       : ""}
                     {" · "}
@@ -854,7 +853,7 @@ function StationEditor({ station, onClose }: { station: Station; onClose: () => 
       distanceFromHq: isHq ? "below8" : (form.distanceFromHq as StationDistance),
       variableKm:
         !isHq && form.distanceFromHq === "variable"
-          ? Math.max(0, Number(form.variableKm)) || null
+          ? form.variableKm.trim() || null
           : null,
       travelMin: isHq ? 0 : min,
       travelMax: isHq ? 0 : max,
@@ -893,15 +892,14 @@ function StationEditor({ station, onClose }: { station: Station; onClose: () => 
           <Field label="Variable KMs marker">
             <input
               className={inputClass}
-              type="number"
-              min={0}
-              step={0.1}
+              type="text"
+              maxLength={12}
               placeholder="KMs"
               value={form.variableKm}
               onChange={(e) => setForm({ ...form, variableKm: e.target.value })}
             />
             <span className="mt-1 block text-xs text-slate-500">
-              The KMs at which the “greater than 8 km” side starts. During a log at this
+              The KMs at which the “greater than 8 km” side starts — e.g. “8+”. During a log at this
               station you will be asked whether the work was done at/after this marker.
             </span>
           </Field>

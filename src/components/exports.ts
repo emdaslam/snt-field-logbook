@@ -1,7 +1,7 @@
 import { exportDocument } from "@/lib/pdf";
 import { fmtDate, toISODate, formatFootplateShifts, footplateTrainList, pcdoWorkEntries, counterResetsOf } from "@/lib/api";
 import { formatInspectionDates } from "@/lib/inspections";
-import { isSpecialMovement, EQUIPMENT_DEFAULTS } from "@/lib/types";
+import { isSpecialMovement, EQUIPMENT_DEFAULTS, variableKmText } from "@/lib/types";
 import { AUTO_TIMINGS } from "@/lib/timingsMode";
 import { tripTimes, journeyTripTimes, type JourneyTimes } from "@/lib/travel";
 import { loadTaGenConfig, type TaGenWindow, type TaRateKey } from "@/lib/taGenConfig";
@@ -679,13 +679,13 @@ export function exportDiary(
     const st = movementStation(primary, stations);
     // A variable-distance station carries its KMs marker in the work text when
     // the log confirms the work was done at/after that marker (> 8 km side).
+    const varKm = variableKmText(st?.match?.variableKm);
     if (
       st?.match?.distanceFromHq === "variable" &&
       primary.taAtVariableKm === true &&
-      st.match.variableKm != null &&
-      st.match.variableKm > 0
+      varKm != null
     ) {
-      work = `${work} at ${st.match.variableKm} KMs`;
+      work = `${work} at ${varKm} KMs`;
     }
     if (!st || (hq && st.match?.id === hq.id)) {
       grid.push([dmy(date), "---", "---", "---", "AT", hqCode, work]);
@@ -825,11 +825,11 @@ export function exportTaJournal(
     // marker (the > 8 km side), and the work text then carries that marker.
     if (dist === "variable") {
       if (primary.taAtVariableKm !== true) continue;
-      const km = st.match?.variableKm;
+      const km = variableKmText(st.match?.variableKm);
       const base = mergeWork(dayLogs) || "-";
       taDays.push({
         log: primary,
-        work: km != null && km > 0 ? `${base} at ${km} KMs` : base,
+        work: km != null ? `${base} at ${km} KMs` : base,
       });
       continue;
     }

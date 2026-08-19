@@ -12,6 +12,7 @@ import {
   MOVEMENT_LABEL,
   DEPARTMENT_COLORS,
   COUNTER_EQUIPMENT,
+  variableKmText,
   type PcdoWork,
   type CounterReset,
 } from "@/lib/types";
@@ -158,7 +159,7 @@ export function DailyLogForm({
     variableStation?.distanceFromHq === "variable" &&
     currentUser?.headquartersStationId != null &&
     variableStation.id !== currentUser.headquartersStationId;
-  const variableKm = isVariableSplit ? (variableStation.variableKm ?? null) : null;
+  const variableKm = isVariableSplit ? variableKmText(variableStation.variableKm) : null;
   const variableTaPending = isVariableSplit && taAtVariableKm !== true;
   const taPercentEffective = taLocked || variableTaPending ? "0" : taPercent;
   const selectedTagNames = tagIds

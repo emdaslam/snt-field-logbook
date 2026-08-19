@@ -184,6 +184,17 @@ export const STATION_DISTANCE_LABEL: Record<StationDistance, string> = {
   variable: "Variable",
 };
 
+/**
+ * Normalises a station's variable KMs marker to a trimmed non-empty string.
+ * The marker is free text (e.g. "8+", "12/4"); legacy rows may still hold a
+ * number, which is converted here.
+ */
+export function variableKmText(km: number | string | null | undefined): string | null {
+  if (km == null) return null;
+  const s = String(km).trim();
+  return s === "" ? null : s;
+}
+
 /** App version shown in Settings → About. Bump alongside android/app/build.gradle. */
-export const APP_VERSION_BASE = "1.7.6.62";
+export const APP_VERSION_BASE = "1.7.6.63";
 export const APP_VERSION = `${APP_VERSION_BASE}${AUTO_TIMINGS ? "p" : ""}`;

@@ -7,7 +7,7 @@ import { exportDiary, exportTaJournal } from "./exports";
 import { PeriodPicker, monthPeriod, type Period } from "./PeriodPicker";
 import { fmtDate } from "@/lib/api";
 import { isSharedLog } from "@/lib/backup";
-import { isSpecialMovement } from "@/lib/types";
+import { isSpecialMovement, variableKmText } from "@/lib/types";
 import type { DailyLog } from "@/db/schema";
 
 type Mode = "diary" | "ta";
@@ -188,9 +188,9 @@ export function DiaryExportModal({
                             );
                             const km =
                               st?.distanceFromHq === "variable" && r.taAtVariableKm === true
-                                ? st.variableKm
+                                ? variableKmText(st.variableKm)
                                 : null;
-                            return `${r.workDone || "-"}${km != null && km > 0 ? ` at ${km} KMs` : ""}`;
+                            return `${r.workDone || "-"}${km != null ? ` at ${km} KMs` : ""}`;
                           })()}
                         </td>
                       </>
