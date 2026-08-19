@@ -2,7 +2,7 @@
 
 Offline-first Android app for Railway S&T (Signalling & Telecom) section staff.
 It runs entirely on-device, so it works with no signal, no internet, and no
-server. Current version: **1.7.6.14** (`in.railway.snt.logbook`).
+server. Current version: **1.7.6.60** (`in.railway.snt.logbook`).
 
 ## Features
 

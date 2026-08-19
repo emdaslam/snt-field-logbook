@@ -33,8 +33,8 @@ Diary / TA Journal timings are filled in:
 
 | Variant | Timings | APK |
 |---|---|---|
-| normal | typed by hand in the daily log | `SnTFieldlogbook-v1.7.6.27.apk` |
-| p (personal) | auto-generated from the TA rate + station travel range | `SnTFieldlogbook-v1.7.6.27p.apk` |
+| normal | typed by hand in the daily log | `SnTFieldlogbook-v1.7.6.60.apk` |
+| p (personal) | auto-generated from the TA rate + station travel range | `SnTFieldlogbook-v1.7.6.60p.apk` |
 
 A build-time flag (`NEXT_PUBLIC_TIMINGS_MODE=manual|auto`) selects the
 behaviour when the web bundle is built; nothing else differs.
@@ -53,8 +53,8 @@ npm run apk:build p        # == scripts/build-variants.sh p       (auto-timing c
 The staged APKs:
 
 ```
-.apk-download/SnTFieldlogbook-v1.7.6.27.apk
-.apk-download/SnTFieldlogbook-v1.7.6.27p.apk
+.apk-download/SnTFieldlogbook-v1.7.6.60.apk
+.apk-download/SnTFieldlogbook-v1.7.6.60p.apk
 ```
 
 The build script reads the version from `src/lib/types.ts` (`APP_VERSION_BASE`)
@@ -95,8 +95,8 @@ npm run apk:build p        # just the personal (auto-timings) variant
 In `android/app/build.gradle`:
 
 ```gradle
-versionCode 39
-versionName System.getenv("APP_VERSION_NAME") ?: "1.7.6.27"
+versionCode 71
+versionName System.getenv("APP_VERSION_NAME") ?: "1.7.6.60"
 ```
 
 **`versionCode` MUST increase for every build**, or Android refuses to install
@@ -105,7 +105,7 @@ in this repo: bump `1.7.6.x` → `1.7.6.y` (and `versionCode` by 1) for each fix
 
 The base version lives in `src/lib/types.ts` as `APP_VERSION_BASE`. Both
 variants share the same `versionCode`; only the `versionName` differs
-(`1.7.6.27` normal, `1.7.6.27p` personal), injected by
+(`1.7.6.60` normal, `1.7.6.60p` personal), injected by
 `scripts/build-variants.sh`. The version shown in Settings
 (`APP_VERSION` in `src/lib/types.ts`) gets the `p` suffix automatically in the
 personal build.
