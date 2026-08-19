@@ -3,6 +3,16 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.61 — 2026-08-19
+
+**Minor: Drive backup and restore now show their progress as a percentage**
+
+- Syncing to Drive (and importing from Drive) now displays a live progress bar
+  with the **percentage done** and how many files are left, both in
+  Settings → Backup & Drive and on the sync icon in the header.
+- The percentage reflects the real upload/download of the per-day backup
+  files, so large backups with many photos no longer look stuck while they run.
+
 ## 1.7.6.60 — 2026-08-18
 
 **Feat: a new daily log starts on the calendar date you have selected** — `81510de`
