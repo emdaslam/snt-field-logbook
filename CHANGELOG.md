@@ -3,6 +3,39 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.64 — 2026-08-20
+
+**Feat: a WhatsApp feedback group and safer Google Drive sync when you switch accounts**
+
+- **WhatsApp feedback group.** Settings → About now has a **Join WhatsApp feedback
+  group** button that opens the app's official feedback group in WhatsApp — the
+  easiest way to report an issue or ask for a feature. A "What's New" tutorial
+  for this release points to it.
+- **Safer Drive sync across accounts.** The sync version is now remembered **per
+  Google account** instead of globally. Signing into a different account no
+  longer compares timestamps written by another account's backup:
+  - the first sync after switching accounts **pushes the current app data** to
+    the new account rather than overwriting it with the new account's own backup;
+  - the previous account's Drive backup is left untouched, so nothing already
+    synced is ever lost;
+  - restoring a backup from the new account is still always possible through the
+    explicit **Import from Drive** button.
+
+**Minor fixes bundled into this release**
+
+- **Reports TA summary corrected:** the TA count and its drill-down now include
+  only days that actually qualify for TA — a movement to a station above 8 km,
+  or to a Variable station where the log confirms the work was done at/after its
+  KMs marker at a claimable TA percentage. Entries to below-8 km stations are no
+  longer counted.
+- **Deleted default tags / categories / equipment stay deleted.** Deleting one of
+  the built-in defaults used to bring it back on the next app start or update.
+  The app now remembers what you deleted and never re-adds it (a full **Reset all
+  data** still restores the defaults).
+- **Drive sign-in after logout fixed.** Picking the Google account again after
+  signing out no longer fails with "Could not determine the signed-in Google
+  account" — the full account is resolved silently before the token is fetched.
+
 ## 1.7.6.63 — 2026-08-19
 
 **Minor: Variable KMs marker is now free text and editable on any station**
