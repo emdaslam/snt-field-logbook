@@ -3,6 +3,19 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.66 — 2026-08-20
+
+**Minor: TA journal export fixes**
+
+- **Pay metric and pay now save and appear in the Excel export.** The TA
+  journal's XLSX output now carries the pay metric and pay alongside the name,
+  designation, P.F. no and B.U. no, matching the PDF/Word header.
+- **TA percentage shown as "100%"** instead of "100.00%" in the PDF/Word DAYS
+  column.
+- **Dates zero-padded** as dd-mm-yyyy ("01-06-2026") in the PDF/Word table.
+- **Column widths rebalanced** in the PDF/Word TA table: a wider AMOUNT column,
+  tighter TIME DEPT / TIME ARR columns and a DATE column that just fits the date.
+
 ## 1.7.6.65 — 2026-08-20
 
 **Feat: minimum spare alerts — the app warns when a station's in-hand stock runs low**

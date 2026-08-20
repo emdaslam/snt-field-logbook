@@ -24,10 +24,10 @@ function esc(s: string | null | undefined) {
   return (s ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);
 }
 
-/** ISO yyyy-mm-dd → dd-mm-yyyy (the date style used by the reference sheets). */
+/** ISO yyyy-mm-dd → dd-mm-yyyy (zero-padded day and month). */
 function dmy(d: string): string {
   const [y, m, day] = d.split("-");
-  return `${day}-${m}-${y}`;
+  return `${String(day).padStart(2, "0")}-${String(m).padStart(2, "0")}-${y}`;
 }
 
 /** "January 2026" → "JANUARY-2026"; anything else passes through unchanged. */
@@ -572,7 +572,7 @@ function gridHtml(
 
 /**
  * PDF / Word display form of a TA grid cell. The official G.A.31 form prints
- * dates as d-m-yyyy ("1-6-2026"), the DAYS column as "100.00%" and amounts as
+ * dates as dd-mm-yyyy ("01-06-2026"), the DAYS column as "100%" and amounts as
  * ₹ 1,000 — while the Excel sheet keeps its own (untouched) format. Only the
  * rendered PDF / Word body uses this; the xlsx grid is left exactly as built.
  */
@@ -581,12 +581,12 @@ function pdfGridOf(grid: (string | number | XlsxCell)[][]): (string | number | X
     row.map((c, ci) => {
       const t = cellText(c);
       if (ci === 0 && t) {
-        const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(t);
-        if (m) return `${Number(m[1])}-${Number(m[2])}-${m[3]}`;
+        const m = /^(\d{1,2})-(\d{1,2})-(\d{4})$/.exec(t);
+        if (m) return `${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}-${m[3]}`;
       }
       if (ci === 7 && t) {
         const m = /^(\d+)(?:\.(\d+))?%$/.exec(t);
-        if (m) return `${Number(m[1]).toFixed(2)}%`;
+        if (m) return `${Number(m[1])}%`;
       }
       if (ci === 8 && t && /^\d+$/.test(t)) {
         return `₹ ${Number(t).toLocaleString("en-IN")}`;
@@ -960,8 +960,8 @@ export function exportTaJournal(
     body += `<p class="empty">No TA days in this period.</p>`;
   } else {
     body += `<table>`;
-    body += `<tr><th rowspan="2" class="date" data-width="54" data-align="center">DATE</th><th data-align="center">TRAIN</th><th colspan="2" data-align="center">TIME</th><th colspan="2" data-align="center">STATION</th><th rowspan="2" data-width="30" data-align="center">KMS</th><th rowspan="2" data-width="32" data-align="center">DAYS</th><th rowspan="2" data-width="40" data-align="center">AMOUNT</th><th rowspan="2">NATURE OF WORK</th></tr>`;
-    body += `<tr><th data-width="40" data-align="center">NO</th><th data-width="44" data-align="center">TIME DEPT</th><th data-width="44" data-align="center">TIME ARR</th><th data-width="40" data-align="center">FROM</th><th data-width="40" data-align="center">TO</th></tr>`;
+    body += `<tr><th rowspan="2" class="date" data-width="46" data-align="center">DATE</th><th data-align="center">TRAIN</th><th colspan="2" data-align="center">TIME</th><th colspan="2" data-align="center">STATION</th><th rowspan="2" data-width="30" data-align="center">KMS</th><th rowspan="2" data-width="32" data-align="center">DAYS</th><th rowspan="2" data-width="56" data-align="center">AMOUNT</th><th rowspan="2">NATURE OF WORK</th></tr>`;
+    body += `<tr><th data-width="40" data-align="center">NO</th><th data-width="36" data-align="center">TIME DEPT</th><th data-width="36" data-align="center">TIME ARR</th><th data-width="40" data-align="center">FROM</th><th data-width="40" data-align="center">TO</th></tr>`;
     body += gridHtml(pdfGridOf(grid), merges, { dateCol: 0, centerCols: new Set([0, 1, 2, 3, 4, 5, 6, 7, 8]), vTextCols: new Set([6]), fontCols: new Set([8]) });
     body += `<tr><td colspan="7" data-align="center"><strong>TOTAL NO. OF DAYS</strong></td><td><strong>${daysLabel(totalDays)} DAYS</strong></td><td data-font="rupee" data-align="center"><strong>${rateNotSet ? esc(rateMissingText) : `₹ ${totalAmount!.toLocaleString("en-IN")}`}</strong></td><td></td></tr>`;
     body += `</table>`;
@@ -980,8 +980,8 @@ export function exportTaJournal(
   const summaryRows: XlsxSheet["rows"] = [
     [{ v: "SOUTH COAST RAILWAY. GUNTAKAL DIVISION", bold: true, center: true }],
     [{ v: "TRAVELLING ALLOWANCE JOURNAL", bold: true, center: true }],
-    [name, "", "", designation, "", "", "", { v: pf, bold: false }, ""],
-    [`Headquarters: ${hqCode}`, "", "", `Month: ${month}`, "", "", "", { v: bu, bold: false }, ""],
+    [name, "", "", designation, "", "", "", { v: pf, bold: false }, "", payMetric],
+    [`Headquarters: ${hqCode}`, "", "", `Month: ${month}`, "", "", "", { v: bu, bold: false }, "", pay],
     [
       styled("DATE", { center: true }),
       "TRAIN NO",
