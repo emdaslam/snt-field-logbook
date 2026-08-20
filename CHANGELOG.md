@@ -3,6 +3,24 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.65 — 2026-08-20
+
+**Feat: minimum spare alerts — the app warns when a station's in-hand stock runs low**
+
+- **Set a minimum spare per material.** When adding or editing a material you
+  can now set a **Minimum required spare** (e.g. 10). It is the level of in-hand
+  stock you want to keep available at every station; leave it empty or 0 to
+  disable alerts for that material.
+- **Low-stock alerts.** As soon as a station's in-hand quantity (received minus
+  used) drops **below** the minimum, the material appears in a red **Low stock**
+  section at the top of the Materials tab — *"only X in hand at STATION, minimum
+  required Y"* — and the item is added to the **Alerts** bell in the header.
+  Tapping the alert opens the Materials tab.
+- **Daily reminders too.** Low-stock items are included in the daily reminder
+  notifications (8/12/16/20 h), so the phone alerts you even when the app is
+  closed.
+- A "What's New" tutorial introduces the feature.
+
 ## 1.7.6.64 — 2026-08-20
 
 **Feat: a WhatsApp feedback group and safer Google Drive sync when you switch accounts**

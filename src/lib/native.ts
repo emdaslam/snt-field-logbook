@@ -11,7 +11,7 @@ export function isNative() {
 }
 
 export type ReminderItem = {
-  kind: "planned" | "due" | "inspection" | "tag";
+  kind: "planned" | "due" | "inspection" | "tag" | "stock";
   title: string;
   detail: string;
 };

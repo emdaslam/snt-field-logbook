@@ -263,6 +263,10 @@ export type Material = {
   id: number;
   name: string;
   requiredQty: number;
+  /** Minimum spare to keep in hand at any station. When a station's in-hand
+   *  quantity drops below this, the app raises a low-stock alert. 0 = no
+   *  minimum set (no alerts). */
+  minRequiredSpare: number;
   /** "Nos" | "Kg" | "Sets" | "Units" — the unit the quantity is counted in. */
   unit: string;
   /** The equipment this material belongs to ("general" when none chosen). */

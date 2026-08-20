@@ -151,6 +151,10 @@ export function AppShell() {
         setView("tasks");
         setHighlightId("plan-" + t.id);
       }
+      return;
+    }
+    if (t.type === "materials") {
+      setView("materials");
     }
   }
   const [defForm, setDefForm] = useState(false);
@@ -420,7 +424,7 @@ export function AppShell() {
                     className="block w-full rounded-lg px-2 py-1.5 text-left hover:bg-slate-50"
                   >
                     <p className="text-sm font-medium">{n.title}</p>
-                    <p className={`text-xs ${n.kind === "due" ? "text-red-600" : n.kind === "inspection" ? "text-sky-600" : n.kind === "tag" ? "text-violet-600" : "text-emerald-600"}`}>{n.detail}</p>
+                    <p className={`text-xs ${n.kind === "due" ? "text-red-600" : n.kind === "inspection" ? "text-sky-600" : n.kind === "tag" ? "text-violet-600" : n.kind === "stock" ? "text-amber-600" : "text-emerald-600"}`}>{n.detail}</p>
                     {n.target && (
                       <p className="mt-0.5 text-[10px] font-medium text-blue-600">Tap to open entry →</p>
                     )}

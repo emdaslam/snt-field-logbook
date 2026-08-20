@@ -6,6 +6,7 @@ import { Modal, Field, inputClass, PrimaryButton } from "./ui";
 import { api, toISODate } from "@/lib/api";
 import { exportMaterials, stationMaterialSummaries } from "./exports";
 import { MATERIAL_UNITS, EQUIPMENT_DEFAULTS } from "@/lib/types";
+import { lowStockAlerts } from "@/lib/stock";
 import type { Material, MaterialReceipt, MaterialUsage, EquipmentType } from "@/db/schema";
 
 type MatSummary = {
@@ -39,7 +40,7 @@ function qtyLabel(qty: number, unit?: string): string {
 /** Hamburger "Materials" tab — the required list with receipts (received
  *  quantity, station, room, where placed) and usage (quantity, purpose). */
 export function Materials() {
-  const { stations, stationName } = useData();
+  const { stations, stationName, refresh } = useData();
   const [materials, setMaterials] = useState<Material[]>([]);
   const [receipts, setReceipts] = useState<MaterialReceipt[]>([]);
   const [usages, setUsages] = useState<MaterialUsage[]>([]);
@@ -129,6 +130,11 @@ export function Materials() {
     [materials, receipts, usages, stationName]
   );
 
+  const lowStock = useMemo(
+    () => lowStockAlerts(materials, receipts, usages, (id) => stationName(id)),
+    [materials, receipts, usages, stationName]
+  );
+
   const toggleExpanded = (id: number) => {
     setExpanded((prev) => {
       const next = new Set(prev);
@@ -160,6 +166,9 @@ export function Materials() {
     setBusy(true);
     try {
       await load();
+      // Keep the global Alerts bell and daily reminders in sync with the
+      // low-stock state after any Receive / Use / edit.
+      await refresh();
     } finally {
       setBusy(false);
     }
@@ -201,6 +210,11 @@ export function Materials() {
               <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
                 Required: {qtyLabel(s.remaining, m.unit)}
               </span>
+              {Number(m.minRequiredSpare) > 0 && (
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                  Min spare: {qtyLabel(Number(m.minRequiredSpare), m.unit)}
+                </span>
+              )}
               <span className={statClass(s.received, false)}>Received: {fmtQty(s.received)}</span>
               <span className={statClass(s.used, false)}>Used: {fmtQty(s.used)}</span>
               <span className={statClass(s.inHand, s.inHand < 0)}>In hand: {fmtQty(s.inHand)}</span>
@@ -342,6 +356,23 @@ export function Materials() {
           </button>
         </div>
       </div>
+
+      {lowStock.length > 0 && (
+        <div className="border-b border-red-200 bg-red-50 px-3 py-2">
+          <p className="text-xs font-bold uppercase text-red-700">
+            Low stock — minimum spare not met
+          </p>
+          <div className="mt-1 space-y-1">
+            {lowStock.map((a) => (
+              <p key={`${a.material.id}-${a.stationId ?? "none"}`} className="text-xs text-red-700">
+                <strong>{a.material.name}</strong>: only{" "}
+                {qtyLabel(a.inHand, a.material.unit)} in hand at {a.stationLabel} —
+                minimum required {qtyLabel(a.minRequiredSpare, a.material.unit)}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
 
       {materials.length === 0 ? (
         <div className="p-6 text-center">
@@ -514,6 +545,9 @@ function MaterialForm({
 }) {
   const [name, setName] = useState(existing?.name ?? "");
   const [requiredQty, setRequiredQty] = useState(String(existing?.requiredQty ?? ""));
+  const [minSpare, setMinSpare] = useState(
+    existing?.minRequiredSpare != null ? String(existing.minRequiredSpare) : ""
+  );
   const hasPresetUnit = !!existing?.unit && (MATERIAL_UNITS as readonly string[]).includes(existing.unit);
   const [unit, setUnit] = useState<string>(hasPresetUnit ? existing!.unit : existing?.unit ? "custom" : "");
   const [customUnit, setCustomUnit] = useState(existing?.unit && !hasPresetUnit ? existing.unit : "");
@@ -534,6 +568,8 @@ function MaterialForm({
     if (!name.trim()) return;
     const qty = Number(requiredQty);
     if (!Number.isFinite(qty) || qty < 0) return;
+    const min = Number(minSpare);
+    if (!Number.isFinite(min) || min < 0) return;
     let finalEquipment = equipment;
     if (newEquipment) {
       const eqName = newEquipmentName.trim();
@@ -549,8 +585,8 @@ function MaterialForm({
     setSaving(true);
     try {
       if (existing)
-        await api.materials.update({ id: existing.id, name: name.trim(), requiredQty: qty, unit: finalUnit, equipment: finalEquipment });
-      else await api.materials.create({ name: name.trim(), requiredQty: qty, unit: finalUnit, equipment: finalEquipment });
+        await api.materials.update({ id: existing.id, name: name.trim(), requiredQty: qty, minRequiredSpare: min, unit: finalUnit, equipment: finalEquipment });
+      else await api.materials.create({ name: name.trim(), requiredQty: qty, minRequiredSpare: min, unit: finalUnit, equipment: finalEquipment });
       await onSaved();
       onClose();
     } finally {
@@ -622,6 +658,21 @@ function MaterialForm({
           onChange={(e) => setRequiredQty(e.target.value)}
           placeholder="e.g. 10"
         />
+      </Field>
+      <Field label="Minimum required spare (optional)">
+        <input
+          type="number"
+          min="0"
+          step="any"
+          className={inputClass}
+          value={minSpare}
+          onChange={(e) => setMinSpare(e.target.value)}
+          placeholder="e.g. 5"
+        />
+        <p className="mt-1 text-xs text-slate-500">
+          Alert when the in-hand quantity at any station falls below this. Leave
+          blank for no low-stock alert.
+        </p>
       </Field>
       <Field label="Unit (optional)">
         <div className="flex flex-wrap gap-1.5">
@@ -762,6 +813,7 @@ function AddRequirementForm({
         id: material.id,
         name: material.name,
         requiredQty: material.requiredQty + q,
+        minRequiredSpare: Number(material.minRequiredSpare) || 0,
         unit: material.unit,
         equipment: material.equipment || "general",
       });

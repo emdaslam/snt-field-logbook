@@ -383,6 +383,7 @@ export const api = {
       return ldb.insert("materials", {
         name: String(b.name ?? "").trim() || "Unnamed material",
         requiredQty: num(b.requiredQty),
+        minRequiredSpare: num(b.minRequiredSpare),
         unit: b.unit ?? "Nos",
         equipment: String(b.equipment ?? "").trim() || "general",
       }) as unknown as Promise<Material>;
@@ -392,6 +393,7 @@ export const api = {
       return ldb.update("materials", b.id as number, {
         name: String(b.name ?? "").trim() || "Unnamed material",
         requiredQty: num(b.requiredQty),
+        minRequiredSpare: num(b.minRequiredSpare),
         unit: b.unit ?? "Nos",
         equipment: String(b.equipment ?? "").trim() || "general",
       }) as unknown as Promise<Material>;

@@ -20,6 +20,7 @@ import {
 import { FONT_SIZE_ROOT, type AppTheme, type FontSize } from "@/lib/types";
 import { isNative, scheduleDailyReminders } from "@/lib/native";
 import { driveStatus, syncWithDrive, type DriveResult, type DriveProgress } from "@/lib/drive";
+import { lowStockAlerts, qtyWithUnit } from "@/lib/stock";
 import type {
   Station,
   Staff,
@@ -29,18 +30,22 @@ import type {
   PlannedWork,
   Note,
   NoteCategory,
+  Material,
+  MaterialReceipt,
+  MaterialUsage,
 } from "@/db/schema";
 
 export type NotificationTarget =
   | { type: "log"; id: number }
   | { type: "deficiency"; id: number }
-  | { type: "planned"; id: number };
+  | { type: "planned"; id: number }
+  | { type: "materials" };
 
 export type Notification = {
   id: string;
   title: string;
   detail: string;
-  kind: "planned" | "due" | "inspection" | "tag";
+  kind: "planned" | "due" | "inspection" | "tag" | "stock";
   /** Where tapping the notification should take the user */
   target?: NotificationTarget;
 };
@@ -115,6 +120,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [planned, setPlanned] = useState<PlannedWork[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [noteCategories, setNoteCategories] = useState<NoteCategory[]>([]);
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [materialReceipts, setMaterialReceipts] = useState<MaterialReceipt[]>([]);
+  const [materialUsages, setMaterialUsages] = useState<MaterialUsage[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   const [online, setOnline] = useState(true);
@@ -283,7 +291,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       // Identify who we are first — private data is scoped to this staff member
       const sfPre = await api.staff.list();
       const meId = sfPre.find((s) => s.isCurrentUser)?.id ?? null;
-      const [st, sf, tg, lg, df, pl, nt, nc] = await Promise.all([
+      const [st, sf, tg, lg, df, pl, nt, nc, mt, rc, us] = await Promise.all([
         api.stations.list(),
         Promise.resolve(sfPre),
         api.tags.list(),
@@ -292,6 +300,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
         api.planned.list(meId),
         api.notes.list(),
         api.noteCategories.list(),
+        api.materials.list(),
+        api.materialReceipts.list(),
+        api.materialUsages.list(),
       ]);
       setStations(st);
       setStaff(sf);
@@ -301,6 +312,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setPlanned(pl);
       setNotes(nt);
       setNoteCategories(nc);
+      setMaterials(mt);
+      setMaterialReceipts(rc);
+      setMaterialUsages(us);
       setLastSynced(new Date());
       setSyncError(null);
       setOnline(true);
@@ -534,8 +548,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
       });
     }
 
+    // Low-stock alerts — a station's in-hand balance for a material fell below
+    // its minimum required spare.
+    for (const a of lowStockAlerts(materials, materialReceipts, materialUsages, stationNameFor)) {
+      notes.push({
+        id: `stock-${a.material.id}-${a.stationId ?? "unassigned"}`,
+        title: `${a.material.name} — low stock`,
+        detail: `Only ${qtyWithUnit(a.inHand, a.material.unit)} in hand at ${a.stationLabel}, minimum required ${qtyWithUnit(a.minRequiredSpare, a.material.unit)}`,
+        kind: "stock",
+        target: { type: "materials" },
+      });
+    }
+
     setNotifications(notes);
-  }, [planned, deficiencies, logs, stations, tags, reminderDays]);
+  }, [planned, deficiencies, logs, stations, tags, reminderDays, materials, materialReceipts, materialUsages]);
 
   /** True when the current user already made a log entry for today. */
   const hasEntryToday = useMemo(() => {

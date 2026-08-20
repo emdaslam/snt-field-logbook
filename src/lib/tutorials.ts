@@ -206,6 +206,28 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.6.65",
+    tag: "Minimum spare alerts",
+    subtitle: "Set a minimum spare per material — the app warns when a station's in-hand stock drops below it.",
+    slides: [
+      {
+        glyph: "▦",
+        title: "Set the minimum spare",
+        body: "When adding or editing a material, set the Minimum required spare (e.g. 10). It is the level of in-hand stock you want to keep available at every station.",
+      },
+      {
+        glyph: "▤",
+        title: "Low-stock alert",
+        body: "Once a station's in-hand quantity falls below the minimum, the material appears in a red Low stock section in the Materials tab — “only X in hand, minimum required Y” — and in the Alerts bell.",
+      },
+      {
+        glyph: "◈",
+        title: "On your phone too",
+        body: "Low-stock items are included in the daily reminder notifications, so the phone alerts you even when the app is closed. Tapping the alert opens the Materials tab.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {
