@@ -3,6 +3,18 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.67 — 2026-08-20
+
+**Minor: TA journal export — fit-on-one-page option and date column fix**
+
+- **"Fit on one page" export option.** When exporting the TA Journal, you can
+  now choose **Fit on one page** or **Earlier output (font size)**. The one-page
+  mode trims the page margins, drops the "generated …" / "Page X of Y" footer
+  and auto-shrinks the text until the whole report fits on a single page. The
+  choice is remembered for next time.
+- **DATE column widened** in the PDF/Word TA table so the dd-mm-yyyy date
+  ("01-06-2026") stays on one line instead of wrapping.
+
 ## 1.7.6.66 — 2026-08-20
 
 **Minor: TA journal export fixes**

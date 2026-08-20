@@ -644,7 +644,7 @@ export function exportDiary(
   logs: DailyLog[],
   stations: Station[],
   me: Staff | undefined,
-  out: (title: string, body: string, type: string, sheet?: XlsxSheet) => void = exportDocument
+  out: (title: string, body: string, type: string, sheet?: XlsxSheet, opts?: { onePage?: boolean }) => void = exportDocument
 ) {
   const hq = stations.find((s) => s.id === me?.headquartersStationId);
   const hqCode = hqLabel(hq);
@@ -787,7 +787,7 @@ export function exportTaJournal(
   logs: DailyLog[],
   stations: Station[],
   me: Staff | undefined,
-  out: (title: string, body: string, type: string, sheet?: XlsxSheet) => void = exportDocument
+  out: (title: string, body: string, type: string, sheet?: XlsxSheet, opts?: { onePage?: boolean }) => void = exportDocument
 ) {
   const hq = stations.find((s) => s.id === me?.headquartersStationId);
   const hqCode = hqLabel(hq);
@@ -960,7 +960,7 @@ export function exportTaJournal(
     body += `<p class="empty">No TA days in this period.</p>`;
   } else {
     body += `<table>`;
-    body += `<tr><th rowspan="2" class="date" data-width="46" data-align="center">DATE</th><th data-align="center">TRAIN</th><th colspan="2" data-align="center">TIME</th><th colspan="2" data-align="center">STATION</th><th rowspan="2" data-width="30" data-align="center">KMS</th><th rowspan="2" data-width="32" data-align="center">DAYS</th><th rowspan="2" data-width="56" data-align="center">AMOUNT</th><th rowspan="2">NATURE OF WORK</th></tr>`;
+    body += `<tr><th rowspan="2" class="date" data-width="56" data-align="center">DATE</th><th data-align="center">TRAIN</th><th colspan="2" data-align="center">TIME</th><th colspan="2" data-align="center">STATION</th><th rowspan="2" data-width="30" data-align="center">KMS</th><th rowspan="2" data-width="32" data-align="center">DAYS</th><th rowspan="2" data-width="56" data-align="center">AMOUNT</th><th rowspan="2">NATURE OF WORK</th></tr>`;
     body += `<tr><th data-width="40" data-align="center">NO</th><th data-width="36" data-align="center">TIME DEPT</th><th data-width="36" data-align="center">TIME ARR</th><th data-width="40" data-align="center">FROM</th><th data-width="40" data-align="center">TO</th></tr>`;
     body += gridHtml(pdfGridOf(grid), merges, { dateCol: 0, centerCols: new Set([0, 1, 2, 3, 4, 5, 6, 7, 8]), vTextCols: new Set([6]), fontCols: new Set([8]) });
     body += `<tr><td colspan="7" data-align="center"><strong>TOTAL NO. OF DAYS</strong></td><td><strong>${daysLabel(totalDays)} DAYS</strong></td><td data-font="rupee" data-align="center"><strong>${rateNotSet ? esc(rateMissingText) : `₹ ${totalAmount!.toLocaleString("en-IN")}`}</strong></td><td></td></tr>`;
@@ -1060,7 +1060,7 @@ export function exportTaJournal(
     colWidths: [10.43, 8.14, 9.71, 9.29, 6.71, 8.43, 4.29, 9.71, 11.43, 51, 12.14, 9],
   };
 
-  out(`TA Journal ${period.label}`, body, "ta", sheet);
+  out(`TA Journal ${period.label}`, body, "ta", sheet, { onePage: true });
 }
 
 

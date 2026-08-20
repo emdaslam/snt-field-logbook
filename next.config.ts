@@ -8,6 +8,7 @@ import type { NextConfig } from "next";
 const isMobileExport = process.env.MOBILE_EXPORT === "1";
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: [".monkeycode-ai.live"],
   ...(isMobileExport
     ? {
         output: "export",

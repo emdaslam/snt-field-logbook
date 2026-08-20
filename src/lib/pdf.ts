@@ -140,11 +140,17 @@ function liText(el: HTMLElement): string {
  * `contentSize` is the numeric pt size of the body text (10–96); headings and
  * tables scale relative to it so the whole document stays proportional.
  */
-export function buildPdf(title: string, bodyHtml: string, contentSize: number): jsPDF {
+export function buildPdf(
+  title: string,
+  bodyHtml: string,
+  contentSize: number,
+  opts: { margin?: number; footer?: boolean } = {}
+): jsPDF {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   registerPdfFonts(doc);
   const fs = contentSize / 9;
-  const margin = 40;
+  const margin = opts.margin ?? 40;
+  const withFooter = opts.footer ?? true;
   const pageW = doc.internal.pageSize.getWidth();
   const maxW = pageW - margin * 2;
   let y = margin;
@@ -374,22 +380,41 @@ export function buildPdf(title: string, bodyHtml: string, contentSize: number): 
     }
   }
 
-  // Footer on every page
-  const pages = doc.getNumberOfPages();
-  for (let i = 1; i <= pages; i++) {
-    doc.setPage(i);
-    doc.setFont("helvetica", "normal").setFontSize(7).setTextColor(...GREY);
-    doc.text(
-      `Railway S&T Field Logbook · generated ${new Date().toLocaleString()}`,
-      margin,
-      doc.internal.pageSize.getHeight() - 20
-    );
-    doc.text(
-      `Page ${i} of ${pages}`,
-      pageW - margin,
-      doc.internal.pageSize.getHeight() - 20,
-      { align: "right" }
-    );
+  // Footer on every page (skipped for the fit-on-one-page mode)
+  if (withFooter) {
+    const pages = doc.getNumberOfPages();
+    for (let i = 1; i <= pages; i++) {
+      doc.setPage(i);
+      doc.setFont("helvetica", "normal").setFontSize(7).setTextColor(...GREY);
+      doc.text(
+        `Railway S&T Field Logbook · generated ${new Date().toLocaleString()}`,
+        margin,
+        doc.internal.pageSize.getHeight() - 20
+      );
+      doc.text(
+        `Page ${i} of ${pages}`,
+        pageW - margin,
+        doc.internal.pageSize.getHeight() - 20,
+        { align: "right" }
+      );
+    }
+  }
+  return doc;
+}
+
+/**
+ * Fit-on-one-page rendering for the TA journal. Rebuilds the PDF with reduced
+ * margins and no footer, shrinking the content size until it lands on a single
+ * page (or hits the fit floor, below which the text would be unreadable).
+ */
+export function buildFitOnePagePdf(title: string, bodyHtml: string, startSize: number): jsPDF {
+  const FIT_MARGIN = 24;
+  const FIT_FONT_MIN = 6;
+  let size = startSize;
+  let doc = buildPdf(title, bodyHtml, size, { margin: FIT_MARGIN, footer: false });
+  while (doc.getNumberOfPages() > 1 && size > FIT_FONT_MIN) {
+    size -= 1;
+    doc = buildPdf(title, bodyHtml, size, { margin: FIT_MARGIN, footer: false });
   }
   return doc;
 }
@@ -401,7 +426,13 @@ export function buildPdf(title: string, bodyHtml: string, contentSize: number): 
  * @param sheet optional Excel grid — when provided the bottom sheet offers an
  * "Excel (.xlsx)" format alongside PDF and Word.
  */
-export function exportDocument(title: string, bodyHtml: string, type = "general", sheet?: XlsxSheet) {
+export function exportDocument(
+  title: string,
+  bodyHtml: string,
+  type = "general",
+  sheet?: XlsxSheet,
+  opts?: { onePage?: boolean }
+) {
   // Bottom sheet that offers the report as PDF, Word (.docx) or Excel (.xlsx),
   // with a text size prompt for the PDF path. The last chosen format is remembered.
   const overlay = document.createElement("div");
@@ -449,7 +480,7 @@ export function exportDocument(title: string, bodyHtml: string, type = "general"
       const target = (["pdf", "docx", "xlsx"] as Format[])[i];
       b.style.cssText = segStyle(f === target) + (b.disabled ? ";opacity:.45;cursor:not-allowed" : "");
     });
-    row.style.display = f === "pdf" ? "flex" : "none";
+    refreshPdfOptions();
     try {
       localStorage.setItem("snt.exportFormat", f);
     } catch {
@@ -480,6 +511,59 @@ export function exportDocument(title: string, bodyHtml: string, type = "general"
   row.appendChild(input);
   row.style.display = format === "pdf" ? "flex" : "none";
   box.appendChild(row);
+
+  // Fit-on-one-page option (TA journal): either squeeze the whole report onto
+  // a single page (reduced margins, no footer, auto-shrunk text) or keep the
+  // earlier font-size driven output.
+  const onePage = Boolean(opts?.onePage);
+  let fitOnePage = onePage;
+  try {
+    const saved = localStorage.getItem("snt.exportOnePage");
+    if (saved != null) fitOnePage = saved === "1";
+  } catch {
+    /* ignore */
+  }
+  const fitNote = document.createElement("p");
+  fitNote.style.cssText =
+    "margin:0 0 14px;font-size:12px;color:#64748b;text-align:center";
+  fitNote.textContent = "Auto-shrinks the text and trims margins so the whole report fits on one page.";
+  fitNote.style.display = "none";
+  box.appendChild(fitNote);
+  const refreshPdfOptions = () => {
+    const fit = onePage && fitOnePage;
+    row.style.display = format === "pdf" && !fit ? "flex" : "none";
+    fitNote.style.display = format === "pdf" && fit ? "block" : "none";
+  };
+  if (onePage) {
+    const pageSeg = document.createElement("div");
+    pageSeg.style.cssText = "display:flex;gap:8px;margin:0 0 14px";
+    const pageStyle = (active: boolean) =>
+      `flex:1;padding:10px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid ${
+        active ? "#1e3a8a" : "#e2e8f0"
+      };background:${active ? "#1e3a8a" : "#f8fafc"};color:${active ? "#fff" : "#334155"}`;
+    const fitBtn = document.createElement("button");
+    fitBtn.textContent = "Fit on one page";
+    const stdBtn = document.createElement("button");
+    stdBtn.textContent = "Earlier output (font size)";
+    const applyPage = (fit: boolean) => {
+      fitOnePage = fit;
+      fitBtn.style.cssText = pageStyle(fit);
+      stdBtn.style.cssText = pageStyle(!fit);
+      refreshPdfOptions();
+      try {
+        localStorage.setItem("snt.exportOnePage", fit ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+    };
+    fitBtn.onclick = () => applyPage(true);
+    stdBtn.onclick = () => applyPage(false);
+    pageSeg.appendChild(fitBtn);
+    pageSeg.appendChild(stdBtn);
+    box.appendChild(pageSeg);
+    applyPage(fitOnePage);
+  }
+  refreshPdfOptions();
 
   const chosenSize = () => {
     const v = Math.round(Number(input.value));
@@ -573,8 +657,11 @@ export function exportDocument(title: string, bodyHtml: string, type = "general"
           };
         } else {
           const size = chosenSize();
-          const doc = buildPdf(title, bodyHtml, size);
-          persistContentFontSize(type, size);
+          const doc =
+            onePage && fitOnePage
+              ? buildFitOnePagePdf(title, bodyHtml, size)
+              : buildPdf(title, bodyHtml, size);
+          if (!(onePage && fitOnePage)) persistContentFontSize(type, size);
           artifact = {
             filename: `${slug(title)}.pdf`,
             mimeType: "application/pdf",
