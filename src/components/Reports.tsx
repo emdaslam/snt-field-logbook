@@ -8,13 +8,13 @@ import { DiaryExportModal } from "./DiaryExportModal";
 import { InspectionExportModal } from "./InspectionExportModal";
 import { PeriodPicker, monthPeriod, type Period } from "./PeriodPicker";
 import { getPcdoPeriod } from "@/lib/pcdo";
-import { fmtDate, pcdoWorkEntries, counterResetsOf, counterResetTotal } from "@/lib/api";
+import { fmtDate, pcdoWorkEntries, counterResetsOf, counterResetTotal, isTaClaimable } from "@/lib/api";
 import { PrimaryButton } from "./ui";
 import { StatDetailModal, type StatRow } from "./StatDetailModal";
 import { computeAllSchedules, INSPECTION_RULES, tagReminderConfigs } from "@/lib/inspections";
 
 export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
-  const { logs, deficiencies, planned, stations, stationName, tags } = useData();
+  const { logs, deficiencies, planned, stations, stationName, tags, currentUser } = useData();
   const [tomorrowOpen, setTomorrowOpen] = useState(false);
   const [pcdoOpen, setPcdoOpen] = useState(false);
   const [diaryOpen, setDiaryOpen] = useState(false);
@@ -25,6 +25,8 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
   const [drill, setDrill] = useState<{ title: string; rows: StatRow[]; footer?: string } | null>(null);
 
   const inRange = (d: string | null | undefined) => !!d && d >= period.from && d <= period.to;
+
+  const hq = stations.find((s) => s.id === currentUser?.headquartersStationId);
 
   const stats = useMemo(() => {
     const pLogs = logs.filter((l) => inRange(l.logDate));
@@ -62,7 +64,7 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
       pDefs,
       pPlans,
       logs: pLogs.length,
-      ta: pLogs.reduce((s, l) => s + (l.taPercent ?? 100) / 100, 0),
+      ta: pLogs.reduce((s, l) => s + (isTaClaimable(l, stations, hq) ? (l.taPercent ?? 100) / 100 : 0), 0),
       pcdo: pLogs.reduce((n, l) => n + pcdoWorkEntries(l).length, 0),
       leaves: pLogs.filter((l) => l.movementKind === "leave").length,
       defPending: pDefs.filter((d) => d.status === "Pending").length,
@@ -75,7 +77,7 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
       byStation: [...byStation.entries()].sort((a, b) => b[1] - a[1]),
       attachments: pLogs.reduce((n, l) => n + l.attachments.length, 0),
     };
-  }, [logs, deficiencies, planned, stations, period]);
+  }, [logs, deficiencies, planned, stations, period, hq]);
 
   const pcdoPeriod = getPcdoPeriod();
   const schedules = useMemo(
@@ -129,7 +131,7 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
           onClick={() =>
             setDrill({
               title: "TA Claimed",
-              rows: stats.pLogs.map((l) => ({
+              rows: stats.pLogs.filter((l) => isTaClaimable(l, stations, hq)).map((l) => ({
                 key: "ta" + l.id,
                 date: l.logDate,
                 title: l.stationMovement?.trim() || "—",

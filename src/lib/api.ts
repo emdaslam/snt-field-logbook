@@ -22,7 +22,7 @@ import type {
   MaterialUsage,
   EquipmentType,
 } from "@/db/schema";
-import type { PcdoWork, CounterReset } from "@/lib/types";
+import { isSpecialMovement, type PcdoWork, type CounterReset } from "@/lib/types";
 
 const asc = <T extends Record<string, unknown>>(rows: T[], key: keyof T) =>
   [...rows].sort((a, b) => String(a[key] ?? "").localeCompare(String(b[key] ?? "")));
@@ -143,7 +143,10 @@ export const api = {
         remindBeforeDays: b.remindBeforeDays ?? null,
       }) as unknown as Promise<Tag>;
     },
-    remove: (id: number) => {
+    remove: async (id: number) => {
+      const rows = await ldb.readTable<Tag>("tags");
+      const tag = rows.find((r) => r.id === id);
+      if (tag?.name) await ldb.recordDeletedDefaultTag(tag.name);
       markDataDirty();
       return ldb.remove("tags", id);
     },
@@ -361,6 +364,7 @@ export const api = {
     remove: async (id: number) => {
       const rows = await ldb.readTable<NoteCategory>("noteCategories");
       const current = rows.find((c) => c.id === id);
+      if (current?.name) await ldb.recordDeletedDefaultCategory(current.name);
       markDataDirty();
       if (current) {
         const notes = await ldb.readTable<Note>("notes");
@@ -423,7 +427,10 @@ export const api = {
       markDataDirty();
       return ldb.insert("equipmentTypes", { name }) as unknown as Promise<EquipmentType & { error?: string }>;
     },
-    remove: (id: number) => {
+    remove: async (id: number) => {
+      const rows = await ldb.readTable<EquipmentType>("equipmentTypes");
+      const row = rows.find((e) => e.id === id);
+      if (row?.name) await ldb.recordDeletedDefaultEquipment(row.name);
       markDataDirty();
       return ldb.remove("equipmentTypes", id);
     },
@@ -547,6 +554,33 @@ export function pcdoWorkEntries(
   if (list) return list;
   const legacy = (l.pcdoWork ?? "").trim();
   return legacy ? [{ department: "", work: legacy }] : [];
+}
+
+/** True when a daily log is a claimable TA day: a movement away from HQ to a
+ *  station fixed above 8 km, or to a variable station where the log confirms
+ *  the work was done at/after its KMs marker — at a claimable TA percent. */
+export function isTaClaimable(
+  l: DailyLog,
+  stations: Station[],
+  hq: Station | null | undefined
+): boolean {
+  if (isSpecialMovement(l)) return false;
+  const t = (l.stationMovement ?? "").trim().toLowerCase();
+  if (!t) return false;
+  if (hq && (t === (hq.name ?? "").toLowerCase() || (hq.code && t === hq.code.toLowerCase()))) {
+    return false;
+  }
+  const st = stations.find(
+    (s) => s.name.toLowerCase() === t || (s.code && s.code.toLowerCase() === t)
+  );
+  if (!st) return false;
+  if (st.distanceFromHq === "variable") {
+    if (l.taAtVariableKm !== true) return false;
+  } else if (st.distanceFromHq !== "above8") {
+    return false;
+  }
+  const p = l.taPercent ?? 100;
+  return p === 100 || p === 70 || p === 30;
 }
 
 /** The counter resets recorded on a log entry, sanitised (an old entry that

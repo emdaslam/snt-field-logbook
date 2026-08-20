@@ -194,6 +194,18 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.6.64",
+    tag: "WhatsApp feedback group",
+    subtitle: "Share feedback and report issues from inside the app.",
+    slides: [
+      {
+        glyph: "✉",
+        title: "Join the feedback group",
+        body: "Settings → About now has a “Join WhatsApp feedback group” button. Tap it to open the WhatsApp group where you can send feedback, report issues and suggest improvements.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {

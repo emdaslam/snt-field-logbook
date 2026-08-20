@@ -203,6 +203,27 @@ public class GoogleDrivePlugin extends Plugin {
             GoogleSignInAccount account = GoogleSignIn.getSignedInAccountFromIntent(result.getData())
                     .getResult(ApiException.class);
             String email = resolveSignInEmail(account);
+            if (email == null && account != null) {
+                // Partial/cached sign-in result: the account's email and Android
+                // account fields are empty, so it cannot be matched to a device
+                // account. Ask the SDK for the full account of the user who just
+                // picked an account — silentSignIn() returns it with the email
+                // populated, which pins the token to the right Google account.
+                signInClient().silentSignIn()
+                        .addOnSuccessListener(full -> {
+                            if (full != null) {
+                                String fullEmail = resolveSignInEmail(full);
+                                if (fullEmail != null) {
+                                    signedInEmail = fullEmail;
+                                }
+                                fetchAccessToken(call, full);
+                            } else {
+                                fetchAccessToken(call, account);
+                            }
+                        })
+                        .addOnFailureListener(e -> fetchAccessToken(call, account));
+                return;
+            }
             if (email != null) {
                 signedInEmail = email;
             }

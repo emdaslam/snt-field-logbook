@@ -168,6 +168,7 @@ export async function importAll(payload: Record<string, unknown>): Promise<void>
 
 export async function clearAll(): Promise<void> {
   for (const t of TABLES) await writeTable(t, []);
+  await idbSet(DELETED_DEFAULTS_KEY, {});
 }
 
 /* ------------------------------------------------------------------ */
@@ -213,6 +214,42 @@ const DEFAULT_EQUIPMENT = [
   "records",
 ];
 
+/** Names of default reference rows the user has deliberately deleted, keyed by
+ *  table and lower-cased, so the first-run top-up never resurrects them after
+ *  an app update. Persisted in the kv store, not in the exported tables. */
+const DELETED_DEFAULTS_KEY = "snt.deletedDefaults";
+
+async function readDeletedDefaults(): Promise<Record<string, string[]>> {
+  return (await idbGet<Record<string, string[]>>(DELETED_DEFAULTS_KEY)) ?? {};
+}
+
+async function rememberDeletedDefault(
+  table: TableName,
+  name: string,
+  defaults: { name: string }[]
+): Promise<void> {
+  const lower = name.trim().toLowerCase();
+  if (!lower || !defaults.some((d) => d.name.toLowerCase() === lower)) return;
+  const map = await readDeletedDefaults();
+  const list = map[table] ?? [];
+  if (list.includes(lower)) return;
+  await idbSet(DELETED_DEFAULTS_KEY, { ...map, [table]: [...list, lower] });
+}
+
+/** Remember that a default tag name was deliberately deleted so an app update
+ *  never re-adds it. */
+export function recordDeletedDefaultTag(name: string): Promise<void> {
+  return rememberDeletedDefault("tags", name, DEFAULT_TAGS);
+}
+
+export function recordDeletedDefaultCategory(name: string): Promise<void> {
+  return rememberDeletedDefault("noteCategories", name, DEFAULT_NOTE_CATEGORIES);
+}
+
+export function recordDeletedDefaultEquipment(name: string): Promise<void> {
+  return rememberDeletedDefault("equipmentTypes", name, DEFAULT_EQUIPMENT.map((n) => ({ name: n })));
+}
+
 /** Seed only on a genuinely empty database, so a restore is never polluted. */
 export async function seedIfEmpty(): Promise<void> {
   const [tags, cats, stations, staff, logs] = await Promise.all([
@@ -247,22 +284,33 @@ export async function seedIfEmpty(): Promise<void> {
     );
   }
   if (cats.length === 0) {
+    const deletedCats = (await readDeletedDefaults()).noteCategories ?? [];
     await writeTable(
       "noteCategories",
-      DEFAULT_NOTE_CATEGORIES.map((c, i) => ({ ...c, id: i + 1, createdAt: new Date().toISOString() }))
+      DEFAULT_NOTE_CATEGORIES.filter((c) => !deletedCats.includes(c.name.toLowerCase())).map(
+        (c, i) => ({ ...c, id: i + 1, createdAt: new Date().toISOString() })
+      )
     );
   }
 
-  // Top up default equipment names added after first install.
+  // Top up default equipment names added after first install, unless the user
+  // has deliberately deleted that name.
+  const deletedEq = (await readDeletedDefaults()).equipmentTypes ?? [];
   const eqRows = await readTable<Row>("equipmentTypes");
   if (eqRows.length === 0) {
     await writeTable(
       "equipmentTypes",
-      DEFAULT_EQUIPMENT.map((n, i) => ({ name: n, id: i + 1, createdAt: new Date().toISOString() }))
+      DEFAULT_EQUIPMENT.filter((n) => !deletedEq.includes(n.toLowerCase())).map((n, i) => ({
+        name: n,
+        id: i + 1,
+        createdAt: new Date().toISOString(),
+      }))
     );
   } else {
     const have = new Set(eqRows.map((r) => String(r.name).toLowerCase()));
-    const missing = DEFAULT_EQUIPMENT.filter((n) => !have.has(n.toLowerCase()));
+    const missing = DEFAULT_EQUIPMENT.filter(
+      (n) => !have.has(n.toLowerCase()) && !deletedEq.includes(n.toLowerCase())
+    );
     if (missing.length > 0) {
       let auto = eqRows.reduce((m, r) => Math.max(m, Number(r.id) || 0), 0);
       await writeTable("equipmentTypes", [
@@ -272,10 +320,14 @@ export async function seedIfEmpty(): Promise<void> {
     }
   }
 
-  // Top up default tags added after first install (e.g. "point oiling").
+  // Top up default tags added after first install (e.g. "point oiling"), but
+  // never resurrect tags the user has deliberately deleted.
+  const deletedTags = (await readDeletedDefaults()).tags ?? [];
   const tagRows = await readTable<Row>("tags");
   const have = new Set(tagRows.map((t) => String(t.name).toLowerCase()));
-  const missing = DEFAULT_TAGS.filter((t) => !have.has(t.name.toLowerCase()));
+  const missing = DEFAULT_TAGS.filter(
+    (t) => !have.has(t.name.toLowerCase()) && !deletedTags.includes(t.name.toLowerCase())
+  );
   if (missing.length > 0) {
     let auto = tagRows.reduce((m, r) => Math.max(m, Number(r.id) || 0), 0);
     await writeTable("tags", [

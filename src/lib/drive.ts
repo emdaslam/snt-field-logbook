@@ -1,5 +1,6 @@
 import { registerPlugin } from "@capacitor/core";
 import { api } from "./api";
+import * as ldb from "./localdb";
 import { isNative } from "./native";
 import { summarizeBackup, formatBytes, type BackupPayload } from "./backup";
 import {
@@ -27,7 +28,12 @@ import {
  * data file and every day file and imports them all at once.
  *
  * Conflict rule: last-write-wins using the backup's exportedAt stamp stored
- * locally as the sync version.
+ * locally as the sync version. The version is kept per Google account, so
+ * switching the signed-in account never compares stamps written by a
+ * different account's backup — and the first sync after a switch pushes the
+ * current app data to the new account instead of overwriting it with the new
+ * account's own backup (a genuine restore is always possible through the
+ * explicit "Import from Drive" action).
  *
  * Sessions persist across app restarts. The native plugin remembers the last
  * signed-in Google account, so a silent token refresh (getAccessToken) hands
@@ -113,20 +119,76 @@ function clearStoredAuth() {
   }
 }
 
-function getVersion(): string | null {
+function getVersion(email?: string): string | null {
   try {
-    return localStorage.getItem(VERSION_KEY);
+    const raw = localStorage.getItem(VERSION_KEY);
+    if (!raw) return null;
+    if (raw.startsWith("{")) {
+      const map = JSON.parse(raw) as Record<string, string>;
+      const key = email ?? getStoredEmail();
+      const v = key ? map[key] : undefined;
+      return typeof v === "string" ? v : null;
+    }
+    return raw; // legacy single-account stamp
   } catch {
     return null;
   }
 }
 
-function setVersion(v: string) {
+/**
+ * Persist the sync version for one account. Versions are kept per email so
+ * that switching the signed-in Google account never compares stamps written by
+ * a different account's backup.
+ */
+function setVersion(v: string, email?: string) {
   try {
-    localStorage.setItem(VERSION_KEY, v);
+    const key = email ?? getStoredEmail();
+    if (!key) {
+      localStorage.setItem(VERSION_KEY, v);
+      return;
+    }
+    const raw = localStorage.getItem(VERSION_KEY);
+    let map: Record<string, string> = {};
+    if (raw?.startsWith("{")) {
+      try {
+        map = JSON.parse(raw) as Record<string, string>;
+      } catch {
+        map = {};
+      }
+    } else if (raw) {
+      // Legacy plain stamp: adopt it under the current account so the next
+      // sync keeps comparing against the same clock.
+      map = { [key]: raw };
+    }
+    map[key] = v;
+    localStorage.setItem(VERSION_KEY, JSON.stringify(map));
   } catch {
     /* storage unavailable */
   }
+}
+
+/** True when accounts other than `email` have a sync stamp on this device. */
+function hasOtherAccountStamps(email: string): boolean {
+  try {
+    const raw = localStorage.getItem(VERSION_KEY);
+    if (!raw?.startsWith("{")) return false;
+    const map = JSON.parse(raw) as Record<string, string>;
+    return Object.keys(map).some((k) => k.toLowerCase() !== email.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
+/** True when the local database holds any records at all. */
+async function hasAnyLocalData(): Promise<boolean> {
+  try {
+    for (const t of ldb.TABLES) {
+      if ((await ldb.readTable(t)).length > 0) return true;
+    }
+  } catch {
+    /* treat unknown as no data so the restore path stays open */
+  }
+  return false;
 }
 
 function getLastSync(): LastSyncInfo | null {
@@ -450,7 +512,7 @@ export async function pushToDrive(interactive = true, onProgress?: DriveProgress
       tick();
     }
 
-    setVersion(exportedAt);
+    setVersion(exportedAt, auth.email);
     markShardedSeeded();
     clearDirty();
     const dayLabel = groups.size === 1 ? "1 day" : `${groups.size} days`;
@@ -468,7 +530,8 @@ export async function pushToDrive(interactive = true, onProgress?: DriveProgress
 async function pullSharded(
   interactive: boolean,
   byName: Map<string, string>,
-  onProgress?: DriveProgressFn
+  onProgress?: DriveProgressFn,
+  email?: string
 ): Promise<DriveResult> {
   const indexId = byName.get(INDEX_NAME);
   if (!indexId) throw new Error("Drive backup looks invalid");
@@ -479,7 +542,7 @@ async function pullSharded(
   };
   if (!Array.isArray(index.days)) throw new Error("Drive backup looks invalid");
   const remote = typeof index.exportedAt === "string" ? index.exportedAt : null;
-  const local = getVersion();
+  const local = getVersion(email);
   if (remote && local && remote <= local) {
     const message = "Already up to date with Drive.";
     recordSync({ ok: true, message });
@@ -515,7 +578,7 @@ async function pullSharded(
   const summary = summarizeBackup(payload);
   if (!summary.valid) throw new Error("Drive backup looks invalid");
   await api.backup.import(payload as unknown as Record<string, unknown>);
-  if (remote) setVersion(remote);
+  if (remote) setVersion(remote, email);
   markShardedSeeded();
   clearDirty();
   const message = `Imported ${summary.totalRecords} records from Drive.`;
@@ -524,11 +587,15 @@ async function pullSharded(
 }
 
 /** Pull the (old single-file) Drive backup and restore it if it is newer. */
-async function importLegacy(legacyId: string, interactive: boolean): Promise<DriveResult> {
+async function importLegacy(
+  legacyId: string,
+  interactive: boolean,
+  email?: string
+): Promise<DriveResult> {
   const text = await downloadFile(legacyId, interactive);
   const payload = JSON.parse(text) as BackupPayload;
   const remote = typeof payload.exportedAt === "string" ? payload.exportedAt : null;
-  const local = getVersion();
+  const local = getVersion(email);
   if (remote && local && remote <= local) {
     const message = "Already up to date with Drive.";
     recordSync({ ok: true, message });
@@ -537,7 +604,7 @@ async function importLegacy(legacyId: string, interactive: boolean): Promise<Dri
   const summary = summarizeBackup(payload);
   if (!summary.valid) throw new Error("Drive backup looks invalid");
   await api.backup.import(payload as unknown as Record<string, unknown>);
-  if (remote) setVersion(remote);
+  if (remote) setVersion(remote, email);
   clearDirty();
   const message = `Imported ${summary.totalRecords} records from Drive.`;
   recordSync({ ok: true, message, records: summary.totalRecords });
@@ -554,10 +621,10 @@ export async function pullFromDrive(interactive = true, onProgress?: DriveProgre
     const byName = new Map(files.map((f) => [f.name, f.id]));
 
     const indexId = byName.get(INDEX_NAME);
-    if (indexId) return pullSharded(interactive, byName, onProgress);
+    if (indexId) return pullSharded(interactive, byName, onProgress, auth.email);
 
     const legacyId = byName.get(LEGACY_NAME);
-    if (legacyId) return importLegacy(legacyId, interactive);
+    if (legacyId) return importLegacy(legacyId, interactive, auth.email);
 
     const message = "No backup found on Drive — sync once first.";
     recordSync({ ok: false, message });
@@ -590,22 +657,35 @@ export async function syncWithDrive(interactive = true, onProgress?: DriveProgre
     if (indexId) {
       const index = JSON.parse(await downloadFile(indexId, interactive)) as { exportedAt?: string };
       const remote = typeof index.exportedAt === "string" ? index.exportedAt : null;
-      const local = getVersion();
+      const local = getVersion(auth.email);
       const remoteNewer = !!remote && (local === null || remote > local);
       if (!remoteNewer) {
         const pushed = await pushToDrive(interactive, onProgress);
         if (!pushed.ok) return pushed;
         return { ok: true, message: pushed.message };
       }
-      return pullSharded(interactive, byName, onProgress);
+      // First contact with this account while data from a different account
+      // is already in the app: push the local data to the new account instead
+      // of silently overwriting it with the new account's own backup. A
+      // genuine restore stays available through the explicit import button.
+      if (local === null && hasOtherAccountStamps(auth.email) && (await hasAnyLocalData())) {
+        const pushed = await pushToDrive(interactive, onProgress);
+        if (!pushed.ok) return pushed;
+        return { ok: true, message: pushed.message };
+      }
+      return pullSharded(interactive, byName, onProgress, auth.email);
     }
 
     const legacyId = byName.get(LEGACY_NAME);
     if (legacyId) {
+      const local = getVersion(auth.email);
+      if (local === null && hasOtherAccountStamps(auth.email) && (await hasAnyLocalData())) {
+        return pushToDrive(interactive, onProgress);
+      }
       // One-time migration from the old single-file backup: import it first
       // when it is newer, then push the sharded format and only then let
       // pushToDrive remove the legacy file — nothing is lost in between.
-      await importLegacy(legacyId, interactive);
+      await importLegacy(legacyId, interactive, auth.email);
       return pushToDrive(interactive, onProgress);
     }
 

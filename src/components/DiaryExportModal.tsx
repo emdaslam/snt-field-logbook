@@ -5,7 +5,7 @@ import { useData } from "./DataProvider";
 import { Modal, PrimaryButton } from "./ui";
 import { exportDiary, exportTaJournal } from "./exports";
 import { PeriodPicker, monthPeriod, type Period } from "./PeriodPicker";
-import { fmtDate } from "@/lib/api";
+import { fmtDate, isTaClaimable } from "@/lib/api";
 import { isSharedLog } from "@/lib/backup";
 import { isSpecialMovement, variableKmText } from "@/lib/types";
 import type { DailyLog } from "@/db/schema";
@@ -47,27 +47,7 @@ export function DiaryExportModal({
 
   // TA journal only counts days actually claimed away from HQ — and only for
   // stations recorded as farther than 8 km from the headquarters.
-  const isHqMovement = (l: DailyLog) => {
-    const t = (l.stationMovement ?? "").trim().toLowerCase();
-    if (!t) return true;
-    return Boolean(hq && (t === (hq.name ?? "").toLowerCase() || (hq.code && t === hq.code.toLowerCase())));
-  };
-  const taRows = own.filter((l) => {
-    if (isSpecialMovement(l)) return false;
-    if (isHqMovement(l)) return false;
-    const t = (l.stationMovement ?? "").trim().toLowerCase();
-    const st = stations.find(
-      (s) => s.name.toLowerCase() === t || (s.code && s.code.toLowerCase() === t)
-    );
-    if (!st) return false;
-    if (st.distanceFromHq === "variable") {
-      if (l.taAtVariableKm !== true) return false;
-    } else if (st.distanceFromHq !== "above8") {
-      return false;
-    }
-    const p = l.taPercent ?? 100;
-    return p === 100 || p === 70 || p === 30;
-  });
+  const taRows = own.filter((l) => isTaClaimable(l, stations, hq));
   const totalDays = taRows.reduce((a, l) => a + ((l.taPercent ?? 100) / 100), 0);
   const taRate = currentUser?.taRate != null && currentUser.taRate !== "" ? Number(currentUser.taRate) : null;
   const totalAmount = taRate != null ? Math.round(totalDays * taRate) : null;
