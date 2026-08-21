@@ -3,6 +3,20 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.68 — 2026-08-21
+
+**Minor: Google Drive sign-in no longer fails after switching accounts**
+
+- After signing out, signing in again could fail with *"Could not determine the
+  signed-in Google account"* whenever the phone held more than one Google
+  account: the sign-in result came back as a cached/partial account (no email)
+  that could not be matched to a device account.
+- When that happens the app now shows the Android **account picker** and lets
+  you choose the Google account to use explicitly, instead of failing. The
+  picked account is remembered, so later syncs stay silent.
+- The ID-token email decoder also tolerates cached tokens that use standard
+  base64 characters.
+
 ## 1.7.6.67 — 2026-08-20
 
 **Minor: TA journal export — fit-on-one-page option and date column fix**
