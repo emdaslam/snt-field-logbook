@@ -2,6 +2,10 @@ package in.railway.snt.logbook.drive;
 
 import androidx.activity.result.ActivityResult;
 
+import android.accounts.AccountManager;
+import android.app.Activity;
+import android.content.Intent;
+
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -61,7 +65,13 @@ public class GoogleDrivePlugin extends Plugin {
             int mod = payloadPart.length() % 4;
             if (mod == 2) payloadPart += "==";
             else if (mod == 3) payloadPart += "=";
-            byte[] payload = android.util.Base64.decode(payloadPart, android.util.Base64.URL_SAFE);
+            byte[] payload;
+            try {
+                payload = android.util.Base64.decode(payloadPart, android.util.Base64.URL_SAFE);
+            } catch (IllegalArgumentException e) {
+                // Some cached tokens use standard base64 characters (+ /) — retry.
+                payload = android.util.Base64.decode(payloadPart, android.util.Base64.DEFAULT);
+            }
             JSONObject json = new JSONObject(new String(payload, "UTF-8"));
             String email = json.optString("email", null);
             return (email == null || email.isEmpty()) ? null : email;
@@ -284,20 +294,35 @@ public class GoogleDrivePlugin extends Plugin {
                     }
                 }
                 if (acct == null) {
-                    final String idTokenEmail = account != null ? emailFromIdToken(account.getIdToken()) : null;
-                    android.accounts.Account[] googleAccounts = android.accounts.AccountManager.get(getContext())
-                            .getAccountsByType(GoogleAuthUtil.GOOGLE_ACCOUNT_TYPE);
-                    final String detail = "account=" + (account != null)
-                            + ", hasAccount=" + (account != null && account.getAccount() != null)
-                            + ", hasEmail=" + (account != null && account.getEmail() != null)
-                            + ", hasIdToken=" + (account != null && account.getIdToken() != null)
-                            + ", storedEmail=" + (signedInEmail != null)
-                            + ", idTokenEmail=" + idTokenEmail
-                            + ", googleAccounts=" + googleAccounts.length;
-                    getActivity().runOnUiThread(() ->
-                            call.reject("Could not determine the signed-in Google account (" + detail + ")"));
+                    // The sign-in result is a cached/partial account (empty email
+                    // and account fields) whose ID token carries no readable email,
+                    // and more than one Google account is on the device, so it
+                    // cannot be matched. Ask the user to pick one explicitly.
+                    getActivity().runOnUiThread(() -> launchAccountPicker(call));
                     return;
                 }
+                final String resolvedEmail = email != null ? email : acct.name;
+                final String displayName = account != null ? account.getDisplayName() : null;
+                fetchAccessTokenForAccount(call, acct, resolvedEmail, displayName);
+            } catch (final Exception e) {
+                getActivity().runOnUiThread(() ->
+                        call.reject(e.getMessage() != null ? e.getMessage() : "Could not get Drive access"));
+            }
+        }).start();
+    }
+
+    /**
+     * Fetch a Drive OAuth2 token for an already-resolved Android account.
+     * First use of an account may trigger a scope-consent screen, which is
+     * handled by {@link #authResult}.
+     */
+    private void fetchAccessTokenForAccount(
+            final PluginCall call,
+            final android.accounts.Account acct,
+            final String email,
+            final String displayName) {
+        new Thread(() -> {
+            try {
                 final String token = GoogleAuthUtil.getToken(
                         getContext(),
                         acct,
@@ -307,7 +332,7 @@ public class GoogleDrivePlugin extends Plugin {
                     JSObject ret = new JSObject();
                     ret.put("accessToken", token);
                     ret.put("email", resolvedEmail);
-                    ret.put("displayName", account != null ? account.getDisplayName() : null);
+                    ret.put("displayName", displayName);
                     call.resolve(ret);
                 });
             } catch (final UserRecoverableAuthException e) {
@@ -318,6 +343,45 @@ public class GoogleDrivePlugin extends Plugin {
                         call.reject(e.getMessage() != null ? e.getMessage() : "Could not get Drive access"));
             }
         }).start();
+    }
+
+    /**
+     * Show the Android account picker limited to Google accounts. Used when a
+     * sign-in result is too partial to be matched to a device account. The
+     * picked account name is returned directly, so it always resolves.
+     */
+    private void launchAccountPicker(PluginCall call) {
+        try {
+            Intent pick = AccountManager.newChooseAccountIntent(
+                    null,
+                    null,
+                    new String[]{GoogleAuthUtil.GOOGLE_ACCOUNT_TYPE},
+                    null,
+                    null,
+                    null,
+                    null);
+            startActivityForResult(call, pick, "accountChoiceResult");
+        } catch (Exception e) {
+            call.reject("Could not show the Google account picker");
+        }
+    }
+
+    @ActivityCallback
+    private void accountChoiceResult(PluginCall call, ActivityResult result) {
+        if (call == null || call.isReleased()) return;
+        if (result.getResultCode() != Activity.RESULT_OK || result.getData() == null) {
+            call.reject("No Google account selected");
+            return;
+        }
+        String name = result.getData().getStringExtra(AccountManager.KEY_ACCOUNT_NAME);
+        if (name == null || name.isEmpty()) {
+            call.reject("No Google account selected");
+            return;
+        }
+        signedInEmail = name;
+        fetchAccessTokenForAccount(call,
+                new android.accounts.Account(name, GoogleAuthUtil.GOOGLE_ACCOUNT_TYPE),
+                name, null);
     }
 
     /**
