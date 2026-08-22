@@ -3,6 +3,24 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.73 — 2026-08-22
+
+**Major: materials assigned to stations — equipment-wise lists and a station picker when adding**
+
+- **New materials need a station.** When you add a material you now pick the
+  station(s) it belongs to. A material saved without a station used to vanish —
+  it counted in the totals but never appeared in the station-wise list. Now the
+  Add / Edit form has a station checklist, and a material shows under every
+  station you assign it to.
+- **Equipment-wise sub-sections.** Inside each station, the materials are
+  grouped by equipment — point, signal, block instrument, general and your own
+  custom groups — each with its own heading, so the required list reads like
+  the maintenance stock books.
+- **Assignments stay editable.** Edit a material any time to add or remove the
+  stations it belongs to; the per-station requirement and minimum spare you set
+  with the "Req" / "+ Req" buttons are never touched.
+- A "What's New" tutorial introduces the change.
+
 ## 1.7.6.72 — 2026-08-22
 
 **Minor: Diary and TA Journal table cells aligned like the reference forms**

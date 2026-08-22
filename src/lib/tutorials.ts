@@ -272,6 +272,28 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.6.73",
+    tag: "Station-wise materials & equipment",
+    subtitle: "Pick the station(s) when adding a material, and each station's list is grouped by equipment.",
+    slides: [
+      {
+        glyph: "⌂",
+        title: "Assign stations when adding",
+        body: "The Add Material form now asks which station(s) the material belongs to. A material saved with no station used to disappear — now every new material is assigned to at least one station and shows up in its list.",
+      },
+      {
+        glyph: "▣",
+        title: "Equipment-wise sub-sections",
+        body: "Inside each station, materials are grouped by equipment — point, signal, block instrument, general and your custom groups — each under its own heading, like a stock book.",
+      },
+      {
+        glyph: "▤",
+        title: "Edit the assignment later",
+        body: "Open Edit on any material to add or remove the stations it belongs to. Requirements and minimum spares you set per station are never disturbed.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {

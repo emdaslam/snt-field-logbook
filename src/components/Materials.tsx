@@ -47,6 +47,33 @@ function qtyLabel(qty: number, unit?: string): string {
   return unit ? `${q} ${unit}` : q;
 }
 
+/** The equipment a material is filed under ("general" when none chosen). */
+function equipmentOf(m: Material): string {
+  return (m.equipment || "general").trim() || "general";
+}
+
+/** Group material rows by equipment — default equipment order first, then any
+ *  custom equipment in first-appearance order, mirroring the exports. */
+function groupRowsByEquipment<T extends { material: Material }>(rows: T[]): { equipment: string; rows: T[] }[] {
+  const eqOf = (r: T) => equipmentOf(r.material);
+  const order: string[] = [];
+  const seen = new Set<string>();
+  for (const d of EQUIPMENT_DEFAULTS) {
+    if (rows.some((r) => eqOf(r) === d)) {
+      seen.add(d);
+      order.push(d);
+    }
+  }
+  for (const r of rows) {
+    const eq = eqOf(r);
+    if (!seen.has(eq)) {
+      seen.add(eq);
+      order.push(eq);
+    }
+  }
+  return order.map((eq) => ({ equipment: eq, rows: rows.filter((r) => eqOf(r) === eq) }));
+}
+
 /** Hamburger "Materials" tab — the required list grouped station-wise, with
  *  each station's own requirement and minimum spare, and its received / used /
  *  in-hand quantities for every material. */
@@ -232,14 +259,7 @@ export function Materials() {
       <div key={m.id} className="px-3 py-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-slate-800">
-              {m.name}
-              {(m.equipment || "general").trim() && (m.equipment || "general").trim() !== "general" && (
-                <span className="ml-1.5 rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700">
-                  {m.equipment}
-                </span>
-              )}
-            </p>
+            <p className="text-sm font-semibold text-slate-800">{m.name}</p>
             <div className="mt-1 flex flex-wrap items-center gap-1.5">
               <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
                 Required: {qtyLabel(row.requiredQty, m.unit)}
@@ -448,9 +468,9 @@ export function Materials() {
       {materials.length === 0 ? (
         <div className="p-6 text-center">
           <p className="mb-4 text-sm text-slate-500">
-            No materials on the required list yet. Add the materials you need — with the quantity
-            (in any unit you choose, e.g. Nos / Kg / Sets / Units) and the equipment they belong to —
-            then record how many you receive and where you keep them, and how many you use and for what purpose.
+            No materials on the required list yet. Add the materials you need — pick the equipment they
+            belong to, the quantity and unit, and the station(s) they belong to — then record how many you
+            receive and where you keep them, and how many you use and for what purpose.
             Each station keeps its own requirement, minimum spare, and its own received / used / in-hand figures.
           </p>
           <PrimaryButton onClick={() => setMaterialForm({ open: true })}>+ Add Material</PrimaryButton>
@@ -476,8 +496,20 @@ export function Materials() {
                   </span>
                 </button>
                 {open && (
-                  <div className="divide-y divide-slate-100 bg-surface">
-                    {group.rows.map((r) => materialRow(r))}
+                  <div className="bg-surface">
+                    {groupRowsByEquipment(group.rows).map((eqGroup) => (
+                      <div key={eqGroup.equipment}>
+                        <div className="border-b border-slate-100 bg-slate-100 px-3 py-1">
+                          <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                            {eqGroup.equipment === "general" ? "General" : eqGroup.equipment}
+                            <span className="ml-1.5 text-slate-400">({eqGroup.rows.length})</span>
+                          </p>
+                        </div>
+                        <div className="divide-y divide-slate-100">
+                          {eqGroup.rows.map((r) => materialRow(r))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -498,6 +530,8 @@ export function Materials() {
         <MaterialForm
           existing={materialForm.existing ?? null}
           equipmentTypes={equipmentTypes}
+          stations={stations}
+          materialStations={materialStations}
           onClose={() => setMaterialForm({ open: false })}
           onSaved={afterMutate}
         />
@@ -572,11 +606,15 @@ export function Materials() {
 function MaterialForm({
   existing,
   equipmentTypes,
+  stations,
+  materialStations,
   onClose,
   onSaved,
 }: {
   existing: Material | null;
   equipmentTypes: EquipmentType[];
+  stations: Station[];
+  materialStations: MaterialStation[];
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
@@ -599,7 +637,27 @@ function MaterialForm({
   const [newEquipment, setNewEquipment] = useState(false);
   const [newEquipmentName, setNewEquipmentName] = useState("");
   const [equipmentError, setEquipmentError] = useState<string | null>(null);
+  // Stations this material is assigned to. Assigning a material to a station
+  // makes it appear in that station's list (via a materialStations row).
+  const [stationIds, setStationIds] = useState<Set<number>>(() => {
+    const set = new Set<number>();
+    if (existing) {
+      for (const s of materialStations) {
+        if (s.materialId === existing.id) set.add(s.stationId);
+      }
+    }
+    return set;
+  });
   const [saving, setSaving] = useState(false);
+
+  const toggleStation = (id: number) => {
+    setStationIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const save = async () => {
     if (!name.trim()) return;
@@ -607,6 +665,7 @@ function MaterialForm({
     if (!Number.isFinite(qty) || qty < 0) return;
     const min = Number(minSpare);
     if (!Number.isFinite(min) || min < 0) return;
+    if (stations.length > 0 && stationIds.size === 0) return;
     let finalEquipment = equipment;
     if (newEquipment) {
       const eqName = newEquipmentName.trim();
@@ -621,9 +680,32 @@ function MaterialForm({
     const finalUnit = unit === "custom" ? customUnit.trim() : unit;
     setSaving(true);
     try {
-      if (existing)
+      let materialId = existing?.id;
+      if (existing) {
         await api.materials.update({ id: existing.id, name: name.trim(), requiredQty: qty, minRequiredSpare: min, unit: finalUnit, equipment: finalEquipment });
-      else await api.materials.create({ name: name.trim(), requiredQty: qty, minRequiredSpare: min, unit: finalUnit, equipment: finalEquipment });
+      } else {
+        const created = await api.materials.create({ name: name.trim(), requiredQty: qty, minRequiredSpare: min, unit: finalUnit, equipment: finalEquipment });
+        materialId = created.id;
+      }
+      // Sync the station assignment: add newly selected stations, drop the ones
+      // that were unchecked. Custom per-station requirements are left alone.
+      const currentRows = materialStations.filter((s) => s.materialId === materialId);
+      const currentSet = new Set(currentRows.map((s) => s.stationId));
+      for (const id of stationIds) {
+        if (!currentSet.has(id)) {
+          await api.materialStations.upsert({
+            materialId: materialId as number,
+            stationId: id,
+            requiredQty: qty,
+            minRequiredSpare: min,
+          });
+        }
+      }
+      for (const s of currentRows) {
+        if (!stationIds.has(s.stationId)) {
+          await api.materialStations.removeForMaterialStation(materialId as number, s.stationId);
+        }
+      }
       await onSaved();
       onClose();
     } finally {
@@ -684,6 +766,37 @@ function MaterialForm({
             <option value="__new__">Add new equipment…</option>
           </select>
         )}
+      </Field>
+      <Field label={`Assign to station${stations.length !== 1 ? "s" : ""}`}>
+        {stations.length === 0 ? (
+          <p className="text-xs text-slate-500">
+            Add a station first in Settings → Manage Stations, then come back to assign this material.
+          </p>
+        ) : (
+          <div className="max-h-48 space-y-1 overflow-y-auto rounded-xl border border-slate-200 bg-white p-2">
+            {[...stations]
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map((s) => (
+                <label
+                  key={s.id}
+                  className="flex cursor-pointer items-center gap-2.5 rounded-lg px-1.5 py-1 text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  <input
+                    type="checkbox"
+                    checked={stationIds.has(s.id)}
+                    onChange={() => toggleStation(s.id)}
+                    className="h-4 w-4 rounded border-slate-300 text-blue-800 focus:ring-blue-800"
+                  />
+                  {s.name}
+                </label>
+              ))}
+          </div>
+        )}
+        <p className="mt-1 text-xs text-slate-500">
+          {stations.length > 0
+            ? "The material appears under each station you pick. You can change this later from Edit."
+            : "A material needs at least one station to show in the list."}
+        </p>
       </Field>
       <Field label="Quantity required (default for every station)">
         <input
@@ -760,7 +873,12 @@ function MaterialForm({
         </button>
         <button
           onClick={save}
-          disabled={saving || !name.trim() || (newEquipment && !newEquipmentName.trim())}
+          disabled={
+            saving ||
+            !name.trim() ||
+            (newEquipment && !newEquipmentName.trim()) ||
+            (stations.length > 0 && stationIds.size === 0)
+          }
           className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Save
