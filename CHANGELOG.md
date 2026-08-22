@@ -3,6 +3,20 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.69 — 2026-08-21
+
+**Major: one-page Diary export with a single-line heading**
+
+- **Fit on one page.** The Diary export now offers the same **"Fit on one page"**
+  toggle as the TA Journal. When selected, the whole month's diary — heading,
+  table and signature line — is scaled down to fit on a single A4 page, with
+  trimmed margins and no page footer.
+- **Single-line heading.** The *"DIARY OF SRI … FOR THE MONTH OF …"* title now
+  always stays on one line; if it would wrap, the heading font shrinks slightly
+  to fit the page width. This also applies to the regular multi-page output and
+  the TA Journal header.
+- A "What's New" tutorial introduces the feature.
+
 ## 1.7.6.68 — 2026-08-21
 
 **Minor: Google Drive sign-in no longer fails after switching accounts**

@@ -228,6 +228,23 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.6.69",
+    tag: "One-page diary export",
+    subtitle: "Export the whole month's Diary on a single A4 page — the heading stays on one line.",
+    slides: [
+      {
+        glyph: "▦",
+        title: "Fit the diary on one page",
+        body: "In the Diary export, tap “Fit on one page”. The diary is then scaled down — trimmed margins, no footer — so the entire month fits on a single A4 page, just like the TA Journal.",
+      },
+      {
+        glyph: "▤",
+        title: "Heading on one line",
+        body: "The “DIARY OF SRI … FOR THE MONTH OF …” heading always stays on a single line; if it is too long the heading font shrinks slightly to fit.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {

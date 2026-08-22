@@ -767,7 +767,7 @@ export function exportDiary(
     colWidths: [10.3, 8.7, 8.7, 8.7, 7.3, 7.3, 52.3],
   };
 
-  out(`Diary ${period.label}`, body, "diary", sheet);
+  out(`Diary ${period.label}`, body, "diary", sheet, { onePage: true });
 }
 
 

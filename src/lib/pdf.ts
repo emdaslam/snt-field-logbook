@@ -176,18 +176,29 @@ export function buildPdf(
 
     if (tag === "h1") {
       pageBreak(38 * fs);
-      doc.setFont("helvetica", "bold").setFontSize(15 * fs).setTextColor(...NAVY);
+      doc.setFont("helvetica", "bold").setTextColor(...NAVY);
+      // The title stays on a single line — when it would wrap (e.g. a long
+      // "DIARY OF SRI … FOR THE MONTH OF …"), shrink the heading font until it
+      // fits the printable width. A right-hand note (the TA Journal's "In lieu
+      // of G.A.31") reserves room on the baseline so the heading never crowds it.
+      const rightNote = el.getAttribute("data-right-note");
+      const headingW = maxW - (rightNote ? 150 : 0);
+      let headingSize = 15 * fs;
+      if (text) {
+        const tw = doc.getTextWidth(text);
+        if (tw > headingW) headingSize = Math.max(5, headingSize * (headingW / tw) * 0.98);
+      }
+      doc.setFontSize(headingSize);
       const lines = doc.splitTextToSize(text, maxW) as string[];
       // Centered headings (e.g. the TA Journal header) are centred on the page.
       const centered = el.className.includes("centered");
       doc.text(lines, centered ? pageW / 2 : margin, y, centered ? { align: "center" } : undefined);
       // A right-hand note on the title's baseline (the TA Journal's "In lieu of
       // G.A.31"), drawn small and light so it never competes with the heading.
-      const rightNote = el.getAttribute("data-right-note");
       if (rightNote) {
         doc.setFont("helvetica", "normal").setFontSize(8 * fs).setTextColor(30, 41, 59);
         doc.text(rightNote, pageW - margin, y, { align: "right" });
-        doc.setFont("helvetica", "bold").setFontSize(15 * fs).setTextColor(...NAVY);
+        doc.setFont("helvetica", "bold").setFontSize(headingSize).setTextColor(...NAVY);
       }
       y += lines.length * (18 * fs) + 4;
       doc.setDrawColor(...NAVY).setLineWidth(1.5).line(margin, y, pageW - margin, y);
