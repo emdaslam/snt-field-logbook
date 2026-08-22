@@ -4,6 +4,7 @@ import {
   CONTENT_FONT_MAX,
   CONTENT_FONT_MIN,
   DEFAULT_CONTENT_FONT_SIZE,
+  type ExportStyle,
 } from "@/lib/types";
 import { registerPdfFonts } from "./pdfFonts";
 import type { XlsxSheet } from "./xlsx";
@@ -149,13 +150,19 @@ export function buildPdf(
   title: string,
   bodyHtml: string,
   contentSize: number,
-  opts: { margin?: number; footer?: boolean } = {}
+  opts: { margin?: number; footer?: boolean; style?: ExportStyle } = {}
 ): jsPDF {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   registerPdfFonts(doc);
   const fs = contentSize / 9;
   const margin = opts.margin ?? 40;
   const withFooter = opts.footer ?? true;
+  // "plain" drops every fill and colour so the report renders as the reference
+  // black-and-white layout (no navy/green headings, no shaded header, no
+  // alternating rows); "colour" keeps the branded look.
+  const plain = opts.style === "plain";
+  const INK: [number, number, number] = plain ? [0, 0, 0] : NAVY;
+  const HEAD_FILL: [number, number, number] = plain ? [255, 255, 255] : [219, 234, 254];
   const pageW = doc.internal.pageSize.getWidth();
   const maxW = pageW - margin * 2;
   let y = margin;
@@ -181,7 +188,7 @@ export function buildPdf(
 
     if (tag === "h1") {
       pageBreak(38 * fs);
-      doc.setFont("helvetica", "bold").setTextColor(...NAVY);
+      doc.setFont("helvetica", "bold").setTextColor(...INK);
       // The title stays on a single line — when it would wrap (e.g. a long
       // "DIARY OF SRI … FOR THE MONTH OF …"), shrink the heading font until it
       // fits the printable width. A right-hand note (the TA Journal's "In lieu
@@ -201,16 +208,16 @@ export function buildPdf(
       // A right-hand note on the title's baseline (the TA Journal's "In lieu of
       // G.A.31"), drawn small and light so it never competes with the heading.
       if (rightNote) {
-        doc.setFont("helvetica", "normal").setFontSize(8 * fs).setTextColor(30, 41, 59);
+        doc.setFont("helvetica", "normal").setFontSize(8 * fs).setTextColor(plain ? 15 : 30, 23, 59);
         doc.text(rightNote, pageW - margin, y, { align: "right" });
-        doc.setFont("helvetica", "bold").setFontSize(headingSize).setTextColor(...NAVY);
+        doc.setFont("helvetica", "bold").setFontSize(headingSize).setTextColor(...INK);
       }
       y += lines.length * (18 * fs) + 4;
-      doc.setDrawColor(...NAVY).setLineWidth(1.5).line(margin, y, pageW - margin, y);
+      doc.setDrawColor(...INK).setLineWidth(plain ? 0.75 : 1.5).line(margin, y, pageW - margin, y);
       y += 14;
     } else if (tag === "h2") {
       pageBreak(30 * fs);
-      doc.setFont("helvetica", "bold").setFontSize(11 * fs).setTextColor(...GREEN);
+      doc.setFont("helvetica", "bold").setFontSize(11 * fs).setTextColor(...INK);
       const lines = doc.splitTextToSize(text, maxW) as string[];
       const centered = el.className.includes("centered");
       doc.text(lines, centered ? pageW / 2 : margin, y, centered ? { align: "center" } : undefined);
@@ -224,7 +231,7 @@ export function buildPdf(
         : lines.length * (1.15 * size);
     } else if (tag === "h3") {
       pageBreak(24 * fs);
-      doc.setFont("helvetica", "bold").setFontSize(9.5 * fs).setTextColor(...NAVY);
+      doc.setFont("helvetica", "bold").setFontSize(9.5 * fs).setTextColor(...INK);
       const lines = doc.splitTextToSize(text, maxW) as string[];
       doc.text(lines, margin, y);
       const size = 9.5 * fs;
@@ -257,7 +264,7 @@ export function buildPdf(
       const meta = cls.includes("meta") || cls.includes("empty");
       const right = cls.includes("right");
       doc.setFont("helvetica", meta ? "italic" : "normal").setFontSize(9 * fs);
-      if (meta) doc.setTextColor(...GREY);
+      if (meta) doc.setTextColor(plain ? 15 : GREY[0], 23, 42);
       else doc.setTextColor(15, 23, 42);
       const lines = doc.splitTextToSize(text, right ? maxW : maxW - left) as string[];
       doc.text(lines, right ? pageW - margin : margin + left, y, right ? { align: "right" } : undefined);
@@ -384,8 +391,8 @@ export function buildPdf(
         startY: y,
         margin: { left: margin, right: margin },
         styles: { fontSize: 8 * fs, cellPadding: 4, overflow: "linebreak", textColor: [15, 23, 42] },
-        headStyles: { fillColor: [219, 234, 254], textColor: NAVY, fontStyle: "bold" },
-        alternateRowStyles: { fillColor: [248, 250, 252] },
+        headStyles: { fillColor: HEAD_FILL, textColor: INK, fontStyle: "bold" },
+        ...(plain ? {} : { alternateRowStyles: { fillColor: [248, 250, 252] } }),
         theme: "grid",
         columnStyles: Object.keys(columnStyles).length ? columnStyles : undefined,
       });
@@ -423,14 +430,14 @@ export function buildPdf(
  * margins and no footer, shrinking the content size until it lands on a single
  * page (or hits the fit floor, below which the text would be unreadable).
  */
-export function buildFitOnePagePdf(title: string, bodyHtml: string, startSize: number): jsPDF {
+export function buildFitOnePagePdf(title: string, bodyHtml: string, startSize: number, style: ExportStyle = "colour"): jsPDF {
   const FIT_MARGIN = 24;
   const FIT_FONT_MIN = 6;
   let size = startSize;
-  let doc = buildPdf(title, bodyHtml, size, { margin: FIT_MARGIN, footer: false });
+  let doc = buildPdf(title, bodyHtml, size, { margin: FIT_MARGIN, footer: false, style });
   while (doc.getNumberOfPages() > 1 && size > FIT_FONT_MIN) {
     size -= 1;
-    doc = buildPdf(title, bodyHtml, size, { margin: FIT_MARGIN, footer: false });
+    doc = buildPdf(title, bodyHtml, size, { margin: FIT_MARGIN, footer: false, style });
   }
   return doc;
 }
@@ -447,7 +454,7 @@ export function exportDocument(
   bodyHtml: string,
   type = "general",
   sheet?: XlsxSheet,
-  opts?: { onePage?: boolean }
+  opts?: { onePage?: boolean; style?: ExportStyle }
 ) {
   // Bottom sheet that offers the report as PDF, Word (.docx) or Excel (.xlsx),
   // with a text size prompt for the PDF path. The last chosen format is remembered.
@@ -470,6 +477,16 @@ export function exportDocument(
   try {
     const saved = localStorage.getItem("snt.exportFormat");
     if (saved === "docx" || (saved === "xlsx" && sheet)) format = saved;
+  } catch {
+    /* ignore */
+  }
+  // Style toggle — "colour" (branded navy/green fills) or "plain" (reference
+  // black-and-white, no fills). Each export type remembers its own choice; the
+  // default comes from the export builder (diary / TA journal default to plain).
+  let style: ExportStyle = opts?.style ?? "colour";
+  try {
+    const saved = localStorage.getItem(`snt.exportStyle.${type}`);
+    if (saved === "colour" || saved === "plain") style = saved;
   } catch {
     /* ignore */
   }
@@ -511,6 +528,35 @@ export function exportDocument(
   seg.appendChild(excelBtn);
   box.appendChild(seg);
 
+  // Style toggle — plain (no colours, the reference layout) or the branded
+  // coloured output. Only relevant for PDF and Word; Excel carries no fills.
+  const styleRow = document.createElement("div");
+  styleRow.style.cssText = "display:flex;gap:8px;margin:0 0 14px";
+  const styleBtnStyle = (active: boolean) =>
+    `flex:1;padding:10px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid ${
+      active ? "#1e3a8a" : "#e2e8f0"
+    };background:${active ? "#1e3a8a" : "#f8fafc"};color:${active ? "#fff" : "#334155"}`;
+  const colourBtn = document.createElement("button");
+  colourBtn.textContent = "Colour";
+  const plainBtn = document.createElement("button");
+  plainBtn.textContent = "Plain (no colour)";
+  const applyStyle = (s: ExportStyle) => {
+    style = s;
+    colourBtn.style.cssText = styleBtnStyle(style === "colour");
+    plainBtn.style.cssText = styleBtnStyle(style === "plain");
+    try {
+      localStorage.setItem(`snt.exportStyle.${type}`, s);
+    } catch {
+      /* ignore */
+    }
+  };
+  colourBtn.onclick = () => applyStyle("colour");
+  plainBtn.onclick = () => applyStyle("plain");
+  styleRow.appendChild(colourBtn);
+  styleRow.appendChild(plainBtn);
+  applyStyle(style);
+  box.appendChild(styleRow);
+
   // Font size prompt — PDF written content only, 10–96.
   const row = document.createElement("div");
   row.style.cssText =
@@ -549,6 +595,7 @@ export function exportDocument(
     const fit = onePage && fitOnePage;
     row.style.display = format === "pdf" && !fit ? "flex" : "none";
     fitNote.style.display = format === "pdf" && fit ? "block" : "none";
+    styleRow.style.display = format === "pdf" || format === "docx" ? "flex" : "none";
   };
   if (onePage) {
     const pageSeg = document.createElement("div");
@@ -662,7 +709,7 @@ export function exportDocument(
           artifact = {
             filename: `${slug(title)}.docx`,
             mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            base64: docxToBase64(buildDocx(title, bodyHtml)),
+            base64: docxToBase64(buildDocx(title, bodyHtml, style)),
           };
         } else if (format === "xlsx") {
           const { buildXlsx, xlsxToBase64 } = await import("./xlsx");
@@ -675,8 +722,8 @@ export function exportDocument(
           const size = chosenSize();
           const doc =
             onePage && fitOnePage
-              ? buildFitOnePagePdf(title, bodyHtml, size)
-              : buildPdf(title, bodyHtml, size);
+              ? buildFitOnePagePdf(title, bodyHtml, size, style)
+              : buildPdf(title, bodyHtml, size, { style });
           if (!(onePage && fitOnePage)) persistContentFontSize(type, size);
           artifact = {
             filename: `${slug(title)}.pdf`,

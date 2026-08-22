@@ -316,6 +316,23 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.6.77",
+    tag: "Plain black-and-white exports",
+    subtitle: "The Diary and TA Journal now export plain (no colours) like the reference sheets — colours are one tap away.",
+    slides: [
+      {
+        glyph: "▦",
+        title: "Plain by default",
+        body: "The Diary and TA Journal now export in the simple black-and-white reference layout — no shaded headers, no navy headings, no alternating rows. Looks clean when printed or attached to a report.",
+      },
+      {
+        glyph: "▤",
+        title: "Want colours? Pick them",
+        body: "In the export sheet that appears after tapping “Generate”, choose Colour under the style buttons and export again. Each export type remembers its own choice for next time.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {

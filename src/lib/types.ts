@@ -1,5 +1,10 @@
 import { AUTO_TIMINGS } from "./timingsMode";
 
+/** Visual style of an exported report. "colour" is the familiar branded look
+ *  (navy / green headings, shaded table header, alternating rows); "plain" is
+ *  the reference black-and-white layout with no fills anywhere. */
+export type ExportStyle = "colour" | "plain";
+
 export const DEPARTMENTS = ["Signalling", "Engg", "OHE", "Telecom"] as const;
 export type Department = (typeof DEPARTMENTS)[number];
 
@@ -196,5 +201,5 @@ export function variableKmText(km: number | string | null | undefined): string |
 }
 
 /** App version shown in Settings → About. Bump alongside android/app/build.gradle. */
-export const APP_VERSION_BASE = "1.7.6.76";
+export const APP_VERSION_BASE = "1.7.6.77";
 export const APP_VERSION = `${APP_VERSION_BASE}${AUTO_TIMINGS ? "p" : ""}`;

@@ -7,6 +7,8 @@
  * docx/zip library required, works fully offline in the Capacitor shell.
  */
 
+import type { ExportStyle } from "./types";
+
 const XML_NS =
   'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
 
@@ -129,9 +131,10 @@ function tableCell(
   rowSpan: number,
   colSpan: number,
   centered = false,
-  vAlignMiddle = false
+  vAlignMiddle = false,
+  plain = false
 ): string {
-  const fill = isHead ? "DBEAFE" : "FFFFFF";
+  const fill = isHead ? (plain ? "FFFFFF" : "DBEAFE") : "FFFFFF";
   const valign = isHead || vAlignMiddle ? '<w:vAlign w:val="center"/>' : "";
   const tcPr =
     `<w:tcPr>` +
@@ -144,7 +147,7 @@ function tableCell(
     `</w:tcPr>` +
     para(text, {
       bold: isHead,
-      color: isHead ? "1E3A8A" : undefined,
+      color: isHead && !plain ? "1E3A8A" : undefined,
       sz: isHead ? 16 : 18,
       after: 60,
       before: 40,
@@ -153,7 +156,7 @@ function tableCell(
   return `<w:tc>${tcPr}</w:tc>`;
 }
 
-function buildTable(html: string): string {
+function buildTable(html: string, plain = false): string {
   const parsed = new DOMParser().parseFromString(`<div>${html}</div>`, "text/html");
   const trs = Array.from(parsed.body.firstElementChild?.querySelectorAll("tr") ?? []);
   if (trs.length === 0) return "";
@@ -246,7 +249,7 @@ function buildTable(html: string): string {
       const centered = isV || el.getAttribute("data-align") === "center";
       const vAlignMiddle = centered || el.getAttribute("data-valign") === "middle";
       cellsHtml.push(
-        tableCell(text, isHead, width, rowSpan, colSpan, centered, vAlignMiddle)
+        tableCell(text, isHead, width, rowSpan, colSpan, centered, vAlignMiddle, plain)
       );
       if (rowSpan > 1) active.set(col, rowSpan - 1);
       col += colSpan;
@@ -267,7 +270,7 @@ function buildTable(html: string): string {
   ).join("");
 
   const borders = ["top", "left", "bottom", "right", "insideH", "insideV"]
-    .map((b) => `<w:${b} w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>`)
+    .map((b) => `<w:${b} w:val="single" w:sz="4" w:space="0" w:color="${plain ? "000000" : "CBD5E1"}"/>`)
     .join("");
   return (
     `<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/>` +
@@ -282,7 +285,8 @@ function buildTable(html: string): string {
  * Convert the HTML produced by the export builders into a standalone Word
  * document. Returns the raw .docx bytes (a STORE-method ZIP).
  */
-export function buildDocx(title: string, bodyHtml: string): Uint8Array {
+export function buildDocx(title: string, bodyHtml: string, style: ExportStyle = "colour"): Uint8Array {
+  const plain = style === "plain";
   const parsed = new DOMParser().parseFromString(`<div>${bodyHtml}</div>`, "text/html");
   const root = parsed.body.firstElementChild;
   const parts: string[] = [];
@@ -300,7 +304,7 @@ export function buildDocx(title: string, bodyHtml: string): Uint8Array {
       if (rightNote) {
         parts.push(
           `<w:p><w:pPr><w:tabs><w:tab w:val="right" w:pos="9360"/></w:tabs><w:spacing w:before="0" w:after="280"/><w:keepNext/><w:jc w:val="center"/></w:pPr>` +
-            `<w:r>${runProps({ bold: true, color: "1E3A8A", sz: 30 })}<w:t xml:space="preserve">${esc(text)}</w:t></w:r>` +
+            `<w:r>${runProps({ bold: true, color: plain ? "000000" : "1E3A8A", sz: 30 })}<w:t xml:space="preserve">${esc(text)}</w:t></w:r>` +
             `<w:r>${runProps({ color: "1E293B", sz: 16 })}<w:tab/><w:t xml:space="preserve">${esc(rightNote)}</w:t></w:r>` +
             `</w:p>`
         );
@@ -308,11 +312,11 @@ export function buildDocx(title: string, bodyHtml: string): Uint8Array {
         parts.push(
           para(text, {
             bold: true,
-            color: "1E3A8A",
+            color: plain ? "000000" : "1E3A8A",
             sz: 30,
             after: 280,
             keepNext: true,
-            borderBottom: "1E3A8A",
+            borderBottom: plain ? "000000" : "1E3A8A",
             centered: el.className.includes("centered"),
           })
         );
@@ -322,7 +326,7 @@ export function buildDocx(title: string, bodyHtml: string): Uint8Array {
       parts.push(
         para(text, {
           bold: true,
-          color: "056346",
+          color: plain ? "000000" : "056346",
           sz: 22,
           after: nextIsTable ? 80 : 200,
           keepNext: true,
@@ -334,7 +338,7 @@ export function buildDocx(title: string, bodyHtml: string): Uint8Array {
       parts.push(
         para(text, {
           bold: true,
-          color: "1E3A8A",
+          color: plain ? "000000" : "1E3A8A",
           sz: 19,
           after: nextIsTable ? 80 : 180,
           keepNext: true,
@@ -353,7 +357,7 @@ export function buildDocx(title: string, bodyHtml: string): Uint8Array {
       parts.push(
         para(text, {
           italic: meta,
-          color: meta ? "64748B" : undefined,
+          color: meta ? (plain ? undefined : "64748B") : undefined,
           sz: 18,
           after: 160,
           indent: Math.round((Number(el.getAttribute("data-left")) || 0) * 20),
@@ -368,7 +372,7 @@ export function buildDocx(title: string, bodyHtml: string): Uint8Array {
         }
       }
     } else if (tag === "table") {
-      const tbl = buildTable(el.outerHTML);
+      const tbl = buildTable(el.outerHTML, plain);
       if (tbl) {
         parts.push(tbl);
         // Spacer so content after the table isn't glued to its border.

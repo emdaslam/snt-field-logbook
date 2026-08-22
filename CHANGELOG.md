@@ -3,6 +3,20 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.77 — 2026-08-22
+
+**Major: plain black-and-white Diary and TA Journal exports, with the coloured style one tap away**
+
+- **The Diary and TA Journal now export in the plain reference layout.** Both
+  exports default to the simple black-and-white look of the reference sheets —
+  no shaded table headers, no navy/green headings, no alternating row colours.
+  Word (.docx) exports follow the same plain styling.
+- **Keep the colours when you want them.** The export sheet that opens when you
+  tap **Generate Diary / Generate TA Journal** now has a **Colour / Plain (no
+  colour)** style selector. Pick **Colour** for the earlier branded look. Each
+  export type remembers its own choice, so your next export of the same report
+  uses the style you picked.
+
 ## 1.7.6.76 — 2026-08-22
 
 **Major: travel details on daily logs, and exact TA amounts in the exports**

@@ -1,7 +1,7 @@
 import { exportDocument } from "@/lib/pdf";
 import { fmtDate, toISODate, formatFootplateShifts, footplateTrainList, pcdoWorkEntries, counterResetsOf, formatRupee } from "@/lib/api";
 import { formatInspectionDates } from "@/lib/inspections";
-import { isSpecialMovement, EQUIPMENT_DEFAULTS, variableKmText } from "@/lib/types";
+import { isSpecialMovement, EQUIPMENT_DEFAULTS, variableKmText, type ExportStyle } from "@/lib/types";
 import { AUTO_TIMINGS } from "@/lib/timingsMode";
 import { tripTimes, journeyTripTimes, type JourneyTimes } from "@/lib/travel";
 import { loadTaGenConfig, type TaGenWindow, type TaRateKey } from "@/lib/taGenConfig";
@@ -664,7 +664,7 @@ export function exportDiary(
   logs: DailyLog[],
   stations: Station[],
   me: Staff | undefined,
-  out: (title: string, body: string, type: string, sheet?: XlsxSheet, opts?: { onePage?: boolean }) => void = exportDocument
+  out: (title: string, body: string, type: string, sheet?: XlsxSheet, opts?: { onePage?: boolean; style?: ExportStyle }) => void = exportDocument
 ) {
   const hq = stations.find((s) => s.id === me?.headquartersStationId);
   const hqCode = hqLabel(hq);
@@ -791,7 +791,7 @@ export function exportDiary(
     colWidths: [10.3, 8.7, 8.7, 8.7, 7.3, 7.3, 52.3],
   };
 
-  out(`Diary ${period.label}`, body, "diary", sheet, { onePage: true });
+  out(`Diary ${period.label}`, body, "diary", sheet, { onePage: true, style: "plain" });
 }
 
 
@@ -811,7 +811,7 @@ export function exportTaJournal(
   logs: DailyLog[],
   stations: Station[],
   me: Staff | undefined,
-  out: (title: string, body: string, type: string, sheet?: XlsxSheet, opts?: { onePage?: boolean }) => void = exportDocument
+  out: (title: string, body: string, type: string, sheet?: XlsxSheet, opts?: { onePage?: boolean; style?: ExportStyle }) => void = exportDocument
 ) {
   const hq = stations.find((s) => s.id === me?.headquartersStationId);
   const hqCode = hqLabel(hq);
@@ -1085,7 +1085,7 @@ export function exportTaJournal(
     colWidths: [10.43, 8.14, 9.71, 9.29, 6.71, 8.43, 4.29, 9.71, 11.43, 51, 12.14, 9],
   };
 
-  out(`TA Journal ${period.label}`, body, "ta", sheet, { onePage: true });
+  out(`TA Journal ${period.label}`, body, "ta", sheet, { onePage: true, style: "plain" });
 }
 
 
