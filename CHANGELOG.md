@@ -3,6 +3,19 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.74 — 2026-08-22
+
+**Minor: older materials stay visible, and equipment groups collapse like stations**
+
+- **Unassigned materials no longer vanish.** Materials created before station-wise
+  tracking (they were never assigned to a station and have no stock recorded) used
+  to be missing from the list — they only showed up in the low-stock banner. They
+  now appear under an **Unassigned** group at the top of the Materials list, with
+  their requirement and minimum spare, ready to be assigned via Edit.
+- **Equipment groups hide and expand.** Inside a station, the equipment sub-groups
+  (point, signal, general, …) now collapse and expand on tap, just like the station
+  headers — handy for long station lists.
+
 ## 1.7.6.73 — 2026-08-22
 
 **Major: materials assigned to stations — equipment-wise lists and a station picker when adding**

@@ -85,6 +85,8 @@ export function Materials() {
   const [materialStations, setMaterialStations] = useState<MaterialStation[]>([]);
   const [expandedStation, setExpandedStation] = useState<Set<number | null>>(new Set());
   const [expandedDetail, setExpandedDetail] = useState<Set<string>>(new Set());
+  // Equipment sub-groups start expanded; a key in this set means collapsed.
+  const [collapsedEquipment, setCollapsedEquipment] = useState<Set<string>>(new Set());
   const [materialForm, setMaterialForm] = useState<{ open: boolean; existing?: Material | null }>({ open: false });
   const [receiveForm, setReceiveForm] = useState<{ material: Material; stationId: number | null } | null>(null);
   const [useForm, setUseForm] = useState<{ material: Material; stationId: number | null } | null>(null);
@@ -146,15 +148,28 @@ export function Materials() {
    *  override, a receipt or a usage. Materials with nothing at that station do
    *  not clutter its list. */
   const stationGroups = useMemo(() => {
+    // Materials not assigned to any station — created before station-wise
+    // tracking existed. They have no station list of their own, so they live in
+    // an "Unassigned" catch-all group that keeps them visible instead of hiding
+    // them behind the low-stock banner. Materials that already have stock
+    // activity at a real station keep appearing in that station's list only.
+    const unassignedIds = new Set(
+      materials
+        .filter((m) => !materialStations.some((s) => s.materialId === m.id))
+        .filter((m) => !receipts.some((r) => r.materialId === m.id && r.stationId != null))
+        .filter((m) => !usages.some((u) => u.materialId === m.id && u.stationId != null))
+        .map((m) => m.id)
+    );
     const group = (stationId: number | null) => {
       const rows = materials
         .map((m) => {
+          const isUnassigned = stationId === null && unassignedIds.has(m.id);
           const mReceipts = receipts.filter((r) => r.materialId === m.id && r.stationId === stationId);
           const mUsages = usages.filter((u) => u.materialId === m.id && u.stationId === stationId);
           const received = mReceipts.reduce((n, r) => n + r.qty, 0);
           const used = mUsages.reduce((n, u) => n + u.qty, 0);
           const hasOverride = materialStations.some((s) => s.materialId === m.id && s.stationId === stationId);
-          if (received === 0 && used === 0 && !hasOverride) return null;
+          if (received === 0 && used === 0 && !hasOverride && !isUnassigned) return null;
           const req = effectiveRequirement(m, materialStations, stationId);
           return {
             material: m,
@@ -177,6 +192,7 @@ export function Materials() {
     for (const r of receipts) ids.add(r.stationId);
     for (const u of usages) ids.add(u.stationId);
     for (const s of materialStations) ids.add(s.stationId);
+    if (unassignedIds.size > 0) ids.add(null);
     const groups = [...ids]
       .map((id) => group(id))
       .filter((g) => g.rows.length > 0)
@@ -200,6 +216,15 @@ export function Materials() {
 
   const toggleDetail = (key: string) => {
     setExpandedDetail((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const toggleEquipment = (key: string) => {
+    setCollapsedEquipment((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
@@ -497,19 +522,31 @@ export function Materials() {
                 </button>
                 {open && (
                   <div className="bg-surface">
-                    {groupRowsByEquipment(group.rows).map((eqGroup) => (
-                      <div key={eqGroup.equipment}>
-                        <div className="border-b border-slate-100 bg-slate-100 px-3 py-1">
-                          <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
-                            {eqGroup.equipment === "general" ? "General" : eqGroup.equipment}
-                            <span className="ml-1.5 text-slate-400">({eqGroup.rows.length})</span>
-                          </p>
+                    {groupRowsByEquipment(group.rows).map((eqGroup) => {
+                      const eqKey = `${group.stationId ?? "none"}|${eqGroup.equipment}`;
+                      const eqOpen = !collapsedEquipment.has(eqKey);
+                      return (
+                        <div key={eqGroup.equipment}>
+                          <button
+                            onClick={() => toggleEquipment(eqKey)}
+                            className="flex w-full items-center justify-between gap-2 border-b border-slate-100 bg-slate-100 px-3 py-1 text-left"
+                          >
+                            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                              {eqGroup.equipment === "general" ? "General" : eqGroup.equipment}
+                              <span className="ml-1.5 text-slate-400">({eqGroup.rows.length})</span>
+                            </p>
+                            <span className="flex-shrink-0 text-[10px] font-bold text-slate-400">
+                              {eqOpen ? "▴" : "▾"}
+                            </span>
+                          </button>
+                          {eqOpen && (
+                            <div className="divide-y divide-slate-100">
+                              {eqGroup.rows.map((r) => materialRow(r))}
+                            </div>
+                          )}
                         </div>
-                        <div className="divide-y divide-slate-100">
-                          {eqGroup.rows.map((r) => materialRow(r))}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
