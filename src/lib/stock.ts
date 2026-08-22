@@ -1,4 +1,4 @@
-import type { Material, MaterialReceipt, MaterialUsage } from "@/db/schema";
+import type { Material, MaterialReceipt, MaterialUsage, MaterialStation } from "@/db/schema";
 
 /** One station whose in-hand stock for a material has fallen below the
  *  material's minimum required spare. */
@@ -42,31 +42,68 @@ export function stationInHand(
   return byStation;
 }
 
-/** Every (material × station) whose in-hand balance is below the material's
- *  minimum required spare, sorted by material name then station. Materials
- *  without a minimum set (0 / missing) never alert. The station label comes
- *  from the caller's stationName callback. */
+/** The requirement that applies to a material at one station: the station's own
+ *  override when a materialStations row exists, otherwise the material's
+ *  requiredQty / minRequiredSpare defaults. */
+export function effectiveRequirement(
+  material: Material,
+  materialStations: MaterialStation[],
+  stationId: number | null
+): { requiredQty: number; minRequiredSpare: number } {
+  const row = materialStations.find(
+    (s) => s.materialId === material.id && s.stationId === stationId
+  );
+  if (row) return { requiredQty: row.requiredQty, minRequiredSpare: row.minRequiredSpare };
+  return {
+    requiredQty: material.requiredQty,
+    minRequiredSpare: Number(material.minRequiredSpare) || 0,
+  };
+}
+
+/**
+ * Every (material × station) whose in-hand balance is below that station's
+ * effective minimum required spare, sorted by material name then station.
+ *
+ * The minimum is taken per station: an explicit materialStations row overrides
+ * the material's own minRequiredSpare. Only stations that have a minimum set
+ * (via their own row or the material default) are considered, and a station is
+ * checked even when it holds no stock at all (in-hand 0) — that is the whole
+ * point of a per-station minimum. The station label comes from the caller's
+ * stationName callback.
+ */
 export function lowStockAlerts(
   materials: Material[],
+  materialStations: MaterialStation[],
   receipts: MaterialReceipt[],
   usages: MaterialUsage[],
   stationName: (id: number | null) => string
 ): LowStockAlert[] {
   const byStation = stationInHand(receipts, usages);
   const alerts: LowStockAlert[] = [];
-  for (const [stationId, mat] of byStation) {
-    for (const [materialId, inHand] of mat) {
-      const material = materials.find((x) => x.id === materialId);
-      if (!material) continue;
-      const min = Number(material.minRequiredSpare) || 0;
-      if (min <= 0 || inHand >= min) continue;
+  for (const material of materials) {
+    const min = Number(material.minRequiredSpare) || 0;
+    if (min <= 0 && !materialStations.some((s) => s.materialId === material.id && s.minRequiredSpare > 0)) {
+      continue;
+    }
+    // Stations to check: every station that appears in stock data, plus every
+    // station with its own requirement override.
+    const stationIds = new Set<number | null>();
+    for (const id of byStation.keys()) stationIds.add(id);
+    for (const s of materialStations) {
+      if (s.materialId === material.id) stationIds.add(s.stationId);
+    }
+    for (const stationId of stationIds) {
+      const { minRequiredSpare } = effectiveRequirement(material, materialStations, stationId);
+      if (minRequiredSpare <= 0) continue;
+      const inHand = byStation.get(stationId)?.get(material.id) ?? 0;
+      if (inHand >= minRequiredSpare) continue;
       alerts.push({
         material,
         stationId,
         stationLabel: stationName(stationId),
         inHand,
-        minRequiredSpare: min,
-        shortage: min - inHand,
+        minRequiredSpare,
+        shortage: minRequiredSpare - inHand,
       });
     }
   }

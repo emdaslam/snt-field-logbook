@@ -20,6 +20,7 @@ import type {
   Material,
   MaterialReceipt,
   MaterialUsage,
+  MaterialStation,
   EquipmentType,
 } from "@/db/schema";
 import { isSpecialMovement, type PcdoWork, type CounterReset } from "@/lib/types";
@@ -486,6 +487,55 @@ export const api = {
     remove: (id: number) => {
       markDataDirty();
       return ldb.remove("materialUsages", id);
+    },
+  },
+
+  /** Station-specific requirement overrides: how many of a material are required
+   *  and what minimum spare must be kept in hand at one station. A material
+   *  without a row here uses its own requiredQty / minRequiredSpare defaults. */
+  materialStations: {
+    list: async () => ldb.readTable<MaterialStation>("materialStations"),
+    /** Create or update the requirement for one (material × station) pair. */
+    upsert: async (b: {
+      materialId: number;
+      stationId: number;
+      requiredQty: number;
+      minRequiredSpare: number;
+    }) => {
+      markDataDirty();
+      const rows = await ldb.readTable<MaterialStation>("materialStations");
+      const existing = rows.find(
+        (r) => r.materialId === b.materialId && r.stationId === b.stationId
+      );
+      if (existing) {
+        await ldb.writeTable(
+          "materialStations",
+          rows.map((r) =>
+            r.id === existing.id
+              ? { ...r, requiredQty: num(b.requiredQty), minRequiredSpare: num(b.minRequiredSpare) }
+              : r
+          )
+        );
+        return { ...existing, requiredQty: num(b.requiredQty), minRequiredSpare: num(b.minRequiredSpare) } as MaterialStation;
+      }
+      return ldb.insert("materialStations", {
+        materialId: num(b.materialId),
+        stationId: num(b.stationId),
+        requiredQty: num(b.requiredQty),
+        minRequiredSpare: num(b.minRequiredSpare),
+      }) as unknown as Promise<MaterialStation>;
+    },
+    remove: async (id: number) => {
+      markDataDirty();
+      return ldb.remove("materialStations", id);
+    },
+    removeForMaterialStation: async (materialId: number, stationId: number) => {
+      markDataDirty();
+      const rows = await ldb.readTable<MaterialStation>("materialStations");
+      await ldb.writeTable(
+        "materialStations",
+        rows.filter((r) => !(r.materialId === materialId && r.stationId === stationId))
+      );
     },
   },
 

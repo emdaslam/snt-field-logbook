@@ -132,6 +132,7 @@ const DATA_KEYS = [
   "materials",
   "materialReceipts",
   "materialUsages",
+  "materialStations",
   "equipmentTypes",
 ] as const;
 

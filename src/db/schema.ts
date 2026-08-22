@@ -281,6 +281,19 @@ export type EquipmentType = {
   createdAt: string;
 };
 
+/** A station-specific requirement for a material: how many are required and
+ *  what minimum spare must be kept in hand at that station. When no row exists
+ *  for a (material, station) pair the material's own requiredQty /
+ *  minRequiredSpare act as the default. */
+export type MaterialStation = {
+  id: number;
+  materialId: number;
+  stationId: number;
+  requiredQty: number;
+  minRequiredSpare: number;
+  createdAt: string;
+};
+
 /** One delivery of a material: how many were received and where they were kept
  *  (station + room) with a remark recording exactly where they were placed. */
 export type MaterialReceipt = {

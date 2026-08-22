@@ -5,6 +5,7 @@ import { isSpecialMovement, EQUIPMENT_DEFAULTS, variableKmText } from "@/lib/typ
 import { AUTO_TIMINGS } from "@/lib/timingsMode";
 import { tripTimes, journeyTripTimes, type JourneyTimes } from "@/lib/travel";
 import { loadTaGenConfig, type TaGenWindow, type TaRateKey } from "@/lib/taGenConfig";
+import { effectiveRequirement } from "@/lib/stock";
 import type { XlsxCell, XlsxSheet, XlsxMerge } from "@/lib/xlsx";
 import type {
   DeficiencyTask,
@@ -18,6 +19,7 @@ import type {
   Material,
   MaterialReceipt,
   MaterialUsage,
+  MaterialStation,
 } from "@/db/schema";
 
 function esc(s: string | null | undefined) {
@@ -1300,6 +1302,10 @@ export type StationMaterialRow = {
   materialId: number;
   name: string;
   unit: string;
+  /** Effective required quantity at this station (override or material default). */
+  requiredQty: number;
+  /** Effective minimum spare at this station (override or material default). */
+  minRequiredSpare: number;
   received: number;
   used: number;
   inHand: number;
@@ -1309,6 +1315,7 @@ export type StationMaterialSummary = {
   stationId: number | null;
   stationLabel: string;
   rows: StationMaterialRow[];
+  requiredTotal: number;
   receivedTotal: number;
   usedTotal: number;
   inHandTotal: number;
@@ -1316,9 +1323,12 @@ export type StationMaterialSummary = {
 
 /** Aggregate receipts and usage per station, per material. Stations that only
  *  appear on receipts or only on usage rows still get a summary (the empty
- *  side shows 0). The label comes from the caller's stationName callback. */
+ *  side shows 0). The label comes from the caller's stationName callback.
+ *  Each row also carries the station's effective required quantity and minimum
+ *  spare (a materialStations override, else the material's defaults). */
 export function stationMaterialSummaries(
   materials: Material[],
+  materialStations: MaterialStation[],
   receipts: MaterialReceipt[],
   usages: MaterialUsage[],
   stationName: (id: number | null) => string
@@ -1338,18 +1348,23 @@ export function stationMaterialSummaries(
   const out: StationMaterialSummary[] = [];
   for (const [stationId, mat] of byStation) {
     const rows: StationMaterialRow[] = [];
+    let requiredTotal = 0;
     let receivedTotal = 0;
     let usedTotal = 0;
     for (const [materialId, e] of mat) {
       const m = materials.find((x) => x.id === materialId);
+      const req = effectiveRequirement(m!, materialStations, stationId);
       rows.push({
         materialId,
         name: m?.name ?? "Unnamed material",
         unit: m?.unit ?? "",
+        requiredQty: req.requiredQty,
+        minRequiredSpare: req.minRequiredSpare,
         received: e.received,
         used: e.used,
         inHand: e.received - e.used,
       });
+      requiredTotal += req.requiredQty;
       receivedTotal += e.received;
       usedTotal += e.used;
     }
@@ -1358,6 +1373,7 @@ export function stationMaterialSummaries(
       stationId,
       stationLabel: stationName(stationId),
       rows,
+      requiredTotal,
       receivedTotal,
       usedTotal,
       inHandTotal: receivedTotal - usedTotal,
@@ -1375,17 +1391,19 @@ export function stationMaterialSummaries(
  */
 export function exportMaterials(
   materials: Material[],
+  materialStations: MaterialStation[],
   receipts: MaterialReceipt[],
   usages: MaterialUsage[],
   stations: Station[]
 ) {
-  exportDocument("Materials Report", materialsReportBody(materials, receipts, usages, stations), "materials");
+  exportDocument("Materials Report", materialsReportBody(materials, materialStations, receipts, usages, stations), "materials");
 }
 
 /** HTML body of the materials report (see exportMaterials). Split out so it is
  *  easy to verify headlessly. */
 export function materialsReportBody(
   materials: Material[],
+  materialStations: MaterialStation[],
   receipts: MaterialReceipt[],
   usages: MaterialUsage[],
   stations: Station[]
@@ -1430,15 +1448,43 @@ export function materialsReportBody(
 
   if (materials.length === 0) {
     body += `<p class="empty">No materials on the required list yet. Add materials in the app first.</p>`;
+  return body;
+}
+
+/** HTML body of the in-hand materials export (see exportInHandMaterials). */
+export function inHandMaterialsReportBody(
+  materials: Material[],
+  materialStations: MaterialStation[],
+  receipts: MaterialReceipt[],
+  usages: MaterialUsage[],
+  stations: Station[]
+): string {
+  const stationName = (id: number | null) =>
+    id == null ? "Station not set" : stations.find((s) => s.id === id)?.name ?? "Unassigned";
+  const qty = (n: number, unit: string) => `${fmtQty(n)} ${unit}`;
+
+  let body = `<h1>In-Hand Materials Report</h1>`;
+  body += `<p class="meta">Generated ${fmtDate(toISODate(new Date()))} · ${materials.length} material${materials.length !== 1 ? "s" : ""} on the required list</p>`;
+
+  if (materials.length === 0) {
+    body += `<p class="empty">No materials on the required list yet. Add materials in the app first.</p>`;
     return body;
   }
 
-  body += `<h2>Summary (grouped by equipment)</h2>`;
-  body += `<table><tr><th>Material</th><th data-align="center">Required</th><th data-align="center">Received</th><th data-align="center">Used</th><th data-align="center">In Hand</th></tr>${summaryRows}</table>`;
+  /* ---------- Overall in-hand summary ---------- */
+  body += `<h2>Overall In-Hand Summary</h2>`;
+  let overallRows = "";
+  for (const m of [...materials].sort((a, b) => a.name.localeCompare(b.name))) {
+    const received = materialReceivedTotal(m.id, receipts);
+    const used = materialUsedTotal(m.id, usages);
+    const inHand = received - used;
+    overallRows += `<tr><td>${esc(m.name)}</td><td data-align="center">${qty(received, m.unit)}</td><td data-align="center">${qty(used, m.unit)}</td><td data-align="center"><strong>${qty(inHand, m.unit)}</strong></td></tr>`;
+  }
+  body += `<table><tr><th>Material</th><th data-align="center">Received</th><th data-align="center">Used</th><th data-align="center">In Hand</th></tr>${overallRows}</table>`;
 
-  /* ---------- Station-wise summary ---------- */
-  const stationSummaries = stationMaterialSummaries(materials, receipts, usages, stationName);
-  body += `<h2>Station-wise Summary</h2>`;
+  /* ---------- Station-wise in-hand ---------- */
+  body += `<h2>Station-wise In-Hand</h2>`;
+  const stationSummaries = stationMaterialSummaries(materials, materialStations, receipts, usages, stationName);
   if (stationSummaries.length === 0) {
     body += `<p class="empty">No receipts or usage recorded yet.</p>`;
   } else {
@@ -1448,6 +1494,99 @@ export function materialsReportBody(
         body += `<tr><td>${esc(s.stationLabel)}</td><td>${esc(r.name)}</td><td data-align="center">${qty(r.received, r.unit)}</td><td data-align="center">${qty(r.used, r.unit)}</td><td data-align="center">${qty(r.inHand, r.unit)}</td></tr>`;
       }
       body += `<tr><td><strong>${esc(s.stationLabel)} — Total</strong></td><td></td><td data-align="center"><strong>${fmtQty(s.receivedTotal)}</strong></td><td data-align="center"><strong>${fmtQty(s.usedTotal)}</strong></td><td data-align="center"><strong>${fmtQty(s.inHandTotal)}</strong></td></tr>`;
+    }
+    body += `</table>`;
+  }
+
+  return body;
+}
+
+/** HTML body of the required-materials export (see exportRequiredMaterials). */
+export function requiredMaterialsReportBody(
+  materials: Material[],
+  materialStations: MaterialStation[],
+  receipts: MaterialReceipt[],
+  usages: MaterialUsage[],
+  stations: Station[]
+): string {
+  const stationName = (id: number | null) =>
+    id == null ? "Station not set" : stations.find((s) => s.id === id)?.name ?? "Unassigned";
+  const qty = (n: number, unit: string) => `${fmtQty(n)} ${unit}`;
+
+  let body = `<h1>Required Materials Report</h1>`;
+  body += `<p class="meta">Generated ${fmtDate(toISODate(new Date()))} · ${materials.length} material${materials.length !== 1 ? "s" : ""} on the required list</p>`;
+
+  if (materials.length === 0) {
+    body += `<p class="empty">No materials on the required list yet. Add materials in the app first.</p>`;
+    return body;
+  }
+
+  /* ---------- Overall required summary ---------- */
+  body += `<h2>Overall Required Summary</h2>`;
+  let overallRows = "";
+  for (const m of [...materials].sort((a, b) => a.name.localeCompare(b.name))) {
+    const received = materialReceivedTotal(m.id, receipts);
+    const remaining = Math.max(0, m.requiredQty - received);
+    overallRows += `<tr><td>${esc(m.name)}</td><td data-align="center">${qty(m.requiredQty, m.unit)}</td><td data-align="center">${qty(Number(m.minRequiredSpare) || 0, m.unit)}</td><td data-align="center">${qty(received, m.unit)}</td><td data-align="center"><strong>${qty(remaining, m.unit)}</strong></td></tr>`;
+  }
+  body += `<table><tr><th>Material</th><th data-align="center">Required</th><th data-align="center">Min Spare</th><th data-align="center">Received</th><th data-align="center">Still Required</th></tr>${overallRows}</table>`;
+
+  /* ---------- Station-wise required list ---------- */
+  body += `<h2>Station-wise Required List</h2>`;
+  const stationSummaries = stationMaterialSummaries(materials, materialStations, receipts, usages, stationName);
+  if (stationSummaries.length === 0) {
+    body += `<p class="empty">No receipts or usage recorded yet.</p>`;
+  } else {
+    body += `<table><tr><th>Station</th><th>Material</th><th data-align="center">Required</th><th data-align="center">Min Spare</th><th data-align="center">Received</th><th data-align="center">In Hand</th></tr>`;
+    for (const s of stationSummaries) {
+      for (const r of s.rows) {
+        body += `<tr><td>${esc(s.stationLabel)}</td><td>${esc(r.name)}</td><td data-align="center">${qty(r.requiredQty, r.unit)}</td><td data-align="center">${qty(r.minRequiredSpare, r.unit)}</td><td data-align="center">${qty(r.received, r.unit)}</td><td data-align="center">${qty(r.inHand, r.unit)}</td></tr>`;
+      }
+      body += `<tr><td><strong>${esc(s.stationLabel)} — Total</strong></td><td></td><td data-align="center"><strong>${fmtQty(s.requiredTotal)}</strong></td><td data-align="center"></td><td data-align="center"><strong>${fmtQty(s.receivedTotal)}</strong></td><td data-align="center"><strong>${fmtQty(s.inHandTotal)}</strong></td></tr>`;
+    }
+    body += `</table>`;
+  }
+
+  return body;
+}
+
+/** Export the in-hand materials report (overall + station-wise in-hand). */
+export function exportInHandMaterials(
+  materials: Material[],
+  materialStations: MaterialStation[],
+  receipts: MaterialReceipt[],
+  usages: MaterialUsage[],
+  stations: Station[]
+) {
+  exportDocument("In-Hand Materials Report", inHandMaterialsReportBody(materials, materialStations, receipts, usages, stations), "materials");
+}
+
+/** Export the required-materials report (overall + station-wise required). */
+export function exportRequiredMaterials(
+  materials: Material[],
+  materialStations: MaterialStation[],
+  receipts: MaterialReceipt[],
+  usages: MaterialUsage[],
+  stations: Station[]
+) {
+  exportDocument("Required Materials Report", requiredMaterialsReportBody(materials, materialStations, receipts, usages, stations), "materials");
+}
+
+  body += `<h2>Summary (grouped by equipment)</h2>`;
+  body += `<table><tr><th>Material</th><th data-align="center">Required</th><th data-align="center">Received</th><th data-align="center">Used</th><th data-align="center">In Hand</th></tr>${summaryRows}</table>`;
+
+  /* ---------- Station-wise summary ---------- */
+  const stationSummaries = stationMaterialSummaries(materials, materialStations, receipts, usages, stationName);
+  body += `<h2>Station-wise Summary</h2>`;
+  if (stationSummaries.length === 0) {
+    body += `<p class="empty">No receipts or usage recorded yet.</p>`;
+  } else {
+    body += `<table><tr><th>Station</th><th>Material</th><th data-align="center">Required</th><th data-align="center">Received</th><th data-align="center">Used</th><th data-align="center">In Hand</th></tr>`;
+    for (const s of stationSummaries) {
+      for (const r of s.rows) {
+        body += `<tr><td>${esc(s.stationLabel)}</td><td>${esc(r.name)}</td><td data-align="center">${qty(r.requiredQty, r.unit)}</td><td data-align="center">${qty(r.received, r.unit)}</td><td data-align="center">${qty(r.used, r.unit)}</td><td data-align="center">${qty(r.inHand, r.unit)}</td></tr>`;
+      }
+      body += `<tr><td><strong>${esc(s.stationLabel)} — Total</strong></td><td></td><td data-align="center"><strong>${fmtQty(s.requiredTotal)}</strong></td><td data-align="center"><strong>${fmtQty(s.receivedTotal)}</strong></td><td data-align="center"><strong>${fmtQty(s.usedTotal)}</strong></td><td data-align="center"><strong>${fmtQty(s.inHandTotal)}</strong></td></tr>`;
     }
     body += `</table>`;
   }

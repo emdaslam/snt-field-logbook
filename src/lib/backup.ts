@@ -12,6 +12,7 @@ export type BackupPayload = {
   materials?: unknown[];
   materialReceipts?: unknown[];
   materialUsages?: unknown[];
+  materialStations?: unknown[];
   equipmentTypes?: unknown[];
   settings?: Record<string, string>;
 };
@@ -23,6 +24,7 @@ export const BACKUP_TABLES = [
   { key: "materials", label: "Materials" },
   { key: "materialReceipts", label: "Material Receipts" },
   { key: "materialUsages", label: "Material Usage" },
+  { key: "materialStations", label: "Material Station Requirements" },
   { key: "equipmentTypes", label: "Equipment" },
   { key: "stations", label: "Stations" },
   { key: "staff", label: "Staff" },

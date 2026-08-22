@@ -4,18 +4,28 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { useData } from "./DataProvider";
 import { Modal, Field, inputClass, PrimaryButton } from "./ui";
 import { api, toISODate } from "@/lib/api";
-import { exportMaterials, stationMaterialSummaries } from "./exports";
+import {
+  exportMaterials,
+  exportInHandMaterials,
+  exportRequiredMaterials,
+  stationMaterialSummaries,
+} from "./exports";
 import { MATERIAL_UNITS, EQUIPMENT_DEFAULTS } from "@/lib/types";
-import { lowStockAlerts } from "@/lib/stock";
-import type { Material, MaterialReceipt, MaterialUsage, EquipmentType } from "@/db/schema";
+import { lowStockAlerts, effectiveRequirement } from "@/lib/stock";
+import type {
+  Material,
+  MaterialReceipt,
+  MaterialUsage,
+  MaterialStation,
+  EquipmentType,
+  Station,
+} from "@/db/schema";
 
 type MatSummary = {
   material: Material;
   received: number;
   used: number;
   inHand: number;
-  /** Required still outstanding — drops as material is received. */
-  remaining: number;
   receipts: MaterialReceipt[];
   usages: MaterialUsage[];
 };
@@ -37,35 +47,40 @@ function qtyLabel(qty: number, unit?: string): string {
   return unit ? `${q} ${unit}` : q;
 }
 
-/** Hamburger "Materials" tab — the required list with receipts (received
- *  quantity, station, room, where placed) and usage (quantity, purpose). */
+/** Hamburger "Materials" tab — the required list grouped station-wise, with
+ *  each station's own requirement and minimum spare, and its received / used /
+ *  in-hand quantities for every material. */
 export function Materials() {
   const { stations, stationName, refresh } = useData();
   const [materials, setMaterials] = useState<Material[]>([]);
   const [receipts, setReceipts] = useState<MaterialReceipt[]>([]);
   const [usages, setUsages] = useState<MaterialUsage[]>([]);
-  const [expanded, setExpanded] = useState<Set<number>>(new Set());
-  const [expandedEquipment, setExpandedEquipment] = useState<Set<string>>(new Set());
-  const [expandedStations, setExpandedStations] = useState<Set<number | null>>(new Set());
+  const [materialStations, setMaterialStations] = useState<MaterialStation[]>([]);
+  const [expandedStation, setExpandedStation] = useState<Set<number | null>>(new Set());
+  const [expandedDetail, setExpandedDetail] = useState<Set<string>>(new Set());
   const [materialForm, setMaterialForm] = useState<{ open: boolean; existing?: Material | null }>({ open: false });
-  const [receiveForm, setReceiveForm] = useState<Material | null>(null);
-  const [useForm, setUseForm] = useState<Material | null>(null);
-  const [addReqForm, setAddReqForm] = useState<Material | null>(null);
+  const [receiveForm, setReceiveForm] = useState<{ material: Material; stationId: number | null } | null>(null);
+  const [useForm, setUseForm] = useState<{ material: Material; stationId: number | null } | null>(null);
+  const [addReqForm, setAddReqForm] = useState<{ material: Material; stationId: number | null } | null>(null);
+  const [setReqForm, setSetReqForm] = useState<{ material: Material; stationId: number | null } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ kind: "material" | "receipt" | "usage"; id: number } | null>(null);
   const [equipmentTypes, setEquipmentTypes] = useState<EquipmentType[]>([]);
   const [equipmentForm, setEquipmentForm] = useState(false);
+  const [exportMenu, setExportMenu] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const load = async () => {
-    const [m, r, u, e] = await Promise.all([
+    const [m, r, u, ms, e] = await Promise.all([
       api.materials.list(),
       api.materialReceipts.list(),
       api.materialUsages.list(),
+      api.materialStations.list(),
       api.equipmentTypes.list(),
     ]);
     setMaterials(m);
     setReceipts(r);
     setUsages(u);
+    setMaterialStations(ms);
     setEquipmentTypes(e);
   };
 
@@ -90,7 +105,6 @@ export function Materials() {
         received,
         used,
         inHand: received - used,
-        remaining: Math.max(0, material.requiredQty - received),
         receipts: mReceipts,
         usages: mUsages,
       };
@@ -100,64 +114,67 @@ export function Materials() {
   const totalMaterials = materials.length;
   const totalReceived = summaries.reduce((n, s) => n + s.received, 0);
   const totalUsed = summaries.reduce((n, s) => n + s.used, 0);
-  const totalRemaining = summaries.reduce((n, s) => n + s.remaining, 0);
 
-  /** Materials grouped by equipment. "general" is the catch-all every material
-   *  starts in; the default list keeps its fixed order, custom equipment added
-   *  later follows it, and anything not in the list trails at the end. */
-  const equipmentGroups = useMemo(() => {
-    const groups = new Map<string, MatSummary[]>();
-    for (const s of summaries) {
-      const eq = (s.material.equipment || "general").trim() || "general";
-      const list = groups.get(eq) ?? [];
-      list.push(s);
-      groups.set(eq, list);
-    }
-    const known = new Set(equipmentTypes.map((e) => e.name));
-    const defaults = EQUIPMENT_DEFAULTS.filter((d) => groups.has(d));
-    const defaultsSet = EQUIPMENT_DEFAULTS as readonly string[];
-    const custom = equipmentTypes.map((e) => e.name).filter((n) => !defaultsSet.includes(n) && groups.has(n));
-    const leftover = [...groups.keys()].filter((n) => !known.has(n));
-    return [...defaults, ...custom, ...leftover].map((equipment) => ({
-      equipment,
-      items: groups.get(equipment)!,
-    }));
-  }, [summaries, equipmentTypes]);
+  /** Per station, the materials that have any presence there — a requirement
+   *  override, a receipt or a usage. Materials with nothing at that station do
+   *  not clutter its list. */
+  const stationGroups = useMemo(() => {
+    const group = (stationId: number | null) => {
+      const rows = materials
+        .map((m) => {
+          const mReceipts = receipts.filter((r) => r.materialId === m.id && r.stationId === stationId);
+          const mUsages = usages.filter((u) => u.materialId === m.id && u.stationId === stationId);
+          const received = mReceipts.reduce((n, r) => n + r.qty, 0);
+          const used = mUsages.reduce((n, u) => n + u.qty, 0);
+          const hasOverride = materialStations.some((s) => s.materialId === m.id && s.stationId === stationId);
+          if (received === 0 && used === 0 && !hasOverride) return null;
+          const req = effectiveRequirement(m, materialStations, stationId);
+          return {
+            material: m,
+            requiredQty: req.requiredQty,
+            minRequiredSpare: req.minRequiredSpare,
+            received,
+            used,
+            inHand: received - used,
+            receipts: mReceipts.sort((a, b) => b.date.localeCompare(a.date)),
+            usages: mUsages.sort((a, b) => b.date.localeCompare(a.date)),
+          };
+        })
+        .filter((r): r is NonNullable<typeof r> => r !== null)
+        .sort((a, b) => a.material.name.localeCompare(b.material.name));
+      return { stationId, rows };
+    };
 
-  const stationSummaries = useMemo(
-    () =>
-      stationMaterialSummaries(materials, receipts, usages, (id) => stationName(id)),
-    [materials, receipts, usages, stationName]
-  );
+    const ids = new Set<number | null>();
+    for (const r of receipts) ids.add(r.stationId);
+    for (const u of usages) ids.add(u.stationId);
+    for (const s of materialStations) ids.add(s.stationId);
+    const groups = [...ids]
+      .map((id) => group(id))
+      .filter((g) => g.rows.length > 0)
+      .sort((a, b) => stationName(a.stationId).localeCompare(stationName(b.stationId)));
+    return groups;
+  }, [materials, receipts, usages, materialStations, stationName]);
 
   const lowStock = useMemo(
-    () => lowStockAlerts(materials, receipts, usages, (id) => stationName(id)),
-    [materials, receipts, usages, stationName]
+    () => lowStockAlerts(materials, materialStations, receipts, usages, (id) => stationName(id)),
+    [materials, materialStations, receipts, usages, stationName]
   );
 
-  const toggleExpanded = (id: number) => {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const toggleEquipment = (name: string) => {
-    setExpandedEquipment((prev) => {
-      const next = new Set(prev);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
-      return next;
-    });
-  };
-
   const toggleStation = (id: number | null) => {
-    setExpandedStations((prev) => {
+    setExpandedStation((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleDetail = (key: string) => {
+    setExpandedDetail((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   };
@@ -189,8 +206,15 @@ export function Materials() {
     }
   };
 
-  const doExport = () => {
-    exportMaterials(materials, receipts, usages, stations);
+  const doExport = (which: "full" | "inhand" | "required") => {
+    setExportMenu(false);
+    if (which === "inhand") {
+      exportInHandMaterials(materials, materialStations, receipts, usages, stations);
+    } else if (which === "required") {
+      exportRequiredMaterials(materials, materialStations, receipts, usages, stations);
+    } else {
+      exportMaterials(materials, materialStations, receipts, usages, stations);
+    }
   };
 
   const statClass = (value: number, bad: boolean) =>
@@ -198,50 +222,66 @@ export function Materials() {
       bad ? "bg-red-50 text-red-600" : value > 0 ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
     }`;
 
-  const materialCard = (s: MatSummary) => {
-    const m = s.material;
-    const open = expanded.has(m.id);
+  const materialRow = (row: NonNullable<ReturnType<typeof stationGroups>[number]["rows"][number]>) => {
+    const m = row.material;
+    const stationId = row.stationId;
+    const detailKey = `${stationId ?? "none"}:${m.id}`;
+    const open = expandedDetail.has(detailKey);
     return (
       <div key={m.id} className="px-3 py-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-slate-800">{m.name}</p>
-            <div className="mt-1 flex flex-wrap items-center gap-1.5">
-              <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
-                Required: {qtyLabel(s.remaining, m.unit)}
-              </span>
-              {Number(m.minRequiredSpare) > 0 && (
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                  Min spare: {qtyLabel(Number(m.minRequiredSpare), m.unit)}
+            <p className="text-sm font-semibold text-slate-800">
+              {m.name}
+              {(m.equipment || "general").trim() && (m.equipment || "general").trim() !== "general" && (
+                <span className="ml-1.5 rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700">
+                  {m.equipment}
                 </span>
               )}
-              <span className={statClass(s.received, false)}>Received: {fmtQty(s.received)}</span>
-              <span className={statClass(s.used, false)}>Used: {fmtQty(s.used)}</span>
-              <span className={statClass(s.inHand, s.inHand < 0)}>In hand: {fmtQty(s.inHand)}</span>
+            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+              <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+                Required: {qtyLabel(row.requiredQty, m.unit)}
+              </span>
+              {Number(row.minRequiredSpare) > 0 && (
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                  Min spare: {qtyLabel(Number(row.minRequiredSpare), m.unit)}
+                </span>
+              )}
+              <span className={statClass(row.received, false)}>Received: {fmtQty(row.received)}</span>
+              <span className={statClass(row.used, false)}>Used: {fmtQty(row.used)}</span>
+              <span className={statClass(row.inHand, row.inHand < 0)}>In hand: {fmtQty(row.inHand)}</span>
             </div>
           </div>
           <div className="flex flex-shrink-0 items-center gap-1">
             <button
-              onClick={() => setReceiveForm(m)}
+              onClick={() => setReceiveForm({ material: m, stationId })}
               className="rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
             >
               Receive
             </button>
             <button
-              onClick={() => setUseForm(m)}
+              onClick={() => setUseForm({ material: m, stationId })}
               className="rounded-lg bg-amber-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
             >
               Use
             </button>
             <button
-              onClick={() => setAddReqForm(m)}
+              onClick={() => setAddReqForm({ material: m, stationId })}
               className="rounded-lg bg-blue-600 px-2 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
-              title="Add more to the requirement"
+              title="Add more to this station's requirement"
             >
               + Req
             </button>
             <button
-              onClick={() => toggleExpanded(m.id)}
+              onClick={() => setSetReqForm({ material: m, stationId })}
+              className="rounded-lg border border-blue-800 px-2 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-50"
+              title="Set this station's requirement and minimum spare"
+            >
+              Req
+            </button>
+            <button
+              onClick={() => toggleDetail(detailKey)}
               className={`rounded-lg border border-slate-300 px-2 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 ${
                 open ? "bg-slate-100" : ""
               }`}
@@ -271,13 +311,13 @@ export function Materials() {
           <div className="mt-3 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
             <div>
               <p className="mb-1 text-xs font-bold uppercase text-slate-500">
-                Received ({s.receipts.length})
+                Received at {stationName(stationId)} ({row.receipts.length})
               </p>
-              {s.receipts.length === 0 ? (
-                <p className="text-xs text-slate-400">No receipts yet — tap Receive.</p>
+              {row.receipts.length === 0 ? (
+                <p className="text-xs text-slate-400">No receipts at this station yet — tap Receive.</p>
               ) : (
                 <div className="space-y-1.5">
-                  {s.receipts.map((r) => (
+                  {row.receipts.map((r) => (
                     <div key={r.id} className="flex items-start justify-between gap-2 rounded-lg bg-surface p-2 text-xs">
                       <div className="min-w-0">
                         <p className="font-semibold text-slate-800">
@@ -301,12 +341,14 @@ export function Materials() {
               )}
             </div>
             <div>
-              <p className="mb-1 text-xs font-bold uppercase text-slate-500">Used ({s.usages.length})</p>
-              {s.usages.length === 0 ? (
-                <p className="text-xs text-slate-400">No usage recorded yet — tap Use.</p>
+              <p className="mb-1 text-xs font-bold uppercase text-slate-500">
+                Used at {stationName(stationId)} ({row.usages.length})
+              </p>
+              {row.usages.length === 0 ? (
+                <p className="text-xs text-slate-400">No usage recorded at this station yet — tap Use.</p>
               ) : (
                 <div className="space-y-1.5">
-                  {s.usages.map((u) => (
+                  {row.usages.map((u) => (
                     <div key={u.id} className="flex items-start justify-between gap-2 rounded-lg bg-surface p-2 text-xs">
                       <div className="min-w-0">
                         <p className="font-semibold text-slate-800">
@@ -337,10 +379,9 @@ export function Materials() {
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-blue-50 px-3 py-2">
         <p className="text-xs text-slate-600">
           <strong>{totalMaterials}</strong> material{totalMaterials !== 1 ? "s" : ""} · received{" "}
-          <strong>{fmtQty(totalReceived)}</strong> · used <strong>{fmtQty(totalUsed)}</strong> · still required{" "}
-          <strong>{fmtQty(totalRemaining)}</strong>
+          <strong>{fmtQty(totalReceived)}</strong> · used <strong>{fmtQty(totalUsed)}</strong>
         </p>
-        <div className="flex flex-shrink-0 items-center gap-1.5">
+        <div className="relative flex flex-shrink-0 items-center gap-1.5">
           <button
             onClick={() => setEquipmentForm(true)}
             className="rounded-lg border border-blue-800 px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-100"
@@ -348,12 +389,37 @@ export function Materials() {
             + New Equipment
           </button>
           <button
-            onClick={doExport}
+            onClick={() => setExportMenu((v) => !v)}
             disabled={materials.length === 0 || busy}
             className="rounded-lg bg-blue-800 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            📄 Export PDF
+            📄 Export PDF ▾
           </button>
+          {exportMenu && (
+            <div className="absolute right-0 top-9 z-20 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+              <button
+                onClick={() => doExport("inhand")}
+                className="block w-full px-4 py-2.5 text-left text-sm font-medium text-slate-700 hover:bg-blue-50"
+              >
+                In-hand materials
+                <span className="block text-[11px] font-normal text-slate-400">Overall + station-wise in hand</span>
+              </button>
+              <button
+                onClick={() => doExport("required")}
+                className="block w-full px-4 py-2.5 text-left text-sm font-medium text-slate-700 hover:bg-blue-50"
+              >
+                Required materials
+                <span className="block text-[11px] font-normal text-slate-400">Overall + station-wise required list</span>
+              </button>
+              <button
+                onClick={() => doExport("full")}
+                className="block w-full px-4 py-2.5 text-left text-sm font-medium text-slate-700 hover:bg-blue-50"
+              >
+                Full report
+                <span className="block text-[11px] font-normal text-slate-400">All receipts & usage details</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -380,100 +446,38 @@ export function Materials() {
             No materials on the required list yet. Add the materials you need — with the quantity
             (in any unit you choose, e.g. Nos / Kg / Sets / Units) and the equipment they belong to —
             then record how many you receive and where you keep them, and how many you use and for what purpose.
+            Each station keeps its own requirement, minimum spare, and its own received / used / in-hand figures.
           </p>
           <PrimaryButton onClick={() => setMaterialForm({ open: true })}>+ Add Material</PrimaryButton>
         </div>
       ) : (
         <div>
-          {equipmentGroups.map((group) => {
-            const open = expandedEquipment.has(group.equipment);
+          {stationGroups.map((group) => {
+            const open = expandedStation.has(group.stationId);
             return (
-              <div key={group.equipment}>
+              <div key={group.stationId ?? "none"}>
                 <button
-                  onClick={() => toggleEquipment(group.equipment)}
+                  onClick={() => toggleStation(group.stationId)}
                   className="flex w-full items-center justify-between gap-2 bg-blue-900 px-3 py-1.5 text-left"
                 >
-                  <p className="text-xs font-bold uppercase tracking-wide text-white">{group.equipment}</p>
+                  <p className="text-xs font-bold uppercase tracking-wide text-white">
+                    {stationName(group.stationId)}
+                  </p>
                   <span className="flex flex-shrink-0 items-center gap-2">
                     <span className="rounded-full bg-blue-800 px-2 py-0.5 text-[11px] font-semibold text-blue-200">
-                      {group.items.length}
+                      {group.rows.length}
                     </span>
                     <span className="text-[11px] font-bold text-blue-200">{open ? "▴" : "▾"}</span>
                   </span>
                 </button>
                 {open && (
                   <div className="divide-y divide-slate-100 bg-surface">
-                    {group.items.map((s) => materialCard(s))}
+                    {group.rows.map((r) => materialRow(r))}
                   </div>
                 )}
               </div>
             );
           })}
-        </div>
-      )}
-
-      {stationSummaries.length > 0 && (
-        <div className="mt-3 bg-surface">
-          <p className="border-b border-slate-200 px-3 py-2 text-xs font-bold uppercase text-slate-500">
-            Station-wise Summary
-          </p>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="text-left text-[11px] uppercase text-slate-500">
-                  <th className="px-3 py-1.5 font-semibold">Station</th>
-                  <th className="py-1.5 font-semibold">Material</th>
-                  <th className="px-2 py-1.5 text-right font-semibold">Received</th>
-                  <th className="px-2 py-1.5 text-right font-semibold">Used</th>
-                  <th className="px-3 py-1.5 text-right font-semibold">In hand</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {stationSummaries.map((s) => {
-                  const open = expandedStations.has(s.stationId);
-                  return (
-                    <Fragment key={s.stationId ?? "none"}>
-                      <tr className="cursor-pointer bg-slate-50" onClick={() => toggleStation(s.stationId)}>
-                        <td className="px-3 py-1.5" colSpan={5}>
-                          <span className="flex items-center justify-between">
-                            <span className="font-bold text-slate-700">{s.stationLabel}</span>
-                            <span className="text-[11px] font-bold text-slate-400">{open ? "▴" : "▾"}</span>
-                          </span>
-                        </td>
-                      </tr>
-                      {open && (
-                        <>
-                          {s.rows.map((r) => (
-                            <tr key={r.materialId}>
-                              <td className="px-3 py-1.5"></td>
-                              <td className="py-1.5 font-medium text-slate-800">{r.name}</td>
-                              <td className="px-2 py-1.5 text-right">
-                                {qtyLabel(r.received, r.unit)}
-                              </td>
-                              <td className="px-2 py-1.5 text-right">
-                                {qtyLabel(r.used, r.unit)}
-                              </td>
-                              <td className="px-3 py-1.5 text-right">
-                                {qtyLabel(r.inHand, r.unit)}
-                              </td>
-                            </tr>
-                          ))}
-                          <tr className="bg-slate-50/60">
-                            <td className="px-3 py-1.5 text-[11px] font-semibold text-slate-500" colSpan={2}>
-                              Total at {s.stationLabel}
-                            </td>
-                            <td className="px-2 py-1.5 text-right font-semibold text-slate-700">{fmtQty(s.receivedTotal)}</td>
-                            <td className="px-2 py-1.5 text-right font-semibold text-slate-700">{fmtQty(s.usedTotal)}</td>
-                            <td className="px-3 py-1.5 text-right font-semibold text-slate-700">{fmtQty(s.inHandTotal)}</td>
-                          </tr>
-                        </>
-                      )}
-                    </Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
         </div>
       )}
 
@@ -497,13 +501,41 @@ export function Materials() {
         <EquipmentForm onClose={() => setEquipmentForm(false)} onSaved={afterMutate} />
       )}
       {receiveForm && (
-        <ReceiveForm material={receiveForm} stations={stations} onClose={() => setReceiveForm(null)} onSaved={afterMutate} />
+        <ReceiveForm
+          material={receiveForm.material}
+          defaultStationId={receiveForm.stationId}
+          stations={stations}
+          onClose={() => setReceiveForm(null)}
+          onSaved={afterMutate}
+        />
       )}
       {useForm && (
-        <UseForm material={useForm} stations={stations} onClose={() => setUseForm(null)} onSaved={afterMutate} />
+        <UseForm
+          material={useForm.material}
+          defaultStationId={useForm.stationId}
+          stations={stations}
+          onClose={() => setUseForm(null)}
+          onSaved={afterMutate}
+        />
       )}
       {addReqForm && (
-        <AddRequirementForm material={addReqForm} onClose={() => setAddReqForm(null)} onSaved={afterMutate} />
+        <AddRequirementForm
+          material={addReqForm.material}
+          materialStations={materialStations}
+          stationId={addReqForm.stationId}
+          onClose={() => setAddReqForm(null)}
+          onSaved={afterMutate}
+        />
+      )}
+      {setReqForm && (
+        <SetRequirementForm
+          material={setReqForm.material}
+          materialStations={materialStations}
+          stationId={setReqForm.stationId}
+          stations={stations}
+          onClose={() => setSetReqForm(null)}
+          onSaved={afterMutate}
+        />
       )}
 
       {confirmDelete && (
@@ -648,7 +680,7 @@ function MaterialForm({
           </select>
         )}
       </Field>
-      <Field label="Quantity required">
+      <Field label="Quantity required (default for every station)">
         <input
           type="number"
           min="0"
@@ -658,8 +690,12 @@ function MaterialForm({
           onChange={(e) => setRequiredQty(e.target.value)}
           placeholder="e.g. 10"
         />
+        <p className="mt-1 text-xs text-slate-500">
+          The default requirement per station. You can set a different amount for an individual station
+          from that station's list (the "Req" button).
+        </p>
       </Field>
-      <Field label="Minimum required spare (optional)">
+      <Field label="Minimum required spare (optional, default for every station)">
         <input
           type="number"
           min="0"
@@ -670,8 +706,8 @@ function MaterialForm({
           placeholder="e.g. 5"
         />
         <p className="mt-1 text-xs text-slate-500">
-          Alert when the in-hand quantity at any station falls below this. Leave
-          blank for no low-stock alert.
+          Alert when a station's in-hand quantity falls below this. Leave blank for no low-stock alert.
+          A station can override this from its own list.
         </p>
       </Field>
       <Field label="Unit (optional)">
@@ -760,8 +796,7 @@ function EquipmentForm({
   return (
     <Modal open onClose={onClose} title="Add New Equipment">
       <p className="mb-3 text-xs text-slate-500">
-        Add a new equipment group. Materials filed under it will show in their own section of the
-        required list, after the default equipment.
+        Add a new equipment group. Materials filed under it keep that tag in every station's list.
       </p>
       <Field label="Equipment name">
         <input
@@ -794,13 +829,19 @@ function EquipmentForm({
 
 function AddRequirementForm({
   material,
+  materialStations,
+  stationId,
   onClose,
   onSaved,
 }: {
   material: Material;
+  materialStations: MaterialStation[];
+  stationId: number | null;
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
+  const stationName = (id: number | null) => (id == null ? "Station not set" : `Station #${id}`);
+  const req = effectiveRequirement(material, materialStations, stationId);
   const [qty, setQty] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -809,13 +850,11 @@ function AddRequirementForm({
     if (!Number.isFinite(q) || q <= 0) return;
     setSaving(true);
     try {
-      await api.materials.update({
-        id: material.id,
-        name: material.name,
-        requiredQty: material.requiredQty + q,
-        minRequiredSpare: Number(material.minRequiredSpare) || 0,
-        unit: material.unit,
-        equipment: material.equipment || "general",
+      await api.materialStations.upsert({
+        materialId: material.id,
+        stationId,
+        requiredQty: req.requiredQty + q,
+        minRequiredSpare: req.minRequiredSpare,
       });
       await onSaved();
       onClose();
@@ -827,8 +866,8 @@ function AddRequirementForm({
   return (
     <Modal open onClose={onClose} title={`Add Requirement — ${material.name}`}>
       <p className="mb-3 text-xs text-slate-500">
-        Currently required: <strong>{qtyLabel(material.requiredQty, material.unit)}</strong>. Enter the extra amount
-        to add on top of it.
+        Currently required at {stationName(stationId)}:{" "}
+        <strong>{qtyLabel(req.requiredQty, material.unit)}</strong>. Enter the extra amount to add on top of it.
       </p>
       <Field label={material.unit ? `Additional quantity (${material.unit})` : "Additional quantity"}>
         <input
@@ -855,6 +894,108 @@ function AddRequirementForm({
           className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Add
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+function SetRequirementForm({
+  material,
+  materialStations,
+  stationId,
+  stations,
+  onClose,
+  onSaved,
+}: {
+  material: Material;
+  materialStations: MaterialStation[];
+  stationId: number | null;
+  stations: Station[];
+  onClose: () => void;
+  onSaved: () => Promise<void>;
+}) {
+  const stationName = (id: number | null) =>
+    id == null ? "Station not set" : stations.find((s) => s.id === id)?.name ?? "Unassigned";
+  const req = effectiveRequirement(material, materialStations, stationId);
+  const [requiredQty, setRequiredQty] = useState(String(req.requiredQty));
+  const [minSpare, setMinSpare] = useState(String(req.minRequiredSpare));
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    const qty = Number(requiredQty);
+    if (!Number.isFinite(qty) || qty < 0) return;
+    const min = Number(minSpare);
+    if (!Number.isFinite(min) || min < 0) return;
+    setSaving(true);
+    try {
+      await api.materialStations.upsert({
+        materialId: material.id,
+        stationId,
+        requiredQty: qty,
+        minRequiredSpare: min,
+      });
+      await onSaved();
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const reset = async () => {
+    setSaving(true);
+    try {
+      await api.materialStations.removeForMaterialStation(material.id, stationId);
+      await onSaved();
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal open onClose={onClose} title={`Requirement — ${material.name} @ ${stationName(stationId)}`}>
+      <Field label={material.unit ? `Quantity required at this station (${material.unit})` : "Quantity required at this station"}>
+        <input
+          type="number"
+          min="0"
+          step="any"
+          className={inputClass}
+          value={requiredQty}
+          onChange={(e) => setRequiredQty(e.target.value)}
+          autoFocus
+        />
+      </Field>
+      <Field label={material.unit ? `Minimum required spare at this station (${material.unit})` : "Minimum required spare at this station"}>
+        <input
+          type="number"
+          min="0"
+          step="any"
+          className={inputClass}
+          value={minSpare}
+          onChange={(e) => setMinSpare(e.target.value)}
+        />
+      </Field>
+      <div className="flex justify-end gap-2">
+        <button
+          onClick={reset}
+          disabled={saving}
+          className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+        >
+          Reset to default
+        </button>
+        <button
+          onClick={onClose}
+          className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={save}
+          disabled={saving}
+          className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Save
         </button>
       </div>
     </Modal>
@@ -890,18 +1031,20 @@ function StationSelect({
 
 function ReceiveForm({
   material,
+  defaultStationId,
   stations,
   onClose,
   onSaved,
 }: {
   material: Material;
+  defaultStationId: number | null;
   stations: { id: number; name: string }[];
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
   const [qty, setQty] = useState("");
   const [date, setDate] = useState(toISODate(new Date()));
-  const [stationId, setStationId] = useState<number | null>(null);
+  const [stationId, setStationId] = useState<number | null>(defaultStationId);
   const [room, setRoom] = useState("");
   const [remarks, setRemarks] = useState("");
   const [saving, setSaving] = useState(false);
@@ -985,11 +1128,13 @@ function ReceiveForm({
 
 function UseForm({
   material,
+  defaultStationId,
   stations,
   onClose,
   onSaved,
 }: {
   material: Material;
+  defaultStationId: number | null;
   stations: { id: number; name: string }[];
   onClose: () => void;
   onSaved: () => Promise<void>;
@@ -997,7 +1142,7 @@ function UseForm({
   const [qty, setQty] = useState("");
   const [date, setDate] = useState(toISODate(new Date()));
   const [purpose, setPurpose] = useState("");
-  const [stationId, setStationId] = useState<number | null>(null);
+  const [stationId, setStationId] = useState<number | null>(defaultStationId);
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
@@ -1039,7 +1184,7 @@ function UseForm({
       <Field label="Used on">
         <input type="date" className={inputClass} value={date} onChange={(e) => setDate(e.target.value)} />
       </Field>
-      <StationSelect stations={stations} value={stationId} onChange={setStationId} label="Used at station (optional)" />
+      <StationSelect stations={stations} value={stationId} onChange={setStationId} label="Used at station" />
       <Field label="Used for (purpose)">
         <textarea
           className={inputClass}
