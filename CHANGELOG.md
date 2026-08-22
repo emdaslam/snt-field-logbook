@@ -3,6 +3,21 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.75 — 2026-08-22
+
+**Minor: low-stock alerts and station delete fixed for station-wise materials**
+
+- **Low-stock alerts now name only the right stations.** A material kept at one
+  station used to raise a low-stock alert at every station that held any
+  material stock. Alerts are now raised only at the stations where the material
+  itself is present — where it has stock or a requirement override — so adding a
+  material to one station no longer flags the others.
+- **Deleting a material from one station no longer deletes it everywhere.** The
+  Delete action in a station's list used to remove the material from every
+  station. It now removes the material, its requirement and its receipts / usage
+  from that station only; other stations keep it, and the material itself is
+  deleted only when no other station needs it.
+
 ## 1.7.6.74 — 2026-08-22
 
 **Minor: older materials stay visible, and equipment groups collapse like stations**
