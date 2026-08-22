@@ -3,6 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.78 — 2026-08-22
+
+**Minor: plain Diary / TA Journal exports fixed — table heading boxes and even TA profile spacing**
+
+- **The table heading now shows its boundary boxes in the plain black-and-white exports.** The PDF grid drew the header row without any cell borders — invisible while the heading was coloured, but in the plain layout the DATE / TRAIN NO / TIME / … heading floated without its boxes. The Diary and TA Journal header cells now print with the same black grid lines as the rest of the table.
+- **The TA profile block sits on even spacing.** Name / Designation / P.F.NO / Pay Metric and Headquarters / Month / B.U.No / Pay are now spaced evenly across the width, and the Pay Metric field keeps the same space after its colon as the other fields.
+
 ## 1.7.6.77 — 2026-08-22
 
 **Major: plain black-and-white Diary and TA Journal exports, with the coloured style one tap away**

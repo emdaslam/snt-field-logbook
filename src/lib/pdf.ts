@@ -251,13 +251,15 @@ export function buildPdf(
         const spans = Array.from(el.querySelectorAll("span")).map((s) => tidy(s.textContent ?? ""));
         doc.setFont("helvetica", "normal").setFontSize(9 * fs).setTextColor(15, 23, 42);
         const cols = offsets.map((o) => margin + o);
+        let colLines = 1;
         spans.forEach((t, i) => {
           if (!t) return;
           const x = cols[i] ?? cols[cols.length - 1];
           const lines = doc.splitTextToSize(t, Math.max(50, maxW - (x - margin))) as string[];
           doc.text(lines, x, y);
+          if (lines.length > colLines) colLines = lines.length;
         });
-        y += 13 * fs + 4;
+        y += colLines * (13 * fs) + 4;
         continue;
       }
       const left = Number(el.getAttribute("data-left")) || 0;
@@ -390,8 +392,19 @@ export function buildPdf(
         body,
         startY: y,
         margin: { left: margin, right: margin },
-        styles: { fontSize: 8 * fs, cellPadding: 4, overflow: "linebreak", textColor: [15, 23, 42] },
-        headStyles: { fillColor: HEAD_FILL, textColor: INK, fontStyle: "bold" },
+        styles: {
+          fontSize: 8 * fs,
+          cellPadding: 4,
+          overflow: "linebreak",
+          textColor: [15, 23, 42],
+          ...(plain ? { lineColor: INK } : {}),
+        },
+        headStyles: {
+          fillColor: HEAD_FILL,
+          textColor: INK,
+          fontStyle: "bold",
+          ...(plain ? { lineWidth: 0.1, lineColor: INK } : {}),
+        },
         ...(plain ? {} : { alternateRowStyles: { fillColor: [248, 250, 252] } }),
         theme: "grid",
         columnStyles: Object.keys(columnStyles).length ? columnStyles : undefined,

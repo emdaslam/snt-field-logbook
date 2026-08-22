@@ -970,7 +970,7 @@ export function exportTaJournal(
   const designation = me?.designation ? `Designation: ${me.designation}` : "Designation: not updated in profile";
   const pf = me?.pfNo ? `P.F.NO: ${me.pfNo}` : "P.F.NO: not updated in profile";
   const bu = me?.buNo ? `B.U.No: ${me.buNo}` : "B.U.No: not updated in profile";
-  const payMetric = me?.payMetric?.trim() ? `Pay Metric:${me.payMetric.trim()}` : "";
+  const payMetric = me?.payMetric?.trim() ? `Pay Metric: ${me.payMetric.trim()}` : "";
   const pay = me?.pay?.trim() ? `Pay: ${me.pay.trim()}` : "";
 
   const cert =
@@ -978,8 +978,8 @@ export function exportTaJournal(
 
   let body = `<h1 class="centered" data-right-note="In lieu of G.A.31">SOUTH COAST RAILWAY. GUNTAKAL DIVISION</h1>`;
   body += `<h2 class="centered">TRAVELLING ALLOWANCE JOURNAL</h2>`;
-  body += `<p class="cols" data-cols="0,160,280,430"><span>${esc(name)}</span><span>${esc(designation)}</span><span>${esc(pf)}</span><span>${esc(payMetric)}</span></p>`;
-  body += `<p class="cols" data-cols="0,160,280,430"><span>${esc(`Headquarters: ${hqCode}`)}</span><span>${esc(`Month: ${month}`)}</span><span>${esc(bu)}</span><span>${esc(pay)}</span></p>`;
+  body += `<p class="cols" data-cols="0,150,300,450"><span>${esc(name)}</span><span>${esc(designation)}</span><span>${esc(pf)}</span><span>${esc(payMetric)}</span></p>`;
+  body += `<p class="cols" data-cols="0,150,300,450"><span>${esc(`Headquarters: ${hqCode}`)}</span><span>${esc(`Month: ${month}`)}</span><span>${esc(bu)}</span><span>${esc(pay)}</span></p>`;
 
   if (taDays.length === 0) {
     body += `<p class="empty">No TA days in this period.</p>`;
