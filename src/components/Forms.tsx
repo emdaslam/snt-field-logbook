@@ -17,6 +17,7 @@ import {
   type CounterReset,
 } from "@/lib/types";
 import { AUTO_TIMINGS } from "@/lib/timingsMode";
+import { EMPTY_STATION_DRAFT, StationFields, stationPayload, type StationDraft } from "./StationForm";
 import {
   kindFromTags,
   INSPECTION_RULES,
@@ -168,7 +169,7 @@ export function DailyLogForm({
   const inspectionKind = kindFromTags(selectedTagNames);
   const [saving, setSaving] = useState(false);
   const [addingStation, setAddingStation] = useState(false);
-  const [newStationName, setNewStationName] = useState("");
+  const [newStationDraft, setNewStationDraft] = useState<StationDraft>(EMPTY_STATION_DRAFT);
   const [pcdoOpen, setPcdoOpen] = useState(pcdoWorkEntries(existing).length > 0);
   const [pcdoWorks, setPcdoWorks] = useState<PcdoWork[]>(pcdoWorkEntries(existing));
   const togglePcdoDept = (dept: string) => {
@@ -323,12 +324,11 @@ export function DailyLogForm({
   );
 
   async function createStation() {
-    const name = newStationName.trim();
-    if (!name) return;
-    const created = await api.stations.create({ name });
+    if (!newStationDraft.name.trim()) return;
+    const created = await api.stations.create(stationPayload(newStationDraft));
     await refresh();
     selectMovement(created.name);
-    setNewStationName("");
+    setNewStationDraft(EMPTY_STATION_DRAFT);
     setAddingStation(false);
   }
 
@@ -553,26 +553,31 @@ export function DailyLogForm({
           </button>
         </div>
         {addingStation && (
-          <div className="mt-2 flex gap-2">
-            <input
-              className={inputClass}
-              placeholder="New station name"
-              value={newStationName}
-              onChange={(e) => setNewStationName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  createStation();
-                }
-              }}
-            />
-            <button
-              type="button"
-              onClick={createStation}
-              className="flex-shrink-0 rounded-lg bg-emerald-600 px-3 text-sm font-semibold text-white"
-            >
-              Save
-            </button>
+          <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50/40 p-2.5">
+            <p className="mb-1.5 text-xs font-medium text-emerald-800">
+              New station — name is required; distance from HQ and travel time are used by the TA journal.
+            </p>
+            <StationFields draft={newStationDraft} onChange={setNewStationDraft} />
+            <div className="mt-2 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setNewStationDraft(EMPTY_STATION_DRAFT);
+                  setAddingStation(false);
+                }}
+                className="rounded-lg px-3 py-1.5 text-sm font-semibold text-slate-500 hover:bg-slate-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={createStation}
+                disabled={!newStationDraft.name.trim()}
+                className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Save station
+              </button>
+            </div>
           </div>
         )}
 

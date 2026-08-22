@@ -4,8 +4,9 @@ import { type Dispatch, type SetStateAction, useState } from "react";
 import { api } from "@/lib/api";
 import { DEPARTMENTS } from "@/lib/types";
 import { Chip, inputClass, PrimaryButton } from "./ui";
+import { EMPTY_STATION_DRAFT, StationFields, stationPayload, type StationDraft } from "./StationForm";
 
-type MyStation = { id: number; name: string; code: string | null };
+type MyStation = { id: number } & StationDraft;
 
 export function Onboarding({ onComplete }: { onComplete: () => void }) {
   const [step, setStep] = useState<0 | 1 | 2>(0);
@@ -59,17 +60,15 @@ function StationsStep({
   setMine: Dispatch<SetStateAction<MyStation[]>>;
   onNext: () => void;
 }) {
-  const [name, setName] = useState("");
-  const [code, setCode] = useState("");
+  const [draft, setDraft] = useState<StationDraft>(EMPTY_STATION_DRAFT);
 
   function add() {
-    if (!name.trim()) return;
+    if (!draft.name.trim()) return;
     setMine((m) => [
       ...m,
-      { id: Date.now() + Math.random(), name: name.trim(), code: code.trim() || null },
+      { id: Date.now() + Math.random(), ...draft, name: draft.name.trim() },
     ]);
-    setName("");
-    setCode("");
+    setDraft(EMPTY_STATION_DRAFT);
   }
 
   return (
@@ -77,26 +76,16 @@ function StationsStep({
       <h3 className="mb-1 text-base font-semibold text-slate-800">1 · Your movement stations</h3>
       <p className="mb-4 text-sm text-slate-500">
         Add every station where you make entries — the diary and movement reports use these as the
-        “to” ends. You can add more later in Settings.
+        “to” ends. Add the distance from HQ and travel time too, so the TA journal can be filled
+        correctly. You can add more later in Settings.
       </p>
 
-      <div className="mb-3 flex gap-2">
-        <input
-          className={inputClass}
-          placeholder="Station name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <input
-          className="w-24 rounded-lg border border-slate-300 px-2 text-sm outline-none focus:border-blue-500"
-          placeholder="Code"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-        />
+      <div className="mb-3">
+        <StationFields draft={draft} onChange={setDraft} />
       </div>
       <button
         onClick={add}
-        disabled={!name.trim()}
+        disabled={!draft.name.trim()}
         className="mb-4 w-full rounded-lg border border-dashed border-blue-400 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
       >
         + Add station
@@ -111,7 +100,11 @@ function StationsStep({
           >
             <div className="min-w-0">
               <p className="truncate text-sm font-medium text-slate-800">{s.name}</p>
-              {s.code && <p className="text-[11px] text-slate-400">Code: {s.code}</p>}
+              <p className="text-[11px] text-slate-400">
+                {[s.code && `Code: ${s.code}`, s.distanceFromHq, s.travelMin || s.travelMax ? `${s.travelMin}–${s.travelMax} min from HQ` : null]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
             </div>
             <button
               onClick={() => setMine((m) => m.filter((x) => x.id !== s.id))}
@@ -126,7 +119,7 @@ function StationsStep({
         ))}
       </div>
 
-      <PrimaryButton onClick={onNext} className="w-full" >
+      <PrimaryButton onClick={onNext} className="w-full" disabled={mine.length === 0}>
         Continue
       </PrimaryButton>
       <p className="mt-2 text-center text-xs text-slate-400">
@@ -162,7 +155,7 @@ function ProfileStep({ stations, onNext }: { stations: MyStation[]; onNext: () =
     try {
       const realIds = new Map<number, number>();
       for (const s of stations) {
-        const row = await api.stations.create({ name: s.name, code: s.code ?? undefined });
+        const row = await api.stations.create(stationPayload(s));
         realIds.set(s.id, row.id);
       }
       await api.staff.create({

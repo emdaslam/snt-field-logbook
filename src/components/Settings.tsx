@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useData } from "./DataProvider";
 import { api } from "@/lib/api";
 import { inputClass, PrimaryButton, Chip, Modal, Field } from "./ui";
-import { DEPARTMENTS, STATION_DISTANCE_OPTIONS, STATION_DISTANCE_LABEL, variableKmText, type StationDistance } from "@/lib/types";
+import { DEPARTMENTS, STATION_DISTANCE_LABEL, STATION_DISTANCE_OPTIONS, variableKmText, type StationDistance } from "@/lib/types";
+import { EMPTY_STATION_DRAFT, StationFields, stationPayload, type StationDraft } from "./StationForm";
 import { FeatureTutorials } from "./FeatureTutorials";
 import { BackupModal } from "./BackupModal";
 import { RestoreModal } from "./RestoreModal";
@@ -45,7 +46,7 @@ const SWIPE_THRESHOLD = 48;
 export function Settings() {
   const { stations, staff, tags, currentUser, refresh, fontSize, setFontSize, theme, setTheme, contentScale, setContentScale, reminderDays, setReminderDays } = useData();
   const [group, setGroup] = useState<GroupId>("account");
-  const [newStation, setNewStation] = useState({ name: "", code: "", distanceFromHq: "below8", variableKm: "", travelMin: "", travelMax: "" });
+  const [newStation, setNewStation] = useState<StationDraft>(EMPTY_STATION_DRAFT);
   const [editStation, setEditStation] = useState<Station | null>(null);
   const [editStaff, setEditStaff] = useState<Staff | null>(null);
   const [addStaff, setAddStaff] = useState(false);
@@ -164,66 +165,13 @@ export function Settings() {
 
       {/* Stations */}
       <Section title="Manage Stations">
-        <div className="mb-3 flex flex-wrap gap-2">
-          <input className={`${inputClass} w-full`} placeholder="Station name" value={newStation.name} onChange={(e) => setNewStation({ ...newStation, name: e.target.value })} />
-          <input className="w-24 rounded-lg border border-slate-300 px-2 text-sm" placeholder="Code" value={newStation.code} onChange={(e) => setNewStation({ ...newStation, code: e.target.value })} />
-          <select
-            className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
-            value={newStation.distanceFromHq}
-            onChange={(e) => setNewStation({ ...newStation, distanceFromHq: e.target.value })}
-          >
-            {STATION_DISTANCE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-          {newStation.distanceFromHq === "variable" && (
-            <div className="flex items-center gap-1">
-              <span className="text-xs text-slate-400">at</span>
-              <input
-                className="w-20 rounded-lg border border-slate-300 px-2 py-2 text-sm"
-                type="text"
-                maxLength={12}
-                placeholder="KMs"
-                value={newStation.variableKm}
-                onChange={(e) => setNewStation({ ...newStation, variableKm: e.target.value })}
-              />
-            </div>
-          )}
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-slate-400">min</span>
-            <input
-              className="w-16 rounded-lg border border-slate-300 px-2 py-2 text-sm"
-              type="number"
-              min={0}
-              placeholder="0"
-              value={newStation.travelMin}
-              onChange={(e) => setNewStation({ ...newStation, travelMin: e.target.value })}
-            />
-            <span className="text-xs text-slate-400">max</span>
-            <input
-              className="w-16 rounded-lg border border-slate-300 px-2 py-2 text-sm"
-              type="number"
-              min={0}
-              placeholder="0"
-              value={newStation.travelMax}
-              onChange={(e) => setNewStation({ ...newStation, travelMax: e.target.value })}
-            />
-          </div>
+        <div className="mb-3 space-y-2">
+          <StationFields draft={newStation} onChange={setNewStation} />
           <button
             onClick={async () => {
-              if (!newStation.name) return;
-              const min = Math.max(0, Math.round(Number(newStation.travelMin)) || 0);
-              const max = Math.max(min, Math.round(Number(newStation.travelMax)) || 0);
-              await api.stations.create({
-                ...newStation,
-                variableKm:
-                  newStation.distanceFromHq === "variable"
-                    ? newStation.variableKm.trim() || null
-                    : null,
-                travelMin: min,
-                travelMax: max,
-              });
-              setNewStation({ name: "", code: "", distanceFromHq: "below8", variableKm: "", travelMin: "", travelMax: "" });
+              if (!newStation.name.trim()) return;
+              await api.stations.create(stationPayload(newStation));
+              setNewStation(EMPTY_STATION_DRAFT);
               await refresh();
             }}
             className="rounded-lg bg-emerald-600 px-3 text-sm font-semibold text-white"
