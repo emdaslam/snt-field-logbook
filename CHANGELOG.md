@@ -3,6 +3,23 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.70 — 2026-08-22
+
+**Minor: station entry asks for all station details and onboarding requires at least one station**
+
+- **Onboarding now needs at least one station.** The "Continue" button on the
+  first setup step stays disabled until you add at least one station — it no
+  longer lets you proceed with an empty list.
+- **Onboarding station form asks for the full details.** Alongside name and
+  code it now collects the distance from HQ (below / above / variable with the
+  KMs marker) and the travel time range from HQ, exactly like Settings. The
+  new stations are saved with those details, so the TA journal has the data it
+  needs.
+- **Daily-log quick add asks for all station details.** The green "+ Add"
+  button next to the movement selector used to create a station from just a
+  name; it now shows the full station form (code, distance, travel time) before
+  saving. Stations created earlier with only a name keep working as before.
+
 ## 1.7.6.69 — 2026-08-21
 
 **Major: one-page Diary export with a single-line heading**
