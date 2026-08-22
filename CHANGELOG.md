@@ -3,6 +3,23 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.76 — 2026-08-22
+
+**Major: travel details on daily logs, and exact TA amounts in the exports**
+
+- **Daily logs ask how you travelled.** On a station or footplate movement (away
+  from HQ) the form now has a **Travel Details** block that asks about both the
+  on-board journey (HQ → station / boarding station) and the return journey
+  (station / boarding station → HQ). **By Road** is the default; choose **By
+  Train** to enter the train number. The choice and train number are stored per
+  log.
+- **Printed in the Diary and TA Journal.** Both exports show **ROAD** or the
+  train number in the train column for each leg, and the entry detail view shows
+  the travel summary too. Logs made before this version show **ROAD**.
+- **TA amounts keep their paise.** TA Journal amounts and totals are no longer
+  rounded to whole rupees — a 192.85 amount stays 192.85, and totals are exact
+  to the paisa. (The daily-log times and the TA Journal format are unchanged.)
+
 ## 1.7.6.75 — 2026-08-22
 
 **Minor: low-stock alerts and station delete fixed for station-wise materials**

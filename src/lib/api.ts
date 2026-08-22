@@ -589,6 +589,12 @@ function normaliseLog(b: Partial<DailyLog>) {
     timeArr: b.timeArr ?? null,
     returnTimeDep: b.returnTimeDep ?? null,
     returnTimeArr: b.returnTimeArr ?? null,
+    // Travel mode for the HQ → station journey and (when by train) its number
+    travelMode: b.travelMode === "train" ? "train" : "road",
+    travelTrainNo: b.travelTrainNo ?? null,
+    // Travel mode for the station → HQ return journey and (when by train) its number
+    returnMode: b.returnMode === "train" ? "train" : "road",
+    returnTrainNo: b.returnTrainNo ?? null,
     movementKind: b.movementKind ?? null,
     leaveKind: b.leaveKind ?? null,
     crFrom: b.crFrom ?? null,
@@ -707,6 +713,18 @@ export function fmtDate(d: string | Date | null | undefined) {
 export function toISODate(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
+
+/**
+ * Money value rounded to paise (2 decimals) only — never to a whole rupee —
+ * with Indian digit grouping. Decimal amounts keep their decimals ("192.85"),
+ * whole rupees drop the trailing ".00" ("350"). Used by the TA Journal export
+ * and its preview, which show the amount as entered, without rounding off.
+ */
+export function formatRupee(v: number): string {
+  const x = Math.round(v * 100) / 100;
+  return x.toLocaleString("en-IN", { maximumFractionDigits: 2 });
+}
+
 export function dayName(d: string | Date) {
   const date = typeof d === "string" ? new Date(d + "T00:00:00") : d;
   return date.toLocaleDateString("en-US", { weekday: "short" });

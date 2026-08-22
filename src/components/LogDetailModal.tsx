@@ -49,6 +49,12 @@ export function LogDetailModal({
               value={`Dep ${log.timeDep || "—"} → Arr ${log.timeArr || "—"}  ·  Ret Dep ${log.returnTimeDep || "—"} → Arr ${log.returnTimeArr || "—"}`}
             />
           ) : null}
+          {log.travelMode || log.returnMode ? (
+            <Row
+              label="Travel"
+              value={`On-board ${log.travelMode === "train" ? `Train ${log.travelTrainNo || ""}`.trim() : "Road"}  ·  Return ${log.returnMode === "train" ? `Train ${log.returnTrainNo || ""}`.trim() : "Road"}`}
+            />
+          ) : null}
           {log.movementKind === "footplate" && log.footplateJourney && (
             <JourneySummary log={log} stationName={stationName} />
           )}

@@ -100,6 +100,64 @@ function AttachmentField({
   );
 }
 
+/** One journey leg of the Travel Details block: a By Road / By Train toggle
+ *  (Road is the default) and, when By Train is chosen, a train number field. */
+function TravelLeg({
+  title,
+  mode,
+  setMode,
+  trainNo,
+  setTrainNo,
+}: {
+  title: string;
+  mode: "road" | "train";
+  setMode: (m: "road" | "train") => void;
+  trainNo: string;
+  setTrainNo: (v: string) => void;
+}) {
+  return (
+    <div>
+      <p className="mb-1 text-xs font-medium text-slate-600">{title}</p>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setMode("road")}
+          className={`flex-1 rounded-lg border px-3 py-1.5 text-sm font-medium ${
+            mode === "road"
+              ? "border-emerald-600 bg-emerald-600 text-white"
+              : "border-slate-300 text-slate-600"
+          }`}
+        >
+          By Road
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("train")}
+          className={`flex-1 rounded-lg border px-3 py-1.5 text-sm font-medium ${
+            mode === "train"
+              ? "border-emerald-600 bg-emerald-600 text-white"
+              : "border-slate-300 text-slate-600"
+          }`}
+        >
+          By Train
+        </button>
+      </div>
+      {mode === "train" && (
+        <label className="mt-1.5 block">
+          <span className="mb-0.5 block text-[11px] text-slate-600">Train No</span>
+          <input
+            type="text"
+            className={inputClass}
+            value={trainNo}
+            placeholder="e.g. 12626"
+            onChange={(e) => setTrainNo(e.target.value)}
+          />
+        </label>
+      )}
+    </div>
+  );
+}
+
 export function DailyLogForm({
   open,
   onClose,
@@ -122,6 +180,16 @@ export function DailyLogForm({
   const [returnTimeArr, setReturnTimeArr] = useState(
     existing?.returnTimeArr ?? (!AUTO_TIMINGS ? "17:30" : "")
   );
+  // How the HQ → station journey was made: "road" (default) or "train", with
+  // the train number when by train. The same pair describes the return journey.
+  const [travelMode, setTravelMode] = useState<"road" | "train">(
+    existing?.travelMode === "train" ? "train" : "road"
+  );
+  const [travelTrainNo, setTravelTrainNo] = useState(existing?.travelTrainNo ?? "");
+  const [returnMode, setReturnMode] = useState<"road" | "train">(
+    existing?.returnMode === "train" ? "train" : "road"
+  );
+  const [returnTrainNo, setReturnTrainNo] = useState(existing?.returnTrainNo ?? "");
   const [movementKind, setMovementKind] = useState<"station" | "rest" | "leave" | "cr" | "nh" | "footplate">(
     existing?.movementKind === "rest" ||
       existing?.movementKind === "leave" ||
@@ -399,6 +467,20 @@ export function DailyLogForm({
         (movementKind === "station" || isFp) && !isHeadquarters ? returnTimeDep || null : null,
       returnTimeArr:
         (movementKind === "station" || isFp) && !isHeadquarters ? returnTimeArr || null : null,
+      // Travel mode for the HQ → station journey and (when by train) its number
+      travelMode:
+        (movementKind === "station" || isFp) && !isHeadquarters ? travelMode : null,
+      travelTrainNo:
+        (movementKind === "station" || isFp) && !isHeadquarters && travelMode === "train"
+          ? travelTrainNo.trim() || null
+          : null,
+      // Travel mode for the station → HQ return journey and (when by train) its number
+      returnMode:
+        (movementKind === "station" || isFp) && !isHeadquarters ? returnMode : null,
+      returnTrainNo:
+        (movementKind === "station" || isFp) && !isHeadquarters && returnMode === "train"
+          ? returnTrainNo.trim() || null
+          : null,
       movementKind: movementKind !== "station" ? movementKind : null,
       leaveKind: movementKind === "leave" ? leaveKind || null : null,
       crFrom: movementKind === "cr" ? crFrom || null : null,
@@ -698,6 +780,30 @@ export function DailyLogForm({
             </div>
             <p className="mt-1.5 text-xs text-slate-500">
               These times are printed verbatim in the Diary and TA Journal exports.
+            </p>
+          </div>
+        </Field>
+      )}
+      {!isSpecial && !isHeadquarters && (
+        <Field label="Travel Details">
+          <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <TravelLeg
+              title={movementKind === "footplate" ? "On-board journey (HQ → boarding station)" : "On-board journey (HQ → station)"}
+              mode={travelMode}
+              setMode={setTravelMode}
+              trainNo={travelTrainNo}
+              setTrainNo={setTravelTrainNo}
+            />
+            <TravelLeg
+              title={movementKind === "footplate" ? "Return journey (boarding station → HQ)" : "Return journey (station → HQ)"}
+              mode={returnMode}
+              setMode={setReturnMode}
+              trainNo={returnTrainNo}
+              setTrainNo={setReturnTrainNo}
+            />
+            <p className="text-xs text-slate-500">
+              By Road is selected by default. Choose By Train to enter the train number — both are printed
+              in the Diary and TA Journal exports.
             </p>
           </div>
         </Field>

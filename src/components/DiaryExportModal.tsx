@@ -5,7 +5,7 @@ import { useData } from "./DataProvider";
 import { Modal, PrimaryButton } from "./ui";
 import { exportDiary, exportTaJournal } from "./exports";
 import { PeriodPicker, monthPeriod, type Period } from "./PeriodPicker";
-import { fmtDate, isTaClaimable } from "@/lib/api";
+import { fmtDate, isTaClaimable, formatRupee } from "@/lib/api";
 import { isSharedLog } from "@/lib/backup";
 import { isSpecialMovement, variableKmText } from "@/lib/types";
 import type { DailyLog } from "@/db/schema";
@@ -50,7 +50,8 @@ export function DiaryExportModal({
   const taRows = own.filter((l) => isTaClaimable(l, stations, hq));
   const totalDays = taRows.reduce((a, l) => a + ((l.taPercent ?? 100) / 100), 0);
   const taRate = currentUser?.taRate != null && currentUser.taRate !== "" ? Number(currentUser.taRate) : null;
-  const totalAmount = taRate != null ? Math.round(totalDays * taRate) : null;
+  // The amount keeps its decimal places — never rounded off to a whole rupee.
+  const totalAmount = taRate != null ? Math.round(totalDays * taRate * 100) / 100 : null;
   const rateNotSet = taRate == null;
 
   const isTa = mode === "ta";
@@ -97,7 +98,7 @@ export function DiaryExportModal({
       <div className="mb-3 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-900">
         {fmtDate(period.from)} — {fmtDate(period.to)} ·{" "}
         {isTa
-          ? `${taRows.length} TA day${taRows.length === 1 ? "" : "s"} · ${totalDays.toFixed(1)} day${totalDays === 1 ? "" : "s"}${totalAmount != null ? ` · ₹${totalAmount}` : ""}`
+          ? `${taRows.length} TA day${taRows.length === 1 ? "" : "s"} · ${totalDays.toFixed(1)} day${totalDays === 1 ? "" : "s"}${totalAmount != null ? ` · ₹${formatRupee(totalAmount)}` : ""}`
           : `${own.length} entr${own.length === 1 ? "y" : "ies"}`}
         {" · "}
         Headquarters: <strong>{hqCode ?? "not set"}</strong>
@@ -149,7 +150,11 @@ export function DiaryExportModal({
             <tbody>
               {(isTa ? taRows : own).map((r) => {
                 const p = r.taPercent ?? 100;
-                const amount = taRate != null ? Math.round((p / 100) * taRate) : null;
+                const amount = taRate != null ? Math.round(((p / 100) * taRate) * 100) / 100 : null;
+                // TRAIN column for the on-board leg — the train number when the
+                // journey was by train, else "ROAD" (the default).
+                const legTrain =
+                  r.travelMode === "train" ? (r.travelTrainNo?.trim() || "TRAIN") : "ROAD";
                 return (
                   <tr key={r.id} className="border-t border-slate-100">
                     {isTa ? (
@@ -177,7 +182,7 @@ export function DiaryExportModal({
                     ) : (
                       <>
                         <td className="whitespace-nowrap px-2 py-1.5">{fmtDate(r.logDate)}</td>
-                        <td className="px-2 py-1.5">{isSpecialMovement(r) ? r.stationMovement || "—" : "ROAD"}</td>
+                        <td className="px-2 py-1.5">{isSpecialMovement(r) ? r.stationMovement || "—" : legTrain}</td>
                         <td className="px-2 py-1.5 text-slate-600">{isSpecialMovement(r) ? "—" : (r.timeDep || "—")}</td>
                         <td className="px-2 py-1.5 text-slate-600">{isSpecialMovement(r) ? "—" : (r.timeArr || "—")}</td>
                         <td className="px-2 py-1.5 text-slate-600">{isSpecialMovement(r) ? "—" : hqCode ?? "HQ"}</td>

@@ -80,6 +80,14 @@ export const dailyLogs = pgTable("daily_logs", {
   timeArr: varchar("time_arr", { length: 5 }),
   returnTimeDep: varchar("return_time_dep", { length: 5 }),
   returnTimeArr: varchar("return_time_arr", { length: 5 }),
+  // How the HQ → station journey was made: "road" (default) or "train".
+  // When "train", travelTrainNo holds the train number. Null on days with no
+  // movement (Rest/Leave/CR/NH) or when the station is the headquarters.
+  travelMode: varchar("travel_mode", { length: 10 }).default("road"),
+  travelTrainNo: varchar("travel_train_no", { length: 30 }),
+  // How the station → HQ return journey was made: "road" (default) or "train".
+  returnMode: varchar("return_mode", { length: 10 }).default("road"),
+  returnTrainNo: varchar("return_train_no", { length: 30 }),
   // Non-station movement types: "rest" | "leave" | "cr" (null = a station movement)
   movementKind: varchar("movement_kind", { length: 10 }),
   // For leave: CL / LAP / SICK

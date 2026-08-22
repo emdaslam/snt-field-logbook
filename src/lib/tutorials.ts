@@ -294,6 +294,28 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.6.76",
+    tag: "Travel details & exact TA amounts",
+    subtitle: "Say how you travelled to the station and back, and TA amounts keep their paise.",
+    slides: [
+      {
+        glyph: "▤",
+        title: "How did you travel?",
+        body: "On a station or footplate daily log, the form now asks whether each journey — on-board and return — was By Road (the default) or By Train. Choose By Train to enter the train number.",
+      },
+      {
+        glyph: "▤",
+        title: "Printed in the exports",
+        body: "The Diary and TA Journal print ROAD or the train number in the train column for both legs, so your monthly report shows exactly how you travelled.",
+      },
+      {
+        glyph: "₹",
+        title: "Exact TA amounts",
+        body: "TA amounts in the TA Journal now keep their decimals — no more rounding to whole rupees. A 192.85 amount exports as 192.85, and every total is exact to the paisa.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {

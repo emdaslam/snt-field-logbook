@@ -1,5 +1,5 @@
 import { exportDocument } from "@/lib/pdf";
-import { fmtDate, toISODate, formatFootplateShifts, footplateTrainList, pcdoWorkEntries, counterResetsOf } from "@/lib/api";
+import { fmtDate, toISODate, formatFootplateShifts, footplateTrainList, pcdoWorkEntries, counterResetsOf, formatRupee } from "@/lib/api";
 import { formatInspectionDates } from "@/lib/inspections";
 import { isSpecialMovement, EQUIPMENT_DEFAULTS, variableKmText } from "@/lib/types";
 import { AUTO_TIMINGS } from "@/lib/timingsMode";
@@ -49,6 +49,20 @@ const KMS_NOTE_VERT = KMS_NOTE.split(" ")
 /** Trim a day count to at most one decimal and drop a trailing ".0". */
 function daysLabel(d: number): string {
   return (Math.round(d * 10) / 10).toString().replace(/\.0$/, "");
+}
+
+/** Money value rounded to paise (2 decimals) only — never to a whole rupee.
+ *  TA amounts keep their decimals ("192.85"); 0.7 × a 2-decimal rate has at
+ *  most 2 decimals exactly, so this never visibly changes the value. */
+function money(v: number): number {
+  return Math.round(v * 100) / 100;
+}
+
+/** The TRAIN column label for one journey leg: the train number when the leg
+ *  was by train, else "ROAD". A by-train leg without a recorded number still
+ *  shows "TRAIN" so the column never silently falls back to road. */
+function trainNoLabel(mode: string | null | undefined, trainNo: string | null | undefined): string {
+  return mode === "train" ? (trainNo?.trim() || "TRAIN") : "ROAD";
 }
 
 export function exportTomorrowsWork(
@@ -464,7 +478,7 @@ function footplateLegs(
   const b = stationLabel(boarding);
   const o = stationLabel(otherEnd);
   const legs: JourneyLeg[] = [
-    { trainNo: "ROAD", dep: t.outDep, arr: t.outArr, from: hqCode, to: b },
+    { trainNo: trainNoLabel(l.travelMode, l.travelTrainNo), dep: t.outDep, arr: t.outArr, from: hqCode, to: b },
   ];
   if (fj.outbound && (fj.outbound.trainNo || fj.direction === "Up" || fj.direction === "Down")) {
     legs.push({
@@ -486,7 +500,7 @@ function footplateLegs(
   }
   // With a return train (Both) the ride ends back at the boarding station;
   // otherwise (Up/Down) we return to HQ from the other-end station.
-  legs.push({ trainNo: "ROAD", dep: t.retDep, arr: t.retArr, from: fj.direction === "Both" ? b : o, to: hqCode });
+  legs.push({ trainNo: trainNoLabel(l.returnMode, l.returnTrainNo), dep: t.retDep, arr: t.retArr, from: fj.direction === "Both" ? b : o, to: hqCode });
   return legs;
 }
 
@@ -594,8 +608,8 @@ function pdfGridOf(grid: (string | number | XlsxCell)[][]): (string | number | X
         const m = /^(\d+)(?:\.(\d+))?%$/.exec(t);
         if (m) return `${Number(m[1])}%`;
       }
-      if (ci === 8 && t && /^\d+$/.test(t)) {
-        return `₹ ${Number(t).toLocaleString("en-IN")}`;
+      if (ci === 8 && t && /^\d+(?:\.\d+)?$/.test(t)) {
+        return `₹ ${formatRupee(Number(t))}`;
       }
       return c;
     })
@@ -731,14 +745,14 @@ export function exportDiary(
     const r = grid.length;
     grid.push([
       dmy(date),
-      "ROAD",
+      trainNoLabel(primary.travelMode, primary.travelTrainNo),
       t.outDep,
       t.outArr,
       hqCode,
       st.code,
       work,
     ]);
-    grid.push(["", "ROAD", t.retDep, t.retArr, st.code, hqCode, ""]);
+    grid.push(["", trainNoLabel(primary.returnMode, primary.returnTrainNo), t.retDep, t.retArr, st.code, hqCode, ""]);
     merges.push([r, 0, r + 1, 0], [r, 6, r + 1, 6]); // date + work span both legs
   }
 
@@ -856,9 +870,10 @@ export function exportTaJournal(
   const days70 = n70 * 0.7;
   const days30 = n30 * 0.3;
   const totalDays = days100 + days70 + days30;
-  const totalAmount = taRate != null ? Math.round(totalDays * taRate) : null;
+  const totalAmount = taRate != null ? money(totalDays * taRate) : null;
   const rateMissingText = "Rate not set (Settings → Staff Details)";
-  const amountCell = (p: number): string | number => (taRate != null ? Math.round((p / 100) * taRate) : rateMissingText);
+  const amountCell = (p: number): string | number =>
+    taRate != null ? money((p / 100) * taRate) : rateMissingText;
 
   const grid: XlsxCell[][] = [];
   const merges: XlsxMerge[] = [];
@@ -920,7 +935,7 @@ export function exportTaJournal(
     const t = diaryTimes(l, st, l.logDate, taCfg ? taCfg[taRateKey(l.taPercent)] : undefined);
     grid.push([
       styled(dmy(l.logDate), { center: true }),
-      styled("ROAD", { center: true }),
+      styled(trainNoLabel(l.travelMode, l.travelTrainNo), { center: true }),
       styled(t.outDep, { center: true }),
       styled(t.outArr, { center: true }),
       styled(hqCode, { center: true }),
@@ -932,7 +947,7 @@ export function exportTaJournal(
     ]);
     grid.push([
       styled("", { center: true }),
-      styled("ROAD", { center: true }),
+      styled(trainNoLabel(l.returnMode, l.returnTrainNo), { center: true }),
       styled(t.retDep, { center: true }),
       styled(t.retArr, { center: true }),
       styled(st.code, { center: true }),
@@ -973,7 +988,7 @@ export function exportTaJournal(
     body += `<tr><th rowspan="2" class="date" data-width="56" data-align="center">DATE</th><th data-align="center">TRAIN</th><th colspan="2" data-align="center">TIME</th><th colspan="2" data-align="center">STATION</th><th rowspan="2" data-width="30" data-align="center">KMS</th><th rowspan="2" data-width="32" data-align="center">DAYS</th><th rowspan="2" data-width="56" data-align="center">AMOUNT</th><th rowspan="2" data-align="center">NATURE OF WORK</th></tr>`;
     body += `<tr><th data-width="40" data-align="center">NO</th><th data-width="36" data-align="center">TIME DEPT</th><th data-width="36" data-align="center">TIME ARR</th><th data-width="40" data-align="center">FROM</th><th data-width="40" data-align="center">TO</th></tr>`;
     body += gridHtml(pdfGridOf(grid), merges, { dateCol: 0, centerCols: new Set([0, 1, 2, 3, 4, 5, 6, 7, 8]), vTextCols: new Set([6]), fontCols: new Set([8]), valignCols: new Set([9]) });
-    body += `<tr><td colspan="7" data-align="center"><strong>TOTAL NO. OF DAYS</strong></td><td><strong>${daysLabel(totalDays)} DAYS</strong></td><td data-font="rupee" data-align="center"><strong>${rateNotSet ? esc(rateMissingText) : `₹ ${totalAmount!.toLocaleString("en-IN")}`}</strong></td><td></td></tr>`;
+    body += `<tr><td colspan="7" data-align="center"><strong>TOTAL NO. OF DAYS</strong></td><td><strong>${daysLabel(totalDays)} DAYS</strong></td><td data-font="rupee" data-align="center"><strong>${rateNotSet ? esc(rateMissingText) : `₹ ${formatRupee(totalAmount!)}`}</strong></td><td></td></tr>`;
     body += `</table>`;
 
     body += `<p class="cols" data-cols="46,83,115"><span>100%</span><span>X ${n100}</span><span>= ${daysLabel(days100)} DAYS</span></p>`;
