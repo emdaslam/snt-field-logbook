@@ -68,7 +68,10 @@ export function effectiveRequirement(
  * the material's own minRequiredSpare. Only stations that have a minimum set
  * (via their own row or the material default) are considered, and a station is
  * checked even when it holds no stock at all (in-hand 0) — that is the whole
- * point of a per-station minimum. The station label comes from the caller's
+ * point of a per-station minimum. A material is only ever checked at stations
+ * where it is actually present — it has stock there or its own requirement
+ * override names that station — so a material kept at one station never raises
+ * alerts at other stations. The station label comes from the caller's
  * stationName callback.
  */
 export function lowStockAlerts(
@@ -85,10 +88,14 @@ export function lowStockAlerts(
     if (min <= 0 && !materialStations.some((s) => s.materialId === material.id && s.minRequiredSpare > 0)) {
       continue;
     }
-    // Stations to check: every station that appears in stock data, plus every
-    // station with its own requirement override.
+    // Stations to check: every station that holds stock of this material, plus
+    // every station with its own requirement override for it. Stations holding
+    // stock of other materials are never checked — a material kept at one
+    // station must not raise alerts at the others.
     const stationIds = new Set<number | null>();
-    for (const id of byStation.keys()) stationIds.add(id);
+    for (const [stationId, mat] of byStation) {
+      if (mat.has(material.id)) stationIds.add(stationId);
+    }
     for (const s of materialStations) {
       if (s.materialId === material.id) stationIds.add(s.stationId);
     }

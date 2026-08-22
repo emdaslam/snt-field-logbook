@@ -420,6 +420,39 @@ export const api = {
       );
       return ldb.remove("materials", id);
     },
+    /** Remove a material from a single station only: its requirement override,
+     *  receipts and usages at that station. The material itself is only deleted
+     *  when nothing is left of it — no requirement at any other station and no
+     *  stock recorded anywhere. */
+    removeFromStation: async (materialId: number, stationId: number) => {
+      markDataDirty();
+      const [stations, receipts, usages] = await Promise.all([
+        ldb.readTable<MaterialStation>("materialStations"),
+        ldb.readTable<MaterialReceipt>("materialReceipts"),
+        ldb.readTable<MaterialUsage>("materialUsages"),
+      ]);
+      await ldb.writeTable(
+        "materialStations",
+        stations.filter((r) => !(r.materialId === materialId && r.stationId === stationId))
+      );
+      await ldb.writeTable(
+        "materialReceipts",
+        receipts.filter((r) => !(r.materialId === materialId && r.stationId === stationId))
+      );
+      await ldb.writeTable(
+        "materialUsages",
+        usages.filter((u) => !(u.materialId === materialId && u.stationId === stationId))
+      );
+      const stillAssigned = stations.some(
+        (r) => r.materialId === materialId && r.stationId !== stationId
+      );
+      const stillStock =
+        receipts.some((r) => r.materialId === materialId && r.stationId !== stationId) ||
+        usages.some((u) => u.materialId === materialId && u.stationId !== stationId);
+      if (!stillAssigned && !stillStock) {
+        await ldb.remove("materials", materialId);
+      }
+    },
   },
 
   equipmentTypes: {

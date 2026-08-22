@@ -92,7 +92,11 @@ export function Materials() {
   const [useForm, setUseForm] = useState<{ material: Material; stationId: number | null } | null>(null);
   const [addReqForm, setAddReqForm] = useState<{ material: Material; stationId: number } | null>(null);
   const [setReqForm, setSetReqForm] = useState<{ material: Material; stationId: number } | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<{ kind: "material" | "receipt" | "usage"; id: number } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<
+    | { kind: "material" | "receipt" | "usage"; id: number }
+    | { kind: "materialStation"; id: number; stationId: number }
+    | null
+  >(null);
   const [equipmentTypes, setEquipmentTypes] = useState<EquipmentType[]>([]);
   const [equipmentForm, setEquipmentForm] = useState(false);
   const [exportMenu, setExportMenu] = useState(false);
@@ -249,7 +253,9 @@ export function Materials() {
     const { kind, id } = confirmDelete;
     setBusy(true);
     try {
-      if (kind === "material") await api.materials.remove(id);
+      if (kind === "materialStation") {
+        await api.materials.removeFromStation(id, confirmDelete.stationId);
+      } else if (kind === "material") await api.materials.remove(id);
       else if (kind === "receipt") await api.materialReceipts.remove(id);
       else await api.materialUsages.remove(id);
       await load();
@@ -350,10 +356,14 @@ export function Materials() {
             Edit
           </button>
           <button
-            onClick={() => setConfirmDelete({ kind: "material", id: m.id })}
+            onClick={() =>
+              stationId != null
+                ? setConfirmDelete({ kind: "materialStation", id: m.id, stationId })
+                : setConfirmDelete({ kind: "material", id: m.id })
+            }
             className="text-xs font-medium text-red-500 hover:underline"
           >
-            Delete
+            {stationId != null ? "Delete" : "Delete material"}
           </button>
         </div>
 
@@ -617,7 +627,17 @@ export function Materials() {
       {confirmDelete && (
         <Modal open onClose={() => setConfirmDelete(null)} title="Confirm delete">
           <p className="mb-4 text-sm text-slate-600">
-            Delete this {confirmDelete.kind}? This cannot be undone.
+            {confirmDelete.kind === "materialStation" ? (
+              <>
+                Remove{" "}
+                <strong>{materials.find((m) => m.id === confirmDelete.id)?.name ?? "this material"}</strong>{" "}
+                from <strong>{stationName(confirmDelete.stationId)}</strong>? Its requirement and its
+                receipts / usage at that station are removed too. Other stations keep it — the material
+                itself is deleted only when no other station needs it.
+              </>
+            ) : (
+              <>Delete this {confirmDelete.kind}? This cannot be undone.</>
+            )}
           </p>
           <div className="flex justify-end gap-2">
             <button
@@ -631,7 +651,7 @@ export function Materials() {
               disabled={busy}
               className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
             >
-              Delete
+              {confirmDelete.kind === "materialStation" ? "Remove" : "Delete"}
             </button>
           </div>
         </Modal>
