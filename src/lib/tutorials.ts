@@ -245,6 +245,33 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.6.71",
+    tag: "Station-wise materials",
+    subtitle: "Materials are now tracked station by station, with a requirement and low-stock minimum per station.",
+    slides: [
+      {
+        glyph: "▦",
+        title: "Requirements per station",
+        body: "Each material has a default requirement. From a station's own list you can set or add a different requirement for that station — and give it a minimum spare to keep in hand.",
+      },
+      {
+        glyph: "⌂",
+        title: "Receive and use per station",
+        body: "Receive and Use now record against the station you picked. The Materials tab groups everything station-wise, with received, used and in-hand totals for each station.",
+      },
+      {
+        glyph: "▤",
+        title: "Low-stock alerts",
+        body: "The app warns you when a station's in-hand quantity drops below that station's minimum. Stations without a minimum set are never alerted.",
+      },
+      {
+        glyph: "▸",
+        title: "Three export types",
+        body: "The Materials export menu now offers In-Hand Materials, Required Materials and the full report — overall and station-wise summaries in each.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {

@@ -3,6 +3,28 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.71 — 2026-08-22
+
+**Major: station-wise materials — per-station requirements, low-stock alerts and three export types**
+
+- **Materials tracked station by station.** The Materials tab now groups
+  everything by station. Each station's list shows how many of a material were
+  received, used and are still in hand there, with per-material detail expandable
+  to every receipt and issue.
+- **Requirement per station.** Every material has a default requirement. From a
+  station's own list you can set a different requirement for that station (the
+  "Req" button) or add more to it (the "+ Req" button). Station requirements are
+  remembered and restored with your backup.
+- **Low-stock alert per station.** Each station can have a minimum spare for a
+  material. When a station's in-hand quantity falls below its minimum, the app
+  raises a low-stock alert naming the station. Stations without a minimum set are
+  never alerted, and a station that has a minimum but is out of stock is flagged.
+- **Three export types.** The Materials export menu now offers **In-Hand
+  Materials**, **Required Materials** and the full report. The first two give an
+  overall and a station-wise summary; the full report keeps the existing detailed
+  output (required list, every receipt and issue with running balances).
+- A "What's New" tutorial introduces the feature.
+
 ## 1.7.6.70 — 2026-08-22
 
 **Minor: station entry asks for all station details and onboarding requires at least one station**

@@ -61,8 +61,8 @@ export function Materials() {
   const [materialForm, setMaterialForm] = useState<{ open: boolean; existing?: Material | null }>({ open: false });
   const [receiveForm, setReceiveForm] = useState<{ material: Material; stationId: number | null } | null>(null);
   const [useForm, setUseForm] = useState<{ material: Material; stationId: number | null } | null>(null);
-  const [addReqForm, setAddReqForm] = useState<{ material: Material; stationId: number | null } | null>(null);
-  const [setReqForm, setSetReqForm] = useState<{ material: Material; stationId: number | null } | null>(null);
+  const [addReqForm, setAddReqForm] = useState<{ material: Material; stationId: number } | null>(null);
+  const [setReqForm, setSetReqForm] = useState<{ material: Material; stationId: number } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ kind: "material" | "receipt" | "usage"; id: number } | null>(null);
   const [equipmentTypes, setEquipmentTypes] = useState<EquipmentType[]>([]);
   const [equipmentForm, setEquipmentForm] = useState(false);
@@ -131,6 +131,7 @@ export function Materials() {
           const req = effectiveRequirement(m, materialStations, stationId);
           return {
             material: m,
+            stationId,
             requiredQty: req.requiredQty,
             minRequiredSpare: req.minRequiredSpare,
             received,
@@ -222,7 +223,7 @@ export function Materials() {
       bad ? "bg-red-50 text-red-600" : value > 0 ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
     }`;
 
-  const materialRow = (row: NonNullable<ReturnType<typeof stationGroups>[number]["rows"][number]>) => {
+  const materialRow = (row: NonNullable<typeof stationGroups[number]["rows"][number]>) => {
     const m = row.material;
     const stationId = row.stationId;
     const detailKey = `${stationId ?? "none"}:${m.id}`;
@@ -266,20 +267,24 @@ export function Materials() {
             >
               Use
             </button>
-            <button
-              onClick={() => setAddReqForm({ material: m, stationId })}
-              className="rounded-lg bg-blue-600 px-2 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
-              title="Add more to this station's requirement"
-            >
-              + Req
-            </button>
-            <button
-              onClick={() => setSetReqForm({ material: m, stationId })}
-              className="rounded-lg border border-blue-800 px-2 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-50"
-              title="Set this station's requirement and minimum spare"
-            >
-              Req
-            </button>
+            {stationId != null && (
+              <>
+                <button
+                  onClick={() => setAddReqForm({ material: m, stationId })}
+                  className="rounded-lg bg-blue-600 px-2 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+                  title="Add more to this station's requirement"
+                >
+                  + Req
+                </button>
+                <button
+                  onClick={() => setSetReqForm({ material: m, stationId })}
+                  className="rounded-lg border border-blue-800 px-2 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-50"
+                  title="Set this station's requirement and minimum spare"
+                >
+                  Req
+                </button>
+              </>
+            )}
             <button
               onClick={() => toggleDetail(detailKey)}
               className={`rounded-lg border border-slate-300 px-2 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 ${
@@ -692,7 +697,7 @@ function MaterialForm({
         />
         <p className="mt-1 text-xs text-slate-500">
           The default requirement per station. You can set a different amount for an individual station
-          from that station's list (the "Req" button).
+          from that station&apos;s list (the &quot;Req&quot; button).
         </p>
       </Field>
       <Field label="Minimum required spare (optional, default for every station)">
@@ -706,7 +711,7 @@ function MaterialForm({
           placeholder="e.g. 5"
         />
         <p className="mt-1 text-xs text-slate-500">
-          Alert when a station's in-hand quantity falls below this. Leave blank for no low-stock alert.
+          Alert when a station&apos;s in-hand quantity falls below this. Leave blank for no low-stock alert.
           A station can override this from its own list.
         </p>
       </Field>
@@ -796,7 +801,7 @@ function EquipmentForm({
   return (
     <Modal open onClose={onClose} title="Add New Equipment">
       <p className="mb-3 text-xs text-slate-500">
-        Add a new equipment group. Materials filed under it keep that tag in every station's list.
+        Add a new equipment group. Materials filed under it keep that tag in every station&apos;s list.
       </p>
       <Field label="Equipment name">
         <input
@@ -836,7 +841,7 @@ function AddRequirementForm({
 }: {
   material: Material;
   materialStations: MaterialStation[];
-  stationId: number | null;
+  stationId: number;
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
@@ -910,7 +915,7 @@ function SetRequirementForm({
 }: {
   material: Material;
   materialStations: MaterialStation[];
-  stationId: number | null;
+  stationId: number;
   stations: Station[];
   onClose: () => void;
   onSaved: () => Promise<void>;
