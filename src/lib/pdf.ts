@@ -64,7 +64,7 @@ function tidy(s: string) {
  * carrying a span becomes a CellDef with that span, and the cells it covers
  * are omitted from the later rows / columns.
  */
-type PdfCell = string | { content: string; rowSpan: number; colSpan: number; styles?: { font?: string; fontStyle?: "bold"; halign?: "left" | "center" | "right" } };
+type PdfCell = string | { content: string; rowSpan: number; colSpan: number; styles?: { font?: string; fontStyle?: "bold"; halign?: "left" | "center" | "right"; valign?: "top" | "middle" | "bottom" } };
 
 function parseTableBody(trs: Element[]): PdfCell[][] {
   const active = new Map<number, number>();
@@ -89,12 +89,17 @@ function parseTableBody(trs: Element[]): PdfCell[][] {
       const text = isV
         ? (el.textContent ?? "").replace(/ +/g, "\n")
         : tidy(el.textContent ?? "");
-      const styles: { font?: string; fontStyle?: "bold"; halign?: "left" | "center" | "right" } = {};
+      const styles: { font?: string; fontStyle?: "bold"; halign?: "left" | "center" | "right"; valign?: "top" | "middle" | "bottom" } = {};
       const font = el.getAttribute("data-font");
       if (font) styles.font = font;
       if (el.querySelector("strong")) styles.fontStyle = "bold";
       const align = el.getAttribute("data-align");
-      if (align === "center") styles.halign = "center";
+      if (align === "center") {
+        styles.halign = "center";
+        styles.valign = "middle";
+      }
+      const valign = el.getAttribute("data-valign");
+      if (valign === "middle") styles.valign = "middle";
       const styled = Object.keys(styles).length > 0 ? { styles } : {};
       const cell: PdfCell =
         rowSpan > 1 || colSpan > 1
@@ -365,7 +370,7 @@ export function buildPdf(
                 };
                 if (c.rowSpan > 1) cell.rowSpan = c.rowSpan;
                 if (c.colSpan > 1) cell.colSpan = c.colSpan;
-                if (c.colSpan > 1 && c.el.getAttribute("data-align") === "center") {
+                if (c.el.getAttribute("data-align") === "center") {
                   cell.styles = { halign: "center", valign: "middle" };
                 }
                 return cell;

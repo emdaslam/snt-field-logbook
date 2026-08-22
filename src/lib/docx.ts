@@ -128,16 +128,20 @@ function tableCell(
   width: string,
   rowSpan: number,
   colSpan: number,
-  centered = false
+  centered = false,
+  vAlignMiddle = false
 ): string {
   const fill = isHead ? "DBEAFE" : "FFFFFF";
+  const valign = isHead || vAlignMiddle ? '<w:vAlign w:val="center"/>' : "";
   const tcPr =
     `<w:tcPr>` +
     (width ? `<w:tcW w:w="${width}" w:type="dxa"/>` : "") +
     (colSpan > 1 ? `<w:gridSpan w:val="${colSpan}"/>` : "") +
     (rowSpan > 1 ? '<w:vMerge w:val="restart"/>' : "") +
     `<w:tcMar><w:left w:w="80" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tcMar>` +
-    `<w:shd w:val="clear" w:color="auto" w:fill="${fill}"/></w:tcPr>` +
+    `<w:shd w:val="clear" w:color="auto" w:fill="${fill}"/>` +
+    valign +
+    `</w:tcPr>` +
     para(text, {
       bold: isHead,
       color: isHead ? "1E3A8A" : undefined,
@@ -240,8 +244,9 @@ function buildTable(html: string): string {
         ? (el.textContent ?? "").replace(/ +/g, "\n")
         : tidy(el.textContent ?? "");
       const centered = isV || el.getAttribute("data-align") === "center";
+      const vAlignMiddle = centered || el.getAttribute("data-valign") === "middle";
       cellsHtml.push(
-        tableCell(text, isHead, width, rowSpan, colSpan, centered)
+        tableCell(text, isHead, width, rowSpan, colSpan, centered, vAlignMiddle)
       );
       if (rowSpan > 1) active.set(col, rowSpan - 1);
       col += colSpan;

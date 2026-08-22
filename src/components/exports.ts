@@ -527,13 +527,16 @@ function cellText(c: XlsxCell | string | number): string {
  * (colspan) so those formats visually merge the same cells the Excel sheet
  * merges. `dateCol` marks the column rendered with class="date" (fixed-width
  * in the PDF); `centerCols` marks columns that get data-align="center";
- * `vTextCols` marks columns whose non-empty cells render their text vertically
- * (one character per line) via class="vtext" in PDF and Word.
+ * `valignCols` marks columns whose cells get data-valign="middle" (kept left
+ * horizontally — used for the nature-of-work column, which centres
+ * vertically but stays left aligned); `vTextCols` marks columns whose
+ * non-empty cells render their text vertically (one character per line) via
+ * class="vtext" in PDF and Word.
  */
 function gridHtml(
   grid: (string | number | XlsxCell)[][],
   merges: XlsxMerge[],
-  opts: { dateCol?: number; centerCols?: Set<number>; vTextCols?: Set<number>; fontCols?: Set<number> } = {}
+  opts: { dateCol?: number; centerCols?: Set<number>; valignCols?: Set<number>; vTextCols?: Set<number>; fontCols?: Set<number> } = {}
 ): string {
   const covered = new Set<string>();
   const rows: string[] = [];
@@ -549,6 +552,7 @@ function gridHtml(
       if (isV) cls = cls ? `${cls} vtext` : "vtext";
       let attrs = cls ? ` class="${cls}"` : "";
       if (opts.centerCols?.has(c)) attrs += ' data-align="center"';
+      if (opts.valignCols?.has(c)) attrs += ' data-valign="middle"';
       // data-font lets the PDF renderer pick a font that carries the rupee
       // sign (jsPDF's standard Helvetica can't draw U+20B9).
       if (opts.fontCols?.has(c) && txt.trim()) attrs += ' data-font="rupee"';
@@ -749,8 +753,8 @@ export function exportDiary(
     body += `<p class="empty">No diary entries in this period.</p>`;
   } else {
     body += `<table>`;
-    body += `<tr><th class="date" data-width="56">DATE</th><th data-width="72">TRAIN NO</th><th data-width="60">TIME DEP</th><th data-width="60">TIME ARR</th><th data-width="50">FROM</th><th data-width="50">TO</th><th>NATURE OF WORK</th></tr>`;
-    body += gridHtml(grid, merges, { dateCol: 0 });
+    body += `<tr><th class="date" data-width="56" data-align="center">DATE</th><th data-width="72" data-align="center">TRAIN NO</th><th data-width="60" data-align="center">TIME DEP</th><th data-width="60" data-align="center">TIME ARR</th><th data-width="50" data-align="center">FROM</th><th data-width="50" data-align="center">TO</th><th data-align="center">NATURE OF WORK</th></tr>`;
+    body += gridHtml(grid, merges, { dateCol: 0, centerCols: new Set([0, 1, 2, 3, 4, 5]), valignCols: new Set([6]) });
     body += `</table>`;
     if (me?.designation) body += `<p class="meta right">${esc(me.designation.toUpperCase())}</p>`;
   }
@@ -762,8 +766,12 @@ export function exportDiary(
   const sheet: XlsxSheet = {
     rows: [
       [{ v: titleText, bold: true }],
-      ["DATE", "TRAIN NO", "TIME DEP", "TIME ARR", "FROM", "TO", "NATURE OF WORK"],
-      ...grid.map((g) => g.map((c, i) => (i === 6 ? styled(c, { wrap: true }) : c)) as XlsxCell[]),
+      ["DATE", "TRAIN NO", "TIME DEP", "TIME ARR", "FROM", "TO", "NATURE OF WORK"].map(
+        (h) => styled(h, { center: true })
+      ),
+      ...grid.map(
+        (g) => g.map((c, i) => (i === 6 ? styled(c, { wrap: true }) : styled(c, { center: true }))) as XlsxCell[]
+      ),
     ],
     merges: allMerges,
     colWidths: [10.3, 8.7, 8.7, 8.7, 7.3, 7.3, 52.3],
@@ -874,14 +882,14 @@ export function exportTaJournal(
         legs.forEach((leg, i) => {
           grid.push([
             styled(emptyRow(i), { center: true }),
-            leg.trainNo,
+            styled(leg.trainNo, { center: true }),
             styled(leg.dep, { center: true }),
             styled(leg.arr, { center: true }),
             styled(leg.from, { center: true }),
             styled(leg.to, { center: true }),
             styled("", { center: true }),
-            i === 0 ? `${p}%` : "",
-            i === 0 ? amountCell(p) : "",
+            styled(i === 0 ? `${p}%` : "", { center: true }),
+            styled(i === 0 ? amountCell(p) : "", { center: true }),
             styled(i === 0 ? d.work : "", { wrap: true }),
           ]);
         });
@@ -895,14 +903,14 @@ export function exportTaJournal(
         // Incomplete journey — keep the day visible with a single row.
         grid.push([
           styled(dmy(l.logDate), { center: true }),
-          "---",
+          styled("---", { center: true }),
           styled("---", { center: true }),
           styled("---", { center: true }),
           styled("FOOTPLATE", { center: true }),
           styled("", { center: true }),
           styled("", { center: true }),
-          `${p}%`,
-          amountCell(p),
+          styled(`${p}%`, { center: true }),
+          styled(amountCell(p), { center: true }),
           styled(d.work, { wrap: true }),
         ]);
       }
@@ -912,27 +920,27 @@ export function exportTaJournal(
     const t = diaryTimes(l, st, l.logDate, taCfg ? taCfg[taRateKey(l.taPercent)] : undefined);
     grid.push([
       styled(dmy(l.logDate), { center: true }),
-      "ROAD",
+      styled("ROAD", { center: true }),
       styled(t.outDep, { center: true }),
       styled(t.outArr, { center: true }),
       styled(hqCode, { center: true }),
       styled(st.code, { center: true }),
       styled("", { center: true }),
-      `${p}%`,
-      amountCell(p),
+      styled(`${p}%`, { center: true }),
+      styled(amountCell(p), { center: true }),
       styled(d.work, { wrap: true }),
     ]);
     grid.push([
       styled("", { center: true }),
-      "ROAD",
+      styled("ROAD", { center: true }),
       styled(t.retDep, { center: true }),
       styled(t.retArr, { center: true }),
       styled(st.code, { center: true }),
       styled(hqCode, { center: true }),
       styled("", { center: true }),
-      "",
-      "",
-      "",
+      styled("", { center: true }),
+      styled("", { center: true }),
+      styled("", { center: true }),
     ]);
     merges.push([r, 0, r + 1, 0], [r, 7, r + 1, 7], [r, 8, r + 1, 8], [r, 9, r + 1, 9]);
   }
@@ -962,9 +970,9 @@ export function exportTaJournal(
     body += `<p class="empty">No TA days in this period.</p>`;
   } else {
     body += `<table>`;
-    body += `<tr><th rowspan="2" class="date" data-width="56" data-align="center">DATE</th><th data-align="center">TRAIN</th><th colspan="2" data-align="center">TIME</th><th colspan="2" data-align="center">STATION</th><th rowspan="2" data-width="30" data-align="center">KMS</th><th rowspan="2" data-width="32" data-align="center">DAYS</th><th rowspan="2" data-width="56" data-align="center">AMOUNT</th><th rowspan="2">NATURE OF WORK</th></tr>`;
+    body += `<tr><th rowspan="2" class="date" data-width="56" data-align="center">DATE</th><th data-align="center">TRAIN</th><th colspan="2" data-align="center">TIME</th><th colspan="2" data-align="center">STATION</th><th rowspan="2" data-width="30" data-align="center">KMS</th><th rowspan="2" data-width="32" data-align="center">DAYS</th><th rowspan="2" data-width="56" data-align="center">AMOUNT</th><th rowspan="2" data-align="center">NATURE OF WORK</th></tr>`;
     body += `<tr><th data-width="40" data-align="center">NO</th><th data-width="36" data-align="center">TIME DEPT</th><th data-width="36" data-align="center">TIME ARR</th><th data-width="40" data-align="center">FROM</th><th data-width="40" data-align="center">TO</th></tr>`;
-    body += gridHtml(pdfGridOf(grid), merges, { dateCol: 0, centerCols: new Set([0, 1, 2, 3, 4, 5, 6, 7, 8]), vTextCols: new Set([6]), fontCols: new Set([8]) });
+    body += gridHtml(pdfGridOf(grid), merges, { dateCol: 0, centerCols: new Set([0, 1, 2, 3, 4, 5, 6, 7, 8]), vTextCols: new Set([6]), fontCols: new Set([8]), valignCols: new Set([9]) });
     body += `<tr><td colspan="7" data-align="center"><strong>TOTAL NO. OF DAYS</strong></td><td><strong>${daysLabel(totalDays)} DAYS</strong></td><td data-font="rupee" data-align="center"><strong>${rateNotSet ? esc(rateMissingText) : `₹ ${totalAmount!.toLocaleString("en-IN")}`}</strong></td><td></td></tr>`;
     body += `</table>`;
 
@@ -986,27 +994,27 @@ export function exportTaJournal(
     [`Headquarters: ${hqCode}`, "", "", `Month: ${month}`, "", "", "", { v: bu, bold: false }, "", pay],
     [
       styled("DATE", { center: true }),
-      "TRAIN NO",
+      styled("TRAIN NO", { center: true }),
       styled("TIME", { center: true }),
-      "",
+      styled("", { center: true }),
       styled("STATION", { center: true }),
-      "",
+      styled("", { center: true }),
       styled("KMS", { center: true }),
-      "TA %",
-      "AMOUNT",
-      "NATURE OF WORK",
+      styled("TA %", { center: true }),
+      styled("AMOUNT", { center: true }),
+      styled("NATURE OF WORK", { center: true }),
     ],
     [
-      "",
-      "",
+      styled("", { center: true }),
+      styled("", { center: true }),
       styled("TIME DEPT", { center: true }),
       styled("TIME ARR", { center: true }),
       styled("FROM", { center: true }),
       styled("TO", { center: true }),
-      "",
-      "",
-      "",
-      "",
+      styled("", { center: true }),
+      styled("", { center: true }),
+      styled("", { center: true }),
+      styled("", { center: true }),
     ],
     ...grid,
   ];

@@ -3,6 +3,16 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.72 — 2026-08-22
+
+**Minor: Diary and TA Journal table cells aligned like the reference forms**
+
+- Every table heading in the Diary and TA Journal exports is now centred both
+  horizontally and vertically (PDF, Word and Excel).
+- The content under the headings is centred too, except the "NATURE OF WORK"
+  column, which stays left aligned while its heading is centred and its text
+  is vertically centred across a day's merged rows.
+
 ## 1.7.6.71 — 2026-08-22
 
 **Major: station-wise materials — per-station requirements, low-stock alerts and three export types**
