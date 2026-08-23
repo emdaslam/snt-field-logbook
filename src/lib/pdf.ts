@@ -421,8 +421,9 @@ export function buildPdf(
     }
   }
 
-  // Footer on every page (skipped for the fit-on-one-page mode)
-  if (withFooter) {
+  // Footer on every page (skipped for the fit-on-one-page mode and for the
+  // plain black-and-white export, which must match the reference report exactly)
+  if (withFooter && !plain) {
     const pages = doc.getNumberOfPages();
     for (let i = 1; i <= pages; i++) {
       doc.setPage(i);
