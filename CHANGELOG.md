@@ -3,6 +3,16 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.80 — 2026-08-23
+
+**Minor: Diary export — tighter heading gap and slimmer train-no / time / station columns**
+
+- **The gap between the Diary heading and the separator line under it is smaller.**
+  The line now sits close to the "DIARY OF SRI …" heading instead of a full line-height below it.
+- **The TRAIN NO, TIME DEP, TIME ARR, FROM and TO columns are now just wide enough
+  for their content** — in the PDF, Word and Excel exports. The space they free up
+  goes to the NATURE OF WORK column, which gets more room for the work text.
+
 ## 1.7.6.79 — 2026-08-23
 
 **Minor: Diary and TA Journal exports print everything in capitals**

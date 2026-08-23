@@ -792,13 +792,13 @@ export function exportDiary(
     ? `DIARY OF SRI ${who} FOR THE MONTH OF ${monthStamp(period.label)}`
     : `Diary — ${period.label}`;
 
-  let body = `<h1 class="centered">${esc(titleText)}</h1>`;
+  let body = `<h1 class="centered tight">${esc(titleText)}</h1>`;
 
   if (rows.length === 0) {
     body += `<p class="empty">No diary entries in this period.</p>`;
   } else {
     body += `<table>`;
-    body += `<tr><th class="date" data-width="56" data-align="center">DATE</th><th data-width="72" data-align="center">TRAIN NO</th><th data-width="60" data-align="center">TIME DEP</th><th data-width="60" data-align="center">TIME ARR</th><th data-width="50" data-align="center">FROM</th><th data-width="50" data-align="center">TO</th><th data-align="center">NATURE OF WORK</th></tr>`;
+    body += `<tr><th class="date" data-width="56" data-align="center">DATE</th><th data-width="34" data-align="center">TRAIN NO</th><th data-width="32" data-align="center">TIME DEP</th><th data-width="32" data-align="center">TIME ARR</th><th data-width="34" data-align="center">FROM</th><th data-width="34" data-align="center">TO</th><th data-align="center">NATURE OF WORK</th></tr>`;
     body += gridHtml(grid, merges, { dateCol: 0, centerCols: new Set([0, 1, 2, 3, 4, 5]), valignCols: new Set([6]) });
     body += `</table>`;
     if (me?.designation) body += `<p class="meta right">${esc(me.designation.toUpperCase())}</p>`;
@@ -819,7 +819,7 @@ export function exportDiary(
       ),
     ],
     merges: allMerges,
-    colWidths: [10.3, 8.7, 8.7, 8.7, 7.3, 7.3, 52.3],
+    colWidths: [10.3, 6, 6, 6, 6, 6, 63],
   };
 
   out(`Diary ${period.label}`, upperText(body), "diary", upperSheet(sheet), { onePage: true, style: "plain" });

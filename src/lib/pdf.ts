@@ -212,7 +212,8 @@ export function buildPdf(
         doc.text(rightNote, pageW - margin, y, { align: "right" });
         doc.setFont("helvetica", "bold").setFontSize(headingSize).setTextColor(...INK);
       }
-      y += lines.length * (18 * fs) + 4;
+      const tight = el.className.includes("tight");
+      y += lines.length * (tight ? 14 * fs : 18 * fs) + (tight ? 2 : 4);
       doc.setDrawColor(...INK).setLineWidth(plain ? 0.75 : 1.5).line(margin, y, pageW - margin, y);
       y += 14;
     } else if (tag === "h2") {
