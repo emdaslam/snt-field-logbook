@@ -65,9 +65,9 @@ function tidy(s: string) {
  * carrying a span becomes a CellDef with that span, and the cells it covers
  * are omitted from the later rows / columns.
  */
-type PdfCell = string | { content: string; rowSpan: number; colSpan: number; styles?: { font?: string; fontStyle?: "bold"; fontSize?: number; halign?: "left" | "center" | "right"; valign?: "top" | "middle" | "bottom" } };
+type PdfCell = string | { content: string; rowSpan: number; colSpan: number; styles?: { font?: string; fontStyle?: "bold"; halign?: "left" | "center" | "right"; valign?: "top" | "middle" | "bottom" } };
 
-function parseTableBody(trs: Element[], fs: number): PdfCell[][] {
+function parseTableBody(trs: Element[]): PdfCell[][] {
   const active = new Map<number, number>();
   const body: PdfCell[][] = [];
   for (const tr of trs) {
@@ -90,15 +90,10 @@ function parseTableBody(trs: Element[], fs: number): PdfCell[][] {
       const text = isV
         ? (el.textContent ?? "").replace(/ +/g, "\n")
         : tidy(el.textContent ?? "");
-      const styles: { font?: string; fontStyle?: "bold"; fontSize?: number; halign?: "left" | "center" | "right"; valign?: "top" | "middle" | "bottom" } = {};
+      const styles: { font?: string; fontStyle?: "bold"; halign?: "left" | "center" | "right"; valign?: "top" | "middle" | "bottom" } = {};
       const font = el.getAttribute("data-font");
       if (font) styles.font = font;
       if (el.querySelector("strong")) styles.fontStyle = "bold";
-      // data-fontscale bumps the cell's font (the NATURE OF WORK column reads
-      // smaller than the uppercase columns at the same size, so it gets a
-      // larger size relative to the table base of 8 * fs).
-      const scale = el.getAttribute("data-fontscale");
-      if (scale) styles.fontSize = Math.round(8 * fs * Number(scale));
       const align = el.getAttribute("data-align");
       if (align === "center") {
         styles.halign = "center";
@@ -391,7 +386,7 @@ export function buildPdf(
               })
             )
           : undefined;
-      const body = parseTableBody(bodyRows, fs);
+      const body = parseTableBody(bodyRows);
       autoTable(doc, {
         head,
         body,
