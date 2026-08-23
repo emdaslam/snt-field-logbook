@@ -535,6 +535,37 @@ function cellText(c: XlsxCell | string | number): string {
   return typeof c === "object" ? String(c.v) : String(c);
 }
 
+/** Uppercase every text node of an export body so the rendered PDF / Word
+ *  output reads fully in capitals, leaving tags and attributes untouched
+ *  (escaping entities like &amp; becomes &AMP;, which parses identically). */
+function upperText(html: string): string {
+  let out = "";
+  let inTag = false;
+  for (const ch of html) {
+    if (ch === "<") inTag = true;
+    else if (ch === ">") {
+      inTag = false;
+      out += ch;
+      continue;
+    }
+    out += inTag ? ch : ch.toUpperCase();
+  }
+  return out;
+}
+
+/** Uppercase every string cell of an Excel grid (numbers and styles kept). */
+function upperSheet(sheet: XlsxSheet): XlsxSheet {
+  return {
+    ...sheet,
+    rows: sheet.rows.map((row) =>
+      row.map((c) => {
+        if (typeof c === "object" && typeof c.v === "string") return { ...c, v: c.v.toUpperCase() };
+        return typeof c === "string" ? c.toUpperCase() : c;
+      })
+    ),
+  };
+}
+
 /**
  * Render a grid and its merge ranges into table HTML for the PDF / Word
  * outputs, honouring vertical merges (rowspan) and horizontal merges
@@ -791,7 +822,7 @@ export function exportDiary(
     colWidths: [10.3, 8.7, 8.7, 8.7, 7.3, 7.3, 52.3],
   };
 
-  out(`Diary ${period.label}`, body, "diary", sheet, { onePage: true, style: "plain" });
+  out(`Diary ${period.label}`, upperText(body), "diary", upperSheet(sheet), { onePage: true, style: "plain" });
 }
 
 
@@ -976,7 +1007,7 @@ export function exportTaJournal(
   const cert =
     "I here certify that the above mentioned employee was absent on duty from his headquarters station during the period charged for in the bill on Railway Business.";
 
-  let body = `<h1 class="centered" data-right-note="In lieu of G.A.31">SOUTH COAST RAILWAY. GUNTAKAL DIVISION</h1>`;
+  let body = `<h1 class="centered" data-right-note="IN LIEU OF G.A.31">SOUTH COAST RAILWAY. GUNTAKAL DIVISION</h1>`;
   body += `<h2 class="centered">TRAVELLING ALLOWANCE JOURNAL</h2>`;
   body += `<p class="cols" data-cols="0,150,300,450"><span>${esc(name)}</span><span>${esc(designation)}</span><span>${esc(pf)}</span><span>${esc(payMetric)}</span></p>`;
   body += `<p class="cols" data-cols="0,150,300,450"><span>${esc(`Headquarters: ${hqCode}`)}</span><span>${esc(`Month: ${month}`)}</span><span>${esc(bu)}</span><span>${esc(pay)}</span></p>`;
@@ -1085,7 +1116,7 @@ export function exportTaJournal(
     colWidths: [10.43, 8.14, 9.71, 9.29, 6.71, 8.43, 4.29, 9.71, 11.43, 51, 12.14, 9],
   };
 
-  out(`TA Journal ${period.label}`, body, "ta", sheet, { onePage: true, style: "plain" });
+  out(`TA Journal ${period.label}`, upperText(body), "ta", upperSheet(sheet), { onePage: true, style: "plain" });
 }
 
 

@@ -3,6 +3,16 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.79 — 2026-08-23
+
+**Minor: Diary and TA Journal exports print everything in capitals**
+
+- **All text in the Diary and TA Journal exports is now in capital letters.**
+  Work descriptions, station names, the profile block, the certification line and
+  every note are shown in capitals in the PDF, Word and Excel exports — even when
+  typed in small letters. Headings, dates, times, amounts and the header row are
+  unaffected (they were already uppercase).
+
 ## 1.7.6.78 — 2026-08-22
 
 **Minor: plain Diary / TA Journal exports fixed — table heading boxes and even TA profile spacing**
