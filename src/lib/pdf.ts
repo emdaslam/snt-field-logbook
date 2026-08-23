@@ -268,13 +268,14 @@ export function buildPdf(
       const left = Number(el.getAttribute("data-left")) || 0;
       const meta = cls.includes("meta") || cls.includes("empty");
       const right = cls.includes("right");
+      const rightPad = right ? Number(el.getAttribute("data-right-pad")) || 0 : 0;
       const bold = el.querySelector("strong") ? "bold" : "normal";
       y += Number(el.getAttribute("data-space-top")) || 0;
       doc.setFont("helvetica", meta ? "italic" : bold).setFontSize(9 * fs);
       if (meta) doc.setTextColor(plain ? 15 : GREY[0], 23, 42);
       else doc.setTextColor(15, 23, 42);
-      const lines = doc.splitTextToSize(text, right ? maxW : maxW - left) as string[];
-      doc.text(lines, right ? pageW - margin : margin + left, y, right ? { align: "right" } : undefined);
+      const lines = doc.splitTextToSize(text, right ? maxW - rightPad : maxW - left) as string[];
+      doc.text(lines, right ? pageW - margin - rightPad : margin + left, y, right ? { align: "right" } : undefined);
       y += lines.length * (12 * fs) + 8;
     } else if (tag === "ul") {
       for (const li of Array.from(el.children)) {

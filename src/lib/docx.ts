@@ -72,6 +72,7 @@ function para(
     centered?: boolean;
     alignRight?: boolean;
     indent?: number;
+    indentRight?: number;
   } = {}
 ): string {
   if (!text.trim()) return "";
@@ -82,6 +83,7 @@ function para(
   if (opts.alignRight) pPrParts.push(`<w:jc w:val="right"/>`);
   if (opts.bullet) pPrParts.push(`<w:ind w:left="283" w:hanging="283"/>`);
   if (opts.indent) pPrParts.push(`<w:ind w:left="${opts.indent}"/>`);
+  if (opts.indentRight) pPrParts.push(`<w:ind w:right="${opts.indentRight}"/>`);
   if (opts.borderBottom) {
     pPrParts.push(
       `<w:pBdr><w:bottom w:val="single" w:sz="8" w:space="1" w:color="${opts.borderBottom}"/></w:pBdr>`
@@ -354,6 +356,7 @@ export function buildDocx(title: string, bodyHtml: string, style: ExportStyle = 
         continue;
       }
       const meta = el.className.includes("meta") || el.className.includes("empty");
+      const rightPad = Math.round((Number(el.getAttribute("data-right-pad")) || 0) * 20);
       parts.push(
         para(text, {
           bold: !!el.querySelector("strong"),
@@ -363,6 +366,7 @@ export function buildDocx(title: string, bodyHtml: string, style: ExportStyle = 
           after: 160,
           indent: Math.round((Number(el.getAttribute("data-left")) || 0) * 20),
           alignRight: el.className.includes("right"),
+          indentRight: el.className.includes("right") ? rightPad : undefined,
         })
       );
     } else if (tag === "ul") {
