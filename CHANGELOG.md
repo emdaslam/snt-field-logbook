@@ -3,6 +3,15 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.83 — 2026-08-23
+
+**Minor: TA Journal export — one centred TRAIN NO heading, TOTAL lines up before the equals, tighter header spacing and a sentence-case certification line**
+
+- **TRAIN NO is one centred heading over the train column.** TRAIN and NO previously hung on two separate header tiers; the header now shows a single TRAIN NO cell spanning both rows, centred over the train legs — in the PDF, Word and Excel exports.
+- **The summary TOTAL word sits right before the "=" sign.** The line now reads "TOTAL = 12 DAYS" instead of TOTAL floating in its own column at the far left, aligned with the 100/70/30% rows above it. Applies to the PDF/Word body and the Excel summaries.
+- **The TA heading sits closer to the line under it.** The separator now follows "SOUTH COAST RAILWAY. GUNTAKAL DIVISION" at the same tighter spacing the Diary export already used.
+- **The certification line stays in sentence case with "employee" underlined.** The "I here certify …" line no longer prints in capitals like the rest of the report; "employee" is underlined in the PDF, Word and Excel exports.
+
 ## 1.7.6.82 — 2026-08-23
 
 **Minor: Export polish — plain PDFs carry no generated footer, TA totals align, diary signature inset**
