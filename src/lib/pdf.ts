@@ -98,6 +98,8 @@ function parseTableBody(trs: Element[]): PdfCell[][] {
       if (align === "center") {
         styles.halign = "center";
         styles.valign = "middle";
+      } else if (align === "left") {
+        styles.halign = "left";
       }
       const valign = el.getAttribute("data-valign");
       if (valign === "middle") styles.valign = "middle";
@@ -150,7 +152,7 @@ export function buildPdf(
   title: string,
   bodyHtml: string,
   contentSize: number,
-  opts: { margin?: number; footer?: boolean; style?: ExportStyle } = {}
+  opts: { margin?: number; footer?: boolean; style?: ExportStyle; cellPad?: number } = {}
 ): jsPDF {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   registerPdfFonts(doc);
@@ -397,7 +399,7 @@ export function buildPdf(
         margin: { left: margin, right: margin },
         styles: {
           fontSize: 8 * fs,
-          cellPadding: 4,
+          cellPadding: opts.cellPad ?? 4,
           overflow: "linebreak",
           textColor: [15, 23, 42],
           ...(plain ? { lineColor: INK } : {}),
@@ -446,14 +448,14 @@ export function buildPdf(
  * margins and no footer, shrinking the content size until it lands on a single
  * page (or hits the fit floor, below which the text would be unreadable).
  */
-export function buildFitOnePagePdf(title: string, bodyHtml: string, startSize: number, style: ExportStyle = "colour"): jsPDF {
+export function buildFitOnePagePdf(title: string, bodyHtml: string, startSize: number, style: ExportStyle = "colour", cellPad?: number): jsPDF {
   const FIT_MARGIN = 24;
   const FIT_FONT_MIN = 6;
   let size = startSize;
-  let doc = buildPdf(title, bodyHtml, size, { margin: FIT_MARGIN, footer: false, style });
+  let doc = buildPdf(title, bodyHtml, size, { margin: FIT_MARGIN, footer: false, style, ...(cellPad != null ? { cellPad } : {}) });
   while (doc.getNumberOfPages() > 1 && size > FIT_FONT_MIN) {
     size -= 1;
-    doc = buildPdf(title, bodyHtml, size, { margin: FIT_MARGIN, footer: false, style });
+    doc = buildPdf(title, bodyHtml, size, { margin: FIT_MARGIN, footer: false, style, ...(cellPad != null ? { cellPad } : {}) });
   }
   return doc;
 }
@@ -470,7 +472,7 @@ export function exportDocument(
   bodyHtml: string,
   type = "general",
   sheet?: XlsxSheet,
-  opts?: { onePage?: boolean; style?: ExportStyle }
+  opts?: { onePage?: boolean; style?: ExportStyle; cellPad?: number }
 ) {
   // Bottom sheet that offers the report as PDF, Word (.docx) or Excel (.xlsx),
   // with a text size prompt for the PDF path. The last chosen format is remembered.
@@ -736,10 +738,11 @@ export function exportDocument(
           };
         } else {
           const size = chosenSize();
+          const cellPad = opts?.cellPad;
           const doc =
             onePage && fitOnePage
-              ? buildFitOnePagePdf(title, bodyHtml, size, style)
-              : buildPdf(title, bodyHtml, size, { style });
+              ? buildFitOnePagePdf(title, bodyHtml, size, style, cellPad)
+              : buildPdf(title, bodyHtml, size, { style, ...(cellPad != null ? { cellPad } : {}) });
           if (!(onePage && fitOnePage)) persistContentFontSize(type, size);
           artifact = {
             filename: `${slug(title)}.pdf`,

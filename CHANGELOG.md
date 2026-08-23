@@ -3,6 +3,21 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.81 — 2026-08-23
+
+**Minor: Diary table cells fit their content — tighter rows, and the work text left-aligned**
+
+- **The Diary table rows are no taller than their content.** The cell padding is
+  halved, so a row holding a single line (e.g. "ROAD") is just tall enough to
+  hold it, and the whole month's table takes visibly less vertical space.
+- **When a day has two rows and the NATURE OF WORK text is long, both rows grow
+  equally** so the merged work cell always fits — one leg never grows while the
+  other stays short.
+- **NATURE OF WORK content is now left-aligned** in the Diary and TA Journal
+  exports — the heading stays centred, but the work text lines up on the left
+  like a written description instead of floating in the middle. Applies to the
+  PDF, Word and Excel exports.
+
 ## 1.7.6.80 — 2026-08-23
 
 **Minor: Diary export — tighter heading gap and slimmer train-no / time / station columns**

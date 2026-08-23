@@ -581,7 +581,7 @@ function upperSheet(sheet: XlsxSheet): XlsxSheet {
 function gridHtml(
   grid: (string | number | XlsxCell)[][],
   merges: XlsxMerge[],
-  opts: { dateCol?: number; centerCols?: Set<number>; valignCols?: Set<number>; vTextCols?: Set<number>; fontCols?: Set<number> } = {}
+  opts: { dateCol?: number; centerCols?: Set<number>; leftCols?: Set<number>; valignCols?: Set<number>; vTextCols?: Set<number>; fontCols?: Set<number> } = {}
 ): string {
   const covered = new Set<string>();
   const rows: string[] = [];
@@ -597,6 +597,7 @@ function gridHtml(
       if (isV) cls = cls ? `${cls} vtext` : "vtext";
       let attrs = cls ? ` class="${cls}"` : "";
       if (opts.centerCols?.has(c)) attrs += ' data-align="center"';
+      else if (opts.leftCols?.has(c)) attrs += ' data-align="left"';
       if (opts.valignCols?.has(c)) attrs += ' data-valign="middle"';
       // data-font lets the PDF renderer pick a font that carries the rupee
       // sign (jsPDF's standard Helvetica can't draw U+20B9).
@@ -695,7 +696,7 @@ export function exportDiary(
   logs: DailyLog[],
   stations: Station[],
   me: Staff | undefined,
-  out: (title: string, body: string, type: string, sheet?: XlsxSheet, opts?: { onePage?: boolean; style?: ExportStyle }) => void = exportDocument
+  out: (title: string, body: string, type: string, sheet?: XlsxSheet, opts?: { onePage?: boolean; style?: ExportStyle; cellPad?: number }) => void = exportDocument
 ) {
   const hq = stations.find((s) => s.id === me?.headquartersStationId);
   const hqCode = hqLabel(hq);
@@ -799,7 +800,7 @@ export function exportDiary(
   } else {
     body += `<table>`;
     body += `<tr><th class="date" data-width="56" data-align="center">DATE</th><th data-width="34" data-align="center">TRAIN NO</th><th data-width="32" data-align="center">TIME DEP</th><th data-width="32" data-align="center">TIME ARR</th><th data-width="34" data-align="center">FROM</th><th data-width="34" data-align="center">TO</th><th data-align="center">NATURE OF WORK</th></tr>`;
-    body += gridHtml(grid, merges, { dateCol: 0, centerCols: new Set([0, 1, 2, 3, 4, 5]), valignCols: new Set([6]) });
+    body += gridHtml(grid, merges, { dateCol: 0, centerCols: new Set([0, 1, 2, 3, 4, 5]), leftCols: new Set([6]), valignCols: new Set([6]) });
     body += `</table>`;
     if (me?.designation) body += `<p class="right" data-space-top="16"><strong>${esc(me.designation.toUpperCase())}</strong></p>`;
   }
@@ -822,7 +823,7 @@ export function exportDiary(
     colWidths: [10.3, 6, 6, 6, 6, 6, 63],
   };
 
-  out(`Diary ${period.label}`, upperText(body), "diary", upperSheet(sheet), { onePage: true, style: "plain" });
+  out(`Diary ${period.label}`, upperText(body), "diary", upperSheet(sheet), { onePage: true, style: "plain", cellPad: 2 });
 }
 
 
@@ -1018,7 +1019,7 @@ export function exportTaJournal(
     body += `<table>`;
     body += `<tr><th rowspan="2" class="date" data-width="56" data-align="center">DATE</th><th data-align="center">TRAIN</th><th colspan="2" data-align="center">TIME</th><th colspan="2" data-align="center">STATION</th><th rowspan="2" data-width="30" data-align="center">KMS</th><th rowspan="2" data-width="32" data-align="center">DAYS</th><th rowspan="2" data-width="56" data-align="center">AMOUNT</th><th rowspan="2" data-align="center">NATURE OF WORK</th></tr>`;
     body += `<tr><th data-width="40" data-align="center">NO</th><th data-width="36" data-align="center">TIME DEPT</th><th data-width="36" data-align="center">TIME ARR</th><th data-width="40" data-align="center">FROM</th><th data-width="40" data-align="center">TO</th></tr>`;
-    body += gridHtml(pdfGridOf(grid), merges, { dateCol: 0, centerCols: new Set([0, 1, 2, 3, 4, 5, 6, 7, 8]), vTextCols: new Set([6]), fontCols: new Set([8]), valignCols: new Set([9]) });
+    body += gridHtml(pdfGridOf(grid), merges, { dateCol: 0, centerCols: new Set([0, 1, 2, 3, 4, 5, 6, 7, 8]), leftCols: new Set([9]), vTextCols: new Set([6]), fontCols: new Set([8]), valignCols: new Set([9]) });
     body += `<tr><td colspan="7" data-align="center"><strong>TOTAL NO. OF DAYS</strong></td><td><strong>${daysLabel(totalDays)} DAYS</strong></td><td data-font="rupee" data-align="center"><strong>${rateNotSet ? esc(rateMissingText) : `₹ ${formatRupee(totalAmount!)}`}</strong></td><td></td></tr>`;
     body += `</table>`;
 
