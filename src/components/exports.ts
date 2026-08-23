@@ -1027,7 +1027,7 @@ export function exportTaJournal(
     body += `<p class="cols" data-cols="46,83,115"><span>70%</span><span>X ${n70}</span><span>= ${daysLabel(days70)} DAYS</span></p>`;
     body += `<p class="cols" data-cols="46,83,115"><span>30%</span><span>X ${n30}</span><span>= ${daysLabel(days30)} DAYS</span></p>`;
     body += `<p class="cols" data-cols="55"><span>${"".padEnd(24, "_")}</span></p>`;
-    body += `<p class="cols" data-cols="88"><span><strong>TOTAL</strong> = ${daysLabel(totalDays)} DAYS</span></p>`;
+    body += `<p class="cols" data-cols="46,83,115"><span><strong>TOTAL</strong></span><span></span><span>= ${daysLabel(totalDays)} DAYS</span></p>`;
 
     body += `<p class="meta">${esc(cert)}</p>`;
     body += `<p class="cols" data-cols="0,190,390"><span>${"".padEnd(20, "_")}</span><span>${"".padEnd(19, "_")}</span><span>${"".padEnd(22, "_")}</span></p>`;
