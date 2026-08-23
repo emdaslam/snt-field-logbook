@@ -3,19 +3,6 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
-## 1.7.6.79 — 2026-08-23
-
-**Minor: the NATURE OF WORK column reads at the same visual size as the uppercase columns in the Diary / TA Journal exports**
-
-- **Work text no longer looks like a smaller font.** Every other column is
-  uppercase or digits, whose letters sit taller than sentence-case text at the
-  same point size — so the NATURE OF WORK cells now render at 1.25x the table
-  body size to match.
-- **Same bump across all three formats.** PDF, Word (.docx) and Excel (.xlsx)
-  all print the work cells larger (PDF point size, Word half-points, Excel
-  points via per-cell font support). The content stays left-aligned and
-  vertically centred, and the column header is untouched.
-
 ## 1.7.6.78 — 2026-08-22
 
 **Minor: plain Diary / TA Journal exports fixed — table heading boxes and even TA profile spacing**
