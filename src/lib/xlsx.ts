@@ -19,6 +19,8 @@ export type XlsxCell =
       center?: boolean;
       /** Wrap long text within the cell. */
       wrap?: boolean;
+      /** Font size in points (defaults to 10). */
+      fontSize?: number;
     };
 /** 0-indexed inclusive merge: [row1, col1, row2, col2] */
 export type XlsxMerge = [number, number, number, number];
@@ -49,15 +51,15 @@ function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-type CellStyle = { bold?: boolean; center?: boolean; wrap?: boolean };
+type CellStyle = { bold?: boolean; center?: boolean; wrap?: boolean; fontSize?: number };
 
 function cellStyleOf(cell: XlsxCell): CellStyle {
   return typeof cell === "object"
-    ? { bold: cell.bold, center: cell.center, wrap: cell.wrap }
+    ? { bold: cell.bold, center: cell.center, wrap: cell.wrap, fontSize: cell.fontSize }
     : {};
 }
 
-const styleKey = (s: CellStyle) => `${s.bold ? 1 : 0}${s.center ? 1 : 0}${s.wrap ? 1 : 0}`;
+const styleKey = (s: CellStyle) => `${s.bold ? 1 : 0}${s.center ? 1 : 0}${s.wrap ? 1 : 0}${s.fontSize ?? 10}`;
 
 /**
  * Collect the distinct cell styles actually used, in first-seen order with the
@@ -96,7 +98,6 @@ export function buildXlsx(sheet: XlsxSheet): Uint8Array {
   const { rows, merges = [], colWidths = [] } = sheet;
 
   const { indexOf, list } = collectStyles(rows);
-  const usedBold = list.some((s) => s.bold);
 
   const cols =
     colWidths.length > 0
@@ -164,18 +165,33 @@ export function buildXlsx(sheet: XlsxSheet): Uint8Array {
     `<Relationship Id="rId2" Type="${R_NS}/styles" Target="styles.xml"/>` +
     `</Relationships>`;
 
-  // Font 0 = normal, font 1 = bold (only when a bold cell exists).
+  // One <font> per distinct (size, bold) combination actually used, so cells
+  // can carry a larger size (e.g. the NATURE OF WORK column). The plain 10pt
+  // Calibri font is always first (id 0).
+  const fontEntries: { bold: boolean; size: number }[] = [];
+  const fontIdOf = new Map<string, number>();
+  const fontKey = (bold: boolean, size: number) => `${size}:${bold ? 1 : 0}`;
+  const addFont = (bold: boolean, size: number) => {
+    const k = fontKey(bold, size);
+    if (!fontIdOf.has(k)) {
+      fontIdOf.set(k, fontEntries.length);
+      fontEntries.push({ bold, size });
+    }
+  };
+  addFont(false, 10);
+  for (const s of list) addFont(Boolean(s.bold), s.fontSize ?? 10);
   const fonts =
-    `<fonts count="${usedBold ? 2 : 1}">` +
-    `<font><sz val="10"/><name val="Calibri"/></font>` +
-    (usedBold ? `<font><b/><sz val="10"/><name val="Calibri"/></font>` : "") +
+    `<fonts count="${fontEntries.length}">` +
+    fontEntries
+      .map((f) => `<font>${f.bold ? "<b/>" : ""}<sz val="${f.size}"/><name val="Calibri"/></font>`)
+      .join("") +
     `</fonts>`;
   // One cellXf per distinct style; alignment (center / wrap) is applied when used.
   const cellXfs =
     `<cellXfs count="${list.length}">` +
     list
       .map((s) => {
-        const fontId = s.bold ? 1 : 0;
+        const fontId = fontIdOf.get(fontKey(Boolean(s.bold), s.fontSize ?? 10)) ?? 0;
         const align: string[] = [];
         if (s.center) align.push('horizontal="center" vertical="center"');
         if (s.wrap) align.push('wrapText="1"');

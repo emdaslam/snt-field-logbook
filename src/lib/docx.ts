@@ -132,7 +132,8 @@ function tableCell(
   colSpan: number,
   centered = false,
   vAlignMiddle = false,
-  plain = false
+  plain = false,
+  bodySz = 18
 ): string {
   const fill = isHead ? (plain ? "FFFFFF" : "DBEAFE") : "FFFFFF";
   const valign = isHead || vAlignMiddle ? '<w:vAlign w:val="center"/>' : "";
@@ -148,7 +149,7 @@ function tableCell(
     para(text, {
       bold: isHead,
       color: isHead && !plain ? "1E3A8A" : undefined,
-      sz: isHead ? 16 : 18,
+      sz: isHead ? 16 : bodySz,
       after: 60,
       before: 40,
       centered,
@@ -248,8 +249,13 @@ function buildTable(html: string, plain = false): string {
         : tidy(el.textContent ?? "");
       const centered = isV || el.getAttribute("data-align") === "center";
       const vAlignMiddle = centered || el.getAttribute("data-valign") === "middle";
+      // data-fontscale bumps the cell's font (the NATURE OF WORK column reads
+      // smaller than the uppercase columns at the same size, so it gets a
+      // larger body size in half-points: 18 * scale).
+      const scale = el.getAttribute("data-fontscale");
+      const bodySz = scale ? Math.round(18 * Number(scale)) : 18;
       cellsHtml.push(
-        tableCell(text, isHead, width, rowSpan, colSpan, centered, vAlignMiddle, plain)
+        tableCell(text, isHead, width, rowSpan, colSpan, centered, vAlignMiddle, plain, bodySz)
       );
       if (rowSpan > 1) active.set(col, rowSpan - 1);
       col += colSpan;

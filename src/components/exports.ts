@@ -46,6 +46,13 @@ const KMS_NOTE_VERT = KMS_NOTE.split(" ")
   .map((w) => w.split("").join("\n"))
   .join("\n\n");
 
+/** The NATURE OF WORK column holds sentence-case work text while every other
+ *  column is uppercase or digits. Uppercase letters sit taller than lowercase
+ *  at the same point size, so the work text reads as a smaller font. Bump its
+ *  font size by this factor so it visually matches the surrounding columns.
+ *  The same factor drives PDF (pt), Word (half-points) and Excel (pt). */
+const NATURE_WORK_FONT_SCALE = 1.25;
+
 /** Trim a day count to at most one decimal and drop a trailing ".0". */
 function daysLabel(d: number): string {
   return (Math.round(d * 10) / 10).toString().replace(/\.0$/, "");
@@ -525,9 +532,9 @@ function workText(l: DailyLog): string {
   return l.workDone?.trim() || "";
 }
 
-/** Wrap a grid cell into an XlsxCell, applying center / wrap cell styles. */
-function styled(v: string | number, o: { center?: boolean; wrap?: boolean } = {}): XlsxCell {
-  return o.center || o.wrap ? { v, ...o } : v;
+/** Wrap a grid cell into an XlsxCell, applying center / wrap / fontSize styles. */
+function styled(v: string | number, o: { center?: boolean; wrap?: boolean; fontSize?: number } = {}): XlsxCell {
+  return o.center || o.wrap || o.fontSize != null ? { v, ...o } : v;
 }
 
 /** Plain text of a grid cell (unwraps styled cell objects). */
@@ -550,7 +557,7 @@ function cellText(c: XlsxCell | string | number): string {
 function gridHtml(
   grid: (string | number | XlsxCell)[][],
   merges: XlsxMerge[],
-  opts: { dateCol?: number; centerCols?: Set<number>; valignCols?: Set<number>; vTextCols?: Set<number>; fontCols?: Set<number> } = {}
+  opts: { dateCol?: number; centerCols?: Set<number>; valignCols?: Set<number>; vTextCols?: Set<number>; fontCols?: Set<number>; fontScaleCols?: Set<number> } = {}
 ): string {
   const covered = new Set<string>();
   const rows: string[] = [];
@@ -570,6 +577,10 @@ function gridHtml(
       // data-font lets the PDF renderer pick a font that carries the rupee
       // sign (jsPDF's standard Helvetica can't draw U+20B9).
       if (opts.fontCols?.has(c) && txt.trim()) attrs += ' data-font="rupee"';
+      // data-fontscale bumps the cell's font size in PDF / Word (the NATURE OF
+      // WORK column: sentence-case text reads smaller than the uppercase
+      // columns at the same point size).
+      if (opts.fontScaleCols?.has(c) && txt.trim()) attrs += ` data-fontscale="${NATURE_WORK_FONT_SCALE}"`;
       if (m) {
         const [, , r2, c2] = m;
         const rs = r2 - r + 1;
@@ -768,7 +779,7 @@ export function exportDiary(
   } else {
     body += `<table>`;
     body += `<tr><th class="date" data-width="56" data-align="center">DATE</th><th data-width="72" data-align="center">TRAIN NO</th><th data-width="60" data-align="center">TIME DEP</th><th data-width="60" data-align="center">TIME ARR</th><th data-width="50" data-align="center">FROM</th><th data-width="50" data-align="center">TO</th><th data-align="center">NATURE OF WORK</th></tr>`;
-    body += gridHtml(grid, merges, { dateCol: 0, centerCols: new Set([0, 1, 2, 3, 4, 5]), valignCols: new Set([6]) });
+    body += gridHtml(grid, merges, { dateCol: 0, centerCols: new Set([0, 1, 2, 3, 4, 5]), valignCols: new Set([6]), fontScaleCols: new Set([6]) });
     body += `</table>`;
     if (me?.designation) body += `<p class="meta right">${esc(me.designation.toUpperCase())}</p>`;
   }
@@ -784,7 +795,7 @@ export function exportDiary(
         (h) => styled(h, { center: true })
       ),
       ...grid.map(
-        (g) => g.map((c, i) => (i === 6 ? styled(c, { wrap: true }) : styled(c, { center: true }))) as XlsxCell[]
+        (g) => g.map((c, i) => (i === 6 ? styled(c, { wrap: true, fontSize: 10 * NATURE_WORK_FONT_SCALE }) : styled(c, { center: true }))) as XlsxCell[]
       ),
     ],
     merges: allMerges,
@@ -905,7 +916,7 @@ export function exportTaJournal(
             styled("", { center: true }),
             styled(i === 0 ? `${p}%` : "", { center: true }),
             styled(i === 0 ? amountCell(p) : "", { center: true }),
-            styled(i === 0 ? d.work : "", { wrap: true }),
+            styled(i === 0 ? d.work : "", { wrap: true, fontSize: 10 * NATURE_WORK_FONT_SCALE }),
           ]);
         });
         merges.push(
@@ -926,7 +937,7 @@ export function exportTaJournal(
           styled("", { center: true }),
           styled(`${p}%`, { center: true }),
           styled(amountCell(p), { center: true }),
-          styled(d.work, { wrap: true }),
+          styled(d.work, { wrap: true, fontSize: 10 * NATURE_WORK_FONT_SCALE }),
         ]);
       }
       continue;
@@ -943,7 +954,7 @@ export function exportTaJournal(
       styled("", { center: true }),
       styled(`${p}%`, { center: true }),
       styled(amountCell(p), { center: true }),
-      styled(d.work, { wrap: true }),
+      styled(d.work, { wrap: true, fontSize: 10 * NATURE_WORK_FONT_SCALE }),
     ]);
     grid.push([
       styled("", { center: true }),
@@ -987,7 +998,7 @@ export function exportTaJournal(
     body += `<table>`;
     body += `<tr><th rowspan="2" class="date" data-width="56" data-align="center">DATE</th><th data-align="center">TRAIN</th><th colspan="2" data-align="center">TIME</th><th colspan="2" data-align="center">STATION</th><th rowspan="2" data-width="30" data-align="center">KMS</th><th rowspan="2" data-width="32" data-align="center">DAYS</th><th rowspan="2" data-width="56" data-align="center">AMOUNT</th><th rowspan="2" data-align="center">NATURE OF WORK</th></tr>`;
     body += `<tr><th data-width="40" data-align="center">NO</th><th data-width="36" data-align="center">TIME DEPT</th><th data-width="36" data-align="center">TIME ARR</th><th data-width="40" data-align="center">FROM</th><th data-width="40" data-align="center">TO</th></tr>`;
-    body += gridHtml(pdfGridOf(grid), merges, { dateCol: 0, centerCols: new Set([0, 1, 2, 3, 4, 5, 6, 7, 8]), vTextCols: new Set([6]), fontCols: new Set([8]), valignCols: new Set([9]) });
+    body += gridHtml(pdfGridOf(grid), merges, { dateCol: 0, centerCols: new Set([0, 1, 2, 3, 4, 5, 6, 7, 8]), vTextCols: new Set([6]), fontCols: new Set([8]), valignCols: new Set([9]), fontScaleCols: new Set([9]) });
     body += `<tr><td colspan="7" data-align="center"><strong>TOTAL NO. OF DAYS</strong></td><td><strong>${daysLabel(totalDays)} DAYS</strong></td><td data-font="rupee" data-align="center"><strong>${rateNotSet ? esc(rateMissingText) : `₹ ${formatRupee(totalAmount!)}`}</strong></td><td></td></tr>`;
     body += `</table>`;
 
