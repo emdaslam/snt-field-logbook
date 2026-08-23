@@ -266,7 +266,9 @@ export function buildPdf(
       const left = Number(el.getAttribute("data-left")) || 0;
       const meta = cls.includes("meta") || cls.includes("empty");
       const right = cls.includes("right");
-      doc.setFont("helvetica", meta ? "italic" : "normal").setFontSize(9 * fs);
+      const bold = el.querySelector("strong") ? "bold" : "normal";
+      y += Number(el.getAttribute("data-space-top")) || 0;
+      doc.setFont("helvetica", meta ? "italic" : bold).setFontSize(9 * fs);
       if (meta) doc.setTextColor(plain ? 15 : GREY[0], 23, 42);
       else doc.setTextColor(15, 23, 42);
       const lines = doc.splitTextToSize(text, right ? maxW : maxW - left) as string[];

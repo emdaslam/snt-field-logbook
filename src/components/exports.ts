@@ -801,7 +801,7 @@ export function exportDiary(
     body += `<tr><th class="date" data-width="56" data-align="center">DATE</th><th data-width="34" data-align="center">TRAIN NO</th><th data-width="32" data-align="center">TIME DEP</th><th data-width="32" data-align="center">TIME ARR</th><th data-width="34" data-align="center">FROM</th><th data-width="34" data-align="center">TO</th><th data-align="center">NATURE OF WORK</th></tr>`;
     body += gridHtml(grid, merges, { dateCol: 0, centerCols: new Set([0, 1, 2, 3, 4, 5]), valignCols: new Set([6]) });
     body += `</table>`;
-    if (me?.designation) body += `<p class="meta right">${esc(me.designation.toUpperCase())}</p>`;
+    if (me?.designation) body += `<p class="right" data-space-top="16"><strong>${esc(me.designation.toUpperCase())}</strong></p>`;
   }
 
   const allMerges: XlsxMerge[] = [

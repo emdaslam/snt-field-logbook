@@ -356,6 +356,7 @@ export function buildDocx(title: string, bodyHtml: string, style: ExportStyle = 
       const meta = el.className.includes("meta") || el.className.includes("empty");
       parts.push(
         para(text, {
+          bold: !!el.querySelector("strong"),
           italic: meta,
           color: meta ? (plain ? undefined : "64748B") : undefined,
           sz: 18,
