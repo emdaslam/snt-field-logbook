@@ -3,6 +3,21 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.82 — 2026-08-23
+
+**Minor: Export polish — plain PDFs carry no generated footer, TA totals align, diary signature inset**
+
+- **Plain (black-and-white) PDF exports no longer print the generated footer**
+  ("Railway S&T Field Logbook · generated …" and "Page i of N"). The footer now
+  only appears on the coloured export — the plain report matches the reference
+  sheet exactly, even when it runs to several pages.
+- **The TA Journal's bottom TOTAL row aligns with the 100/70/30% rows above it.**
+  The "=" sign now lands under the same column as the upper amounts' equals, in
+  the PDF, Word and Excel exports.
+- **The diary's signing designation is set slightly in from the right edge**
+  instead of sitting flush in the corner — it reads as an intentional signature
+  block rather than a stray corner label. Applies to PDF and Word exports.
+
 ## 1.7.6.81 — 2026-08-23
 
 **Minor: Diary table cells fit their content — tighter rows, and the work text left-aligned**
