@@ -276,6 +276,23 @@ export function buildPdf(
       else doc.setTextColor(15, 23, 42);
       const lines = doc.splitTextToSize(text, right ? maxW - rightPad : maxW - left) as string[];
       doc.text(lines, right ? pageW - margin - rightPad : margin + left, y, right ? { align: "right" } : undefined);
+      // Underline support for a single <u>word</u> inside a paragraph (the TA
+      // certification line): locate the word on its wrapped line and draw a
+      // short rule beneath it, tracking jsPDF's per-line baseline spacing.
+      const uEl = el.querySelector("u");
+      if (uEl) {
+        const uText = tidy(uEl.textContent ?? "");
+        const lineIdx = lines.findIndex((l) => l.includes(uText));
+        if (lineIdx >= 0) {
+          const line = lines[lineIdx];
+          const baseline = y + lineIdx * (1.15 * 9 * fs);
+          const w = doc.getTextWidth(uText);
+          const x = right
+            ? pageW - margin - rightPad - doc.getTextWidth(line.slice(line.indexOf(uText)))
+            : margin + left + doc.getTextWidth(line.slice(0, line.indexOf(uText)));
+          doc.setDrawColor(...INK).setLineWidth(0.7).line(x, baseline + 1.4, x + w, baseline + 1.4);
+        }
+      }
       y += lines.length * (12 * fs) + 8;
     } else if (tag === "ul") {
       for (const li of Array.from(el.children)) {

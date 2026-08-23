@@ -19,6 +19,10 @@ export type XlsxCell =
       center?: boolean;
       /** Wrap long text within the cell. */
       wrap?: boolean;
+      /** Keep the cell text in sentence case when the sheet is uppercased. */
+      noCaps?: boolean;
+      /** The first occurrence of this word is rendered underlined (rich text). */
+      underlineWord?: string;
     };
 /** 0-indexed inclusive merge: [row1, col1, row2, col2] */
 export type XlsxMerge = [number, number, number, number];
@@ -88,7 +92,29 @@ function cellXml(ref: string, cell: XlsxCell, styleIdx: number): string {
     return `<c r="${ref}"${s}><v>${cell}</v></c>`;
   }
   const text = typeof cell === "object" ? String(cell.v) : cell;
-  return `<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${esc(text)}</t></is></c>`;
+  const underlineWord = typeof cell === "object" ? cell.underlineWord : undefined;
+  return `<c r="${ref}"${s} t="inlineStr"><is>${inlineStrXml(text, underlineWord)}</is></c>`;
+}
+
+/** Inline-string content. Without an underline target a single run is enough;
+ *  with one, the word is split out as its own underlined run so the cell shows
+ *  rich text (e.g. the TA certification's "employee"). */
+function inlineStrXml(text: string, underlineWord?: string): string {
+  if (!underlineWord) return `<t xml:space="preserve">${esc(text)}</t>`;
+  const i = text.indexOf(underlineWord);
+  if (i < 0) return `<t xml:space="preserve">${esc(text)}</t>`;
+  const parts: Array<[string, boolean]> = [
+    [text.slice(0, i), false],
+    [text.slice(i, i + underlineWord.length), true],
+    [text.slice(i + underlineWord.length), false],
+  ];
+  return parts
+    .filter(([t]) => t.length > 0)
+    .map(
+      ([t, u]) =>
+        `<r>${u ? `<rPr><u w:val="single"/></rPr>` : ""}<t xml:space="preserve">${esc(t)}</t></r>`
+    )
+    .join("");
 }
 
 /** Build a single-sheet .xlsx as a STORE-method ZIP of OOXML parts. */

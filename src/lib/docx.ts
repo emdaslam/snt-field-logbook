@@ -44,12 +44,14 @@ function liText(el: HTMLElement): string {
 function runProps(opts: {
   bold?: boolean;
   italic?: boolean;
+  underline?: boolean;
   color?: string;
   sz?: number;
 }): string {
   const inner =
     (opts.bold ? "<w:b/>" : "") +
     (opts.italic ? "<w:i/>" : "") +
+    (opts.underline ? `<w:u w:val="single"/>` : "") +
     (opts.color ? `<w:color w:val="${opts.color}"/>` : "") +
     `<w:sz w:val="${opts.sz ?? 18}"/>` +
     `<w:szCs w:val="${opts.sz ?? 18}"/>`;
@@ -357,18 +359,47 @@ export function buildDocx(title: string, bodyHtml: string, style: ExportStyle = 
       }
       const meta = el.className.includes("meta") || el.className.includes("empty");
       const rightPad = Math.round((Number(el.getAttribute("data-right-pad")) || 0) * 20);
-      parts.push(
-        para(text, {
-          bold: !!el.querySelector("strong"),
+      const uEl = el.querySelector("u");
+      if (uEl) {
+        // Paragraph with an underlined word (the TA certification line): emit
+        // one run per text segment so "employee" can carry <w:u/>. Whitespace
+        // between segments is collapsed but not trimmed, keeping word spacing.
+        const norm = (s: string) => s.replace(/\s+/g, " ");
+        const indent = Math.round((Number(el.getAttribute("data-left")) || 0) * 20);
+        const pPrParts = [`<w:spacing w:before="0" w:after="160"/>`];
+        if (indent) pPrParts.push(`<w:ind w:left="${indent}"/>`);
+        if (el.className.includes("right")) pPrParts.push(`<w:jc w:val="right"/>`);
+        const base = {
           italic: meta,
           color: meta ? (plain ? undefined : "64748B") : undefined,
           sz: 18,
-          after: 160,
-          indent: Math.round((Number(el.getAttribute("data-left")) || 0) * 20),
-          alignRight: el.className.includes("right"),
-          indentRight: el.className.includes("right") ? rightPad : undefined,
-        })
-      );
+        };
+        let runs = "";
+        for (const node of Array.from(el.childNodes)) {
+          if (node.nodeType === Node.TEXT_NODE) {
+            const t = norm(node.textContent ?? "");
+            if (t) runs += `<w:r>${runProps(base)}<w:t xml:space="preserve">${esc(t)}</w:t></w:r>`;
+          } else if (node instanceof HTMLElement) {
+            const t = norm(node.textContent ?? "");
+            if (t)
+              runs += `<w:r>${runProps({ ...base, underline: node.tagName === "U" })}<w:t xml:space="preserve">${esc(t)}</w:t></w:r>`;
+          }
+        }
+        parts.push(`<w:p><w:pPr>${pPrParts.join("")}</w:pPr>${runs}</w:p>`);
+      } else {
+        parts.push(
+          para(text, {
+            bold: !!el.querySelector("strong"),
+            italic: meta,
+            color: meta ? (plain ? undefined : "64748B") : undefined,
+            sz: 18,
+            after: 160,
+            indent: Math.round((Number(el.getAttribute("data-left")) || 0) * 20),
+            alignRight: el.className.includes("right"),
+            indentRight: el.className.includes("right") ? rightPad : undefined,
+          })
+        );
+      }
     } else if (tag === "ul") {
       for (const li of Array.from(el.children)) {
         const pieces = liText(li as HTMLElement).split("\n").filter((p) => p.trim());

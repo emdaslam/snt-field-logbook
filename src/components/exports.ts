@@ -535,30 +535,36 @@ function cellText(c: XlsxCell | string | number): string {
   return typeof c === "object" ? String(c.v) : String(c);
 }
 
-/** Uppercase every text node of an export body so the rendered PDF / Word
- *  output reads fully in capitals, leaving tags and attributes untouched
- *  (escaping entities like &amp; becomes &AMP;, which parses identically). */
+/** Uppercase the body HTML text for the reference-look exports, except
+ *  elements marked class="nocaps" (the TA certification line stays in
+ *  sentence case, with its <u>underline</u> markup preserved). Tags and
+ *  attributes are untouched. */
 function upperText(html: string): string {
-  let out = "";
-  let inTag = false;
-  for (const ch of html) {
-    if (ch === "<") inTag = true;
-    else if (ch === ">") {
-      inTag = false;
-      out += ch;
-      continue;
+  const doc = new DOMParser().parseFromString(`<div>${html}</div>`, "text/html");
+  const root = doc.body.firstElementChild;
+  if (!root) return html;
+  const upper = (el: Element) => {
+    if (el.classList.contains("nocaps")) return;
+    for (const node of Array.from(el.childNodes)) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        node.textContent = (node.textContent ?? "").toUpperCase();
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        upper(node as Element);
+      }
     }
-    out += inTag ? ch : ch.toUpperCase();
-  }
-  return out;
+  };
+  upper(root);
+  return root.innerHTML;
 }
 
-/** Uppercase every string cell of an Excel grid (numbers and styles kept). */
+/** Uppercase every string cell of an Excel grid (numbers and styles kept),
+ *  except cells marked noCaps (the TA certification line stays sentence case). */
 function upperSheet(sheet: XlsxSheet): XlsxSheet {
   return {
     ...sheet,
     rows: sheet.rows.map((row) =>
       row.map((c) => {
+        if (typeof c === "object" && typeof c.v === "string" && c.noCaps) return c;
         if (typeof c === "object" && typeof c.v === "string") return { ...c, v: c.v.toUpperCase() };
         return typeof c === "string" ? c.toUpperCase() : c;
       })
@@ -1008,7 +1014,7 @@ export function exportTaJournal(
   const cert =
     "I here certify that the above mentioned employee was absent on duty from his headquarters station during the period charged for in the bill on Railway Business.";
 
-  let body = `<h1 class="centered" data-right-note="IN LIEU OF G.A.31">SOUTH COAST RAILWAY. GUNTAKAL DIVISION</h1>`;
+  let body = `<h1 class="centered tight" data-right-note="IN LIEU OF G.A.31">SOUTH COAST RAILWAY. GUNTAKAL DIVISION</h1>`;
   body += `<h2 class="centered">TRAVELLING ALLOWANCE JOURNAL</h2>`;
   body += `<p class="cols" data-cols="0,150,300,450"><span>${esc(name)}</span><span>${esc(designation)}</span><span>${esc(pf)}</span><span>${esc(payMetric)}</span></p>`;
   body += `<p class="cols" data-cols="0,150,300,450"><span>${esc(`Headquarters: ${hqCode}`)}</span><span>${esc(`Month: ${month}`)}</span><span>${esc(bu)}</span><span>${esc(pay)}</span></p>`;
@@ -1029,7 +1035,7 @@ export function exportTaJournal(
     body += `<p class="cols" data-cols="55"><span>${"".padEnd(24, "_")}</span></p>`;
     body += `<p class="cols" data-cols="46,83,115"><span></span><span></span><span><strong>TOTAL</strong> = ${daysLabel(totalDays)} DAYS</span></p>`;
 
-    body += `<p class="meta">${esc(cert)}</p>`;
+    body += `<p class="meta nocaps">I here certify that the above mentioned <u>employee</u> was absent on duty from his headquarters station during the period charged for in the bill on Railway Business.</p>`;
     body += `<p class="cols" data-cols="0,190,390"><span>${"".padEnd(20, "_")}</span><span>${"".padEnd(19, "_")}</span><span>${"".padEnd(22, "_")}</span></p>`;
     body += `<p class="cols" data-cols="0,195,365"><span>CONTROLLING OFFICER</span><span>HEAD OF OFFICE</span><span>SIGNATURE OF OFFICER/ CLAIMING TA</span></p>`;
   }
@@ -1102,7 +1108,7 @@ export function exportTaJournal(
     ["", "".padEnd(24, "_"), "", "", ""],
     ["", "", "", `TOTAL = ${daysLabel(totalDays)} DAYS`],
     [""],
-    [{ v: cert, bold: false }, "", "", "", "", "", "", "", "", ""],
+    [{ v: cert, bold: false, noCaps: true, underlineWord: "employee" }, "", "", "", "", "", "", "", "", ""],
     [""],
     [""],
     ["".padEnd(20, "_"), "", "", "", "", "".padEnd(19, "_"), "", "", "", "".padEnd(22, "_")],
