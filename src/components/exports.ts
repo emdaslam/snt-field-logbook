@@ -1017,8 +1017,8 @@ export function exportTaJournal(
     body += `<p class="empty">No TA days in this period.</p>`;
   } else {
     body += `<table>`;
-    body += `<tr><th rowspan="2" class="date" data-width="56" data-align="center">DATE</th><th data-align="center">TRAIN</th><th colspan="2" data-align="center">TIME</th><th colspan="2" data-align="center">STATION</th><th rowspan="2" data-width="30" data-align="center">KMS</th><th rowspan="2" data-width="32" data-align="center">DAYS</th><th rowspan="2" data-width="56" data-align="center">AMOUNT</th><th rowspan="2" data-align="center">NATURE OF WORK</th></tr>`;
-    body += `<tr><th data-width="40" data-align="center">NO</th><th data-width="36" data-align="center">TIME DEPT</th><th data-width="36" data-align="center">TIME ARR</th><th data-width="40" data-align="center">FROM</th><th data-width="40" data-align="center">TO</th></tr>`;
+    body += `<tr><th rowspan="2" class="date" data-width="56" data-align="center">DATE</th><th rowspan="2" data-width="40" data-align="center">TRAIN NO</th><th colspan="2" data-align="center">TIME</th><th colspan="2" data-align="center">STATION</th><th rowspan="2" data-width="30" data-align="center">KMS</th><th rowspan="2" data-width="32" data-align="center">DAYS</th><th rowspan="2" data-width="56" data-align="center">AMOUNT</th><th rowspan="2" data-align="center">NATURE OF WORK</th></tr>`;
+    body += `<tr><th data-width="36" data-align="center">TIME DEPT</th><th data-width="36" data-align="center">TIME ARR</th><th data-width="40" data-align="center">FROM</th><th data-width="40" data-align="center">TO</th></tr>`;
     body += gridHtml(pdfGridOf(grid), merges, { dateCol: 0, centerCols: new Set([0, 1, 2, 3, 4, 5, 6, 7, 8]), leftCols: new Set([9]), vTextCols: new Set([6]), fontCols: new Set([8]), valignCols: new Set([9]) });
     body += `<tr><td colspan="7" data-align="center"><strong>TOTAL NO. OF DAYS</strong></td><td><strong>${daysLabel(totalDays)} DAYS</strong></td><td data-font="rupee" data-align="center"><strong>${rateNotSet ? esc(rateMissingText) : `₹ ${formatRupee(totalAmount!)}`}</strong></td><td></td></tr>`;
     body += `</table>`;
@@ -1027,7 +1027,7 @@ export function exportTaJournal(
     body += `<p class="cols" data-cols="46,83,115"><span>70%</span><span>X ${n70}</span><span>= ${daysLabel(days70)} DAYS</span></p>`;
     body += `<p class="cols" data-cols="46,83,115"><span>30%</span><span>X ${n30}</span><span>= ${daysLabel(days30)} DAYS</span></p>`;
     body += `<p class="cols" data-cols="55"><span>${"".padEnd(24, "_")}</span></p>`;
-    body += `<p class="cols" data-cols="46,83,115"><span><strong>TOTAL</strong></span><span></span><span>= ${daysLabel(totalDays)} DAYS</span></p>`;
+    body += `<p class="cols" data-cols="46,83,115"><span></span><span></span><span><strong>TOTAL</strong> = ${daysLabel(totalDays)} DAYS</span></p>`;
 
     body += `<p class="meta">${esc(cert)}</p>`;
     body += `<p class="cols" data-cols="0,190,390"><span>${"".padEnd(20, "_")}</span><span>${"".padEnd(19, "_")}</span><span>${"".padEnd(22, "_")}</span></p>`;
@@ -1083,13 +1083,11 @@ export function exportTaJournal(
   const s = 6 + grid.length;
   const t1 = s;
   const line = s + 5;
-  const tot = s + 6;
   const certRow = s + 8;
   const sigLab = s + 12;
   mergesAll.push(
     [t1, 0, t1, 6], // TOTAL NO. OF DAYS spans A:G
     [line, 1, line, 4], // underline
-    [tot, 1, tot, 2], // TOTAL label
     [certRow, 0, certRow, 9], // certification text
     [sigLab, 0, sigLab, 2],
     [sigLab, 5, sigLab, 7],
@@ -1102,7 +1100,7 @@ export function exportTaJournal(
     ["", "70%", `X ${n70}`, `= ${daysLabel(days70)} DAYS`, "", "", "", "", "", "", days70],
     ["", "30%", `X ${n30}`, `= ${daysLabel(days30)} DAYS`, "", "", "", "", "", "", days30],
     ["", "".padEnd(24, "_"), "", "", ""],
-    ["", "TOTAL", "", `= ${daysLabel(totalDays)} DAYS`],
+    ["", "", "", `TOTAL = ${daysLabel(totalDays)} DAYS`],
     [""],
     [{ v: cert, bold: false }, "", "", "", "", "", "", "", "", ""],
     [""],
