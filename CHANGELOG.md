@@ -3,6 +3,19 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.85 — 2026-08-24
+
+**Minor: one inspection reminder per station even when the station is recorded by picker and free text; one towards-side picker for inspection tags**
+
+- **A station recorded both ways no longer double-fires its reminder.** The
+  inspection schedule is now keyed by the resolved station name (normalised),
+  so an entry saved with the station picker and another saved as free text (or
+  with different casing) land on the same schedule — the most recent entry
+  wins and the reminder fires exactly once for the station.
+- **Inspection tags show one "towards" side picker.** The side selector no
+  longer repeats for every inspection tag on the form; only the inspection
+  block's own picker is shown, so you pick the side once.
+
 ## 1.7.6.84 — 2026-08-24
 
 **Minor: a station's inspection reminder clears once both its sides are done in the period**
