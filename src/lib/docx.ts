@@ -29,6 +29,34 @@ function tidy(s: string): string {
     .trim();
 }
 
+/** Printable width of the A4 body in points (page 11906 twips minus the
+ *  800 + 800 twip side margins), used to size the heading so it fits one line. */
+const WORD_PRINTABLE_PT = (11906 - 800 - 800) / 20;
+
+/**
+ * Word lets a long paragraph wrap, so an over-long "DIARY OF SRI … FOR THE
+ * MONTH OF …" heading would spill onto a second line. Estimate its width with
+ * a canvas measure at the base size and shrink the heading font until it fits
+ * the printable width, mirroring the PDF's one-line heading. The measurement
+ * is approximate (Calibri isn't always available to canvas), so a 0.95 factor
+ * keeps a small safety margin; a 5pt floor keeps it readable.
+ */
+function headingSizeFor(text: string, baseSz: number): number {
+  let sz = baseSz;
+  try {
+    const ctx = document.createElement("canvas").getContext("2d");
+    if (!ctx) return sz;
+    ctx.font = `700 ${baseSz / 2}pt Calibri, Arial, sans-serif`;
+    const w = ctx.measureText(text).width;
+    if (w > WORD_PRINTABLE_PT) {
+      sz = Math.max(10, Math.round(((baseSz / 2) * WORD_PRINTABLE_PT * 0.95) / w * 2));
+    }
+  } catch {
+    /* ignore */
+  }
+  return sz;
+}
+
 function liText(el: HTMLElement): string {
   let out = "";
   for (const node of Array.from(el.childNodes)) {
@@ -317,7 +345,7 @@ export function buildDocx(title: string, bodyHtml: string, style: ExportStyle = 
           para(text, {
             bold: true,
             color: plain ? "000000" : "1E3A8A",
-            sz: 30,
+            sz: headingSizeFor(text, 30),
             after: 280,
             keepNext: true,
             borderBottom: plain ? "000000" : "1E3A8A",
