@@ -333,6 +333,28 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.6.86",
+    tag: "Edit the timings",
+    subtitle: "The personal build now shows the timings on every daily log and lets you change them.",
+    slides: [
+      {
+        glyph: "◷",
+        title: "Timings on every log",
+        body: "The daily log now shows the four clock times — departure from HQ, arrival at station, departure from station and arrival back at HQ — pre-filled with the times your TA settings would generate.",
+      },
+      {
+        glyph: "✎",
+        title: "Edit to override",
+        body: "Change any time and it is saved and printed verbatim in the Diary and TA Journal exports. Untouched entries keep following the TA Auto-Generation windows.",
+      },
+      {
+        glyph: "⇄",
+        title: "Footplate legs too",
+        body: "The boarding and alighting times of each footplate train leg are shown and editable the same way — leave them alone and they keep generating on every export.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {

@@ -3,6 +3,24 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.86 — 2026-08-24
+
+**Major: the personal build lets you edit the timings — every daily log now shows its tour times, pre-filled from your settings**
+
+- **Timing fields on every daily log.** In the personal (auto-timings) build the
+  four clock-time fields now appear on each daily log, pre-filled with the times
+  the exports would generate for that day (from the TA Auto-Generation windows
+  and the station's travel range).
+- **Change any time.** Edit a field and your value is saved and printed verbatim
+  in the Diary and TA Journal exports — an entry you touched no longer changes
+  on the next export.
+- **Footplate legs too.** The boarding / alighting times of each footplate train
+  leg are shown and editable the same way.
+- **Untouched entries stay automatic.** Entries you never edit store no times, so
+  changing the TA Auto-Generation settings still drives their exports exactly as
+  before.
+- A "What's New" tutorial introduces the change.
+
 ## 1.7.6.85 — 2026-08-24
 
 **Minor: one inspection reminder per station even when the station is recorded by picker and free text; one towards-side picker for inspection tags**

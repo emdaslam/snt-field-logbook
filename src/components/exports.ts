@@ -381,7 +381,14 @@ function diaryTimes(
 ): { outDep: string; outArr: string; retDep: string; retArr: string } {
   if (AUTO_TIMINGS) {
     const t = tripTimes(date, l.taPercent ?? 100, st.travelMin, st.travelMax, taWin);
-    return { outDep: t.outDep, outArr: t.outArr, retDep: t.retDep, retArr: t.retArr };
+    // Manually overridden times (typed on the daily log) win; anything left
+    // blank keeps the deterministic generated value.
+    return {
+      outDep: l.timeDep || t.outDep,
+      outArr: l.timeArr || t.outArr,
+      retDep: l.returnTimeDep || t.retDep,
+      retArr: l.returnTimeArr || t.retArr,
+    };
   }
   return {
     outDep: l.timeDep || "not entered in daily log",
@@ -427,7 +434,7 @@ function journeyTimes(
 ): JourneyTimes {
   if (AUTO_TIMINGS) {
     const fj = l.footplateJourney;
-    return journeyTripTimes(
+    const t = journeyTripTimes(
       date,
       l.taPercent ?? 100,
       boarding.travelMin,
@@ -435,6 +442,18 @@ function journeyTimes(
       Boolean(fj?.inbound),
       taWin
     );
+    // Manually overridden times win per field; blank ones keep the generated
+    // value, so a partly edited journey still stays on the 5-minute grid.
+    return {
+      outDep: l.timeDep || t.outDep,
+      outArr: l.timeArr || t.outArr,
+      retDep: l.returnTimeDep || t.retDep,
+      retArr: l.returnTimeArr || t.retArr,
+      trOutDep: fj?.outbound?.depTime || t.trOutDep,
+      trOutArr: fj?.outbound?.arrTime || t.trOutArr,
+      trInDep: fj?.inbound?.depTime || t.trInDep,
+      trInArr: fj?.inbound?.arrTime || t.trInArr,
+    };
   }
   const fj = l.footplateJourney;
   const miss = "not entered in daily log";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useData } from "./DataProvider";
 import { Modal, Field, inputClass, Chip, PrimaryButton } from "./ui";
 import { api, toISODate, fmtDate, pcdoWorkEntries } from "@/lib/api";
@@ -17,6 +17,8 @@ import {
   type CounterReset,
 } from "@/lib/types";
 import { AUTO_TIMINGS } from "@/lib/timingsMode";
+import { tripTimes, journeyTripTimes } from "@/lib/travel";
+import { loadTaGenConfig, type TaRateKey } from "@/lib/taGenConfig";
 import { EMPTY_STATION_DRAFT, StationFields, stationPayload, type StationDraft } from "./StationForm";
 import {
   kindFromTags,
@@ -392,6 +394,73 @@ export function DailyLogForm({
     0
   );
 
+  // Auto-timings build — the four tour times (and the footplate train-leg
+  // times) are pre-filled from the TA rate's window and the station's travel
+  // range, exactly as the exports would generate them. A field shows its
+  // generated value only until the user types something into it; whatever is
+  // typed is what gets stored and printed, so untouched fields keep following
+  // the auto-generation settings on every export.
+  const autoGenTimes = useMemo(() => {
+    if (!AUTO_TIMINGS) return null;
+    if (isSpecial || isHeadquarters) return null;
+    const win = loadTaGenConfig();
+    const pct = Number(taPercentEffective) || 0;
+    const rate: TaRateKey = pct === 100 || pct === 30 ? (String(pct) as TaRateKey) : "70";
+    if (movementKind === "footplate") {
+      const boarding = stations.find((s) => s.id === fpBoardingId);
+      if (!boarding) return null;
+      const g = journeyTripTimes(
+        logDate,
+        pct,
+        boarding.travelMin,
+        boarding.travelMax,
+        fpDirection === "Both",
+        win[rate]
+      );
+      return {
+        base: { outDep: g.outDep, outArr: g.outArr, retDep: g.retDep, retArr: g.retArr },
+        out: { depTime: g.trOutDep, arrTime: g.trOutArr },
+        in: { depTime: g.trInDep, arrTime: g.trInArr },
+      };
+    }
+    const st = stations.find((s) => s.name === movement);
+    if (!st) return null;
+    const g = tripTimes(logDate, pct, st.travelMin, st.travelMax, win[rate]);
+    return { base: { outDep: g.outDep, outArr: g.outArr, retDep: g.retDep, retArr: g.retArr }, out: null, in: null };
+  }, [
+    movementKind,
+    movement,
+    logDate,
+    taPercentEffective,
+    fpBoardingId,
+    fpDirection,
+    stations,
+    isSpecial,
+    isHeadquarters,
+  ]);
+  // The values shown in the timing fields: the user's own value when one has
+  // been typed (or was stored), else the derived auto-generated one.
+  const shownDep = AUTO_TIMINGS ? timeDep || autoGenTimes?.base.outDep || "" : timeDep;
+  const shownArr = AUTO_TIMINGS ? timeArr || autoGenTimes?.base.outArr || "" : timeArr;
+  const shownRetDep = AUTO_TIMINGS ? returnTimeDep || autoGenTimes?.base.retDep || "" : returnTimeDep;
+  const shownRetArr = AUTO_TIMINGS ? returnTimeArr || autoGenTimes?.base.retArr || "" : returnTimeArr;
+  const shownOutbound =
+    AUTO_TIMINGS && autoGenTimes
+      ? {
+          ...fpOutbound,
+          depTime: fpOutbound.depTime || autoGenTimes.out?.depTime || "",
+          arrTime: fpOutbound.arrTime || autoGenTimes.out?.arrTime || "",
+        }
+      : fpOutbound;
+  const shownInbound =
+    AUTO_TIMINGS && autoGenTimes
+      ? {
+          ...fpInbound,
+          depTime: fpInbound.depTime || autoGenTimes.in?.depTime || "",
+          arrTime: fpInbound.arrTime || autoGenTimes.in?.arrTime || "",
+        }
+      : fpInbound;
+
   async function createStation() {
     if (!newStationDraft.name.trim()) return;
     const created = await api.stations.create(stationPayload(newStationDraft));
@@ -460,6 +529,9 @@ export function DailyLogForm({
       logDate,
       stationMovement: isFp ? fpMovementText : movement,
       // Headquarters movements carry no clock times (the Diary prints "AT <HQ>").
+      // In the auto-timings build a field only holds a value once the user typed
+      // one (or an entry already stores one) — untouched fields stay null so the
+      // exports keep generating them from the TA settings.
       timeDep:
         (movementKind === "station" || isFp) && !isHeadquarters ? timeDep || null : null,
       timeArr:
@@ -726,9 +798,15 @@ export function DailyLogForm({
           </span>
         )}
       </Field>
-      {!isSpecial && !isHeadquarters && !AUTO_TIMINGS && (
+      {!isSpecial && !isHeadquarters && (
         <Field label="Timings">
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            {AUTO_TIMINGS && (
+              <p className="mb-2 text-xs text-slate-500">
+                Pre-filled from your TA Auto-Generation settings — edit any time to override the
+                tour for this day; untouched entries keep following the settings.
+              </p>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <label className="block">
                 <span className="mb-0.5 block text-[11px] text-slate-600">
@@ -737,7 +815,7 @@ export function DailyLogForm({
                 <input
                   type="time"
                   className={inputClass}
-                  value={timeDep}
+                  value={shownDep}
                   onChange={(e) => setTimeDep(e.target.value)}
                 />
               </label>
@@ -750,7 +828,7 @@ export function DailyLogForm({
                 <input
                   type="time"
                   className={inputClass}
-                  value={timeArr}
+                  value={shownArr}
                   onChange={(e) => setTimeArr(e.target.value)}
                 />
               </label>
@@ -763,7 +841,7 @@ export function DailyLogForm({
                 <input
                   type="time"
                   className={inputClass}
-                  value={returnTimeDep}
+                  value={shownRetDep}
                   onChange={(e) => setReturnTimeDep(e.target.value)}
                 />
               </label>
@@ -774,13 +852,15 @@ export function DailyLogForm({
                 <input
                   type="time"
                   className={inputClass}
-                  value={returnTimeArr}
+                  value={shownRetArr}
                   onChange={(e) => setReturnTimeArr(e.target.value)}
                 />
               </label>
             </div>
             <p className="mt-1.5 text-xs text-slate-500">
-              These times are printed verbatim in the Diary and TA Journal exports.
+              {AUTO_TIMINGS
+                ? "Edited times are printed verbatim in the Diary and TA Journal exports."
+                : "These times are printed verbatim in the Diary and TA Journal exports."}
             </p>
           </div>
         </Field>
@@ -990,12 +1070,12 @@ export function DailyLogForm({
           )}
 
           {fpDirection && fpDirection !== "Both" && (
-            <JourneyTrainDetails label={`${fpDirection} train`} value={fpOutbound} onChange={setFpOutbound} />
+            <JourneyTrainDetails label={`${fpDirection} train`} value={shownOutbound} onChange={setFpOutbound} />
           )}
           {fpDirection === "Both" && (
             <>
-              <JourneyTrainDetails label="Outbound train" value={fpOutbound} onChange={setFpOutbound} />
-              <JourneyTrainDetails label="Return train" value={fpInbound} onChange={setFpInbound} />
+              <JourneyTrainDetails label="Outbound train" value={shownOutbound} onChange={setFpOutbound} />
+              <JourneyTrainDetails label="Return train" value={shownInbound} onChange={setFpInbound} />
             </>
           )}
 
@@ -2079,8 +2159,8 @@ function ShiftDetails({
 }
 
 /** One train leg of a Footplate movement — the standard train details plus the
- * boarding / alighting clock times (hidden when the auto-timings build fills
- * them in). */
+ * boarding / alighting clock times. In the auto-timings build those times are
+ * pre-filled from the generated journey and are editable per leg. */
 function JourneyTrainDetails({
   label,
   value,
@@ -2118,28 +2198,24 @@ function JourneyTrainDetails({
           <span className="mb-0.5 block text-[11px] text-slate-600">TMR Name</span>
           <input className={cls} value={value.tmrName} onChange={set("tmrName")} />
         </label>
-        {!AUTO_TIMINGS && (
-          <>
-            <label className="block">
-              <span className="mb-0.5 block text-[11px] text-slate-600">Time of boarding</span>
-              <input
-                type="time"
-                className={cls}
-                value={value.depTime}
-                onChange={set("depTime")}
-              />
-            </label>
-            <label className="block">
-              <span className="mb-0.5 block text-[11px] text-slate-600">Time of alighting</span>
-              <input
-                type="time"
-                className={cls}
-                value={value.arrTime}
-                onChange={set("arrTime")}
-              />
-            </label>
-          </>
-        )}
+        <label className="block">
+          <span className="mb-0.5 block text-[11px] text-slate-600">Time of boarding</span>
+          <input
+            type="time"
+            className={cls}
+            value={value.depTime}
+            onChange={set("depTime")}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-0.5 block text-[11px] text-slate-600">Time of alighting</span>
+          <input
+            type="time"
+            className={cls}
+            value={value.arrTime}
+            onChange={set("arrTime")}
+          />
+        </label>
       </div>
     </div>
   );
