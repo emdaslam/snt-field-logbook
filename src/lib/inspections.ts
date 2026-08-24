@@ -203,15 +203,22 @@ function collectLatest(records: InspectionRecord[], resolve: StationResolver) {
     const kind = r.inspectionKind as InspectionKind | null;
     if (!kind || !INSPECTION_RULES[kind]) continue;
     const st = resolve(r);
-    // A station has multiple sides — each side keeps its own schedule
-    // Joint inspections track each partner department separately
+    // A station's inspection is one schedule: the most recent entry for that
+    // station (a specific side, or "Both sides") is its "last done" date. Sides
+    // used to each keep their own schedule, which left a stale due/overdue
+    // notification behind when the station was done as "Both sides" in one
+    // period and side-by-side on two different days in the next — the old
+    // "Both sides" schedule was never refreshed by the side entries.
+    // Joint inspections still track each partner department separately.
     const dept = kind === "joint" ? (r.inspectionJointDept || "").toLowerCase() : "";
     const per = PERIODIC_KINDS.includes(kind) ? (r.inspectionPeriodicity || "").toLowerCase() : "";
     // Footplate has no "towards side" — it is keyed by shift and direction instead,
     // so a Day and a Night run on the same date are two separate schedules.
-    const variant =
-      kind === "footplate" ? footplateVariant(r) : String(st.towardsId ?? st.towards.toLowerCase());
-    const key = `${kind}::${st.id ?? st.name.toLowerCase()}::${variant}::${dept}::${per}`;
+    const stationKey = st.id ?? st.name.toLowerCase();
+    const key =
+      kind === "footplate"
+        ? `${kind}::${stationKey}::${footplateVariant(r)}::${dept}::${per}`
+        : `${kind}::${stationKey}::${dept}::${per}`;
     const prev = latest.get(key);
     if (!prev || r.logDate > prev.date)
       latest.set(key, {
