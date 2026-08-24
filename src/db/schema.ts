@@ -223,6 +223,8 @@ export type FootplateDetail = {
   lpName: string;
   alpName: string;
   tmrName: string;
+  /** Deficiency / remark noted while riding that train on the footplate. */
+  remarks: string;
 };
 
 /** One shift (Day or Night) of a footplate inspection: its direction and the

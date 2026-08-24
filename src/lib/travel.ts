@@ -127,40 +127,29 @@ export function tripTimes(
 }
 
 /**
- * Timings for a Footplate movement day: the HQ → boarding-station → HQ legs
- * come from {@link tripTimes} (keyed by the boarding station's travel range),
- * and the train-leg window between arriving at and leaving the boarding
- * station is split into the outbound (and, when riding back, the return) train
- * ride. All values sit on the deterministic 5-minute grid.
+ * Boarding→alighting windows for the individual train movements of a
+ * Footplate day. The boarding-station window (arriving from HQ → departing
+ * back to HQ) is split into `n` consecutive slots, one per train, so every
+ * movement gets its own deterministic 5-minute-grid time pair. The manual
+ * build does not use this — the user-entered times are exported verbatim.
  */
-export type JourneyTimes = TripTimes & {
-  trOutDep: string;
-  trOutArr: string;
-  trInDep: string;
-  trInArr: string;
-};
-
-export function journeyTripTimes(
+export function journeyTrainTimes(
   logDate: string,
   taPercent: number,
   travelMin: number | null | undefined,
   travelMax: number | null | undefined,
-  hasInbound: boolean,
+  n: number,
   win?: TaGenWindow
-): JourneyTimes {
+): Array<{ dep: string; arr: string }> {
   const base = tripTimes(logDate, taPercent, travelMin, travelMax, win);
-  const windowStart = toMinutes(base.outArr);
-  const windowEnd = toMinutes(base.retDep);
-  const span = Math.max(5, windowEnd - windowStart);
-  const trOutDep = step5(windowStart);
-  const trOutArr = step5(hasInbound ? windowStart + Math.floor(span / 2) : windowEnd);
-  const trInDep = step5(windowStart + Math.floor(span / 2));
-  const trInArr = step5(windowEnd);
-  return {
-    ...base,
-    trOutDep: fmt(trOutDep),
-    trOutArr: fmt(trOutArr),
-    trInDep: fmt(trInDep),
-    trInArr: fmt(trInArr),
-  };
+  const start = toMinutes(base.outArr);
+  const end = toMinutes(base.retDep);
+  const span = Math.max(5, end - start);
+  const out: Array<{ dep: string; arr: string }> = [];
+  for (let i = 0; i < n; i++) {
+    const dep = step5(start + (span * i) / n);
+    const arr = step5(start + (span * (i + 1)) / n);
+    out.push({ dep: fmt(dep), arr: fmt(arr) });
+  }
+  return out;
 }

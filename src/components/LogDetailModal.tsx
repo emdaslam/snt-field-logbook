@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useData } from "./DataProvider";
 import { Modal, Chip } from "./ui";
 import { api, fmtDate, dayName, formatFootplateSummary, pcdoWorkEntries, counterResetsOf, counterResetTotal } from "@/lib/api";
@@ -8,7 +8,7 @@ import { DEPARTMENT_COLORS } from "@/lib/types";
 import { isSharedLog } from "@/lib/backup";
 import { INSPECTION_RULES, addDays, type InspectionKind } from "@/lib/inspections";
 import { AttachmentPreviewModal } from "./AttachmentPreviewModal";
-import type { DailyLog, Attachment } from "@/db/schema";
+import type { DailyLog, Attachment, FootplateBlock, FootplateDetail, FootplateJourneyTrain } from "@/db/schema";
 import { FootplateDetailRows } from "./FootplateRows";
 
 export function LogDetailModal({
@@ -252,6 +252,28 @@ function JourneySummary({
   const boarding = fj.boardingStationId ? stationName(fj.boardingStationId) : "—";
   const other = fj.otherEndStationId ? stationName(fj.otherEndStationId) : "—";
   const shift = log.footplateShift ? `${log.footplateShift} shift` : fj.shift || "—";
+  type FpTrain = FootplateDetail & Partial<Pick<FootplateJourneyTrain, "depTime" | "arrTime">>;
+  const trainLine = (title: string, t: FpTrain | null | undefined) =>
+    t?.trainNo ? (
+      <p className="mt-0.5 text-xs text-violet-800">
+        {title} {t.trainNo}
+        {t.depTime ? ` · Board ${t.depTime}` : ""}
+        {t.arrTime ? ` → Arr ${t.arrTime}` : ""}
+        {t.remarks ? ` · ${t.remarks}` : ""}
+      </p>
+    ) : null;
+  const shiftRows: ReactNode[] = [];
+  const pushShift = (shiftLabel: string, b: FootplateBlock | FootplateDetail | null | undefined) => {
+    if (!b) return;
+    if ("direction" in b) {
+      if (b.up?.trainNo) shiftRows.push(trainLine(`${shiftLabel} UP`, b.up));
+      if (b.down?.trainNo) shiftRows.push(trainLine(`${shiftLabel} DN`, b.down));
+    } else if (b.trainNo) {
+      shiftRows.push(trainLine(shiftLabel, b));
+    }
+  };
+  pushShift("Day", log.footplateDay);
+  pushShift("Night", log.footplateNight);
   return (
     <div className="mb-3 rounded-lg border border-violet-200 bg-violet-50 p-3">
       <p className="text-xs font-bold uppercase tracking-wide text-violet-700">
@@ -260,15 +282,13 @@ function JourneySummary({
       <p className="text-sm text-violet-950">
         Boarding {boarding} → {other} ({fj.direction}) · {shift}
       </p>
-      <p className="mt-1 text-xs text-violet-800">
-        Out {fj.outbound?.trainNo || "—"} · Board {fj.outbound?.depTime || "—"} → Arr{" "}
-        {fj.outbound?.arrTime || "—"}
-      </p>
-      {fj.inbound && (
-        <p className="mt-0.5 text-xs text-violet-800">
-          Return {fj.inbound.trainNo || "—"} · Dep {fj.inbound.depTime || "—"} → Arr{" "}
-          {fj.inbound.arrTime || "—"}
-        </p>
+      {shiftRows.length > 0 ? (
+        shiftRows
+      ) : (
+        <>
+          {trainLine("Out", fj.outbound)}
+          {trainLine("Return", fj.inbound)}
+        </>
       )}
     </div>
   );

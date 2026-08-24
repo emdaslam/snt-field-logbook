@@ -32,6 +32,7 @@ export function FootplateDetailRows({
         {d.lpName ? ` · LP ${d.lpName}` : ""}
         {d.alpName ? ` · ALP ${d.alpName}` : ""}
         {d.tmrName ? ` · TMR ${d.tmrName}` : ""}
+        {d.remarks ? ` · ${d.remarks}` : ""}
       </p>
     );
   };

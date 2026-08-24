@@ -3,7 +3,7 @@ import { fmtDate, toISODate, formatFootplateShifts, footplateTrainList, pcdoWork
 import { formatInspectionDates } from "@/lib/inspections";
 import { isSpecialMovement, EQUIPMENT_DEFAULTS, variableKmText, type ExportStyle } from "@/lib/types";
 import { AUTO_TIMINGS } from "@/lib/timingsMode";
-import { tripTimes, journeyTripTimes, type JourneyTimes } from "@/lib/travel";
+import { tripTimes, journeyTrainTimes, type TripTimes } from "@/lib/travel";
 import { loadTaGenConfig, type TaGenWindow, type TaRateKey } from "@/lib/taGenConfig";
 import { effectiveRequirement } from "@/lib/stock";
 import type { XlsxCell, XlsxSheet, XlsxMerge } from "@/lib/xlsx";
@@ -15,6 +15,8 @@ import type {
   Tag,
   Staff,
   FootplateDetail,
+  FootplateBlock,
+  FootplateJourneyTrain,
   FootplateJourney,
   Material,
   MaterialReceipt,
@@ -420,52 +422,42 @@ function asMovementStation(st: Station): MovementStation {
 }
 
 /**
- * The four clock times for a Footplate day plus the two train-leg times. In the
- * normal build they come from the journey fields (timeDep / timeArr / the
- * trains' boarding-alighting times / returnTimeDep / returnTimeArr), shown
- * verbatim or "not entered in daily log" when missing. In the personal build
- * they are generated deterministically (see src/lib/travel.ts).
+ * The four clock times for a Footplate day's road legs (HQ → boarding and the
+ * final station → HQ). In the normal build they come from the journey fields
+ * (timeDep / timeArr / returnTimeDep / returnTimeArr), shown verbatim or "not
+ * entered in daily log" when missing. In the personal build they are generated
+ * deterministically (see src/lib/travel.ts), with any typed value overriding
+ * the generated one. The per-train leg times are handled in footplateLegs.
  */
 function journeyTimes(
   l: DailyLog,
   boarding: MovementStation,
   date: string,
   taWin?: TaGenWindow
-): JourneyTimes {
+): TripTimes {
   if (AUTO_TIMINGS) {
-    const fj = l.footplateJourney;
-    const t = journeyTripTimes(
+    const t = tripTimes(
       date,
       l.taPercent ?? 100,
       boarding.travelMin,
       boarding.travelMax,
-      Boolean(fj?.inbound),
       taWin
     );
     // Manually overridden times win per field; blank ones keep the generated
-    // value, so a partly edited journey still stays on the 5-minute grid.
+    // value, so a partly edited day still stays on the 5-minute grid.
     return {
       outDep: l.timeDep || t.outDep,
       outArr: l.timeArr || t.outArr,
       retDep: l.returnTimeDep || t.retDep,
       retArr: l.returnTimeArr || t.retArr,
-      trOutDep: fj?.outbound?.depTime || t.trOutDep,
-      trOutArr: fj?.outbound?.arrTime || t.trOutArr,
-      trInDep: fj?.inbound?.depTime || t.trInDep,
-      trInArr: fj?.inbound?.arrTime || t.trInArr,
     };
   }
-  const fj = l.footplateJourney;
   const miss = "not entered in daily log";
   return {
     outDep: l.timeDep || miss,
     outArr: l.timeArr || miss,
     retDep: l.returnTimeDep || miss,
     retArr: l.returnTimeArr || miss,
-    trOutDep: fj?.outbound?.depTime || miss,
-    trOutArr: fj?.outbound?.arrTime || miss,
-    trInDep: fj?.inbound?.depTime || miss,
-    trInArr: fj?.inbound?.arrTime || miss,
   };
 }
 
@@ -477,17 +469,38 @@ type JourneyLeg = {
   to: string;
 };
 
+/** The train movements of a Footplate day in display order — each Day/Night
+ *  shift's Up and Down trains, in the order they are ridden. */
+function fpTrains(
+  l: DailyLog
+): Array<{ shift: string; dir: string; train: FootplateDetail }> {
+  const out: Array<{ shift: string; dir: string; train: FootplateDetail }> = [];
+  const push = (shift: string, b: FootplateBlock | FootplateDetail | null | undefined) => {
+    if (!b) return;
+    if ("direction" in b) {
+      if (b.up?.trainNo) out.push({ shift, dir: "UP", train: b.up });
+      if (b.down?.trainNo) out.push({ shift, dir: "DN", train: b.down });
+    } else if (b.trainNo) {
+      out.push({ shift, dir: "", train: b });
+    }
+  };
+  push("Day", l.footplateDay);
+  push("Night", l.footplateNight);
+  if (l.footplateUp?.trainNo) out.push({ shift: "", dir: "UP", train: l.footplateUp });
+  if (l.footplateDown?.trainNo) out.push({ shift: "", dir: "DN", train: l.footplateDown });
+  return out;
+}
+
 /**
  * The legs of a Footplate day as export rows: HQ → boarding station (ROAD),
- * the outbound train, the return train when riding back (direction "Both"),
- * then boarding station → HQ (ROAD). Returns null when the journey is missing
- * the boarding / other-end stations.
+ * one row per train movement recorded on the Day/Night shifts, then the final
+ * station → HQ (ROAD). Returns null when the journey or any train is missing.
  */
 function footplateLegs(
   l: DailyLog,
   stations: Station[],
   hqCode: string,
-  t: JourneyTimes
+  t: TripTimes
 ): JourneyLeg[] | null {
   const fj: FootplateJourney | null = l.footplateJourney ?? null;
   if (!fj) return null;
@@ -496,30 +509,36 @@ function footplateLegs(
   if (!boarding || !otherEnd || boarding.id === otherEnd.id) return null;
   const b = stationLabel(boarding);
   const o = stationLabel(otherEnd);
+  const trains = fpTrains(l);
+  if (trains.length === 0) return null;
+  // In the auto build the boarding-station window is split into one slot per
+  // train, and a typed boarding / alighting time overrides its slot (blank ones
+  // keep the generated value); in the manual build the entered times are used
+  // verbatim.
+  const slots = AUTO_TIMINGS
+    ? journeyTrainTimes(l.logDate, l.taPercent ?? 100, boarding.travelMin, boarding.travelMax, trains.length)
+    : [];
+  const miss = "not entered in daily log";
   const legs: JourneyLeg[] = [
     { trainNo: trainNoLabel(l.travelMode, l.travelTrainNo), dep: t.outDep, arr: t.outArr, from: hqCode, to: b },
   ];
-  if (fj.outbound && (fj.outbound.trainNo || fj.direction === "Up" || fj.direction === "Down")) {
+  let lastTo = b;
+  trains.forEach((tr, i) => {
+    const up = tr.dir !== "DN";
+    const from = up ? b : o;
+    const to = up ? o : b;
+    lastTo = to;
+    const train = tr.train as FootplateJourneyTrain;
+    const slot = slots[i];
     legs.push({
-      trainNo: fj.outbound.trainNo || "---",
-      dep: t.trOutDep,
-      arr: t.trOutArr,
-      from: b,
-      to: o,
+      trainNo: tr.train.trainNo || "---",
+      dep: AUTO_TIMINGS ? train.depTime || slot?.dep || miss : train.depTime || miss,
+      arr: AUTO_TIMINGS ? train.arrTime || slot?.arr || miss : train.arrTime || miss,
+      from,
+      to,
     });
-  }
-  if (fj.inbound && fj.direction === "Both") {
-    legs.push({
-      trainNo: fj.inbound.trainNo || "---",
-      dep: t.trInDep,
-      arr: t.trInArr,
-      from: o,
-      to: b,
-    });
-  }
-  // With a return train (Both) the ride ends back at the boarding station;
-  // otherwise (Up/Down) we return to HQ from the other-end station.
-  legs.push({ trainNo: trainNoLabel(l.returnMode, l.returnTrainNo), dep: t.retDep, arr: t.retArr, from: fj.direction === "Both" ? b : o, to: hqCode });
+  });
+  legs.push({ trainNo: trainNoLabel(l.returnMode, l.returnTrainNo), dep: t.retDep, arr: t.retArr, from: lastTo, to: hqCode });
   return legs;
 }
 

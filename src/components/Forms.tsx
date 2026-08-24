@@ -17,7 +17,7 @@ import {
   type CounterReset,
 } from "@/lib/types";
 import { AUTO_TIMINGS } from "@/lib/timingsMode";
-import { tripTimes, journeyTripTimes } from "@/lib/travel";
+import { tripTimes, journeyTrainTimes } from "@/lib/travel";
 import { loadTaGenConfig, type TaRateKey } from "@/lib/taGenConfig";
 import { EMPTY_STATION_DRAFT, StationFields, stationPayload, type StationDraft } from "./StationForm";
 import {
@@ -36,9 +36,7 @@ import type {
   DailyLog,
   DeficiencyTask,
   PlannedWork,
-  FootplateDetail,
   FootplateBlock,
-  FootplateJourney,
   FootplateJourneyTrain,
 } from "@/db/schema";
 
@@ -273,39 +271,32 @@ export function DailyLogForm({
   const [fpNight, setFpNight] = useState(
     (existing?.footplateShift ?? "").split(",").map((s) => s.trim()).includes("Night")
   );
-  const emptyFp: FootplateDetail = { trainNo: "", engineNo: "", lpName: "", alpName: "", tmrName: "" };
-  const fpBlock = (b: FootplateBlock | null | undefined) => ({
-    direction: (b && "direction" in b && b.direction) || "",
-    up: (b && "direction" in b && b.up) || emptyFp,
-    down: (b && "direction" in b && b.down) || emptyFp,
-  });
-  const dayBlock = fpBlock(existing?.footplateDay);
-  const nightBlock = fpBlock(existing?.footplateNight);
-  const [fpDayDir, setFpDayDir] = useState(dayBlock.direction);
-  const [fpDayUp, setFpDayUp] = useState<FootplateDetail>(dayBlock.up);
-  const [fpDayDn, setFpDayDn] = useState<FootplateDetail>(dayBlock.down);
-  const [fpNightDir, setFpNightDir] = useState(nightBlock.direction);
-  const [fpNightUp, setFpNightUp] = useState<FootplateDetail>(nightBlock.up);
-  const [fpNightDn, setFpNightDn] = useState<FootplateDetail>(nightBlock.down);
-  const journey = existing?.footplateJourney ?? null;
-  const [fpBoardingId, setFpBoardingId] = useState<number | null>(journey?.boardingStationId ?? null);
-  const [fpOtherEndId, setFpOtherEndId] = useState<number | null>(journey?.otherEndStationId ?? null);
-  const [fpDirection, setFpDirection] = useState(journey?.direction ?? "");
-  const emptyTrain: FootplateJourneyTrain = {
+  const emptyFp: FootplateJourneyTrain = {
     trainNo: "",
     engineNo: "",
     lpName: "",
     alpName: "",
     tmrName: "",
+    remarks: "",
     depTime: "",
     arrTime: "",
   };
-  const [fpOutbound, setFpOutbound] = useState<FootplateJourneyTrain>(
-    journey?.outbound ?? emptyTrain
-  );
-  const [fpInbound, setFpInbound] = useState<FootplateJourneyTrain>(
-    journey?.inbound ?? emptyTrain
-  );
+  const fpBlock = (b: FootplateBlock | null | undefined) => ({
+    direction: (b && "direction" in b && b.direction) || "",
+    up: b && "direction" in b && b.up ? { ...emptyFp, ...b.up } : { ...emptyFp },
+    down: b && "direction" in b && b.down ? { ...emptyFp, ...b.down } : { ...emptyFp },
+  });
+  const dayBlock = fpBlock(existing?.footplateDay);
+  const nightBlock = fpBlock(existing?.footplateNight);
+  const [fpDayDir, setFpDayDir] = useState(dayBlock.direction);
+  const [fpDayUp, setFpDayUp] = useState<FootplateJourneyTrain>(dayBlock.up);
+  const [fpDayDn, setFpDayDn] = useState<FootplateJourneyTrain>(dayBlock.down);
+  const [fpNightDir, setFpNightDir] = useState(nightBlock.direction);
+  const [fpNightUp, setFpNightUp] = useState<FootplateJourneyTrain>(nightBlock.up);
+  const [fpNightDn, setFpNightDn] = useState<FootplateJourneyTrain>(nightBlock.down);
+  const journey = existing?.footplateJourney ?? null;
+  const [fpBoardingId, setFpBoardingId] = useState<number | null>(journey?.boardingStationId ?? null);
+  const [fpOtherEndId, setFpOtherEndId] = useState<number | null>(journey?.otherEndStationId ?? null);
   const [discOpen, setDiscOpen] = useState(Boolean(existing?.hasDisconnections));
   const [discSpecialWork, setDiscSpecialWork] = useState(String(existing?.discSpecialWork ?? 0));
   const [discFailure, setDiscFailure] = useState(String(existing?.discFailure ?? 0));
@@ -369,10 +360,9 @@ export function DailyLogForm({
   // text stored in stationMovement and printed in the Diary / TA exports.
   const fpBoarding = stations.find((s) => s.id === fpBoardingId);
   const fpOtherEnd = stations.find((s) => s.id === fpOtherEndId);
-  const fpDirLabel = fpDirection === "Both" ? "Up & Down" : fpDirection;
   const fpMovementText =
     movementKind === "footplate" && fpBoarding && fpOtherEnd
-      ? `Footplate: ${fpBoarding.name} → ${fpOtherEnd.name} (${fpDirLabel})`
+      ? `Footplate: ${fpBoarding.name} → ${fpOtherEnd.name}`
       : "Footplate";
   const pcdoStationId = pcdoStationOverride ?? resolvedStation?.id ?? null;
   const pcdoDate = logDate;
@@ -409,31 +399,68 @@ export function DailyLogForm({
     if (movementKind === "footplate") {
       const boarding = stations.find((s) => s.id === fpBoardingId);
       if (!boarding) return null;
-      const g = journeyTripTimes(
-        logDate,
-        pct,
-        boarding.travelMin,
-        boarding.travelMax,
-        fpDirection === "Both",
-        win[rate]
-      );
+      const g = tripTimes(logDate, pct, boarding.travelMin, boarding.travelMax, win[rate]);
+      // The Day/Night Up/Down trains in the same order the exports emit them;
+      // each gets its own slot within the boarding-station window.
+      const trains: Array<{ key: string; train: FootplateJourneyTrain }> = [];
+      const push = (
+        upKey: string,
+        dnKey: string,
+        active: boolean,
+        dir: string,
+        up: FootplateJourneyTrain,
+        dn: FootplateJourneyTrain
+      ) => {
+        if (!active) return;
+        if ((dir === "Up" || dir === "Both") && up.trainNo) trains.push({ key: upKey, train: up });
+        if ((dir === "Down" || dir === "Both") && dn.trainNo) trains.push({ key: dnKey, train: dn });
+      };
+      push("dayUp", "dayDn", fpDay, fpDayDir, fpDayUp, fpDayDn);
+      push("nightUp", "nightDn", fpNight, fpNightDir, fpNightUp, fpNightDn);
+      const fpShown: Record<string, { depTime: string; arrTime: string }> = {};
+      if (trains.length > 0) {
+        const slots = journeyTrainTimes(
+          logDate,
+          pct,
+          boarding.travelMin,
+          boarding.travelMax,
+          trains.length,
+          win[rate]
+        );
+        trains.forEach((tr, i) => {
+          const s = slots[i];
+          fpShown[tr.key] = {
+            depTime: tr.train.depTime || s.dep || "",
+            arrTime: tr.train.arrTime || s.arr || "",
+          };
+        });
+      }
       return {
         base: { outDep: g.outDep, outArr: g.outArr, retDep: g.retDep, retArr: g.retArr },
-        out: { depTime: g.trOutDep, arrTime: g.trOutArr },
-        in: { depTime: g.trInDep, arrTime: g.trInArr },
+        fpShown,
       };
     }
     const st = stations.find((s) => s.name === movement);
     if (!st) return null;
     const g = tripTimes(logDate, pct, st.travelMin, st.travelMax, win[rate]);
-    return { base: { outDep: g.outDep, outArr: g.outArr, retDep: g.retDep, retArr: g.retArr }, out: null, in: null };
+    return {
+      base: { outDep: g.outDep, outArr: g.outArr, retDep: g.retDep, retArr: g.retArr },
+      fpShown: {},
+    };
   }, [
     movementKind,
     movement,
     logDate,
     taPercentEffective,
     fpBoardingId,
-    fpDirection,
+    fpDay,
+    fpNight,
+    fpDayDir,
+    fpDayUp,
+    fpDayDn,
+    fpNightDir,
+    fpNightUp,
+    fpNightDn,
     stations,
     isSpecial,
     isHeadquarters,
@@ -444,22 +471,16 @@ export function DailyLogForm({
   const shownArr = AUTO_TIMINGS ? timeArr || autoGenTimes?.base.outArr || "" : timeArr;
   const shownRetDep = AUTO_TIMINGS ? returnTimeDep || autoGenTimes?.base.retDep || "" : returnTimeDep;
   const shownRetArr = AUTO_TIMINGS ? returnTimeArr || autoGenTimes?.base.retArr || "" : returnTimeArr;
-  const shownOutbound =
-    AUTO_TIMINGS && autoGenTimes
-      ? {
-          ...fpOutbound,
-          depTime: fpOutbound.depTime || autoGenTimes.out?.depTime || "",
-          arrTime: fpOutbound.arrTime || autoGenTimes.out?.arrTime || "",
-        }
-      : fpOutbound;
-  const shownInbound =
-    AUTO_TIMINGS && autoGenTimes
-      ? {
-          ...fpInbound,
-          depTime: fpInbound.depTime || autoGenTimes.in?.depTime || "",
-          arrTime: fpInbound.arrTime || autoGenTimes.in?.arrTime || "",
-        }
-      : fpInbound;
+  const shownFpTrain = (key: string, train: FootplateJourneyTrain): FootplateJourneyTrain => {
+    const slot = AUTO_TIMINGS ? autoGenTimes?.fpShown?.[key] : undefined;
+    return slot
+      ? { ...train, depTime: train.depTime || slot.depTime, arrTime: train.arrTime || slot.arrTime }
+      : train;
+  };
+  const shownFpDayUp = shownFpTrain("dayUp", fpDayUp);
+  const shownFpDayDn = shownFpTrain("dayDn", fpDayDn);
+  const shownFpNightUp = shownFpTrain("nightUp", fpNightUp);
+  const shownFpNightDn = shownFpTrain("nightDn", fpNightDn);
 
   async function createStation() {
     if (!newStationDraft.name.trim()) return;
@@ -505,24 +526,31 @@ export function DailyLogForm({
     const fpShift = isFp
       ? [fpDay ? "Day" : "", fpNight ? "Night" : ""].filter(Boolean).join(",") || null
       : null;
-    const strip = (t: FootplateJourneyTrain | null): FootplateDetail | null =>
-      t && (t.trainNo || t.engineNo || t.lpName || t.alpName || t.tmrName)
+    const strip = (t: FootplateJourneyTrain | null): FootplateJourneyTrain | null =>
+      t && (t.trainNo || t.engineNo || t.lpName || t.alpName || t.tmrName || t.remarks)
         ? {
             trainNo: t.trainNo,
             engineNo: t.engineNo,
             lpName: t.lpName,
             alpName: t.alpName,
             tmrName: t.tmrName,
+            remarks: t.remarks,
+            depTime: t.depTime,
+            arrTime: t.arrTime,
           }
         : null;
-    // A footplate movement is itself the footplate inspection: Day/Night shift,
-    // direction and the train details (minus the journey-only clock times).
-    const fpBlock = (shiftActive: boolean): FootplateBlock | null => {
+    // A footplate movement is itself the footplate inspection: each selected
+    // shift (Day / Night) records its own direction and Up/Down train details.
+    const fpBlock = (
+      shiftActive: boolean,
+      dir: string,
+      up: FootplateJourneyTrain,
+      down: FootplateJourneyTrain
+    ): FootplateBlock | null => {
       if (!shiftActive) return null;
-      if (fpDirection === "Both")
-        return { direction: "Both", up: strip(fpOutbound), down: strip(fpInbound) };
-      if (fpDirection === "Up") return { direction: "Up", up: strip(fpOutbound), down: null };
-      return { direction: "Down", up: null, down: strip(fpOutbound) };
+      if (dir === "Up") return { direction: "Up", up: strip(up), down: null };
+      if (dir === "Down") return { direction: "Down", up: null, down: strip(down) };
+      return { direction: "Both", up: strip(up), down: strip(down) };
     };
     const payload = {
       id: existing?.id,
@@ -586,32 +614,36 @@ export function DailyLogForm({
       footplateDown: null,
       footplateDay:
         isFp
-          ? fpBlock(fpDay)
+          ? fpBlock(fpDay, fpDayDir, fpDayUp, fpDayDn)
           : inspectionKind === "footplate" && fpDay
-            ? {
-                direction: fpDayDir,
-                up: fpDayDir === "Up" || fpDayDir === "Both" ? fpDayUp : null,
-                down: fpDayDir === "Down" || fpDayDir === "Both" ? fpDayDn : null,
-              }
+            ? fpBlock(true, fpDayDir, fpDayUp, fpDayDn)
             : null,
       footplateNight:
         isFp
-          ? fpBlock(fpNight)
+          ? fpBlock(fpNight, fpNightDir, fpNightUp, fpNightDn)
           : inspectionKind === "footplate" && fpNight
-            ? {
-                direction: fpNightDir,
-                up: fpNightDir === "Up" || fpNightDir === "Both" ? fpNightUp : null,
-                down: fpNightDir === "Down" || fpNightDir === "Both" ? fpNightDn : null,
-              }
+            ? fpBlock(true, fpNightDir, fpNightUp, fpNightDn)
             : null,
       footplateJourney: isFp
         ? {
             boardingStationId: fpBoardingId ?? 0,
             otherEndStationId: fpOtherEndId ?? 0,
-            direction: fpDirection,
+            direction: fpDay ? fpDayDir : fpNight ? fpNightDir : "",
             shift: fpShift,
-            outbound: fpOutbound,
-            inbound: fpDirection === "Both" ? fpInbound : null,
+            outbound: fpDay
+              ? fpDayDir === "Down"
+                ? strip(fpDayDn)
+                : strip(fpDayUp)
+              : fpNight
+                ? fpNightDir === "Down"
+                  ? strip(fpNightDn)
+                  : strip(fpNightUp)
+                : null,
+            inbound: fpDay && fpDayDir === "Both"
+              ? strip(fpDayDn)
+              : fpNight && fpNightDir === "Both"
+                ? strip(fpNightDn)
+                : null,
           }
         : null,
       ownerStaffId: existing?.ownerStaffId ?? currentUser?.id ?? null,
@@ -969,7 +1001,7 @@ export function DailyLogForm({
           <p className="text-sm font-semibold text-cyan-900">Footplate Journey</p>
           <p className="mt-1 text-xs text-cyan-800">
             From HQ to the boarding station, ride the engine of a train to the other end,{" "}
-            {fpDirection === "Both"
+            {fpDayDir === "Both" || fpNightDir === "Both"
               ? "ride back in the opposite direction,"
               : "optionally ride back in the opposite direction,"}{" "}
             then return to HQ.
@@ -1017,30 +1049,10 @@ export function DailyLogForm({
             </p>
           )}
 
-          <span className="mb-1 mt-2 block text-xs font-medium text-slate-700">Direction</span>
-          <div className="flex gap-2">
-            {FOOTPLATE_DIRECTIONS.map((d) => (
-              <button
-                key={d}
-                type="button"
-                onClick={() => setFpDirection(d)}
-                className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium ${
-                  fpDirection === d
-                    ? "border-cyan-600 bg-cyan-50 text-cyan-800"
-                    : "border-slate-300 text-slate-600"
-                }`}
-              >
-                {d}
-              </button>
-            ))}
-          </div>
-          {!fpDirection ? (
-            <p className="mt-1 text-xs text-amber-600">Pick Up, Down or Both.</p>
-          ) : fpDirection === "Both" ? (
-            <p className="mt-1 text-xs text-cyan-800">Riding both ways — outbound and return trains.</p>
-          ) : (
-            <p className="mt-1 text-xs text-cyan-800">One direction only — no return train.</p>
-          )}
+          <p className="mt-2 text-xs text-cyan-800">
+            For each shift you select below, pick the direction (Up / Down / Both) and enter the train
+            details — Train No, Engine No, LP, ALP, TMR and Remarks (deficiency noted while on the engine).
+          </p>
 
           <span className="mb-1 mt-2 block text-xs font-medium text-slate-700">
             Day or Night? <span className="font-normal text-slate-400">(select both if applicable)</span>
@@ -1069,14 +1081,27 @@ export function DailyLogForm({
             <p className="mt-1 text-xs text-amber-600">Select Day and/or Night.</p>
           )}
 
-          {fpDirection && fpDirection !== "Both" && (
-            <JourneyTrainDetails label={`${fpDirection} train`} value={shownOutbound} onChange={setFpOutbound} />
+          {fpDay && (
+            <ShiftDetails
+              label="☀ Day"
+              direction={fpDayDir}
+              setDirection={setFpDayDir}
+              up={shownFpDayUp}
+              setUp={setFpDayUp}
+              down={shownFpDayDn}
+              setDown={setFpDayDn}
+            />
           )}
-          {fpDirection === "Both" && (
-            <>
-              <JourneyTrainDetails label="Outbound train" value={shownOutbound} onChange={setFpOutbound} />
-              <JourneyTrainDetails label="Return train" value={shownInbound} onChange={setFpInbound} />
-            </>
+          {fpNight && (
+            <ShiftDetails
+              label="🌙 Night"
+              direction={fpNightDir}
+              setDirection={setFpNightDir}
+              up={shownFpNightUp}
+              setUp={setFpNightUp}
+              down={shownFpNightDn}
+              setDown={setFpNightDn}
+            />
           )}
 
           {PERIODIC_KINDS.includes("footplate") && (
@@ -1731,9 +1756,9 @@ export function DailyLogForm({
                   label="☀ Day"
                   direction={fpDayDir}
                   setDirection={setFpDayDir}
-                  up={fpDayUp}
+                  up={shownFpDayUp}
                   setUp={setFpDayUp}
-                  down={fpDayDn}
+                  down={shownFpDayDn}
                   setDown={setFpDayDn}
                 />
               )}
@@ -1742,9 +1767,9 @@ export function DailyLogForm({
                   label="🌙 Night"
                   direction={fpNightDir}
                   setDirection={setFpNightDir}
-                  up={fpNightUp}
+                  up={shownFpNightUp}
                   setUp={setFpNightUp}
-                  down={fpNightDn}
+                  down={shownFpNightDn}
                   setDown={setFpNightDn}
                 />
               )}
@@ -2064,100 +2089,6 @@ function TrainDetails({
   onChange,
 }: {
   label: string;
-  value: FootplateDetail;
-  onChange: (v: FootplateDetail) => void;
-}) {
-  const set = (k: keyof FootplateDetail) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    onChange({ ...value, [k]: e.target.value });
-  const cls =
-    "w-full rounded-md border border-slate-300 bg-surface px-2 py-1.5 text-sm outline-none focus:border-cyan-500";
-  return (
-    <div className="mt-2 rounded-lg border border-cyan-200 bg-surface p-2.5">
-      <p className="mb-2 text-xs font-bold uppercase tracking-wide text-cyan-800">{label}</p>
-      <div className="grid grid-cols-2 gap-2">
-        <label className="block">
-          <span className="mb-0.5 block text-[11px] text-slate-600">Train No.</span>
-          <input className={cls} value={value.trainNo} onChange={set("trainNo")} />
-        </label>
-        <label className="block">
-          <span className="mb-0.5 block text-[11px] text-slate-600">Engine No.</span>
-          <input className={cls} value={value.engineNo} onChange={set("engineNo")} />
-        </label>
-        <label className="block">
-          <span className="mb-0.5 block text-[11px] text-slate-600">LP Name</span>
-          <input className={cls} value={value.lpName} onChange={set("lpName")} />
-        </label>
-        <label className="block">
-          <span className="mb-0.5 block text-[11px] text-slate-600">ALP Name</span>
-          <input className={cls} value={value.alpName} onChange={set("alpName")} />
-        </label>
-        <label className="col-span-2 block">
-          <span className="mb-0.5 block text-[11px] text-slate-600">TMR Name</span>
-          <input className={cls} value={value.tmrName} onChange={set("tmrName")} />
-        </label>
-      </div>
-    </div>
-  );
-}
-
-function ShiftDetails({
-  label,
-  direction,
-  setDirection,
-  up,
-  setUp,
-  down,
-  setDown,
-}: {
-  label: string;
-  direction: string;
-  setDirection: (v: string) => void;
-  up: FootplateDetail;
-  setUp: (v: FootplateDetail) => void;
-  down: FootplateDetail;
-  setDown: (v: FootplateDetail) => void;
-}) {
-  return (
-    <div className="mt-2 rounded-lg border border-cyan-200 bg-surface p-2.5">
-      <p className="mb-2 text-xs font-bold uppercase tracking-wide text-cyan-800">{label}</p>
-      <span className="mb-1 block text-[11px] text-slate-600">Direction</span>
-      <div className="flex gap-2">
-        {FOOTPLATE_DIRECTIONS.map((d) => (
-          <button
-            key={d}
-            type="button"
-            onClick={() => setDirection(d)}
-            className={`flex-1 rounded-lg border px-3 py-1.5 text-sm font-medium ${
-              direction === d
-                ? "border-cyan-600 bg-cyan-50 text-cyan-800"
-                : "border-slate-300 text-slate-600"
-            }`}
-          >
-            {d}
-          </button>
-        ))}
-      </div>
-      {direction === "Up" && <TrainDetails label={`${label} Up Train`} value={up} onChange={setUp} />}
-      {direction === "Down" && <TrainDetails label={`${label} Down Train`} value={down} onChange={setDown} />}
-      {direction === "Both" && (
-        <>
-          <TrainDetails label={`${label} Up Train`} value={up} onChange={setUp} />
-          <TrainDetails label={`${label} Down Train`} value={down} onChange={setDown} />
-        </>
-      )}
-    </div>
-  );
-}
-
-/** One train leg of a Footplate movement — the standard train details plus the
- * boarding / alighting clock times. In the auto-timings build those times are
- * pre-filled from the generated journey and are editable per leg. */
-function JourneyTrainDetails({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
   value: FootplateJourneyTrain;
   onChange: (v: FootplateJourneyTrain) => void;
 }) {
@@ -2189,6 +2120,12 @@ function JourneyTrainDetails({
           <span className="mb-0.5 block text-[11px] text-slate-600">TMR Name</span>
           <input className={cls} value={value.tmrName} onChange={set("tmrName")} />
         </label>
+        <label className="col-span-2 block">
+          <span className="mb-0.5 block text-[11px] text-slate-600">
+            Remarks <span className="font-normal text-slate-400">(deficiency, if any)</span>
+          </span>
+          <input className={cls} value={value.remarks} onChange={set("remarks")} />
+        </label>
         <label className="block">
           <span className="mb-0.5 block text-[11px] text-slate-600">Time of boarding</span>
           <input
@@ -2208,6 +2145,55 @@ function JourneyTrainDetails({
           />
         </label>
       </div>
+    </div>
+  );
+}
+
+function ShiftDetails({
+  label,
+  direction,
+  setDirection,
+  up,
+  setUp,
+  down,
+  setDown,
+}: {
+  label: string;
+  direction: string;
+  setDirection: (v: string) => void;
+  up: FootplateJourneyTrain;
+  setUp: (v: FootplateJourneyTrain) => void;
+  down: FootplateJourneyTrain;
+  setDown: (v: FootplateJourneyTrain) => void;
+}) {
+  return (
+    <div className="mt-2 rounded-lg border border-cyan-200 bg-surface p-2.5">
+      <p className="mb-2 text-xs font-bold uppercase tracking-wide text-cyan-800">{label}</p>
+      <span className="mb-1 block text-[11px] text-slate-600">Direction</span>
+      <div className="flex gap-2">
+        {FOOTPLATE_DIRECTIONS.map((d) => (
+          <button
+            key={d}
+            type="button"
+            onClick={() => setDirection(d)}
+            className={`flex-1 rounded-lg border px-3 py-1.5 text-sm font-medium ${
+              direction === d
+                ? "border-cyan-600 bg-cyan-50 text-cyan-800"
+                : "border-slate-300 text-slate-600"
+            }`}
+          >
+            {d}
+          </button>
+        ))}
+      </div>
+      {direction === "Up" && <TrainDetails label={`${label} Up Train`} value={up} onChange={setUp} />}
+      {direction === "Down" && <TrainDetails label={`${label} Down Train`} value={down} onChange={setDown} />}
+      {direction === "Both" && (
+        <>
+          <TrainDetails label={`${label} Up Train`} value={up} onChange={setUp} />
+          <TrainDetails label={`${label} Down Train`} value={down} onChange={setDown} />
+        </>
+      )}
     </div>
   );
 }

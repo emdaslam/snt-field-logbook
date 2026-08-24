@@ -181,7 +181,6 @@ const DEFAULT_TAGS = [
   { name: "quarterly inspection", color: "#0e7490" },
   { name: "joint inspection", color: "#059669" },
   { name: "maintenance", color: "#0d9488" },
-  { name: "footplate", color: "#0891b2" },
   { name: "failures", color: "#dc2626" },
   { name: "point oiling", color: "#ea580c" },
   { name: "battery distilled water", color: "#0d9488" },
