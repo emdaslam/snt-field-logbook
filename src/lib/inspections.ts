@@ -214,7 +214,11 @@ function collectLatest(records: InspectionRecord[], resolve: StationResolver) {
     const per = PERIODIC_KINDS.includes(kind) ? (r.inspectionPeriodicity || "").toLowerCase() : "";
     // Footplate has no "towards side" — it is keyed by shift and direction instead,
     // so a Day and a Night run on the same date are two separate schedules.
-    const stationKey = st.id ?? st.name.toLowerCase();
+    // A station's schedule is keyed by its resolved name (normalised). The same
+    // station can be recorded once with a station id and once as free text
+    // (or under a slightly different spelling); keying by name keeps both on
+    // ONE schedule so the reminder doesn't fire twice for the same station.
+    const stationKey = st.name.toLowerCase();
     const key =
       kind === "footplate"
         ? `${kind}::${stationKey}::${footplateVariant(r)}::${dept}::${per}`
