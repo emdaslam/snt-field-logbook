@@ -1033,7 +1033,7 @@ export function exportTaJournal(
     body += `<p class="cols" data-cols="46,83,115"><span>70%</span><span>X ${n70}</span><span>= ${daysLabel(days70)} DAYS</span></p>`;
     body += `<p class="cols" data-cols="46,83,115"><span>30%</span><span>X ${n30}</span><span>= ${daysLabel(days30)} DAYS</span></p>`;
     body += `<p class="cols" data-cols="55"><span>${"".padEnd(24, "_")}</span></p>`;
-    body += `<p class="cols" data-cols="46,83,115"><span></span><span></span><span><strong>TOTAL</strong> = ${daysLabel(totalDays)} DAYS</span></p>`;
+    body += `<p class="cols" data-cols="46,83,115"><span><strong>TOTAL</strong></span><span></span><span>= ${daysLabel(totalDays)} DAYS</span></p>`;
 
     body += `<p class="meta nocaps">I here certify that the above mentioned <u>employee</u> was absent on duty from his headquarters station during the period charged for in the bill on Railway Business.</p>`;
     body += `<p class="cols" data-cols="0,190,390"><span>${"".padEnd(20, "_")}</span><span>${"".padEnd(19, "_")}</span><span>${"".padEnd(22, "_")}</span></p>`;
@@ -1106,7 +1106,7 @@ export function exportTaJournal(
     ["", "70%", `X ${n70}`, `= ${daysLabel(days70)} DAYS`, "", "", "", "", "", "", days70],
     ["", "30%", `X ${n30}`, `= ${daysLabel(days30)} DAYS`, "", "", "", "", "", "", days30],
     ["", "".padEnd(24, "_"), "", "", ""],
-    ["", "", "", `TOTAL = ${daysLabel(totalDays)} DAYS`],
+    ["", "TOTAL", "", `= ${daysLabel(totalDays)} DAYS`],
     [""],
     [{ v: cert, bold: false, noCaps: true, underlineWord: "employee" }, "", "", "", "", "", "", "", "", ""],
     [""],
