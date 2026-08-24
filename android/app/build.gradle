@@ -7,8 +7,8 @@ android {
         applicationId "in.railway.snt.logbook"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 94
-        versionName System.getenv("APP_VERSION_NAME") ?: "1.7.6.81"
+        versionCode 95
+        versionName System.getenv("APP_VERSION_NAME") ?: "1.7.6.84"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

@@ -3,6 +3,22 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.84 — 2026-08-24
+
+**Minor: a station's inspection reminder clears once both its sides are done in the period**
+
+- **One reminder per station, not per side.** A station inspection (monthly,
+  quarterly, maintenance, point oiling, battery, joint) now keeps a single
+  schedule driven by the most recent entry for that station — whichever side
+  was done, or "Both sides" in one go.
+- **Doing one side one day and the other side another day now clears the
+  due/overdue reminder.** Previously each side kept its own schedule, so the
+  older side's reminder (or an older "Both sides" entry from a previous
+  period) lingered until that exact side was entered again. Now the reminder
+  comes back one period after the last side of the station was done.
+- **Footplate schedules are unchanged** — they still track each shift/direction
+  run separately.
+
 ## 1.7.6.83 — 2026-08-23
 
 **Minor: TA Journal export — one centred TRAIN NO heading, TOTAL lines up before the equals, tighter header spacing and a sentence-case certification line**
