@@ -20,6 +20,7 @@ import { AUTO_TIMINGS } from "@/lib/timingsMode";
 import { EMPTY_STATION_DRAFT, StationFields, stationPayload, type StationDraft } from "./StationForm";
 import {
   kindFromTags,
+  kindFromTagName,
   INSPECTION_RULES,
   JOINT_DEPARTMENTS,
   PERIODICITIES,
@@ -373,7 +374,7 @@ export function DailyLogForm({
       : "Footplate";
   const pcdoStationId = resolvedStation?.id ?? pcdoStationOverride ?? null;
   const pcdoDate = logDate;
-  const needsSideTags = tags.filter((t) => t.needsSide);
+  const needsSideTags = tags.filter((t) => t.needsSide && !kindFromTagName(t.name));
   const kindIntervalDays = (() => {
     for (const id of tagIds) {
       const t = tags.find((x) => x.id === id);
