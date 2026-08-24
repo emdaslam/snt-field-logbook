@@ -199,6 +199,10 @@ export function buildPdf(
       const headingW = maxW - (rightNote ? 150 : 0);
       let headingSize = 15 * fs;
       if (text) {
+        // Measure at the real base size — otherwise getTextWidth reports the
+        // previous/default size and the shrink factor comes out too big, so a
+        // long heading still wraps onto a second line.
+        doc.setFontSize(headingSize);
         const tw = doc.getTextWidth(text);
         if (tw > headingW) headingSize = Math.max(5, headingSize * (headingW / tw) * 0.98);
       }
