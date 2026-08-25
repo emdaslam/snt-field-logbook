@@ -3,6 +3,23 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.88 — 2026-08-25
+
+**Major: the PCDO, disconnections and counters on a daily log share one station — defaulting to the movement station, and changeable from any of the three**
+
+- **The station is yours to change.** Every daily log now shows a station picker
+  for the PCDO special work, the disconnections and the counter resets — even
+  when the movement itself is a station. The picker defaults to the station of
+  the movement, and you can switch it to any other station.
+- **Change one, change all three.** The PCDO station, the disconnection station
+  and the counter station are one shared value — pick a station in any of the
+  three sections and the other two follow it, so the whole entry groups under
+  the same station in the PCDO export.
+- **The pick survives the movement.** Once you pick a different station it stays
+  even if you change the movement or switch to a Rest/Leave/CR/NH entry; a
+  station movement with no explicit pick keeps following the movement as before.
+- A "What's New" tutorial introduces the change.
+
 ## 1.7.6.87 — 2026-08-25
 
 **Minor: diary and TA Journal PDF columns never wrap their dates, times, train numbers or stations — the columns grow and the side margins shrink instead**

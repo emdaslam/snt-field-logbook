@@ -355,6 +355,28 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.6.88",
+    tag: "One station for PCDO, disconnections & counters",
+    subtitle: "The PCDO, disconnection and counter sections share one station — the movement station by default, changeable in any of them.",
+    slides: [
+      {
+        glyph: "▤",
+        title: "One shared station",
+        body: "On a daily log, the PCDO special work, the disconnections and the counter resets all use a single station — pre-selected to the station of the movement. The three pickers stay in step: change any one and the other two follow.",
+      },
+      {
+        glyph: "⇄",
+        title: "Change it from anywhere",
+        body: "Each of the three sections shows its own station picker. Pick a different station in any of them — say the work was done at another station — and the whole entry groups under that station in the PCDO export.",
+      },
+      {
+        glyph: "◈",
+        title: "Your pick sticks",
+        body: "Once you choose a different station it is kept even if you change the movement or use a Rest/Leave/CR/NH entry. Leave it alone and it keeps following the movement station.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {

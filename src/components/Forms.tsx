@@ -253,13 +253,15 @@ export function DailyLogForm({
   const setPcdoWork = (dept: string, work: string) => {
     setPcdoWorks((prev) => prev.map((w) => (w.department === dept ? { ...w, work } : w)));
   };
-  // PCDO & disconnections need a station even for Rest/Leave/CR/NH entries —
-  // this holds the manually picked station until a real movement station wins.
-  const [pcdoStationOverride, setPcdoStationOverride] = useState<number | null>(
-    existing && existing.pcdoStationId && !stations.some((s) => s.name === existing.stationMovement)
-      ? existing.pcdoStationId
-      : null
-  );
+  // PCDO, disconnections and counters share one station — the movement station
+  // by default, overridable to any other station. This holds the manual pick so
+  // it survives a movement switch and non-station (Rest/Leave/CR/NH) entries.
+  const [pcdoStationOverride, setPcdoStationOverride] = useState<number | null>(() => {
+    if (!existing?.pcdoStationId) return null;
+    const mv = stations.find((s) => s.name === existing.stationMovement);
+    if (!mv) return existing.pcdoStationId;
+    return mv.id === existing.pcdoStationId ? null : existing.pcdoStationId;
+  });
   const [inspectionTowardsId, setInspectionTowardsId] = useState<number | null>(
     existing?.inspectionTowardsStationId ?? null
   );
@@ -329,7 +331,6 @@ export function DailyLogForm({
     if (v === "footplate") {
       setMovementKind("footplate");
       setMovement("Footplate");
-      setPcdoStationOverride(null);
       return;
     }
     if (v === "rest" || v === "leave" || v === "cr" || v === "nh") {
@@ -344,7 +345,6 @@ export function DailyLogForm({
     setMovementKind("station");
     setMovement(v);
     setTaAtVariableKm(null);
-    setPcdoStationOverride(null);
     const st = stations.find((s) => s.name === v);
     if (st && currentUser?.headquartersStationId != null && st.id === currentUser.headquartersStationId) {
       setTaPercent("0");
@@ -374,7 +374,7 @@ export function DailyLogForm({
     movementKind === "footplate" && fpBoarding && fpOtherEnd
       ? `Footplate: ${fpBoarding.name} → ${fpOtherEnd.name} (${fpDirLabel})`
       : "Footplate";
-  const pcdoStationId = resolvedStation?.id ?? pcdoStationOverride ?? null;
+  const pcdoStationId = pcdoStationOverride ?? resolvedStation?.id ?? null;
   const pcdoDate = logDate;
   const needsSideTags = tags.filter((t) => t.needsSide && !kindFromTagName(t.name));
   const kindIntervalDays = (() => {
@@ -1193,28 +1193,27 @@ export function DailyLogForm({
                   Date: <strong className="text-slate-900">{logDate}</strong>
                 </span>
               </div>
-              {!resolvedStation && (
-                <label className="mt-2 block">
-                  <span className="mb-1 block text-xs font-medium text-slate-700">
-                    PCDO station{" "}
-                    <span className="font-normal text-slate-400">
-                      ({movementLabel} entry — pick the station the work was done at)
-                    </span>
+              <label className="mt-2 block">
+                <span className="mb-1 block text-xs font-medium text-slate-700">
+                  PCDO station{" "}
+                  <span className="font-normal text-slate-400">
+                    (defaults to the station of the movement above — change it if the work was at
+                    another station)
                   </span>
-                  <select
-                    className={inputClass}
-                    value={pcdoStationOverride ?? ""}
-                    onChange={(e) => setPcdoStationOverride(e.target.value ? Number(e.target.value) : null)}
-                  >
-                    <option value="">— Select station —</option>
-                    {stations.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
+                </span>
+                <select
+                  className={inputClass}
+                  value={pcdoStationId ?? ""}
+                  onChange={(e) => setPcdoStationOverride(e.target.value ? Number(e.target.value) : null)}
+                >
+                  <option value="">— Select station —</option>
+                  {stations.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
               {!pcdoStationId && (
                 <p className="mt-1 text-amber-600">
                   Select a station in “Station / Movement” above (or pick the PCDO station) so this work is
@@ -1288,31 +1287,29 @@ export function DailyLogForm({
             <p className="mt-2 text-xs font-semibold text-amber-900">
               Total disconnections: {discTotal}
             </p>
-            {!resolvedStation && (
-              <label className="mt-2 block">
-                <span className="mb-1 block text-xs font-medium text-slate-700">
-                  Disconnection station{" "}
-                  <span className="font-normal text-slate-500">(shared with the PCDO station above)</span>
+            <label className="mt-2 block">
+              <span className="mb-1 block text-xs font-medium text-slate-700">
+                Disconnection station{" "}
+                <span className="font-normal text-slate-500">(shared with the PCDO station above)</span>
+              </span>
+              <select
+                className={inputClass}
+                value={pcdoStationId ?? ""}
+                onChange={(e) => setPcdoStationOverride(e.target.value ? Number(e.target.value) : null)}
+              >
+                <option value="">— Select station —</option>
+                {stations.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+              {!pcdoStationId && (
+                <span className="mt-1 block text-xs text-amber-600">
+                  Pick a station so these disconnections are grouped correctly in the PCDO export.
                 </span>
-                <select
-                  className={inputClass}
-                  value={pcdoStationOverride ?? ""}
-                  onChange={(e) => setPcdoStationOverride(e.target.value ? Number(e.target.value) : null)}
-                >
-                  <option value="">— Select station —</option>
-                  {stations.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-                {!pcdoStationOverride && (
-                  <span className="mt-1 block text-xs text-amber-600">
-                    Pick a station so these disconnections are grouped correctly in the PCDO export.
-                  </span>
-                )}
-              </label>
-            )}
+              )}
+            </label>
           </>
         )}
       </div>
@@ -1336,6 +1333,31 @@ export function DailyLogForm({
 
         {countersOpen && (
           <div className="mt-3 space-y-3">
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-slate-700">
+                Counter station{" "}
+                <span className="font-normal text-slate-500">
+                  (shared with the PCDO station above — defaults to the movement station)
+                </span>
+              </span>
+              <select
+                className={inputClass}
+                value={pcdoStationId ?? ""}
+                onChange={(e) => setPcdoStationOverride(e.target.value ? Number(e.target.value) : null)}
+              >
+                <option value="">— Select station —</option>
+                {stations.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+              {!pcdoStationId && (
+                <span className="mt-1 block text-xs text-amber-600">
+                  Pick a station so these counter resets are grouped correctly in the PCDO export.
+                </span>
+              )}
+            </label>
             {counterRows.map((r, i) => {
               const isSection = r.equipment !== "MSDAC";
               return (
@@ -1417,7 +1439,6 @@ export function DailyLogForm({
                             ? stations.find((x) => x.id === pcdoStationId)?.name
                             : movement || "this station"}
                         </strong>
-                        {!resolvedStation && " — pick the station below"}
                       </>
                     )}
                   </p>
@@ -1509,38 +1530,8 @@ export function DailyLogForm({
                         )}
                       </label>
                     )
-                  ) : (
-                    !resolvedStation && (
-                      <label className="mt-1.5 block">
-                        <span className="mb-1 block text-xs font-medium text-slate-700">
-                          Counter station{" "}
-                          <span className="font-normal text-slate-500">
-                            (shared with the PCDO station above)
-                          </span>
-                        </span>
-                        <select
-                          className={inputClass}
-                          value={pcdoStationOverride ?? ""}
-                          onChange={(e) =>
-                            setPcdoStationOverride(e.target.value ? Number(e.target.value) : null)
-                          }
-                        >
-                          <option value="">— Select station —</option>
-                          {stations.map((s) => (
-                            <option key={s.id} value={s.id}>
-                              {s.name}
-                            </option>
-                          ))}
-                        </select>
-                        {!pcdoStationOverride && (
-                          <span className="mt-1 block text-xs text-amber-600">
-                            Pick a station so these counter resets are grouped correctly in the PCDO
-                            export.
-                          </span>
-                        )}
-                      </label>
-                    )
-                  )}
+                  ) : null
+                }
                 </div>
               );
             })}
