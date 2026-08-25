@@ -3,6 +3,20 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.87 — 2026-08-25
+
+**Minor: diary and TA Journal PDF columns never wrap their dates, times, train numbers or stations — the columns grow and the side margins shrink instead**
+
+- **Content stays on one line at any text size.** The fixed-width columns of the
+  Diary and TA Journal exports (DATE, TRAIN NO, TIME DEP/ARR, FROM, TO) now
+  widen to fit their widest cell, so raising the export text size no longer
+  wraps dates, times, train numbers or stations onto a second line.
+- **Margins give way when needed.** When the table needs more room than the
+  default margins allow, the side margins shrink to fit — down to a minimum of
+  20 pt.
+- **Only headers may wrap.** The column headings and the flexible NATURE OF WORK
+  column can still wrap; the body content in the fixed columns never does.
+
 ## 1.7.6.86 — 2026-08-24
 
 **Major: the personal build lets you edit the timings — every daily log now shows its tour times, pre-filled from your settings**
