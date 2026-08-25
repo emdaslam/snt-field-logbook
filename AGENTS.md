@@ -53,9 +53,11 @@ For **every** code change, the following release steps are mandatory:
    older version. Minor changes never get tutorial entries.
 3. **Release the APKs.** Every change ships both APK variants
    (`npm run apk:build` → `.apk-download/SnTFieldlogbook-v<version>.apk` and
-   `...v<version>p.apk`), verify them with `apksigner` (SHA-1
-   `7B:C9:5F:C1:7F:0F:E4:93:52:1B:48:09:54:46:13:48:4E:73:B7:81`), and stage
-   them in `.apk-download/`. Never skip the build or the staging step.
+   `...v<version>p.apk`) and stages them in `.apk-download/`. Never skip the
+   build or the staging step. Verify the signing with `apksigner` (SHA-1
+   `7B:C9:5F:C1:7F:0F:E4:93:52:1B:48:09:54:46:13:48:4E:73:B7:81`) only on the
+   **first** build of an agent session; once the keystore is known good, skip
+   the apksigner re-check on every later build.
 
 ## 3. Changes must always be committed and pushed
 
@@ -65,6 +67,13 @@ For **every** code change, the following release steps are mandatory:
   (`credential.helper=!gh auth git-credential`); `gh` is logged in as
   `emdaslam`.
 - Do NOT publish GitHub releases until the user confirms the change works.
+- After a change is committed and pushed, **ask** (with `question`) whether to
+  prune the old released APKs from `.apk-download/`. When approved, keep only
+  the latest 5 of each variant — the 5 newest `SnTFieldlogbook-v….apk` and the
+  5 newest `SnTFieldlogbook-v…p.apk` — delete the older `SnTFieldlogbook-v…apk`
+  files, and trim `.apk-download/index.html` so it links only to files that
+  still exist. Never remove `index.html`, `privacy.html`, `terms.html` or
+  other non-APK files.
 
 ## 4. Versioning and release conventions
 
