@@ -377,6 +377,28 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.6.89",
+    tag: "Two-page diary export",
+    subtitle: "Split the month's Diary over two pages — the first half on page 1, the rest on page 2.",
+    slides: [
+      {
+        glyph: "▦",
+        title: "Split the diary by days",
+        body: "In the Diary export, tap “Two pages (split by days)”. The month's diary is then printed across two pages — the first half of the month (15 or 16 days) on page 1 and the remaining days on page 2, each with its own DATE / TRAIN NO / TIME / FROM / TO / NATURE OF WORK heading.",
+      },
+      {
+        glyph: "▤",
+        title: "Works for PDF and Word",
+        body: "The split applies to both the PDF and Word exports. A second page always starts with its own column heading, and the designation line sits at the end of the second page. Excel stays one continuous sheet.",
+      },
+      {
+        glyph: "◈",
+        title: "Colour pages, plain pages",
+        body: "Colour exports carry the page footer on both pages; the plain reference layout stays clean without a footer. The fit-on-one-page and earlier font-size options are still there when you need them.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {

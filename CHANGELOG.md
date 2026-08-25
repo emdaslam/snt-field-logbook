@@ -3,6 +3,22 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.89 — 2026-08-25
+
+**Major: two-page diary export — the first half of the month on page 1, the remaining days on page 2**
+
+- **Split the diary by days.** In the Diary export, tap “Two pages (split by
+  days)”. The month's diary is then printed across two pages — the first half
+  of the month (15 or 16 days) on page 1 and the remaining days on page 2,
+  each with its own DATE / TRAIN NO / TIME / FROM / TO / NATURE OF WORK column
+  heading.
+- **PDF and Word.** The split applies to both the PDF and Word exports; the
+  designation line sits at the end of the second page. Excel stays one
+  continuous sheet.
+- **Footer in colour, none in plain.** Colour exports carry the page footer on
+  both pages; the plain reference layout stays clean without one. The existing
+  “Fit on one page” and “Earlier output (font size)” options are unchanged.
+
 ## 1.7.6.88 — 2026-08-25
 
 **Major: the PCDO, disconnections and counters on a daily log share one station — defaulting to the movement station, and changeable from any of the three**

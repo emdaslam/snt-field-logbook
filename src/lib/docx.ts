@@ -330,6 +330,13 @@ export function buildDocx(title: string, bodyHtml: string, style: ExportStyle = 
     const tag = el.tagName.toLowerCase();
     const text = tidy(el.textContent ?? "");
 
+    // Explicit page-break marker (the diary's two-page layout): start a fresh
+    // page so the second half of the month begins at the top of page 2.
+    if (tag === "div" && (el.className || "").split(/\s+/).includes("page-break")) {
+      parts.push(`<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:br w:type="page"/></w:r></w:p>`);
+      continue;
+    }
+
     if (tag === "h1") {
       if (!text) continue;
       const rightNote = el.getAttribute("data-right-note");

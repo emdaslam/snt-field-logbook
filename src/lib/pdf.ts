@@ -338,6 +338,14 @@ export function buildPdf(
     const tag = el.tagName.toLowerCase();
     const text = tidy(el.textContent ?? "");
 
+    // Explicit page-break marker (the diary's two-page layout): start a fresh
+    // page so the second half of the month begins at the top of page 2.
+    if (tag === "div" && (el.className || "").split(/\s+/).includes("page-break")) {
+      doc.addPage();
+      y = margin;
+      continue;
+    }
+
     if (tag === "h1") {
       pageBreak(38 * fs);
       doc.setFont("helvetica", "bold").setTextColor(...INK);
@@ -651,7 +659,7 @@ export function exportDocument(
   bodyHtml: string,
   type = "general",
   sheet?: XlsxSheet,
-  opts?: { onePage?: boolean; style?: ExportStyle; cellPad?: number }
+  opts?: { onePage?: boolean; twoPageBody?: string; style?: ExportStyle; cellPad?: number }
 ) {
   // Bottom sheet that offers the report as PDF, Word (.docx) or Excel (.xlsx),
   // with a text size prompt for the PDF path. The last chosen format is remembered.
@@ -771,14 +779,22 @@ export function exportDocument(
   row.style.display = format === "pdf" ? "flex" : "none";
   box.appendChild(row);
 
-  // Fit-on-one-page option (TA journal): either squeeze the whole report onto
-  // a single page (reduced margins, no footer, auto-shrunk text) or keep the
-  // earlier font-size driven output.
+  // Page layout option (diary / TA journal): squeeze the whole report onto a
+  // single page (reduced margins, no footer, auto-shrunk text), split the diary
+  // roughly in half over two pages (first ~15/16 days then the rest), or keep
+  // the earlier font-size driven output. The two-page body is provided by the
+  // export builder as `twoPageBody`.
   const onePage = Boolean(opts?.onePage);
-  let fitOnePage = onePage;
+  const twoBody = opts?.twoPageBody;
+  type PageMode = "fit" | "two" | "earlier";
+  let pageMode: PageMode = "fit";
   try {
-    const saved = localStorage.getItem("snt.exportOnePage");
-    if (saved != null) fitOnePage = saved === "1";
+    const saved = localStorage.getItem("snt.exportPageMode");
+    if (saved === "fit" || saved === "earlier" || (saved === "two" && twoBody)) pageMode = saved;
+    else {
+      const legacy = localStorage.getItem("snt.exportOnePage");
+      if (legacy != null) pageMode = legacy === "1" ? "fit" : "earlier";
+    }
   } catch {
     /* ignore */
   }
@@ -789,7 +805,7 @@ export function exportDocument(
   fitNote.style.display = "none";
   box.appendChild(fitNote);
   const refreshPdfOptions = () => {
-    const fit = onePage && fitOnePage;
+    const fit = pageMode === "fit";
     row.style.display = format === "pdf" && !fit ? "flex" : "none";
     fitNote.style.display = format === "pdf" && fit ? "block" : "none";
     styleRow.style.display = format === "pdf" || format === "docx" ? "flex" : "none";
@@ -803,25 +819,30 @@ export function exportDocument(
       };background:${active ? "#1e3a8a" : "#f8fafc"};color:${active ? "#fff" : "#334155"}`;
     const fitBtn = document.createElement("button");
     fitBtn.textContent = "Fit on one page";
+    const twoBtn = twoBody ? document.createElement("button") : null;
+    if (twoBtn) twoBtn.textContent = "Two pages (split by days)";
     const stdBtn = document.createElement("button");
     stdBtn.textContent = "Earlier output (font size)";
-    const applyPage = (fit: boolean) => {
-      fitOnePage = fit;
-      fitBtn.style.cssText = pageStyle(fit);
-      stdBtn.style.cssText = pageStyle(!fit);
+    const applyPage = (mode: PageMode) => {
+      pageMode = mode;
+      fitBtn.style.cssText = pageStyle(mode === "fit");
+      if (twoBtn) twoBtn.style.cssText = pageStyle(mode === "two");
+      stdBtn.style.cssText = pageStyle(mode === "earlier");
       refreshPdfOptions();
       try {
-        localStorage.setItem("snt.exportOnePage", fit ? "1" : "0");
+        localStorage.setItem("snt.exportPageMode", mode);
       } catch {
         /* ignore */
       }
     };
-    fitBtn.onclick = () => applyPage(true);
-    stdBtn.onclick = () => applyPage(false);
+    fitBtn.onclick = () => applyPage("fit");
+    if (twoBtn) twoBtn.onclick = () => applyPage("two");
+    stdBtn.onclick = () => applyPage("earlier");
     pageSeg.appendChild(fitBtn);
+    if (twoBtn) pageSeg.appendChild(twoBtn);
     pageSeg.appendChild(stdBtn);
     box.appendChild(pageSeg);
-    applyPage(fitOnePage);
+    applyPage(pageMode);
   }
   refreshPdfOptions();
 
@@ -906,7 +927,7 @@ export function exportDocument(
           artifact = {
             filename: `${slug(title)}.docx`,
             mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            base64: docxToBase64(buildDocx(title, bodyHtml, style)),
+            base64: docxToBase64(buildDocx(title, pageMode === "two" && twoBody ? twoBody : bodyHtml, style)),
           };
         } else if (format === "xlsx") {
           const { buildXlsx, xlsxToBase64 } = await import("./xlsx");
@@ -918,11 +939,12 @@ export function exportDocument(
         } else {
           const size = chosenSize();
           const cellPad = opts?.cellPad;
+          const src = pageMode === "two" && twoBody ? twoBody : bodyHtml;
           const doc =
-            onePage && fitOnePage
+            pageMode === "fit"
               ? buildFitOnePagePdf(title, bodyHtml, size, style, cellPad)
-              : buildPdf(title, bodyHtml, size, { style, ...(cellPad != null ? { cellPad } : {}) });
-          if (!(onePage && fitOnePage)) persistContentFontSize(type, size);
+              : buildPdf(title, src, size, { style, ...(cellPad != null ? { cellPad } : {}) });
+          if (pageMode !== "fit") persistContentFontSize(type, size);
           artifact = {
             filename: `${slug(title)}.pdf`,
             mimeType: "application/pdf",

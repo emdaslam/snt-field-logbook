@@ -721,7 +721,7 @@ export function exportDiary(
   logs: DailyLog[],
   stations: Station[],
   me: Staff | undefined,
-  out: (title: string, body: string, type: string, sheet?: XlsxSheet, opts?: { onePage?: boolean; style?: ExportStyle; cellPad?: number }) => void = exportDocument
+  out: (title: string, body: string, type: string, sheet?: XlsxSheet, opts?: { onePage?: boolean; twoPageBody?: string; style?: ExportStyle; cellPad?: number }) => void = exportDocument
 ) {
   const hq = stations.find((s) => s.id === me?.headquartersStationId);
   const hqCode = hqLabel(hq);
@@ -740,78 +740,94 @@ export function exportDiary(
     days.get(l.logDate)!.push(l);
   }
 
-  // Display rows (grid + xlsx share the same data)
-  const grid: (string | number)[][] = [];
-  const merges: XlsxMerge[] = [];
-  for (const [date, dayLogs] of days) {
-    const primary = preferTaLog(dayLogs, hq);
-    let work = mergeWork(dayLogs) || "-";
-    const sp = specialPair(primary);
-    if (sp) {
-      const r = grid.length;
-      grid.push([dmy(date), sp[0], "", "", "", "", sp[1]]);
-      merges.push([r, 1, r, 5]); // train-no..to collapse into the label
-      continue;
-    }
-    const st = movementStation(primary, stations);
-    // A variable-distance station carries its KMs marker in the work text when
-    // the log confirms the work was done at/after that marker (> 8 km side).
-    const varKm = variableKmText(st?.match?.variableKm);
-    if (
-      st?.match?.distanceFromHq === "variable" &&
-      primary.taAtVariableKm === true &&
-      varKm != null
-    ) {
-      work = `${work} at ${varKm} KMs`;
-    }
-    if (!st || (hq && st.match?.id === hq.id)) {
-      grid.push([dmy(date), "---", "---", "---", "AT", hqCode, work]);
-      continue;
-    }
-    // Footplate movement — the journey legs (HQ → boarding, train leg(s),
-    // boarding → HQ) each get their own row, sharing the date and work.
-    if (primary.movementKind === "footplate") {
-      const boarding = primary.footplateJourney
-        ? stations.find((s) => s.id === primary.footplateJourney!.boardingStationId)
-        : undefined;
-      const t = boarding
-        ? journeyTimes(primary, asMovementStation(boarding), date, taCfg ? taCfg[taRateKey(primary.taPercent)] : undefined)
-        : null;
-      const legs = primary.footplateJourney && t ? footplateLegs(primary, stations, hqCode, t) : null;
-      const r = grid.length;
-      if (legs) {
-        legs.forEach((leg, i) => {
-          grid.push([
-            i === 0 ? dmy(date) : "",
-            leg.trainNo,
-            leg.dep,
-            leg.arr,
-            leg.from,
-            leg.to,
-            i === 0 ? work : "",
-          ]);
-        });
-        merges.push([r, 0, r + legs.length - 1, 0], [r, 6, r + legs.length - 1, 6]);
-      } else {
-        grid.push([dmy(date), "---", "---", "---", "FOOTPLATE", "---", work]);
-        merges.push([r, 1, r, 5]);
+  // Display rows (grid + xlsx share the same data). The rows for a subset of
+  // days build one table, so the two-page layout can render the first ~half of
+  // the month's days and the remaining days as two separate tables.
+  const buildGrid = (keys: string[]): { grid: (string | number)[][]; merges: XlsxMerge[] } => {
+    const grid: (string | number)[][] = [];
+    const merges: XlsxMerge[] = [];
+    for (const date of keys) {
+      const dayLogs = days.get(date)!;
+      const primary = preferTaLog(dayLogs, hq);
+      let work = mergeWork(dayLogs) || "-";
+      const sp = specialPair(primary);
+      if (sp) {
+        const r = grid.length;
+        grid.push([dmy(date), sp[0], "", "", "", "", sp[1]]);
+        merges.push([r, 1, r, 5]); // train-no..to collapse into the label
+        continue;
       }
-      continue;
+      const st = movementStation(primary, stations);
+      // A variable-distance station carries its KMs marker in the work text when
+      // the log confirms the work was done at/after that marker (> 8 km side).
+      const varKm = variableKmText(st?.match?.variableKm);
+      if (
+        st?.match?.distanceFromHq === "variable" &&
+        primary.taAtVariableKm === true &&
+        varKm != null
+      ) {
+        work = `${work} at ${varKm} KMs`;
+      }
+      if (!st || (hq && st.match?.id === hq.id)) {
+        grid.push([dmy(date), "---", "---", "---", "AT", hqCode, work]);
+        continue;
+      }
+      // Footplate movement — the journey legs (HQ → boarding, train leg(s),
+      // boarding → HQ) each get their own row, sharing the date and work.
+      if (primary.movementKind === "footplate") {
+        const boarding = primary.footplateJourney
+          ? stations.find((s) => s.id === primary.footplateJourney!.boardingStationId)
+          : undefined;
+        const t = boarding
+          ? journeyTimes(primary, asMovementStation(boarding), date, taCfg ? taCfg[taRateKey(primary.taPercent)] : undefined)
+          : null;
+        const legs = primary.footplateJourney && t ? footplateLegs(primary, stations, hqCode, t) : null;
+        const r = grid.length;
+        if (legs) {
+          legs.forEach((leg, i) => {
+            grid.push([
+              i === 0 ? dmy(date) : "",
+              leg.trainNo,
+              leg.dep,
+              leg.arr,
+              leg.from,
+              leg.to,
+              i === 0 ? work : "",
+            ]);
+          });
+          merges.push([r, 0, r + legs.length - 1, 0], [r, 6, r + legs.length - 1, 6]);
+        } else {
+          grid.push([dmy(date), "---", "---", "---", "FOOTPLATE", "---", work]);
+          merges.push([r, 1, r, 5]);
+        }
+        continue;
+      }
+      const t = diaryTimes(primary, st, date, taCfg ? taCfg[taRateKey(primary.taPercent)] : undefined);
+      const r = grid.length;
+      grid.push([
+        dmy(date),
+        trainNoLabel(primary.travelMode, primary.travelTrainNo),
+        t.outDep,
+        t.outArr,
+        hqCode,
+        st.code,
+        work,
+      ]);
+      grid.push(["", trainNoLabel(primary.returnMode, primary.returnTrainNo), t.retDep, t.retArr, st.code, hqCode, ""]);
+      merges.push([r, 0, r + 1, 0], [r, 6, r + 1, 6]); // date + work span both legs
     }
-    const t = diaryTimes(primary, st, date, taCfg ? taCfg[taRateKey(primary.taPercent)] : undefined);
-    const r = grid.length;
-    grid.push([
-      dmy(date),
-      trainNoLabel(primary.travelMode, primary.travelTrainNo),
-      t.outDep,
-      t.outArr,
-      hqCode,
-      st.code,
-      work,
-    ]);
-    grid.push(["", trainNoLabel(primary.returnMode, primary.returnTrainNo), t.retDep, t.retArr, st.code, hqCode, ""]);
-    merges.push([r, 0, r + 1, 0], [r, 6, r + 1, 6]); // date + work span both legs
-  }
+    return { grid, merges };
+  };
+
+  const dayKeys = Array.from(days.keys());
+  const { grid, merges } = buildGrid(dayKeys);
+  // Two-page layout: the first 15/16 days (half the month, rounded up) go on
+  // page 1, the remaining days on page 2 — only when a second half exists.
+  const half = Math.ceil(dayKeys.length / 2);
+  const halves =
+    half < dayKeys.length
+      ? [buildGrid(dayKeys.slice(0, half)), buildGrid(dayKeys.slice(half))]
+      : null;
 
   const who = me?.name || me?.designation ? `${me?.name?.toUpperCase() ?? ""}, ${me?.designation?.toUpperCase() ?? ""}`.replace(/^,\s*|,\s*$/g, "") : "";
   const titleText = who
@@ -819,15 +835,29 @@ export function exportDiary(
     : `Diary — ${period.label}`;
 
   let body = `<h1 class="centered tight">${esc(titleText)}</h1>`;
+  let twoPageBody = body;
 
   if (rows.length === 0) {
     body += `<p class="empty">No diary entries in this period.</p>`;
+    twoPageBody = body;
   } else {
-    body += `<table>`;
-    body += `<tr><th class="date" data-width="56" data-align="center">DATE</th><th data-width="34" data-align="center">TRAIN NO</th><th data-width="32" data-align="center">TIME DEP</th><th data-width="32" data-align="center">TIME ARR</th><th data-width="34" data-align="center">FROM</th><th data-width="34" data-align="center">TO</th><th data-align="center">NATURE OF WORK</th></tr>`;
-    body += gridHtml(grid, merges, { dateCol: 0, centerCols: new Set([0, 1, 2, 3, 4, 5]), leftCols: new Set([6]), valignCols: new Set([6]) });
-    body += `</table>`;
-    if (me?.designation) body += `<p class="right" data-right-pad="36" data-space-top="16"><strong>${esc(me.designation.toUpperCase())}</strong></p>`;
+    const headerRow = `<tr><th class="date" data-width="56" data-align="center">DATE</th><th data-width="34" data-align="center">TRAIN NO</th><th data-width="32" data-align="center">TIME DEP</th><th data-width="32" data-align="center">TIME ARR</th><th data-width="34" data-align="center">FROM</th><th data-width="34" data-align="center">TO</th><th data-align="center">NATURE OF WORK</th></tr>`;
+    const diaryTable = (g: (string | number)[][], m: XlsxMerge[]) =>
+      `<table>${headerRow}${gridHtml(g, m, { dateCol: 0, centerCols: new Set([0, 1, 2, 3, 4, 5]), leftCols: new Set([6]), valignCols: new Set([6]) })}</table>`;
+    const signature = me?.designation
+      ? `<p class="right" data-right-pad="36" data-space-top="16"><strong>${esc(me.designation.toUpperCase())}</strong></p>`
+      : "";
+
+    body += diaryTable(grid, merges) + signature;
+    // Two-page body: table (first ~half) + page-break marker + table (rest).
+    // The PDF / Word renderers honour the marker; the Excel sheet stays one
+    // continuous grid.
+    twoPageBody += halves
+      ? diaryTable(halves[0].grid, halves[0].merges) +
+        `<div class="page-break"></div>` +
+        diaryTable(halves[1].grid, halves[1].merges) +
+        signature
+      : diaryTable(grid, merges) + signature;
   }
 
   const allMerges: XlsxMerge[] = [
@@ -848,7 +878,12 @@ export function exportDiary(
     colWidths: [10.3, 6, 6, 6, 6, 6, 63],
   };
 
-  out(`Diary ${period.label}`, upperText(body), "diary", upperSheet(sheet), { onePage: true, style: "plain", cellPad: 2 });
+  out(`Diary ${period.label}`, upperText(body), "diary", upperSheet(sheet), {
+    onePage: true,
+    twoPageBody: upperText(twoPageBody),
+    style: "plain",
+    cellPad: 2,
+  });
 }
 
 
