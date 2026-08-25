@@ -141,6 +141,141 @@ function liText(el: HTMLElement): string {
     .trim();
 }
 
+/** Smallest side margin the PDF will use when a table needs more room than the
+ *  default margins allow. */
+const MIN_MARGIN = 20;
+
+/**
+ * Per-column fit of a table's body cells, measured at the table body font
+ * (8·fs): `full` is the widest single-line cell text plus horizontal padding —
+ * the column width that lets every cell fit on one line — and `word` is the
+ * widest single word plus padding (the narrowest the column can be and still
+ * be readable, mirroring autoTable's minReadableWidth).
+ */
+type ColFit = { full: number; word: number };
+
+/** Walk a table's body rows column-accurately (skipping rowspan/colspan
+ *  covered cells) and measure each visible cell's text width. */
+function measureBodyColumns(table: Element, doc: jsPDF, fs: number, cellPad: number): Record<number, ColFit> {
+  const pad2 = 2 * cellPad;
+  const out: Record<number, ColFit> = {};
+  const trs = Array.from(table.querySelectorAll("tr"));
+  let headCount = 0;
+  while (headCount < trs.length && trs[headCount].querySelector("th")) headCount++;
+  const active = new Map<number, number>();
+  for (const tr of trs.slice(headCount)) {
+    const cells = Array.from(tr.querySelectorAll("td"));
+    let col = 0;
+    for (const el of cells) {
+      while (active.has(col)) {
+        const left = active.get(col)! - 1;
+        if (left <= 0) active.delete(col);
+        else active.set(col, left);
+        col++;
+      }
+      const rowSpan = Math.max(1, parseInt(el.getAttribute("rowspan") || "1", 10) || 1);
+      const colSpan = Math.max(1, parseInt(el.getAttribute("colspan") || "1", 10) || 1);
+      // A colspan cell spans several columns, so its text (e.g. the TA total
+      // row) doesn't drive any single column's width — skip measuring it.
+      if (colSpan === 1) {
+        const cls = (el.getAttribute("class") || "").split(/\s+/);
+        const isV = cls.includes("vtext");
+        const font = el.getAttribute("data-font") === "rupee" ? "rupee" : "helvetica";
+        const bold = el.querySelector("strong") ? "bold" : "normal";
+        doc.setFont(font, bold).setFontSize(8 * fs);
+        const raw = el.textContent ?? "";
+        // vtext cells render one token per line; other cells render the full text.
+        const lines = isV ? raw.split(/\s+/).filter(Boolean) : [tidy(raw)].filter(Boolean);
+        let fullW = 0;
+        let wordW = 0;
+        for (const line of lines) {
+          const w = doc.getTextWidth(line);
+          if (w > fullW) fullW = w;
+          for (const tok of line.split(/[^\S\u00A0]+/)) {
+            const tw = doc.getTextWidth(tok);
+            if (tw > wordW) wordW = tw;
+          }
+        }
+        const m = out[col] ?? { full: 0, word: 0 };
+        m.full = Math.max(m.full, fullW + pad2);
+        m.word = Math.max(m.word, wordW + pad2);
+        out[col] = m;
+      }
+      if (rowSpan > 1) active.set(col, rowSpan - 1);
+      col += colSpan;
+    }
+  }
+  return out;
+}
+
+/** Per-column reference widths from a table's header: an explicit data-width
+ *  or the pinned 72pt for a date column. Columns without either are undefined. */
+function headerBaseWidths(trs: Element[], headCount: number): (number | undefined)[] {
+  const widths: (number | undefined)[] = [];
+  const active = new Map<number, number>();
+  for (const r of trs.slice(0, headCount)) {
+    const cells = Array.from(r.querySelectorAll("th"));
+    let col = 0;
+    for (const c of cells) {
+      while (active.has(col)) {
+        const left = active.get(col)! - 1;
+        if (left <= 0) active.delete(col);
+        else active.set(col, left);
+        col++;
+      }
+      const rowSpan = Math.max(1, parseInt(c.getAttribute("rowspan") || "1", 10) || 1);
+      const colSpan = Math.max(1, parseInt(c.getAttribute("colspan") || "1", 10) || 1);
+      if (colSpan === 1) {
+        const w = c.getAttribute("data-width");
+        const isDate = (c.getAttribute("class") || "").split(/\s+/).includes("date");
+        const current = widths[col] ?? 0;
+        if (w) widths[col] = Math.max(current, Number(w));
+        else if (isDate) widths[col] = Math.max(current, 72);
+      }
+      if (rowSpan > 1) active.set(col, rowSpan - 1);
+      col += colSpan;
+    }
+  }
+  return widths;
+}
+
+/**
+ * Side margin that fits the widest fixed-column table on the page. A column
+ * with a reference width keeps at least that width but grows to hold its body
+ * content on one line (`full`); a column without one reserves at least its
+ * widest word (`word`). When the required table width exceeds what the default
+ * margins leave, the side margins shrink to fit — but never below MIN_MARGIN.
+ * Tables with no fixed-width columns are skipped (autoTable already fits those
+ * by wrapping content).
+ */
+function effectiveMargin(
+  root: Element,
+  bodyFit: Map<Element, Record<number, ColFit>>,
+  pageW: number,
+  baseMargin: number
+): number {
+  let widest = 0;
+  for (const tbl of Array.from(root.querySelectorAll("table"))) {
+    const trs = Array.from(tbl.querySelectorAll("tr"));
+    if (!trs.length) continue;
+    let headCount = 0;
+    while (headCount < trs.length && trs[headCount].querySelector("th")) headCount++;
+    if (!headCount) continue;
+    const base = headerBaseWidths(trs, headCount);
+    if (!base.some((w) => w != null)) continue;
+    const fit = bodyFit.get(tbl) ?? {};
+    let total = 0;
+    base.forEach((w, col) => {
+      const f = fit[col];
+      total += w != null ? Math.max(w, f?.full ?? 0) : (f?.word ?? 0);
+    });
+    if (total > widest) widest = total;
+  }
+  if (widest <= 0) return baseMargin;
+  const fitted = (pageW - widest) / 2;
+  return Math.max(MIN_MARGIN, Math.min(baseMargin, fitted));
+}
+
 /**
  * Render the HTML produced by the export builders into a real PDF.
  * We control the markup shape (h1 / h2 / h3 / p / table / ul>li), so a small
@@ -157,7 +292,7 @@ export function buildPdf(
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   registerPdfFonts(doc);
   const fs = contentSize / 9;
-  const margin = opts.margin ?? 40;
+  const baseMargin = opts.margin ?? 40;
   const withFooter = opts.footer ?? true;
   // "plain" drops every fill and colour so the report renders as the reference
   // black-and-white layout (no navy/green headings, no shaded header, no
@@ -165,13 +300,28 @@ export function buildPdf(
   const plain = opts.style === "plain";
   const INK: [number, number, number] = plain ? [0, 0, 0] : NAVY;
   const HEAD_FILL: [number, number, number] = plain ? [255, 255, 255] : [219, 234, 254];
+  const cellPad = opts.cellPad ?? 4;
   const pageW = doc.internal.pageSize.getWidth();
-  const maxW = pageW - margin * 2;
-  let y = margin;
 
   const parsed = new DOMParser().parseFromString(`<div>${bodyHtml}</div>`, "text/html");
   const root = parsed.body.firstElementChild;
   if (!root) return doc;
+
+  // Pre-measure every table's body cells once: `full` is the width that lets a
+  // column's content sit on one line, `word` the width of its widest word. A
+  // fixed column then keeps at least its reference width but never goes narrower
+  // than its content, so the dates / train numbers / times / stations in the
+  // Diary and TA Journal stay on a single line even when the text size is
+  // raised. The widest table also decides the side margins: when it needs more
+  // room than the default margins allow, the margins shrink down to MIN_MARGIN.
+  const bodyFit = new Map<Element, Record<number, ColFit>>();
+  for (const tbl of Array.from(root.querySelectorAll("table"))) {
+    bodyFit.set(tbl, measureBodyColumns(tbl, doc, fs, cellPad));
+  }
+  doc.setFont("helvetica", "normal").setFontSize(8 * fs);
+  const margin = effectiveMargin(root, bodyFit, pageW, baseMargin);
+  const maxW = pageW - margin * 2;
+  let y = margin;
 
   const pageBreak = (needed: number) => {
     if (y + needed > doc.internal.pageSize.getHeight() - margin) {
@@ -359,12 +509,18 @@ export function buildPdf(
         valign?: "top" | "middle" | "bottom";
       };
       const columnStyles: Record<number, ColStyle> = {};
+      const fit = bodyFit.get(el) ?? {};
       for (const row of headCells) {
         for (const c of row) {
           const w = c.el.getAttribute("data-width");
           const a = c.el.getAttribute("data-align");
           const entry: ColStyle = { ...columnStyles[c.colIndex] };
-          if (w && c.colSpan === 1) entry.cellWidth = Number(w);
+          if (w && c.colSpan === 1) {
+            // Keep the reference width but never narrower than the column's body
+            // content, so the dates / times / train numbers / stations stay on a
+            // single line even when the text size is increased.
+            entry.cellWidth = Math.max(Number(w), fit[c.colIndex]?.full ?? Number(w));
+          }
           if (a === "center" && c.colSpan === 1) {
             entry.halign = "center";
             entry.valign = "middle";
@@ -394,7 +550,7 @@ export function buildPdf(
         }
       }
       if (dateCol !== null && !columnStyles[dateCol]?.cellWidth) {
-        columnStyles[dateCol] = { ...(columnStyles[dateCol] ?? {}), cellWidth: 72 };
+        columnStyles[dateCol] = { ...(columnStyles[dateCol] ?? {}), cellWidth: Math.max(72, fit[dateCol]?.full ?? 72) };
       }
 
       const head: { content: string; rowSpan?: number; colSpan?: number; styles?: ColStyle }[][] | undefined =
@@ -421,7 +577,7 @@ export function buildPdf(
         margin: { left: margin, right: margin },
         styles: {
           fontSize: 8 * fs,
-          cellPadding: opts.cellPad ?? 4,
+          cellPadding: cellPad,
           overflow: "linebreak",
           textColor: [15, 23, 42],
           ...(plain ? { lineColor: INK } : {}),
