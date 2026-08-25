@@ -64,11 +64,23 @@ function tidy(s: string) {
  * honouring vertical merges (rowspan) and horizontal merges (colspan): a cell
  * carrying a span becomes a CellDef with that span, and the cells it covers
  * are omitted from the later rows / columns.
+ *
+ * A full-column class="vtext" note (the TA journal's KMS note) is handled
+ * separately: instead of reaching autoTable as one cell spanning every row it
+ * is kept out of the table (each covered row gets an empty cell so the column
+ * stays aligned) and returned as a note for the renderer to draw over the
+ * column afterwards. A table-wide rowspan poisons autoTable's rowspan height
+ * bookkeeping, so the day-group rows below it stop growing to fit their
+ * content and the nature-of-work text overflows into the next row.
  */
 type PdfCell = string | { content: string; rowSpan: number; colSpan: number; styles?: { font?: string; fontStyle?: "bold"; halign?: "left" | "center" | "right"; valign?: "top" | "middle" | "bottom" } };
 
-function parseTableBody(trs: Element[]): PdfCell[][] {
+type VtextNote = { colIndex: number; text: string };
+
+function parseTableBody(trs: Element[]): { body: PdfCell[][]; notes: VtextNote[] } {
   const active = new Map<number, number>();
+  const vtextRows = new Map<number, number>();
+  const notes: VtextNote[] = [];
   const body: PdfCell[][] = [];
   for (const tr of trs) {
     const cells = Array.from(tr.querySelectorAll("td"));
@@ -79,6 +91,15 @@ function parseTableBody(trs: Element[]): PdfCell[][] {
         const left = active.get(col)! - 1;
         if (left <= 0) active.delete(col);
         else active.set(col, left);
+        col++;
+      }
+      // Columns covered by a vtext note stay present (empty) in every row so
+      // the table's column positions never shift.
+      while (vtextRows.has(col)) {
+        row.push({ content: "", rowSpan: 1, colSpan: 1, styles: { halign: "center", valign: "middle" } });
+        const left = vtextRows.get(col)! - 1;
+        if (left <= 0) vtextRows.delete(col);
+        else vtextRows.set(col, left);
         col++;
       }
       const rowSpan = Math.max(1, parseInt(el.getAttribute("rowspan") || "1", 10) || 1);
@@ -104,19 +125,70 @@ function parseTableBody(trs: Element[]): PdfCell[][] {
       const valign = el.getAttribute("data-valign");
       if (valign === "middle") styles.valign = "middle";
       const styled = Object.keys(styles).length > 0 ? { styles } : {};
-      const cell: PdfCell =
-        rowSpan > 1 || colSpan > 1
-          ? { content: text, rowSpan, colSpan, ...styled }
-          : Object.keys(styles).length > 0
-            ? { content: text, rowSpan: 1, colSpan: 1, ...styled }
-            : text;
-      if (rowSpan > 1) active.set(col, rowSpan - 1);
-      col += colSpan;
-      row.push(cell);
+      if (isV && rowSpan > 1) {
+        notes.push({ colIndex: col, text });
+        row.push({ content: "", rowSpan: 1, colSpan, ...styled });
+        vtextRows.set(col, rowSpan - 1);
+      } else {
+        const cell: PdfCell =
+          rowSpan > 1 || colSpan > 1
+            ? { content: text, rowSpan, colSpan, ...styled }
+            : Object.keys(styles).length > 0
+              ? { content: text, rowSpan: 1, colSpan: 1, ...styled }
+              : text;
+        if (rowSpan > 1) active.set(col, rowSpan - 1);
+        col += colSpan;
+        row.push(cell);
+      }
     }
     body.push(row);
   }
-  return body;
+  return { body, notes };
+}
+
+/**
+ * Draw a vertical note (one line of text per row, e.g. the TA journal's KMS
+ * note) down the middle of a table column after the table has been rendered.
+ * The note keeps its natural line spacing and is centred over the column's
+ * full height, flowing across pages exactly like the spanning cell it
+ * replaces.
+ */
+function drawVtextNotes(
+  doc: jsPDF,
+  notes: VtextNote[],
+  cells: { page: number; col: number; x: number; width: number; top: number; bottom: number }[],
+  fontSize: number
+) {
+  if (!notes.length || !cells.length) return;
+  const lineHeight = doc.getLineHeightFactor() * fontSize;
+  const pageH = doc.internal.pageSize.getHeight();
+  doc.setFont("helvetica", "normal").setFontSize(fontSize).setTextColor(15, 23, 42);
+  for (const note of notes) {
+    const colCells = cells.filter((c) => c.col === note.colIndex);
+    if (!colCells.length) continue;
+    const lines = note.text.split("\n");
+    if (!lines.length) continue;
+    // Positions in each cell are relative to its own page; lift them onto a
+    // single absolute axis so the note can be centred over the whole column
+    // and flow across page boundaries.
+    const absTop = Math.min(...colCells.map((c) => c.top + (c.page - 1) * pageH));
+    const absBottom = Math.max(...colCells.map((c) => c.bottom + (c.page - 1) * pageH));
+    const span = absBottom - absTop;
+    const noteHeight = (lines.length - 1) * lineHeight;
+    const start = absTop + Math.max(0, (span - noteHeight) / 2);
+    const x = colCells[0].x + colCells[0].width / 2;
+    for (const pg of new Set(colCells.map((c) => c.page))) {
+      const pageAbsTop = (pg - 1) * pageH;
+      const pageAbsBottom = pg * pageH;
+      doc.setPage(pg);
+      lines.forEach((line, i) => {
+        if (!line) return;
+        const absY = start + i * lineHeight;
+        if (absY < pageAbsTop || absY > pageAbsBottom) return;
+        doc.text(line, x, absY - pageAbsTop, { align: "center" });
+      });
+    }
+  }
 }
 
 /**
@@ -354,21 +426,38 @@ export function buildPdf(
       // fits the printable width. A right-hand note (the TA Journal's "In lieu
       // of G.A.31") reserves room on the baseline so the heading never crowds it.
       const rightNote = el.getAttribute("data-right-note");
-      const headingW = maxW - (rightNote ? 150 : 0);
+      // Reserve just enough room for the right-hand note at its own size plus a
+      // gap, so a wide heading never slides under it at large text sizes.
+      let headingW = maxW;
+      let noteW = 0;
+      if (rightNote) {
+        doc.setFont("helvetica", "normal").setFontSize(8 * fs);
+        noteW = doc.getTextWidth(rightNote) + 16;
+        headingW = maxW - noteW;
+      }
       let headingSize = 15 * fs;
+      let tw = 0;
       if (text) {
         // Measure at the real base size — otherwise getTextWidth reports the
         // previous/default size and the shrink factor comes out too big, so a
         // long heading still wraps onto a second line.
-        doc.setFontSize(headingSize);
-        const tw = doc.getTextWidth(text);
+        doc.setFont("helvetica", "bold").setFontSize(headingSize);
+        tw = doc.getTextWidth(text);
         if (tw > headingW) headingSize = Math.max(5, headingSize * (headingW / tw) * 0.98);
       }
       doc.setFontSize(headingSize);
       const lines = doc.splitTextToSize(text, maxW) as string[];
-      // Centered headings (e.g. the TA Journal header) are centred on the page.
+      // Centered headings (e.g. the TA Journal header) are centred on the page,
+      // except when a right-hand note is present and the heading would reach it
+      // — then the heading is pulled left so the two never overlap.
       const centered = el.className.includes("centered");
-      doc.text(lines, centered ? pageW / 2 : margin, y, centered ? { align: "center" } : undefined);
+      let centerX = pageW / 2;
+      if (centered && rightNote && text) {
+        const drawnW = Math.min(tw, headingW);
+        const noteLeft = pageW - margin - noteW;
+        if (pageW / 2 + drawnW / 2 > noteLeft) centerX = noteLeft - drawnW / 2;
+      }
+      doc.text(lines, centerX, y, centered ? { align: "center" } : undefined);
       // A right-hand note on the title's baseline (the TA Journal's "In lieu of
       // G.A.31"), drawn small and light so it never competes with the heading.
       if (rightNote) {
@@ -411,21 +500,36 @@ export function buildPdf(
       // block and the days summary, where the reference sheet aligns columns.
       const colsAttr = el.getAttribute("data-cols");
       if (cls.includes("cols") && colsAttr) {
-        pageBreak(22 * fs);
-        const offsets = colsAttr.split(",").map((s) => Number(s.trim()) || 0);
-        const spans = Array.from(el.querySelectorAll("span")).map((s) => tidy(s.textContent ?? ""));
-        doc.setFont("helvetica", "normal").setFontSize(9 * fs).setTextColor(15, 23, 42);
-        const cols = offsets.map((o) => margin + o);
-        let colLines = 1;
-        spans.forEach((t, i) => {
-          if (!t) return;
-          const x = cols[i] ?? cols[cols.length - 1];
-          const lines = doc.splitTextToSize(t, Math.max(50, maxW - (x - margin))) as string[];
-          doc.text(lines, x, y);
-          if (lines.length > colLines) colLines = lines.length;
-        });
-        y += colLines * (13 * fs) + 4;
-        continue;
+      pageBreak(22 * fs);
+      const offsets = colsAttr.split(",").map((s) => Number(s.trim()) || 0);
+      const spans = Array.from(el.querySelectorAll("span")).map((s) => tidy(s.textContent ?? ""));
+      doc.setFont("helvetica", "normal").setFontSize(9 * fs).setTextColor(15, 23, 42);
+      // Column offsets scale with the text size (the reference layout is
+      // defined at the base size) but stop growing once the last column would
+      // reach the page edge.
+      const lastOffset = offsets[offsets.length - 1] ?? 0;
+      const k = lastOffset > 0 ? Math.min(fs, maxW / lastOffset) : fs;
+      const cols = offsets.map((o) => margin + o * k);
+      let colLines = 1;
+      const baseSize = 9 * fs;
+      spans.forEach((t, i) => {
+        if (!t) return;
+        const x = cols[i] ?? cols[cols.length - 1];
+        // Each value stays on one line inside its own column slot; when it is
+        // too wide for the slot (e.g. the TA header's designation), shrink that
+        // span's font to fit so it never runs over its neighbour.
+        const next = cols[i + 1] ?? pageW - margin;
+        const slot = Math.max(30, next - x - 2);
+        const tw = doc.getTextWidth(t);
+        const size = tw > slot ? Math.max(5, baseSize * (slot / tw) * 0.98) : baseSize;
+        doc.setFontSize(size);
+        const lines = doc.splitTextToSize(t, slot) as string[];
+        doc.text(lines, x, y);
+        doc.setFontSize(baseSize);
+        if (lines.length > colLines) colLines = lines.length;
+      });
+      y += colLines * (13 * fs) + 4;
+      continue;
       }
       const left = Number(el.getAttribute("data-left")) || 0;
       const meta = cls.includes("meta") || cls.includes("empty");
@@ -577,7 +681,29 @@ export function buildPdf(
               })
             )
           : undefined;
-      const body = parseTableBody(bodyRows);
+      const { body, notes } = parseTableBody(bodyRows);
+      // Capture the drawn geometry of every vtext column cell so the vertical
+      // note can be drawn over it after the table (see drawVtextNotes).
+      const vtextCols = new Set(notes.map((n) => n.colIndex));
+      const vtextCells: { page: number; col: number; x: number; width: number; top: number; bottom: number }[] = [];
+      const didDrawCell = notes.length
+        ? (data: {
+            section?: string;
+            column: { index: number };
+            cell: { x: number; width: number; y: number; height: number };
+            table: { pageNumber: number };
+          }) => {
+            if (data.section !== "body" || !vtextCols.has(data.column.index)) return;
+            vtextCells.push({
+              page: data.table.pageNumber,
+              col: data.column.index,
+              x: data.cell.x,
+              width: data.cell.width,
+              top: data.cell.y,
+              bottom: data.cell.y + data.cell.height,
+            });
+          }
+        : undefined;
       autoTable(doc, {
         head,
         body,
@@ -599,7 +725,9 @@ export function buildPdf(
         ...(plain ? {} : { alternateRowStyles: { fillColor: [248, 250, 252] } }),
         theme: "grid",
         columnStyles: Object.keys(columnStyles).length ? columnStyles : undefined,
+        ...(didDrawCell ? { didDrawCell } : {}),
       });
+      drawVtextNotes(doc, notes, vtextCells, 8 * fs);
       const last = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable;
       // Generous gap after a table before the next heading/group — clearly
       // larger than the (zero-ish) gap between a heading and its own table.

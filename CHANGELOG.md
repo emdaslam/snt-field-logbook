@@ -3,6 +3,20 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.91 — 2026-08-25
+
+**Minor: Diary and TA Journal PDF text never overlaps at larger text sizes**
+
+- **The work column no longer spills over the next row.** In the TA Journal the
+  vertically-written note (“ALL ARE ABOVE 8 KMS”) and every day's NATURE OF WORK
+  text is drawn as a separate layer, so the two rows of a day always grow to the
+  same height and the work text stays inside its own rows at any text size.
+- **The header lines stop colliding.** The TA Journal's heading (“South Coast
+  Railway…”), the In-lieu-of-G.A.31 note and the NAME / DESIGNATION / P.F.NO /
+  PAY METRIC columns now reserve their own room: a value that is too wide for its
+  column is gently shrunk instead of running into its neighbour, and the columns
+  scale up with the chosen text size.
+
 ## 1.7.6.90 — 2026-08-25
 
 **Minor: leave days print the leave kind (CL / LAP / SICK) in the Diary's NATURE OF WORK**
