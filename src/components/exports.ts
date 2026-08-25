@@ -531,7 +531,7 @@ function specialPair(l: DailyLog): [string, string] | null {
     case "nh":
       return ["AVAILED NH", "NH"];
     case "leave":
-      return ["AVAILED LEAVE", "LEAVE"];
+      return ["AVAILED LEAVE", l.leaveKind?.trim() ? l.leaveKind.toUpperCase() : "LEAVE"];
     case "cr":
       return [l.crFrom ? `AVAILED CR OF ${dmy(l.crFrom)}` : "AVAILED CR", "CR"];
     default:

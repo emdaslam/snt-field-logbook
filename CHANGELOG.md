@@ -3,6 +3,14 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.90 — 2026-08-25
+
+**Minor: leave days print the leave kind (CL / LAP / SICK) in the Diary's NATURE OF WORK**
+
+- **A leave day now writes the leave type in the NATURE OF WORK column** exactly
+  as chosen on the daily log — CL, LAP or SICK.
+- **Leave days recorded without a leave type keep the earlier "LEAVE" label.**
+
 ## 1.7.6.89 — 2026-08-25
 
 **Major: two-page diary export — the first half of the month on page 1, the remaining days on page 2**
