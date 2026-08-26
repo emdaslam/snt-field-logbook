@@ -3,6 +3,21 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.96 — 2026-08-26
+
+**Minor: PDF report titles are centred instead of starting at the middle of the page and running right**
+
+- The headings of Tomorrow's Work, Monthly S&T Report, PCDO — Special Works
+  (and its Disconnections / Counter Resets sections) and the monthly
+  Inspection exports were drawn with their left edge at the page centre, so
+  every title sat to the right instead of being centred. Only the TA Journal
+  and Diary headings were unaffected.
+- `b6a63a8` — heading centring is decided in `buildPdf` by the heading's
+  `centered` class, but the 1.7.6.91 text-overlap fix made every non-centred
+  heading start at the page centre without a centre alignment. Titles that
+  are meant to be centred now carry the `centered` class, and every other
+  heading draws left-aligned at the page margin again.
+
 ## 1.7.6.95 — 2026-08-26
 
 **Major: material transfers between stations, and every use/transfer picks the exact received batch**
