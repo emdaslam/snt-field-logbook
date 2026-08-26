@@ -14,8 +14,12 @@ import {
   readDirtyDays,
   readDataDirty,
   clearDirty,
+  markAllDirty,
   buildDataPayload,
   groupLogsByDate,
+  fingerprintPayload,
+  payloadsMatch,
+  type BackupFingerprint,
 } from "./drivebackup";
 
 /**
@@ -30,10 +34,18 @@ import {
  * Conflict rule: last-write-wins using the backup's exportedAt stamp stored
  * locally as the sync version. The version is kept per Google account, so
  * switching the signed-in account never compares stamps written by a
- * different account's backup — and the first sync after a switch pushes the
- * current app data to the new account instead of overwriting it with the new
- * account's own backup (a genuine restore is always possible through the
- * explicit "Import from Drive" action).
+ * different account's backup.
+ *
+ * First contact with an account (signed in after switching accounts, a fresh
+ * install, or after the app data was cleared) is never silent: the device
+ * data and the account's Drive backup are fingerprinted and compared. When
+ * the account has no backup the app simply backs up; when the two datasets
+ * are identical it syncs normally; and when they differ the sync stops and
+ * asks the user whether to overwrite the account with the device or restore
+ * the account's backup onto the device. This is what prevents the old
+ * behaviour, where switching the signed-in Google account silently pushed the
+ * current app data over a different account's backup (or pulled a foreign
+ * backup over the device) and lost data on one side.
  *
  * Sessions persist across app restarts. The native plugin remembers the last
  * signed-in Google account, so a silent token refresh (getAccessToken) hands
@@ -53,6 +65,18 @@ export type DriveResult = {
   ok: boolean;
   message: string;
   imported?: boolean;
+  /** Set when the sync stopped because the device data and the account's
+   *  Drive backup differ — the caller must ask which one to keep. */
+  conflict?: DriveConflictInfo;
+};
+
+/** What the app knows about the two datasets when a sync hits a conflict. */
+export type DriveConflictInfo = {
+  remoteEmail: string;
+  localRecords: number;
+  localDays: number;
+  remoteRecords: number;
+  remoteDays: number;
 };
 
 export type DriveProgress = {
@@ -167,22 +191,18 @@ function setVersion(v: string, email?: string) {
   }
 }
 
-/** True when accounts other than `email` have a sync stamp on this device. */
-function hasOtherAccountStamps(email: string): boolean {
-  try {
-    const raw = localStorage.getItem(VERSION_KEY);
-    if (!raw?.startsWith("{")) return false;
-    const map = JSON.parse(raw) as Record<string, string>;
-    return Object.keys(map).some((k) => k.toLowerCase() !== email.toLowerCase());
-  } catch {
-    return false;
-  }
-}
-
-/** True when the local database holds any records at all. */
+/**
+ * True when the local database holds any real (user-entered) data. The
+ * first-run seed only fills the reference tables (tags, note categories,
+ * equipment types) — a fresh install that has nothing but those must not be
+ * treated as "holding data", or the first-contact comparison would ask the
+ * user to choose between an account's backup and a handful of defaults.
+ */
+const REFERENCE_TABLES = new Set(["tags", "noteCategories", "equipmentTypes"]);
 async function hasAnyLocalData(): Promise<boolean> {
   try {
     for (const t of ldb.TABLES) {
+      if (REFERENCE_TABLES.has(t)) continue;
       if ((await ldb.readTable(t)).length > 0) return true;
     }
   } catch {
@@ -526,6 +546,18 @@ export async function pushToDrive(interactive = true, onProgress?: DriveProgress
   }
 }
 
+/** Overwrite the signed-in account's Drive backup entirely with the data on
+ *  this device — every day file, the data file and the index. This is the
+ *  "use this device's data" answer to a sync conflict: it guarantees nothing
+ *  of the old backup survives to mix with the pushed data. */
+export async function replaceDriveBackup(
+  interactive = true,
+  onProgress?: DriveProgressFn
+): Promise<DriveResult> {
+  markAllDirty();
+  return pushToDrive(interactive, onProgress);
+}
+
 /** Download everything sharded on Drive and import it in one go. */
 async function pullSharded(
   interactive: boolean,
@@ -642,6 +674,12 @@ export async function pullFromDrive(interactive = true, onProgress?: DriveProgre
  * as new: if the local version is unknown (fresh install) or older than the
  * remote backup, the remote backup is restored first.
  *
+ * First contact with an account is guarded by a content comparison (see
+ * compareLocalAgainstRemote): nothing on either side is overwritten while the
+ * two datasets differ — the sync stops with a conflict result and the UI asks
+ * which one to keep. The only silent shortcut is when the account has no
+ * backup yet, which just backs the device up.
+ *
  * `interactive` controls whether a missing/expired session may show the
  * account picker. Auto-sync passes false so it stays completely silent.
  */
@@ -658,17 +696,19 @@ export async function syncWithDrive(interactive = true, onProgress?: DriveProgre
       const index = JSON.parse(await downloadFile(indexId, interactive)) as { exportedAt?: string };
       const remote = typeof index.exportedAt === "string" ? index.exportedAt : null;
       const local = getVersion(auth.email);
+
+      // First contact with this account while the device already holds data
+      // (account switch, fresh install, or after clearing the app data): never
+      // overwrite either side silently. Compare, and stop with a conflict when
+      // they differ — the UI asks which one to keep.
+      if (local === null && (await hasAnyLocalData())) {
+        const remoteFp = await fingerprintSharded(byName, interactive);
+        const guarded = await guardFirstContact(auth, remoteFp, interactive, onProgress);
+        if (guarded) return guarded;
+      }
+
       const remoteNewer = !!remote && (local === null || remote > local);
       if (!remoteNewer) {
-        const pushed = await pushToDrive(interactive, onProgress);
-        if (!pushed.ok) return pushed;
-        return { ok: true, message: pushed.message };
-      }
-      // First contact with this account while data from a different account
-      // is already in the app: push the local data to the new account instead
-      // of silently overwriting it with the new account's own backup. A
-      // genuine restore stays available through the explicit import button.
-      if (local === null && hasOtherAccountStamps(auth.email) && (await hasAnyLocalData())) {
         const pushed = await pushToDrive(interactive, onProgress);
         if (!pushed.ok) return pushed;
         return { ok: true, message: pushed.message };
@@ -679,8 +719,10 @@ export async function syncWithDrive(interactive = true, onProgress?: DriveProgre
     const legacyId = byName.get(LEGACY_NAME);
     if (legacyId) {
       const local = getVersion(auth.email);
-      if (local === null && hasOtherAccountStamps(auth.email) && (await hasAnyLocalData())) {
-        return pushToDrive(interactive, onProgress);
+      if (local === null && (await hasAnyLocalData())) {
+        const remoteFp = await fingerprintLegacy(legacyId, interactive);
+        const guarded = await guardFirstContact(auth, remoteFp, interactive, onProgress);
+        if (guarded) return guarded;
       }
       // One-time migration from the old single-file backup: import it first
       // when it is newer, then push the sharded format and only then let
@@ -695,6 +737,68 @@ export async function syncWithDrive(interactive = true, onProgress?: DriveProgre
     recordSync({ ok: false, message });
     return { ok: false, message };
   }
+}
+
+/** Download a sharded Drive backup and fingerprint it, without importing. */
+async function fingerprintSharded(
+  byName: Map<string, string>,
+  interactive: boolean
+): Promise<BackupFingerprint> {
+  const indexId = byName.get(INDEX_NAME);
+  if (!indexId) throw new Error("Drive backup looks invalid");
+  const index = JSON.parse(await downloadFile(indexId, interactive)) as { days?: string[] };
+  const days = Array.isArray(index.days) ? index.days : [];
+  const dataId = byName.get(DATA_NAME);
+  const data = dataId ? (JSON.parse(await downloadFile(dataId, interactive)) as Record<string, unknown>) : {};
+  const allLogs: unknown[] = [];
+  for (const date of days) {
+    const id = byName.get(dayFileName(date));
+    if (!id) throw new Error(`Drive backup is incomplete (missing ${date}).`);
+    const day = JSON.parse(await downloadFile(id, interactive)) as { logs?: unknown[] };
+    if (Array.isArray(day.logs)) allLogs.push(...day.logs);
+  }
+  return fingerprintPayload({ ...data, dailyLogs: allLogs } as Record<string, unknown>);
+}
+
+/** Download the old single-file backup and fingerprint it, without importing. */
+async function fingerprintLegacy(legacyId: string, interactive: boolean): Promise<BackupFingerprint> {
+  const text = await downloadFile(legacyId, interactive);
+  const payload = JSON.parse(text) as BackupPayload;
+  return fingerprintPayload(payload as unknown as Record<string, unknown>);
+}
+
+/**
+ * The first-contact guard. Returns a DriveResult that should end the sync:
+ *   - account has no backup → back the device up (nothing to overwrite);
+ *   - device and backup identical → null, let the normal sync proceed;
+ *   - they differ → a conflict result the UI turns into a choose-a-side dialog.
+ */
+async function guardFirstContact(
+  auth: DriveAuth,
+  remote: BackupFingerprint,
+  interactive: boolean,
+  onProgress?: DriveProgressFn
+): Promise<DriveResult | null> {
+  if (remote.records === 0) {
+    // The account has no data — backing up can lose nothing.
+    return pushToDrive(interactive, onProgress);
+  }
+  const localPayload = (await api.backup.export()) as Record<string, unknown>;
+  const local = fingerprintPayload(localPayload);
+  if (payloadsMatch(local, remote)) return null; // same data → normal sync
+  const message = "This device's data differs from the account's Drive backup — choose which to keep.";
+  recordSync({ ok: false, message });
+  return {
+    ok: false,
+    message,
+    conflict: {
+      remoteEmail: auth.email,
+      localRecords: local.records,
+      localDays: local.days,
+      remoteRecords: remote.records,
+      remoteDays: remote.days,
+    },
+  };
 }
 
 export async function signOutFromDrive(): Promise<DriveResult> {

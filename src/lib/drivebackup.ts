@@ -156,3 +156,94 @@ export function groupLogsByDate(logs: unknown[]): Map<string, unknown[]> {
   }
   return m;
 }
+
+/* ------------------------------------------------------------------ */
+/* Dataset fingerprints — compare two backups without heavy I/O        */
+/* ------------------------------------------------------------------ */
+
+/** Every table that lands in the Drive backup and participates in the
+ *  "is this the same data?" comparison. Settings are deliberately excluded —
+ *  they are device preferences, not data that a wrong sync could lose. */
+const COMPARE_KEYS = [...DATA_KEYS, "dailyLogs"] as const;
+
+/** Deterministic JSON: object keys are sorted so identical data always
+ *  stringifies identically regardless of insertion order. */
+export function stableStringify(v: unknown): string {
+  if (v === null || typeof v !== "object") return JSON.stringify(v);
+  if (Array.isArray(v)) return `[${v.map((x) => stableStringify(x)).join(",")}]`;
+  const obj = v as Record<string, unknown>;
+  const keys = Object.keys(obj).sort();
+  const parts: string[] = [];
+  for (const k of keys) {
+    const val = obj[k];
+    if (val === undefined) continue;
+    parts.push(`${JSON.stringify(k)}:${stableStringify(val)}`);
+  }
+  return `{${parts.join(",")}}`;
+}
+
+/** FNV-1a 32-bit — small, deterministic, fast. */
+function fnv1a(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+/** djb2 32-bit — a second independent hash, combined with FNV-1a into a
+ *  64-bit key so two records can never collide in practice. */
+function djb2(s: string): number {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = (Math.imul(h, 33) + s.charCodeAt(i)) >>> 0;
+  return h >>> 0;
+}
+
+/** A stable identity for one record. Attached photos/files are not hashed —
+ *  they are large base64 blobs; only their count participates, which keeps
+ *  the comparison cheap while still noticing a missing attachment. */
+function recordFingerprint(r: Record<string, unknown>): string {
+  const { attachments, ...rest } = r;
+  const n = Array.isArray(attachments) ? attachments.length : 0;
+  const s = `${stableStringify(rest)}#att=${n}`;
+  return `${fnv1a(s)}-${djb2(s)}`;
+}
+
+export type BackupFingerprint = {
+  records: number;
+  days: number;
+  hashes: string[];
+};
+
+/** Cheap, deterministic digest of a whole backup payload: total records, the
+ *  number of distinct log dates and one hash per record (sorted-keys JSON so
+ *  field order never matters). */
+export function fingerprintPayload(payload: Record<string, unknown>): BackupFingerprint {
+  const hashes: string[] = [];
+  let records = 0;
+  const days = new Set<string>();
+  for (const k of COMPARE_KEYS) {
+    const rows = payload[k];
+    if (!Array.isArray(rows)) continue;
+    records += rows.length;
+    for (const row of rows) {
+      if (row && typeof row === "object")
+        hashes.push(`${k}:${recordFingerprint(row as Record<string, unknown>)}`);
+    }
+    if (k === "dailyLogs") {
+      for (const l of rows) {
+        const d = (l as { logDate?: string }).logDate;
+        if (d) days.add(d);
+      }
+    }
+  }
+  return { records, days: days.size, hashes };
+}
+
+/** True when two fingerprints describe exactly the same records. */
+export function payloadsMatch(a: BackupFingerprint, b: BackupFingerprint): boolean {
+  if (a.records !== b.records || a.days !== b.days) return false;
+  const set = new Set(a.hashes);
+  return set.size === a.hashes.length && b.hashes.every((h) => set.has(h));
+}

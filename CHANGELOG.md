@@ -3,6 +3,26 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.97 — 2026-08-26
+
+**Minor: signing into a different Google account no longer silently overwrites either side's data**
+
+- The first sync after signing into an account the app has not synced with before
+  (account switch, fresh install, or after clearing the app data) compares the
+  data on the device with the account's Drive backup and, when they differ,
+  stops and asks which one to keep — the account backup or the device. Nothing
+  is overwritten until the user chooses; either choice warns what it replaces.
+- An account whose Drive folder holds no data is still backed up silently, and
+  a device holding no real data (fresh install) still restores silently — the
+  prompt appears only when both sides hold something different.
+- The comparison is content-based (record count, day count and a per-record
+  hash), so it also works after a fresh install where per-account sync stamps
+  no longer exist. Reference rows the app seeds on first run are ignored.
+- When the user picks "use this device's data" the account's backup is replaced
+  in full, so no trace of the old backup survives to mix with the pushed data.
+- `be49e01` (1.7.6.95) added materialTransfers to the Drive data file; this
+  change builds on that schema.
+
 ## 1.7.6.96 — 2026-08-26
 
 **Minor: PDF report titles are centred instead of starting at the middle of the page and running right**

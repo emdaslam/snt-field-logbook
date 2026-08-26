@@ -19,8 +19,9 @@ import {
 } from "@/lib/inspections";
 import { FONT_SIZE_ROOT, type AppTheme, type FontSize } from "@/lib/types";
 import { isNative, scheduleDailyReminders } from "@/lib/native";
-import { driveStatus, syncWithDrive, type DriveResult, type DriveProgress } from "@/lib/drive";
+import { driveStatus, syncWithDrive, replaceDriveBackup, pullFromDrive, type DriveResult, type DriveProgress, type DriveConflictInfo } from "@/lib/drive";
 import { lowStockAlerts, qtyWithUnit } from "@/lib/stock";
+import { DriveConflictModal } from "./DriveConflictModal";
 import type {
   Station,
   Staff,
@@ -133,6 +134,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [syncing, setSyncing] = useState(false);
   const [driveSyncing, setDriveSyncing] = useState(false);
   const [driveProgress, setDriveProgress] = useState<DriveProgress | null>(null);
+  const [driveConflict, setDriveConflict] = useState<DriveConflictInfo | null>(null);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -349,11 +351,37 @@ export function DataProvider({ children }: { children: ReactNode }) {
         if (r.ok) {
           setDirty(false);
           if (r.imported) await refresh();
+        } else if (r.conflict) {
+          // The device data and the account's backup differ — ask which to keep.
+          setDriveConflict(r.conflict);
         }
         return r;
       } finally {
         setDriveSyncing(false);
         setDriveProgress(null);
+      }
+    },
+    [refresh]
+  );
+
+  /** Carry out the side the user picked in the conflict dialog. */
+  const resolveDriveConflict = useCallback(
+    async (direction: "push" | "pull") => {
+      setDriveSyncing(true);
+      setDriveProgress(null);
+      try {
+        const r =
+          direction === "push"
+            ? await replaceDriveBackup(true, setDriveProgress)
+            : await pullFromDrive(true, setDriveProgress);
+        if (r.ok) {
+          setDirty(false);
+          if (direction === "pull") await refresh();
+        }
+      } finally {
+        setDriveSyncing(false);
+        setDriveProgress(null);
+        setDriveConflict(null);
       }
     },
     [refresh]
@@ -677,6 +705,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }}
     >
       {children}
+      {driveConflict && (
+        <DriveConflictModal
+          conflict={driveConflict}
+          busy={driveSyncing}
+          onClose={() => setDriveConflict(null)}
+          onPush={() => void resolveDriveConflict("push")}
+          onPull={() => void resolveDriveConflict("pull")}
+        />
+      )}
     </DataContext.Provider>
   );
 }
