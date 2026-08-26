@@ -20,6 +20,7 @@ import type {
   Material,
   MaterialReceipt,
   MaterialUsage,
+  MaterialTransfer,
   MaterialStation,
   EquipmentType,
 } from "@/db/schema";
@@ -405,10 +406,11 @@ export const api = {
     },
     remove: async (id: number) => {
       markDataDirty();
-      // Receipts and usages belong to the material — remove them along with it.
-      const [receipts, usages] = await Promise.all([
+      // Receipts, usages and transfers belong to the material — remove them along with it.
+      const [receipts, usages, transfers] = await Promise.all([
         ldb.readTable<MaterialReceipt>("materialReceipts"),
         ldb.readTable<MaterialUsage>("materialUsages"),
+        ldb.readTable<MaterialTransfer>("materialTransfers"),
       ]);
       await ldb.writeTable(
         "materialReceipts",
@@ -418,6 +420,10 @@ export const api = {
         "materialUsages",
         usages.filter((u) => u.materialId !== id)
       );
+      await ldb.writeTable(
+        "materialTransfers",
+        transfers.filter((t) => t.materialId !== id)
+      );
       return ldb.remove("materials", id);
     },
     /** Remove a material from a single station only: its requirement override,
@@ -426,10 +432,11 @@ export const api = {
      *  stock recorded anywhere. */
     removeFromStation: async (materialId: number, stationId: number) => {
       markDataDirty();
-      const [stations, receipts, usages] = await Promise.all([
+      const [stations, receipts, usages, transfers] = await Promise.all([
         ldb.readTable<MaterialStation>("materialStations"),
         ldb.readTable<MaterialReceipt>("materialReceipts"),
         ldb.readTable<MaterialUsage>("materialUsages"),
+        ldb.readTable<MaterialTransfer>("materialTransfers"),
       ]);
       await ldb.writeTable(
         "materialStations",
@@ -443,12 +450,25 @@ export const api = {
         "materialUsages",
         usages.filter((u) => !(u.materialId === materialId && u.stationId === stationId))
       );
+      await ldb.writeTable(
+        "materialTransfers",
+        transfers.filter(
+          (t) =>
+            !(
+              t.materialId === materialId &&
+              (t.fromStationId === stationId || t.toStationId === stationId)
+            )
+        )
+      );
       const stillAssigned = stations.some(
         (r) => r.materialId === materialId && r.stationId !== stationId
       );
       const stillStock =
         receipts.some((r) => r.materialId === materialId && r.stationId !== stationId) ||
-        usages.some((u) => u.materialId === materialId && u.stationId !== stationId);
+        usages.some((u) => u.materialId === materialId && u.stationId !== stationId) ||
+        transfers.some(
+          (t) => t.materialId === materialId && (t.fromStationId !== stationId || t.toStationId !== stationId)
+        );
       if (!stillAssigned && !stillStock) {
         await ldb.remove("materials", materialId);
       }
@@ -494,8 +514,26 @@ export const api = {
         remarks: b.remarks ?? "",
       }) as unknown as Promise<MaterialReceipt>;
     },
-    remove: (id: number) => {
+    remove: async (id: number) => {
       markDataDirty();
+      // Usage / transfer rows that pointed at this batch lose the link (their
+      // own quantities and stations are unchanged).
+      const [usages, transfers] = await Promise.all([
+        ldb.readTable<MaterialUsage>("materialUsages"),
+        ldb.readTable<MaterialTransfer>("materialTransfers"),
+      ]);
+      if (usages.some((u) => u.receiptId === id)) {
+        await ldb.writeTable(
+          "materialUsages",
+          usages.map((u) => (u.receiptId === id ? { ...u, receiptId: null } : u))
+        );
+      }
+      if (transfers.some((t) => t.receiptId === id)) {
+        await ldb.writeTable(
+          "materialTransfers",
+          transfers.map((t) => (t.receiptId === id ? { ...t, receiptId: null } : t))
+        );
+      }
       return ldb.remove("materialReceipts", id);
     },
   },
@@ -515,11 +553,38 @@ export const api = {
         date: b.date || toISODate(new Date()),
         purpose: b.purpose ?? "",
         stationId: b.stationId ?? null,
+        receiptId: b.receiptId ?? null,
       }) as unknown as Promise<MaterialUsage>;
     },
     remove: (id: number) => {
       markDataDirty();
       return ldb.remove("materialUsages", id);
+    },
+  },
+
+  materialTransfers: {
+    list: async (materialId?: number | null) => {
+      const rows = await ldb.readTable<MaterialTransfer>("materialTransfers");
+      return (materialId ? rows.filter((r) => r.materialId === materialId) : rows).sort((a, b) =>
+        b.date.localeCompare(a.date)
+      );
+    },
+    create: (b: Partial<MaterialTransfer>) => {
+      markDataDirty();
+      return ldb.insert("materialTransfers", {
+        materialId: num(b.materialId),
+        qty: num(b.qty),
+        date: b.date || toISODate(new Date()),
+        fromStationId: b.fromStationId ?? null,
+        toStationId: b.toStationId ?? null,
+        receiptId: b.receiptId ?? null,
+        room: b.room ?? "",
+        remarks: b.remarks ?? "",
+      }) as unknown as Promise<MaterialTransfer>;
+    },
+    remove: (id: number) => {
+      markDataDirty();
+      return ldb.remove("materialTransfers", id);
     },
   },
 

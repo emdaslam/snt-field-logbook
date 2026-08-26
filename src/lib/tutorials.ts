@@ -399,6 +399,28 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.6.95",
+    tag: "Material transfers between stations",
+    subtitle: "Move stock between stations and record which received batch every use or transfer comes from.",
+    slides: [
+      {
+        glyph: "⇄",
+        title: "Transfer stock to another station",
+        body: "A material in stock now has a violet “Transfer” button. Pick the batch the stock is taken from, the quantity, and the destination station — you can also note where it was placed there (room and remarks). The transfer gets its own date.",
+      },
+      {
+        glyph: "▦",
+        title: "Use takes from a received batch",
+        body: "When recording a use, choose the exact received delivery the material is taken from. Each batch is shown with its quantity, date, station and where it was kept (for example “IPS Room · birwa”), plus how much of it is still in hand. You cannot take more than the batch has left.",
+      },
+      {
+        glyph: "◈",
+        title: "Stock follows the material",
+        body: "A station's in-hand now counts received, minus used, minus transferred out, plus transferred in — so low-stock alerts and the Materials report stay correct. The report lists every transfer and what each batch still holds.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {

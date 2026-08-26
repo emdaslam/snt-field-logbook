@@ -21,6 +21,7 @@ export const TABLES = [
   "materials",
   "materialReceipts",
   "materialUsages",
+  "materialTransfers",
   "materialStations",
   "equipmentTypes",
 ] as const;

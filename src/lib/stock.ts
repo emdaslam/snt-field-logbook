@@ -1,4 +1,10 @@
-import type { Material, MaterialReceipt, MaterialUsage, MaterialStation } from "@/db/schema";
+import type {
+  Material,
+  MaterialReceipt,
+  MaterialUsage,
+  MaterialTransfer,
+  MaterialStation,
+} from "@/db/schema";
 
 /** One station whose in-hand stock for a material has fallen below the
  *  material's minimum required spare. */
@@ -25,11 +31,12 @@ export function qtyWithUnit(qty: number, unit?: string): string {
 }
 
 /** Per-station in-hand balances for every material, keyed station → material →
- *  balance (received − used). A material only appears for stations it has
- *  receipts or usages on. */
+ *  balance (received − used − transferred out + transferred in). A material
+ *  only appears for stations it has receipts, usages or transfers on. */
 export function stationInHand(
   receipts: MaterialReceipt[],
-  usages: MaterialUsage[]
+  usages: MaterialUsage[],
+  transfers?: MaterialTransfer[]
 ): Map<number | null, Map<number, number>> {
   const byStation = new Map<number | null, Map<number, number>>();
   const add = (stationId: number | null, materialId: number, delta: number) => {
@@ -39,6 +46,12 @@ export function stationInHand(
   };
   for (const r of receipts) add(r.stationId, r.materialId, r.qty);
   for (const u of usages) add(u.stationId, u.materialId, -u.qty);
+  if (transfers) {
+    for (const t of transfers) {
+      add(t.fromStationId, t.materialId, -t.qty);
+      add(t.toStationId, t.materialId, t.qty);
+    }
+  }
   return byStation;
 }
 
@@ -79,9 +92,10 @@ export function lowStockAlerts(
   materialStations: MaterialStation[],
   receipts: MaterialReceipt[],
   usages: MaterialUsage[],
-  stationName: (id: number | null) => string
+  stationName: (id: number | null) => string,
+  transfers?: MaterialTransfer[]
 ): LowStockAlert[] {
-  const byStation = stationInHand(receipts, usages);
+  const byStation = stationInHand(receipts, usages, transfers);
   const alerts: LowStockAlert[] = [];
   for (const material of materials) {
     const min = Number(material.minRequiredSpare) || 0;

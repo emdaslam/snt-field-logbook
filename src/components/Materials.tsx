@@ -16,6 +16,7 @@ import type {
   Material,
   MaterialReceipt,
   MaterialUsage,
+  MaterialTransfer,
   MaterialStation,
   EquipmentType,
   Station,
@@ -45,6 +46,34 @@ function fmtDate(d: string): string {
 function qtyLabel(qty: number, unit?: string): string {
   const q = fmtQty(qty);
   return unit ? `${q} ${unit}` : q;
+}
+
+/** How much of one received batch is still in stock: its quantity minus what
+ *  has been used and what has been transferred away from that batch. */
+function batchAvailable(
+  receipt: MaterialReceipt,
+  usages: MaterialUsage[],
+  transfers: MaterialTransfer[]
+): number {
+  const used = usages.filter((u) => u.receiptId === receipt.id).reduce((n, u) => n + u.qty, 0);
+  const moved = transfers.filter((t) => t.receiptId === receipt.id).reduce((n, t) => n + t.qty, 0);
+  return receipt.qty - used - moved;
+}
+
+/** Short label of a received batch — the quantity, date, station and where it
+ *  was kept (room + remarks, e.g. "IPS Room · birwa"). */
+function batchLabel(
+  r: MaterialReceipt,
+  unit?: string,
+  stationName?: (id: number | null) => string
+): string {
+  const parts: string[] = [];
+  parts.push(qtyLabel(r.qty, unit));
+  if (r.date) parts.push(fmtDate(r.date));
+  if (stationName && r.stationId != null) parts.push(stationName(r.stationId));
+  const where = [r.room, r.remarks].filter(Boolean).join(" · ");
+  if (where) parts.push(where);
+  return parts.join(" · ");
 }
 
 /** The equipment a material is filed under ("general" when none chosen). */
@@ -82,6 +111,7 @@ export function Materials() {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [receipts, setReceipts] = useState<MaterialReceipt[]>([]);
   const [usages, setUsages] = useState<MaterialUsage[]>([]);
+  const [transfers, setTransfers] = useState<MaterialTransfer[]>([]);
   const [materialStations, setMaterialStations] = useState<MaterialStation[]>([]);
   const [expandedStation, setExpandedStation] = useState<Set<number | null>>(new Set());
   const [expandedDetail, setExpandedDetail] = useState<Set<string>>(new Set());
@@ -90,10 +120,11 @@ export function Materials() {
   const [materialForm, setMaterialForm] = useState<{ open: boolean; existing?: Material | null }>({ open: false });
   const [receiveForm, setReceiveForm] = useState<{ material: Material; stationId: number | null } | null>(null);
   const [useForm, setUseForm] = useState<{ material: Material; stationId: number | null } | null>(null);
+  const [transferForm, setTransferForm] = useState<{ material: Material; stationId: number | null } | null>(null);
   const [addReqForm, setAddReqForm] = useState<{ material: Material; stationId: number } | null>(null);
   const [setReqForm, setSetReqForm] = useState<{ material: Material; stationId: number } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<
-    | { kind: "material" | "receipt" | "usage"; id: number }
+    | { kind: "material" | "receipt" | "usage" | "transfer"; id: number }
     | { kind: "materialStation"; id: number; stationId: number }
     | null
   >(null);
@@ -103,16 +134,18 @@ export function Materials() {
   const [busy, setBusy] = useState(false);
 
   const load = async () => {
-    const [m, r, u, ms, e] = await Promise.all([
+    const [m, r, u, t, ms, e] = await Promise.all([
       api.materials.list(),
       api.materialReceipts.list(),
       api.materialUsages.list(),
+      api.materialTransfers.list(),
       api.materialStations.list(),
       api.equipmentTypes.list(),
     ]);
     setMaterials(m);
     setReceipts(r);
     setUsages(u);
+    setTransfers(t);
     setMaterialStations(ms);
     setEquipmentTypes(e);
   };
@@ -162,6 +195,12 @@ export function Materials() {
         .filter((m) => !materialStations.some((s) => s.materialId === m.id))
         .filter((m) => !receipts.some((r) => r.materialId === m.id && r.stationId != null))
         .filter((m) => !usages.some((u) => u.materialId === m.id && u.stationId != null))
+        .filter(
+          (m) =>
+            !transfers.some(
+              (t) => t.materialId === m.id && (t.fromStationId != null || t.toStationId != null)
+            )
+        )
         .map((m) => m.id)
     );
     const group = (stationId: number | null) => {
@@ -170,10 +209,18 @@ export function Materials() {
           const isUnassigned = stationId === null && unassignedIds.has(m.id);
           const mReceipts = receipts.filter((r) => r.materialId === m.id && r.stationId === stationId);
           const mUsages = usages.filter((u) => u.materialId === m.id && u.stationId === stationId);
+          const mTransfersOut = transfers
+            .filter((t) => t.materialId === m.id && t.fromStationId === stationId)
+            .sort((a, b) => b.date.localeCompare(a.date));
+          const transferredOut = mTransfersOut.reduce((n, t) => n + t.qty, 0);
+          const transferredIn = transfers
+            .filter((t) => t.materialId === m.id && t.toStationId === stationId)
+            .reduce((n, t) => n + t.qty, 0);
           const received = mReceipts.reduce((n, r) => n + r.qty, 0);
           const used = mUsages.reduce((n, u) => n + u.qty, 0);
           const hasOverride = materialStations.some((s) => s.materialId === m.id && s.stationId === stationId);
-          if (received === 0 && used === 0 && !hasOverride && !isUnassigned) return null;
+          const hasTransfers = transferredOut + transferredIn > 0;
+          if (received === 0 && used === 0 && !hasTransfers && !hasOverride && !isUnassigned) return null;
           const req = effectiveRequirement(m, materialStations, stationId);
           return {
             material: m,
@@ -182,9 +229,12 @@ export function Materials() {
             minRequiredSpare: req.minRequiredSpare,
             received,
             used,
-            inHand: received - used,
+            transferredOut,
+            transferredIn,
+            inHand: received - used - transferredOut + transferredIn,
             receipts: mReceipts.sort((a, b) => b.date.localeCompare(a.date)),
             usages: mUsages.sort((a, b) => b.date.localeCompare(a.date)),
+            transfersOut: mTransfersOut,
           };
         })
         .filter((r): r is NonNullable<typeof r> => r !== null)
@@ -195,6 +245,10 @@ export function Materials() {
     const ids = new Set<number | null>();
     for (const r of receipts) ids.add(r.stationId);
     for (const u of usages) ids.add(u.stationId);
+    for (const t of transfers) {
+      ids.add(t.fromStationId);
+      ids.add(t.toStationId);
+    }
     for (const s of materialStations) ids.add(s.stationId);
     if (unassignedIds.size > 0) ids.add(null);
     const groups = [...ids]
@@ -202,11 +256,11 @@ export function Materials() {
       .filter((g) => g.rows.length > 0)
       .sort((a, b) => stationName(a.stationId).localeCompare(stationName(b.stationId)));
     return groups;
-  }, [materials, receipts, usages, materialStations, stationName]);
+  }, [materials, receipts, usages, transfers, materialStations, stationName]);
 
   const lowStock = useMemo(
-    () => lowStockAlerts(materials, materialStations, receipts, usages, (id) => stationName(id)),
-    [materials, materialStations, receipts, usages, stationName]
+    () => lowStockAlerts(materials, materialStations, receipts, usages, (id) => stationName(id), transfers),
+    [materials, materialStations, receipts, usages, transfers, stationName]
   );
 
   const toggleStation = (id: number | null) => {
@@ -257,6 +311,7 @@ export function Materials() {
         await api.materials.removeFromStation(id, confirmDelete.stationId);
       } else if (kind === "material") await api.materials.remove(id);
       else if (kind === "receipt") await api.materialReceipts.remove(id);
+      else if (kind === "transfer") await api.materialTransfers.remove(id);
       else await api.materialUsages.remove(id);
       await load();
     } finally {
@@ -268,11 +323,11 @@ export function Materials() {
   const doExport = (which: "full" | "inhand" | "required") => {
     setExportMenu(false);
     if (which === "inhand") {
-      exportInHandMaterials(materials, materialStations, receipts, usages, stations);
+      exportInHandMaterials(materials, materialStations, receipts, usages, stations, transfers);
     } else if (which === "required") {
-      exportRequiredMaterials(materials, materialStations, receipts, usages, stations);
+      exportRequiredMaterials(materials, materialStations, receipts, usages, stations, transfers);
     } else {
-      exportMaterials(materials, materialStations, receipts, usages, stations);
+      exportMaterials(materials, materialStations, receipts, usages, stations, transfers);
     }
   };
 
@@ -302,6 +357,16 @@ export function Materials() {
               )}
               <span className={statClass(row.received, false)}>Received: {fmtQty(row.received)}</span>
               <span className={statClass(row.used, false)}>Used: {fmtQty(row.used)}</span>
+              {row.transferredOut > 0 && (
+                <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-700">
+                  Transferred out: {fmtQty(row.transferredOut)}
+                </span>
+              )}
+              {row.transferredIn > 0 && (
+                <span className="rounded-full bg-cyan-50 px-2 py-0.5 text-[11px] font-semibold text-cyan-700">
+                  Transferred in: {fmtQty(row.transferredIn)}
+                </span>
+              )}
               <span className={statClass(row.inHand, row.inHand < 0)}>In hand: {fmtQty(row.inHand)}</span>
             </div>
           </div>
@@ -317,6 +382,13 @@ export function Materials() {
               className="rounded-lg bg-amber-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
             >
               Use
+            </button>
+            <button
+              onClick={() => setTransferForm({ material: m, stationId })}
+              className="rounded-lg bg-violet-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-violet-700"
+              title="Transfer to another station"
+            >
+              Transfer
             </button>
             {stationId != null && (
               <>
@@ -377,26 +449,32 @@ export function Materials() {
                 <p className="text-xs text-slate-400">No receipts at this station yet — tap Receive.</p>
               ) : (
                 <div className="space-y-1.5">
-                  {row.receipts.map((r) => (
-                    <div key={r.id} className="flex items-start justify-between gap-2 rounded-lg bg-surface p-2 text-xs">
-                      <div className="min-w-0">
-                        <p className="font-semibold text-slate-800">
-                          {qtyLabel(r.qty, m.unit)} · {fmtDate(r.date)}
-                        </p>
-                        <p className="text-slate-600">
-                          {stationName(r.stationId) || "Station not set"}
-                          {r.room ? ` · ${r.room}` : ""}
-                        </p>
-                        {r.remarks && <p className="text-slate-500">Placed: {r.remarks}</p>}
+                  {row.receipts.map((r) => {
+                    const avail = batchAvailable(r, usages, transfers);
+                    return (
+                      <div key={r.id} className="flex items-start justify-between gap-2 rounded-lg bg-surface p-2 text-xs">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-slate-800">
+                            {qtyLabel(r.qty, m.unit)} · {fmtDate(r.date)}
+                          </p>
+                          <p className="text-slate-600">
+                            {stationName(r.stationId) || "Station not set"}
+                            {r.room ? ` · ${r.room}` : ""}
+                          </p>
+                          {r.remarks && <p className="text-slate-500">Placed: {r.remarks}</p>}
+                          <p className="mt-0.5 text-[11px] font-semibold text-slate-400">
+                            {qtyLabel(avail, m.unit)} in hand
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setConfirmDelete({ kind: "receipt", id: r.id })}
+                          className="flex-shrink-0 text-slate-300 hover:text-red-500"
+                        >
+                          ×
+                        </button>
                       </div>
-                      <button
-                        onClick={() => setConfirmDelete({ kind: "receipt", id: r.id })}
-                        className="flex-shrink-0 text-slate-300 hover:text-red-500"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -408,23 +486,71 @@ export function Materials() {
                 <p className="text-xs text-slate-400">No usage recorded at this station yet — tap Use.</p>
               ) : (
                 <div className="space-y-1.5">
-                  {row.usages.map((u) => (
-                    <div key={u.id} className="flex items-start justify-between gap-2 rounded-lg bg-surface p-2 text-xs">
-                      <div className="min-w-0">
-                        <p className="font-semibold text-slate-800">
-                          {qtyLabel(u.qty, m.unit)} · {fmtDate(u.date)}
-                        </p>
-                        <p className="text-slate-600">{u.purpose || "Purpose not recorded"}</p>
-                        <p className="text-slate-500">{stationName(u.stationId) || ""}</p>
+                  {row.usages.map((u) => {
+                    const batch = u.receiptId != null ? receipts.find((r) => r.id === u.receiptId) : null;
+                    return (
+                      <div key={u.id} className="flex items-start justify-between gap-2 rounded-lg bg-surface p-2 text-xs">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-slate-800">
+                            {qtyLabel(u.qty, m.unit)} · {fmtDate(u.date)}
+                          </p>
+                          <p className="text-slate-600">{u.purpose || "Purpose not recorded"}</p>
+                          <p className="text-slate-500">{stationName(u.stationId) || ""}</p>
+                          {batch && (
+                            <p className="mt-0.5 text-[11px] font-medium text-violet-700">
+                              From {batchLabel(batch, m.unit, stationName)}
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => setConfirmDelete({ kind: "usage", id: u.id })}
+                          className="flex-shrink-0 text-slate-300 hover:text-red-500"
+                        >
+                          ×
+                        </button>
                       </div>
-                      <button
-                        onClick={() => setConfirmDelete({ kind: "usage", id: u.id })}
-                        className="flex-shrink-0 text-slate-300 hover:text-red-500"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            <div>
+              <p className="mb-1 text-xs font-bold uppercase text-slate-500">
+                Transferred from {stationName(stationId)} to other stations ({row.transfersOut.length})
+              </p>
+              {row.transfersOut.length === 0 ? (
+                <p className="text-xs text-slate-400">Nothing transferred from this station yet — tap Transfer.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {row.transfersOut.map((t) => {
+                    const batch = t.receiptId != null ? receipts.find((r) => r.id === t.receiptId) : null;
+                    return (
+                      <div key={t.id} className="flex items-start justify-between gap-2 rounded-lg bg-surface p-2 text-xs">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-slate-800">
+                            {qtyLabel(t.qty, m.unit)} · {fmtDate(t.date)}
+                          </p>
+                          <p className="text-slate-600">
+                            → {stationName(t.toStationId) || "Station not set"}
+                          </p>
+                          {batch && (
+                            <p className="mt-0.5 text-[11px] font-medium text-violet-700">
+                              From {batchLabel(batch, m.unit, stationName)}
+                            </p>
+                          )}
+                          {[t.room, t.remarks].filter(Boolean).length > 0 && (
+                            <p className="text-slate-500">{t.room || ""} {t.remarks || ""}</p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => setConfirmDelete({ kind: "transfer", id: t.id })}
+                          className="flex-shrink-0 text-slate-300 hover:text-red-500"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -600,7 +726,22 @@ export function Materials() {
           material={useForm.material}
           defaultStationId={useForm.stationId}
           stations={stations}
+          receipts={receipts}
+          usages={usages}
+          transfers={transfers}
           onClose={() => setUseForm(null)}
+          onSaved={afterMutate}
+        />
+      )}
+      {transferForm && (
+        <TransferForm
+          material={transferForm.material}
+          defaultStationId={transferForm.stationId}
+          stations={stations}
+          receipts={receipts}
+          usages={usages}
+          transfers={transfers}
+          onClose={() => setTransferForm(null)}
           onSaved={afterMutate}
         />
       )}
@@ -1310,12 +1451,18 @@ function UseForm({
   material,
   defaultStationId,
   stations,
+  receipts,
+  usages,
+  transfers,
   onClose,
   onSaved,
 }: {
   material: Material;
   defaultStationId: number | null;
   stations: { id: number; name: string }[];
+  receipts: MaterialReceipt[];
+  usages: MaterialUsage[];
+  transfers: MaterialTransfer[];
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
@@ -1323,11 +1470,30 @@ function UseForm({
   const [date, setDate] = useState(toISODate(new Date()));
   const [purpose, setPurpose] = useState("");
   const [stationId, setStationId] = useState<number | null>(defaultStationId);
+  const [receiptId, setReceiptId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const stationName = (id: number | null) =>
+    id == null ? "Station not set" : stations.find((s) => s.id === id)?.name ?? "Unassigned";
+
+  // The received batches of this material that still have stock — each with its
+  // kept-location data (room, remarks) so the user picks the exact delivery the
+  // material is taken from. Most recently received first.
+  const batches = receipts
+    .filter((r) => r.materialId === material.id)
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .map((r) => ({ receipt: r, available: batchAvailable(r, usages, transfers) }))
+    .filter((b) => b.available > 0);
+
+  const selectedAvailable = receiptId != null
+    ? batches.find((b) => b.receipt.id === receiptId)?.available ?? 0
+    : 0;
+  const overdraw = receiptId != null && qty !== "" && Number(qty) > selectedAvailable;
 
   const save = async () => {
     const q = Number(qty);
     if (!Number.isFinite(q) || q <= 0) return;
+    if (overdraw) return;
     setSaving(true);
     try {
       await api.materialUsages.create({
@@ -1336,6 +1502,7 @@ function UseForm({
         date,
         purpose: purpose.trim(),
         stationId,
+        receiptId,
       });
       await onSaved();
       onClose();
@@ -1347,8 +1514,34 @@ function UseForm({
   return (
     <Modal open onClose={onClose} title={`Use — ${material.name}`}>
       <p className="mb-3 text-xs text-slate-500">
-        Recording how many <strong>{material.name}</strong> were used and for what purpose.
+        Recording how many <strong>{material.name}</strong> were used and for what purpose. Pick the
+        received batch the material is taken from so it is marked as used.
       </p>
+      <Field label="Take from (received batch)">
+        {batches.length === 0 ? (
+          <p className="text-xs text-slate-400">
+            No received stock in hand yet — record a receipt first, then come back here.
+          </p>
+        ) : (
+          <select
+            className={inputClass}
+            value={receiptId ?? ""}
+            onChange={(e) => setReceiptId(e.target.value ? Number(e.target.value) : null)}
+          >
+            <option value="">— Not linked to a batch —</option>
+            {batches.map((b) => (
+              <option key={b.receipt.id} value={b.receipt.id}>
+                {batchLabel(b.receipt, material.unit, stationName)} · {qtyLabel(b.available, material.unit)} left
+              </option>
+            ))}
+          </select>
+        )}
+        {receiptId != null && batches.length > 0 && (
+          <p className="mt-1 text-xs text-slate-500">
+            This batch still has <strong>{qtyLabel(selectedAvailable, material.unit)}</strong> in hand.
+          </p>
+        )}
+      </Field>
       <Field label={material.unit ? `Quantity used (${material.unit})` : "Quantity used"}>
         <input
           type="number"
@@ -1360,6 +1553,11 @@ function UseForm({
           placeholder="e.g. 5"
           autoFocus
         />
+        {overdraw && (
+          <p className="mt-1 text-xs font-medium text-red-600">
+            Only {qtyLabel(selectedAvailable, material.unit)} left in this batch.
+          </p>
+        )}
       </Field>
       <Field label="Used on">
         <input type="date" className={inputClass} value={date} onChange={(e) => setDate(e.target.value)} />
@@ -1383,8 +1581,168 @@ function UseForm({
         </button>
         <button
           onClick={save}
-          disabled={saving || !qty}
+          disabled={saving || !qty || overdraw}
           className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Save
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+function TransferForm({
+  material,
+  defaultStationId,
+  stations,
+  receipts,
+  usages,
+  transfers,
+  onClose,
+  onSaved,
+}: {
+  material: Material;
+  defaultStationId: number | null;
+  stations: { id: number; name: string }[];
+  receipts: MaterialReceipt[];
+  usages: MaterialUsage[];
+  transfers: MaterialTransfer[];
+  onClose: () => void;
+  onSaved: () => Promise<void>;
+}) {
+  const [qty, setQty] = useState("");
+  const [date, setDate] = useState(toISODate(new Date()));
+  const [fromStationId, setFromStationId] = useState<number | null>(defaultStationId);
+  const [toStationId, setToStationId] = useState<number | null>(null);
+  const [receiptId, setReceiptId] = useState<number | null>(null);
+  const [room, setRoom] = useState("");
+  const [remarks, setRemarks] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const stationName = (id: number | null) =>
+    id == null ? "Station not set" : stations.find((s) => s.id === id)?.name ?? "Unassigned";
+
+  // Received batches that still have stock, so the transfer always says exactly
+  // which delivery is being moved.
+  const batches = receipts
+    .filter((r) => r.materialId === material.id)
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .map((r) => ({ receipt: r, available: batchAvailable(r, usages, transfers) }))
+    .filter((b) => b.available > 0);
+
+  const selectedAvailable = receiptId != null
+    ? batches.find((b) => b.receipt.id === receiptId)?.available ?? 0
+    : 0;
+  const overdraw = receiptId != null && qty !== "" && Number(qty) > selectedAvailable;
+  const sameStation = fromStationId != null && fromStationId === toStationId;
+
+  const save = async () => {
+    const q = Number(qty);
+    if (!Number.isFinite(q) || q <= 0) return;
+    if (toStationId == null || overdraw || sameStation) return;
+    setSaving(true);
+    try {
+      await api.materialTransfers.create({
+        materialId: material.id,
+        qty: q,
+        date,
+        fromStationId,
+        toStationId,
+        receiptId,
+        room: room.trim(),
+        remarks: remarks.trim(),
+      });
+      await onSaved();
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal open onClose={onClose} title={`Transfer — ${material.name}`}>
+      <p className="mb-3 text-xs text-slate-500">
+        Moving <strong>{material.name}</strong> from one station to another. Choose the received batch
+        that is being transferred so the stock record keeps track of it.
+      </p>
+      <StationSelect stations={stations} value={fromStationId} onChange={setFromStationId} label="From station" />
+      <Field label="Transfer (received batch)">
+        {batches.length === 0 ? (
+          <p className="text-xs text-slate-400">
+            No received stock in hand yet — record a receipt first, then come back here.
+          </p>
+        ) : (
+          <select
+            className={inputClass}
+            value={receiptId ?? ""}
+            onChange={(e) => setReceiptId(e.target.value ? Number(e.target.value) : null)}
+          >
+            <option value="">— Not linked to a batch —</option>
+            {batches.map((b) => (
+              <option key={b.receipt.id} value={b.receipt.id}>
+                {batchLabel(b.receipt, material.unit, stationName)} · {qtyLabel(b.available, material.unit)} left
+              </option>
+            ))}
+          </select>
+        )}
+        {receiptId != null && batches.length > 0 && (
+          <p className="mt-1 text-xs text-slate-500">
+            This batch still has <strong>{qtyLabel(selectedAvailable, material.unit)}</strong> in hand.
+          </p>
+        )}
+      </Field>
+      <Field label={material.unit ? `Quantity to transfer (${material.unit})` : "Quantity to transfer"}>
+        <input
+          type="number"
+          min="0"
+          step="any"
+          className={inputClass}
+          value={qty}
+          onChange={(e) => setQty(e.target.value)}
+          placeholder="e.g. 5"
+          autoFocus
+        />
+        {overdraw && (
+          <p className="mt-1 text-xs font-medium text-red-600">
+            Only {qtyLabel(selectedAvailable, material.unit)} left in this batch.
+          </p>
+        )}
+      </Field>
+      <Field label="Transferred on">
+        <input type="date" className={inputClass} value={date} onChange={(e) => setDate(e.target.value)} />
+      </Field>
+      <StationSelect stations={stations} value={toStationId} onChange={setToStationId} label="To station" />
+      {sameStation && (
+        <p className="mb-2 text-xs font-medium text-red-600">The destination is the same as the source station.</p>
+      )}
+      <Field label="Room / store at destination (optional)">
+        <input
+          className={inputClass}
+          value={room}
+          onChange={(e) => setRoom(e.target.value)}
+          placeholder="e.g. SS Room, Store"
+        />
+      </Field>
+      <Field label="Remarks (where exactly placed)">
+        <textarea
+          className={inputClass}
+          rows={2}
+          value={remarks}
+          onChange={(e) => setRemarks(e.target.value)}
+          placeholder="e.g. Locked in the 2nd rack of the SS room at the destination"
+        />
+      </Field>
+      <div className="flex justify-end gap-2">
+        <button
+          onClick={onClose}
+          className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={save}
+          disabled={saving || !qty || toStationId == null || overdraw || sameStation}
+          className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Save
         </button>

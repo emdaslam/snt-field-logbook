@@ -33,6 +33,7 @@ import type {
   Material,
   MaterialReceipt,
   MaterialUsage,
+  MaterialTransfer,
   MaterialStation,
 } from "@/db/schema";
 
@@ -124,6 +125,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [materialReceipts, setMaterialReceipts] = useState<MaterialReceipt[]>([]);
   const [materialUsages, setMaterialUsages] = useState<MaterialUsage[]>([]);
+  const [materialTransfers, setMaterialTransfers] = useState<MaterialTransfer[]>([]);
   const [materialStations, setMaterialStations] = useState<MaterialStation[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
@@ -293,7 +295,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       // Identify who we are first — private data is scoped to this staff member
       const sfPre = await api.staff.list();
       const meId = sfPre.find((s) => s.isCurrentUser)?.id ?? null;
-      const [st, sf, tg, lg, df, pl, nt, nc, mt, rc, us, ms] = await Promise.all([
+      const [st, sf, tg, lg, df, pl, nt, nc, mt, rc, us, tr, ms] = await Promise.all([
         api.stations.list(),
         Promise.resolve(sfPre),
         api.tags.list(),
@@ -305,6 +307,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         api.materials.list(),
         api.materialReceipts.list(),
         api.materialUsages.list(),
+        api.materialTransfers.list(),
         api.materialStations.list(),
       ]);
       setStations(st);
@@ -318,6 +321,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setMaterials(mt);
       setMaterialReceipts(rc);
       setMaterialUsages(us);
+      setMaterialTransfers(tr);
       setMaterialStations(ms);
       setLastSynced(new Date());
       setSyncError(null);
@@ -554,7 +558,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     // Low-stock alerts — a station's in-hand balance for a material fell below
     // that station's effective minimum required spare.
-    for (const a of lowStockAlerts(materials, materialStations, materialReceipts, materialUsages, stationNameFor)) {
+    for (const a of lowStockAlerts(materials, materialStations, materialReceipts, materialUsages, stationNameFor, materialTransfers)) {
       notes.push({
         id: `stock-${a.material.id}-${a.stationId ?? "unassigned"}`,
         title: `${a.material.name} — low stock`,
@@ -565,7 +569,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
 
     setNotifications(notes);
-  }, [planned, deficiencies, logs, stations, tags, reminderDays, materials, materialStations, materialReceipts, materialUsages]);
+  }, [planned, deficiencies, logs, stations, tags, reminderDays, materials, materialStations, materialReceipts, materialUsages, materialTransfers]);
 
   /** True when the current user already made a log entry for today. */
   const hasEntryToday = useMemo(() => {

@@ -3,6 +3,27 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.95 — 2026-08-26
+
+**Major: material transfers between stations, and every use/transfer picks the exact received batch**
+
+- **Transfer material to another station.** Each material now has a
+  “Transfer” button. Pick the station the stock is leaving, the received
+  batch it is taken from, the quantity and the destination station; the
+  transfer is recorded with its own date and where the material was placed
+  at the destination.
+- **Use marks a specific received batch as used.** When recording a use,
+  choose the exact received delivery the material is taken from — shown with
+  its quantity, date, station and where it was kept (room and remarks, e.g.
+  “IPS Room · birwa”). The batch’s remaining in-hand is shown and a use
+  cannot take more than what the batch still has.
+- **Stock records follow the material.** A station’s in-hand now counts what
+  was received there, minus what was used, minus what was transferred out,
+  plus what was transferred in — so low-stock alerts and the Materials
+  report stay correct after a transfer. Each batch shows how much of it is
+  still in hand, and the report lists every transfer (from → to, quantity,
+  batch, destination room/remarks).
+
 ## 1.7.6.94 — 2026-08-26
 
 **Minor: TA Journal export — the first row's Days / Amount / Work columns no longer shift right or lose the work text**

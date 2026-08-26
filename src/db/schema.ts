@@ -327,5 +327,30 @@ export type MaterialUsage = {
   date: string;
   purpose: string;
   stationId: number | null;
+  /** The received batch this usage was taken from (null on older rows). */
+  receiptId: number | null;
+  createdAt: string;
+};
+
+/** One transfer of material from one station to another. The stock that was
+ *  moved is linked to the received batch it came from (receiptId), so the
+ *  transfer record always knows exactly which delivery (and its kept-location
+ *  data) was moved. */
+export type MaterialTransfer = {
+  id: number;
+  materialId: number;
+  qty: number;
+  /** ISO date the material was transferred. */
+  date: string;
+  /** Station the stock was moved from (the batch's current location). */
+  fromStationId: number | null;
+  /** Station the stock was moved to. */
+  toStationId: number | null;
+  /** The received batch the transferred stock came from (null on older rows). */
+  receiptId: number | null;
+  /** Where the material was placed at the destination station. */
+  room: string;
+  /** Remarks — where exactly it was placed at the destination. */
+  remarks: string;
   createdAt: string;
 };
