@@ -3,6 +3,24 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.93 — 2026-08-26
+
+**Minor: footplate recorded per Day/Night shift with direction and per-train remarks**
+
+- **Each footplate shift is recorded separately.** A footplate movement now
+  keeps Day and Night as two shifts, each with its own direction (Up / Down /
+  Both) and its own boarding and alighting times for every train ridden in that
+  shift.
+- **Per-train remarks.** Every footplate train can carry a short remark (for
+  example a deficiency noted while riding); remarks show in the log detail and
+  in the export rows.
+- **One export row per train.** The TA Journal export prints the HQ → boarding
+  station leg, one row for each footplate train (with its times and remarks),
+  and the final station → HQ return leg, so a full footplate day is printed.
+- **The footplate entry point moved to the movement form** — the standalone
+  “footplate” tag was removed from the quick-add list; use the footplate
+  movement type on the daily log instead.
+
 ## 1.7.6.92 — 2026-08-25
 
 **Minor: a footplate movement is counted as TA everywhere — Reports, the export preview and the TA Journal agree**
