@@ -3,6 +3,21 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.94 — 2026-08-26
+
+**Minor: TA Journal export — the first row's Days / Amount / Work columns no longer shift right or lose the work text**
+
+- The TA Journal table carries a vertical "ALL ARE ABOVE 8 KMS" note in its KMS
+  column that spans every data row. The column walker forgot to advance past
+  that spanning cell, so in the **first** data row the DAYS and AMOUNT values
+  landed one column to the right (overlapping the KMS note) and the NATURE OF
+  WORK text was pushed out of the table entirely. At the default text size the
+  affected row looked like its percentages sat in the wrong column; at larger
+  sizes the whole first row was visibly misaligned.
+- **Fix:** advance the column past the spanning vtext cell so every row keeps
+  its DAYS / AMOUNT / NATURE OF WORK values in the correct column, exactly like
+  the rows below it.
+
 ## 1.7.6.93 — 2026-08-26
 
 **Minor: footplate recorded per Day/Night shift with direction and per-train remarks**

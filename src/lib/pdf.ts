@@ -129,6 +129,7 @@ function parseTableBody(trs: Element[]): { body: PdfCell[][]; notes: VtextNote[]
         notes.push({ colIndex: col, text });
         row.push({ content: "", rowSpan: 1, colSpan, ...styled });
         vtextRows.set(col, rowSpan - 1);
+        col += colSpan;
       } else {
         const cell: PdfCell =
           rowSpan > 1 || colSpan > 1
