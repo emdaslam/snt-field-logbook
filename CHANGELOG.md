@@ -3,6 +3,19 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.92 — 2026-08-25
+
+**Minor: a footplate movement is counted as TA everywhere — Reports, the export preview and the TA Journal agree**
+
+- **Footplate days now count as TA in the Reports tab.** A Footplate daily log
+  is a working tour away from HQ (departure → return), so the Total TA (days)
+  tile and its drill-down now include it, at the day's manual 100 / 70 / 30
+  rate — matching what the TA Journal export already printed.
+- **The export preview agrees too.** The Generate TA Journal dialog's preview
+  now lists footplate days with their route ("Footplate: boarding → other end
+  (direction)") and counts them in the total, exactly as the exported report
+  does.
+
 ## 1.7.6.91 — 2026-08-25
 
 **Minor: Diary and TA Journal PDF text never overlaps at larger text sizes**

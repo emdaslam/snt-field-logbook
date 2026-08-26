@@ -107,8 +107,8 @@ export function DiaryExportModal({
       {isTa && (
         <div className="mb-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
           Only movements to stations recorded as <strong>above 8 km</strong> from the headquarters — or to a{" "}
-          <strong>variable</strong> station where the log says the work was done at/after its KMs marker — are
-          included in the TA Journal.
+          <strong>variable</strong> station where the log says the work was done at/after its KMs marker — or a{" "}
+          <strong>footplate</strong> tour away from HQ are included in the TA Journal.
         </div>
       )}
 
@@ -161,7 +161,9 @@ export function DiaryExportModal({
                       <>
                         <td className="whitespace-nowrap px-2 py-1.5">{fmtDate(r.logDate)}</td>
                         <td className="px-2 py-1.5 text-slate-600">
-                          {hqCode ?? "HQ"} → {codeOf(r.stationMovement)}
+                          {r.movementKind === "footplate"
+                            ? r.stationMovement || "Footplate"
+                            : `${hqCode ?? "HQ"} → ${codeOf(r.stationMovement)}`}
                         </td>
                         <td className="px-2 py-1.5 font-medium">{p}%</td>
                         <td className="px-2 py-1.5">{rateNotSet ? "—" : `₹${amount}`}</td>

@@ -653,13 +653,20 @@ export function pcdoWorkEntries(
 
 /** True when a daily log is a claimable TA day: a movement away from HQ to a
  *  station fixed above 8 km, or to a variable station where the log confirms
- *  the work was done at/after its KMs marker — at a claimable TA percent. */
+ *  the work was done at/after its KMs marker — at a claimable TA percent.
+ *  A Footplate day is a working tour away from HQ (departure → return), so it
+ *  always qualifies for TA — the rate stays the manual 100/70/30 pick. */
 export function isTaClaimable(
   l: DailyLog,
   stations: Station[],
   hq: Station | null | undefined
 ): boolean {
   if (isSpecialMovement(l)) return false;
+  const p = l.taPercent ?? 100;
+  if (p !== 100 && p !== 70 && p !== 30) return false;
+  // A Footplate day is a working tour away from HQ (departure → return), so
+  // it always qualifies for TA — the rate stays the manual 100/70/30 pick.
+  if (l.movementKind === "footplate") return true;
   const t = (l.stationMovement ?? "").trim().toLowerCase();
   if (!t) return false;
   if (hq && (t === (hq.name ?? "").toLowerCase() || (hq.code && t === hq.code.toLowerCase()))) {
@@ -674,8 +681,7 @@ export function isTaClaimable(
   } else if (st.distanceFromHq !== "above8") {
     return false;
   }
-  const p = l.taPercent ?? 100;
-  return p === 100 || p === 70 || p === 30;
+  return true;
 }
 
 /** The counter resets recorded on a log entry, sanitised (an old entry that
