@@ -100,7 +100,7 @@ export function exportTomorrowsWork(
   }
 
   // The date appears only in the heading — individual items carry no dates.
-  let body = `<h1>Tomorrow's Work (${label})</h1>`;
+  let body = `<h1 class="centered">Tomorrow's Work (${label})</h1>`;
   if (note.trim()) {
     body += `<p class="meta">Note: ${esc(note.trim())}</p>`;
   }
@@ -209,7 +209,7 @@ export function pcdoReportBody(
   }
   const sortedGroups = [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
 
-  let body = `<h1>PCDO — Special Works (${esc(period.label)})</h1>`;
+  let body = `<h1 class="centered">PCDO — Special Works (${esc(period.label)})</h1>`;
   body += `<p class="meta">PCDO period: ${fmtDate(period.from)} to ${fmtDate(period.to)}`;
   if (stationFilter) body += ` · Station: ${esc(stationName(stationFilter as number))}`;
   body += ` · ${workRows.length} special work${workRows.length !== 1 ? "s" : ""}</p>`;
@@ -256,7 +256,7 @@ export function pcdoReportBody(
   });
   const grand = sum(discEntries);
 
-  body += `<h1 style="margin-top:34px">Disconnections (${esc(period.label)})</h1>`;
+  body += `<h1 class="centered" style="margin-top:34px">Disconnections (${esc(period.label)})</h1>`;
   body += `<p class="meta">PCDO period: ${fmtDate(period.from)} to ${fmtDate(period.to)} · ${grand.total} disconnection${grand.total !== 1 ? "s" : ""} given</p>`;
 
   if (sortedDisc.length === 0) {
@@ -313,7 +313,7 @@ export function pcdoReportBody(
   );
   const resetGrandTotal = resetGrand.fa + resetGrand.tt;
 
-  body += `<h1 style="margin-top:34px">Counter Resets (${esc(period.label)})</h1>`;
+  body += `<h1 class="centered" style="margin-top:34px">Counter Resets (${esc(period.label)})</h1>`;
   body += `<p class="meta">PCDO period: ${fmtDate(period.from)} to ${fmtDate(period.to)} · ${resetGrandTotal} reset${resetGrandTotal !== 1 ? "s" : ""} (${resetGrand.fa} from failures, ${resetGrand.tt} from testing)</p>`;
 
   if (sortedResets.length === 0) {
@@ -1233,7 +1233,7 @@ export function exportInspections(
 
   const total = logs.filter((l) => kindList.includes(l.inspectionKind as InspKind) && inScope(l)).length;
 
-  let body = `<h1>${esc(kindLabel)} — ${esc(period.label)}</h1>`;
+  let body = `<h1 class="centered">${esc(kindLabel)} — ${esc(period.label)}</h1>`;
   body += `<p class="meta">${fmtDate(period.from)} to ${fmtDate(period.to)} · ${total} inspection${total !== 1 ? "s" : ""}</p>`;
 
   for (const kind of kindList) {
@@ -1352,7 +1352,7 @@ export function exportMonthly(
   if (filters.departments.length) meta.push(`Dept: ${filters.departments.join(", ")}`);
   if (filters.status) meta.push(`Status: ${esc(filters.status)}`);
 
-  let body = `<h1>Monthly S&amp;T Report</h1>`;
+  let body = `<h1 class="centered">Monthly S&amp;T Report</h1>`;
   body += `<p class="meta">${esc(meta.join(" · "))}</p>`;
 
   if (filters.includeLogs) {

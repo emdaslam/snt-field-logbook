@@ -450,9 +450,10 @@ export function buildPdf(
       const lines = doc.splitTextToSize(text, maxW) as string[];
       // Centered headings (e.g. the TA Journal header) are centred on the page,
       // except when a right-hand note is present and the heading would reach it
-      // — then the heading is pulled left so the two never overlap.
+      // — then the heading is pulled left so the two never overlap. Other
+      // headings stay left-aligned at the margin.
       const centered = el.className.includes("centered");
-      let centerX = pageW / 2;
+      let centerX = centered ? pageW / 2 : margin;
       if (centered && rightNote && text) {
         const drawnW = Math.min(tw, headingW);
         const noteLeft = pageW - margin - noteW;
