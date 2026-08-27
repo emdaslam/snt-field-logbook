@@ -9,7 +9,7 @@
  * makes the utilities reference `var(--…)` directly, which is what allows the
  * switch without rebuilding. The default values below are Tailwind's own
  * palette, so the light theme looks exactly like before; `data-theme="dark"`
- * overrides the tokens.
+ * and `data-theme="ocean"` override the tokens.
  */
 @theme inline {
   --color-surface: var(--surface);
@@ -337,6 +337,35 @@ html[data-theme="dark"] {
   --v-800: #ddd6fe;
   --v-900: #ede9fe;
   --v-950: #f5f3ff;
+}
+
+/*
+ * Ocean theme — a light, coastal look. Cool blue-grey neutrals and a deep
+ * ocean-blue brand replace the plain slate/blue; the status families keep
+ * their light defaults, so the chips read the same but sit on softer tints.
+ */
+html[data-theme="ocean"] {
+  --surface: #fbfdff;
+  --n-50: #f0f6fc;
+  --n-100: #e2ecf6;
+  --n-200: #c9dcec;
+  --n-300: #a5c2db;
+  --n-400: #7ba3c5;
+  --n-500: #5b86ab;
+  --n-600: #4a6f93;
+  --n-700: #3f5c79;
+  --n-800: #344c65;
+  --n-900: #27394d;
+  --b-50: #e8f4fc;
+  --b-100: #d1e9f9;
+  --b-200: #a7d6f3;
+  --b-300: #6ebbe9;
+  --b-400: #3aa0dc;
+  --b-500: #1b85c7;
+  --b-600: #116ca9;
+  --b-700: #0f5a8c;
+  --b-800: #114c75;
+  --b-900: #12405f;
 }
 
 /*

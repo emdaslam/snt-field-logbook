@@ -3,6 +3,18 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.98 — 2026-08-27
+
+**Major: a new Ocean theme joins Light and Dark in Settings → Appearance**
+
+- **Ocean — a light, coastal look.** Choose Ocean in Settings → Appearance and
+  the whole app switches to a cool blue-grey palette with a deep ocean-blue
+  accent on buttons, links and selected chips. Cards, borders and headings all
+  pick up the softer, airier tints.
+- **Sits alongside Light and Dark.** Light remains the default look and Dark is
+  unchanged. The theme you choose is remembered on the device and reapplies
+  every time you open the app.
+
 ## 1.7.6.97 — 2026-08-26
 
 **Minor: signing into a different Google account no longer silently overwrites either side's data**

@@ -438,6 +438,7 @@ export function Settings() {
         </div>
         <p className="mb-3 mt-2 text-xs text-slate-400">
           Light is the default look. Dark uses dark surfaces and lighter text throughout the app.
+          Ocean is a light, coastal look with cool blue-grey surfaces and a deep ocean-blue accent.
         </p>
         <p className="mb-2 text-sm text-slate-600">Font size (applies to the whole app)</p>
         <div className="flex gap-2">

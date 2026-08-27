@@ -421,6 +421,23 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.6.98",
+    tag: "Ocean theme",
+    subtitle: "A new light, coastal look joins Light and Dark in Settings → Appearance.",
+    slides: [
+      {
+        glyph: "◈",
+        title: "Pick Ocean in Appearance",
+        body: "Open Settings → Appearance and choose Ocean. The whole app switches to a light coastal palette — cool blue-grey surfaces, softer borders and a deep ocean-blue accent on buttons, links and selected chips.",
+      },
+      {
+        glyph: "▤",
+        title: "Sits alongside Light and Dark",
+        body: "Light stays the default look and Dark is unchanged. The choice is remembered on this device and reapplies every time you open the app.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {

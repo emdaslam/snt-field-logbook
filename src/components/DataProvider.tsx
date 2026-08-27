@@ -143,7 +143,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<AppTheme>(() => {
     if (typeof window === "undefined") return "light";
     try {
-      return localStorage.getItem("snt.theme") === "dark" ? "dark" : "light";
+      const saved = localStorage.getItem("snt.theme");
+      return saved === "dark" || saved === "ocean" ? saved : "light";
     } catch {
       return "light";
     }
