@@ -3,6 +3,25 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.6.99 — 2026-08-27
+
+**Minor: TA Journal export at larger text sizes no longer overlaps the summary onto the table header, and the TOTAL row is never split across pages**
+
+- At text size 10 the TOTAL row did not fit in the space left on page 1, so the
+  table split it in two: the top half stayed on page 1 while a loose "DAYS"
+  (from "10.9 DAYS") spilled onto a page 2 that otherwise held only the repeated
+  header. The table's end position referred to that fragment page, but the
+  drawing cursor was still on page 1 — so the summary block (100% / 70% / 30% /
+  TOTAL) and the certificate were drawn over the table header and the first
+  day rows, exactly as seen at size 10.
+- **Fix:** a row that does not fit is now moved whole to the next page instead
+  of being split across the boundary (no more stray "DAYS" fragment). And after
+  the table, the export jumps to the table's last page before drawing anything,
+  so the summary block and the certificate land right after the table wherever
+  it ends.
+- Result: page 1 carries the complete day rows, and the TOTAL row, the summary
+  block and the certificate all sit together on the following page.
+
 ## 1.7.6.98 — 2026-08-27
 
 **Major: a new Ocean theme joins Light and Dark in Settings → Appearance**

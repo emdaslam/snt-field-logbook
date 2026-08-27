@@ -726,13 +726,22 @@ export function buildPdf(
         },
         ...(plain ? {} : { alternateRowStyles: { fillColor: [248, 250, 252] } }),
         theme: "grid",
+        // Never split a row across pages: a day's movements (or the TOTAL row)
+        // moves whole to the next page instead of leaving a fragment behind.
+        rowPageBreak: "avoid",
         columnStyles: Object.keys(columnStyles).length ? columnStyles : undefined,
         ...(didDrawCell ? { didDrawCell } : {}),
       });
+      const last = (doc as unknown as {
+        lastAutoTable?: { finalY: number; startY: number; pageNumber?: number; startPageNumber?: number };
+      }).lastAutoTable;
       drawVtextNotes(doc, notes, vtextCells, 8 * fs);
-      const last = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable;
-      // Generous gap after a table before the next heading/group — clearly
-      // larger than the (zero-ish) gap between a heading and its own table.
+      // The table may span pages; its last drawn page is where finalY lives.
+      // Jump back there so the following block (summary, certificate, …) starts
+      // right after the table instead of on the page drawVtextNotes last left.
+      const tableStartPage = last?.startPageNumber ?? doc.getCurrentPageInfo().pageNumber;
+      const tablePageCount = last?.pageNumber ?? 1;
+      doc.setPage(tableStartPage + tablePageCount - 1);
       y = (last?.finalY ?? y + 40) + 24;
     }
   }
