@@ -73,9 +73,23 @@ function tidy(s: string) {
  * bookkeeping, so the day-group rows below it stop growing to fit their
  * content and the nature-of-work text overflows into the next row.
  */
-type PdfCell = string | { content: string; rowSpan: number; colSpan: number; styles?: { font?: string; fontStyle?: "bold"; halign?: "left" | "center" | "right"; valign?: "top" | "middle" | "bottom" } };
+type PdfCellStyle = {
+  font?: string;
+  fontStyle?: "bold";
+  halign?: "left" | "center" | "right";
+  valign?: "top" | "middle" | "bottom";
+  lineWidth?: { top?: number; bottom?: number; left?: number; right?: number };
+};
+
+type PdfCell = string | { content: string; rowSpan: number; colSpan: number; styles?: PdfCellStyle };
 
 type VtextNote = { colIndex: number; text: string };
+
+// Body-cell border width in jsPDF AutoTable's "grid" theme (see getTheme in
+// jspdf-autotable). Kept here so a vtext note column can drop its horizontal
+// borders while its vertical frame matches the neighbouring cells.
+const GRID_LINE_WIDTH = 0.1;
+const NOTE_CELL_LINE_WIDTH = { top: 0, bottom: 0, left: GRID_LINE_WIDTH, right: GRID_LINE_WIDTH } as const;
 
 function parseTableBody(trs: Element[]): { body: PdfCell[][]; notes: VtextNote[] } {
   const active = new Map<number, number>();
@@ -94,9 +108,10 @@ function parseTableBody(trs: Element[]): { body: PdfCell[][]; notes: VtextNote[]
         col++;
       }
       // Columns covered by a vtext note stay present (empty) in every row so
-      // the table's column positions never shift.
+      // the table's column positions never shift. They draw no horizontal
+      // borders so the note column reads as one merged cell.
       while (vtextRows.has(col)) {
-        row.push({ content: "", rowSpan: 1, colSpan: 1, styles: { halign: "center", valign: "middle" } });
+        row.push({ content: "", rowSpan: 1, colSpan: 1, styles: { halign: "center", valign: "middle", lineWidth: NOTE_CELL_LINE_WIDTH } });
         const left = vtextRows.get(col)! - 1;
         if (left <= 0) vtextRows.delete(col);
         else vtextRows.set(col, left);
@@ -111,7 +126,7 @@ function parseTableBody(trs: Element[]): { body: PdfCell[][]; notes: VtextNote[]
       const text = isV
         ? (el.textContent ?? "").replace(/ +/g, "\n")
         : tidy(el.textContent ?? "");
-      const styles: { font?: string; fontStyle?: "bold"; halign?: "left" | "center" | "right"; valign?: "top" | "middle" | "bottom" } = {};
+      const styles: PdfCellStyle = {};
       const font = el.getAttribute("data-font");
       if (font) styles.font = font;
       if (el.querySelector("strong")) styles.fontStyle = "bold";
@@ -124,8 +139,14 @@ function parseTableBody(trs: Element[]): { body: PdfCell[][]; notes: VtextNote[]
       }
       const valign = el.getAttribute("data-valign");
       if (valign === "middle") styles.valign = "middle";
+      const isVSpan = isV && rowSpan > 1;
+      // A full-column vtext note (the TA journal's KMS note) spans many rows
+      // but is emitted as separate empty cells; removing their horizontal
+      // borders makes the column render as one merged cell without stray
+      // lines crossing the vertical text.
+      if (isVSpan) styles.lineWidth = NOTE_CELL_LINE_WIDTH;
       const styled = Object.keys(styles).length > 0 ? { styles } : {};
-      if (isV && rowSpan > 1) {
+      if (isVSpan) {
         notes.push({ colIndex: col, text });
         row.push({ content: "", rowSpan: 1, colSpan, ...styled });
         vtextRows.set(col, rowSpan - 1);
