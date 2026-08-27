@@ -3,6 +3,21 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.1 — 2026-08-27
+
+**Minor: report headers wrap between words instead of breaking mid-word**
+
+- At larger text sizes the Diary and TA Journal headers broke mid-word:
+  "TRAIN NO" rendered as "TRAI" / "N NO" and "TIME DEPT" as "TIME" / "EPT".
+  The fixed column widths were sized only from the body cells, so the header
+  text was never measured.
+- **Fix:** each fixed column is now also floored at its header's widest word
+  (measured in the bold header font), with a small buffer so jsPDF's line
+  wrapper never splits a word. Headers now wrap cleanly at spaces — "TRAIN" /
+  "NO", "TIME" / "DEPT" — at every text size.
+- Result: header words stay whole; column widths grow only as much as needed.
+- Implemented in `pdf.ts`.
+
 ## 1.7.7.0 — 2026-08-27
 
 **Minor: TA Journal PDF renders the KMS note column as one merged cell — no stray lines cross the vertical "ALL ARE ABOVE 8 KMS" text**
