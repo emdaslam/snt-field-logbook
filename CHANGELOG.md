@@ -3,6 +3,22 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.0 — 2026-08-27
+
+**Minor: TA Journal PDF renders the KMS note column as one merged cell — no stray lines cross the vertical "ALL ARE ABOVE 8 KMS" text**
+
+- The TA Journal table carries a full-column note ("ALL ARE ABOVE 8 KMS" set
+  vertically) that is emitted as separate empty cells per row. In the grid
+  theme each cell drew its own horizontal borders, so the note column looked
+  like a stack of small boxes with border lines crossing the vertical text.
+- **Fix:** cells belonging to a full-column vtext note now drop their
+  horizontal borders (`lineWidth: { top: 0, bottom: 0 }`) while keeping the
+  left/right frame identical to the neighbouring cells, so the column reads as
+  one clean merged cell.
+- Result: the KMS column no longer shows stray box lines crossing the vertical
+  note; normal cell borders are unchanged.
+- Implemented in `15c81b6`.
+
 ## 1.7.6.99 — 2026-08-27
 
 **Minor: TA Journal export at larger text sizes no longer overlaps the summary onto the table header, and the TOTAL row is never split across pages**
