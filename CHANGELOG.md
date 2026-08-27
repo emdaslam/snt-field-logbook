@@ -16,7 +16,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
   wrapper never splits a word. Headers now wrap cleanly at spaces — "TRAIN" /
   "NO", "TIME" / "DEPT" — at every text size.
 - Result: header words stay whole; column widths grow only as much as needed.
-- Implemented in `pdf.ts`.
+- Implemented in `89800d9`.
 
 ## 1.7.7.0 — 2026-08-27
 
