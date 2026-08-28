@@ -3,6 +3,20 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.3 — 2026-08-28
+
+**Major: the export sheet now follows the app theme — no more light-theme popup in Dark, Ocean or Sunset**
+
+- The Export Report bottom sheet (the PDF / Word / Excel choice, the text-size
+  prompt and the Colour / Plain toggle) used its own hard-coded light colours,
+  so in the Dark, Ocean and Sunset themes it still popped up white with the old
+  navy accents — the only part of the app that ignored the selected theme.
+- **Fix:** every colour in the export sheet now comes from the same theme tokens
+  as the rest of the app. In Sunset it shows warm cream surfaces with the coral
+  accent, in Ocean the cool coastal tints, and in Dark the dark surface with
+  light text. The sheet picks up the active theme live, so it even updates while
+  it is on screen.
+
 ## 1.7.7.2 — 2026-08-27
 
 **Minor: a new Sunset theme joins the appearance options**

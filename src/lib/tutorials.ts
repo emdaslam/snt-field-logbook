@@ -438,6 +438,23 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.7.3",
+    tag: "Export matches your theme",
+    subtitle: "The export sheet now follows Dark, Ocean and Sunset — no more light-theme popup.",
+    slides: [
+      {
+        glyph: "◈",
+        title: "Export sheet follows the theme",
+        body: "Tap any export and the Export Report sheet now uses the theme you chose in Settings → Appearance. Sunset shows warm cream with the coral accent, Ocean shows the coastal blues, and Dark shows dark surfaces with light text.",
+      },
+      {
+        glyph: "▤",
+        title: "Updates the moment you switch",
+        body: "The sheet reads the same theme tokens as the rest of the app, so when you change the theme in Settings the export sheet follows — even if it is already open.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {

@@ -901,12 +901,12 @@ export function exportDocument(
     "position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.5);display:flex;align-items:flex-end;justify-content:center";
   const box = document.createElement("div");
   box.style.cssText =
-    "background:#fff;width:100%;max-width:28rem;border-radius:16px 16px 0 0;padding:16px 16px 28px;font-family:system-ui,sans-serif";
+    "background:var(--surface);color:var(--n-800);width:100%;max-width:28rem;border-radius:16px 16px 0 0;padding:16px 16px 28px;font-family:system-ui,sans-serif";
   box.innerHTML =
-    '<div style="width:40px;height:4px;background:#cbd5e1;border-radius:99px;margin:0 auto 14px"></div>' +
-    '<p style="margin:0 0 12px;font-size:14px;font-weight:600;color:#1e3a8a;text-align:center">Export Report</p>';
+    '<div style="width:40px;height:4px;background:var(--n-300);border-radius:99px;margin:0 auto 14px"></div>' +
+    '<p style="margin:0 0 12px;font-size:14px;font-weight:600;color:var(--b-900);text-align:center">Export Report</p>';
   const status = document.createElement("p");
-  status.style.cssText = "margin:0 0 10px;font-size:12px;color:#64748b;text-align:center;min-height:16px";
+  status.style.cssText = "margin:0 0 10px;font-size:12px;color:var(--n-500);text-align:center;min-height:16px";
   const close = () => overlay.remove();
 
   // Format toggle — PDF, Word or Excel (Excel only when a grid was provided).
@@ -932,8 +932,8 @@ export function exportDocument(
   seg.style.cssText = "display:flex;gap:8px;margin:0 0 14px";
   const segStyle = (active: boolean) =>
     `flex:1;padding:10px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid ${
-      active ? "#1e3a8a" : "#e2e8f0"
-    };background:${active ? "#1e3a8a" : "#f8fafc"};color:${active ? "#fff" : "#334155"}`;
+      active ? "var(--b-900)" : "var(--n-200)"
+    };background:${active ? "var(--b-900)" : "var(--n-50)"};color:${active ? "#fff" : "var(--n-700)"}`;
   const makeSegButton = (label: string, f: Format, enabled: boolean) => {
     const b = document.createElement("button");
     b.textContent = label;
@@ -972,8 +972,8 @@ export function exportDocument(
   styleRow.style.cssText = "display:flex;gap:8px;margin:0 0 14px";
   const styleBtnStyle = (active: boolean) =>
     `flex:1;padding:10px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid ${
-      active ? "#1e3a8a" : "#e2e8f0"
-    };background:${active ? "#1e3a8a" : "#f8fafc"};color:${active ? "#fff" : "#334155"}`;
+      active ? "var(--b-900)" : "var(--n-200)"
+    };background:${active ? "var(--b-900)" : "var(--n-50)"};color:${active ? "#fff" : "var(--n-700)"}`;
   const colourBtn = document.createElement("button");
   colourBtn.textContent = "Colour";
   const plainBtn = document.createElement("button");
@@ -998,16 +998,16 @@ export function exportDocument(
   // Font size prompt — PDF written content only, 10–96.
   const row = document.createElement("div");
   row.style.cssText =
-    "display:flex;align-items:center;gap:10px;margin:0 0 14px;padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px";
+    "display:flex;align-items:center;gap:10px;margin:0 0 14px;padding:12px;background:var(--n-50);border:1px solid var(--n-200);border-radius:10px";
   row.innerHTML =
-    '<label style="flex:1;font-size:13px;font-weight:600;color:#334155">Text size<span style="display:block;font-weight:400;font-size:11px;color:#64748b;margin-top:2px">Written content only — 10 to 96</span></label>';
+    '<label style="flex:1;font-size:13px;font-weight:600;color:var(--n-700)">Text size<span style="display:block;font-weight:400;font-size:11px;color:var(--n-500);margin-top:2px">Written content only — 10 to 96</span></label>';
   const input = document.createElement("input");
   input.type = "number";
   input.min = String(CONTENT_FONT_MIN);
   input.max = String(CONTENT_FONT_MAX);
   input.value = String(contentFontSizeSetting(type));
   input.style.cssText =
-    "width:76px;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:15px;text-align:center;font-weight:600;color:#1e3a8a";
+    "width:76px;padding:8px;border:1px solid var(--n-300);border-radius:8px;font-size:15px;text-align:center;font-weight:600;color:var(--b-900)";
   row.appendChild(input);
   row.style.display = format === "pdf" ? "flex" : "none";
   box.appendChild(row);
@@ -1033,7 +1033,7 @@ export function exportDocument(
   }
   const fitNote = document.createElement("p");
   fitNote.style.cssText =
-    "margin:0 0 14px;font-size:12px;color:#64748b;text-align:center";
+    "margin:0 0 14px;font-size:12px;color:var(--n-500);text-align:center";
   fitNote.textContent = "Auto-shrinks the text and trims margins so the whole report fits on one page.";
   fitNote.style.display = "none";
   box.appendChild(fitNote);
@@ -1048,8 +1048,8 @@ export function exportDocument(
     pageSeg.style.cssText = "display:flex;gap:8px;margin:0 0 14px";
     const pageStyle = (active: boolean) =>
       `flex:1;padding:10px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid ${
-        active ? "#1e3a8a" : "#e2e8f0"
-      };background:${active ? "#1e3a8a" : "#f8fafc"};color:${active ? "#fff" : "#334155"}`;
+        active ? "var(--b-900)" : "var(--n-200)"
+      };background:${active ? "var(--b-900)" : "var(--n-50)"};color:${active ? "#fff" : "var(--n-700)"}`;
     const fitBtn = document.createElement("button");
     fitBtn.textContent = "Fit on one page";
     const twoBtn = twoBody ? document.createElement("button") : null;
@@ -1149,8 +1149,8 @@ export function exportDocument(
     const b = document.createElement("button");
     b.textContent = label;
     b.style.cssText = `display:block;width:100%;margin-bottom:8px;padding:12px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;border:1px solid ${
-      primary ? "#1e40af" : "#cbd5e1"
-    };background:${primary ? "#1e40af" : "#fff"};color:${primary ? "#fff" : "#334155"}`;
+      primary ? "var(--b-800)" : "var(--n-300)"
+    };background:${primary ? "var(--b-800)" : "var(--surface)"};color:${primary ? "#fff" : "var(--n-700)"}`;
     b.onclick = async () => {
       status.textContent = "Working…";
       try {
@@ -1199,7 +1199,7 @@ export function exportDocument(
   const c = document.createElement("button");
   c.textContent = "Cancel";
   c.style.cssText =
-    "display:block;width:100%;padding:10px;border:none;background:none;color:#94a3b8;font-size:14px;cursor:pointer";
+    "display:block;width:100%;padding:10px;border:none;background:none;color:var(--n-400);font-size:14px;cursor:pointer";
   c.onclick = close;
   box.appendChild(c);
   overlay.appendChild(box);
