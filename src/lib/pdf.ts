@@ -453,11 +453,18 @@ export function buildPdf(
   title: string,
   bodyHtml: string,
   contentSize: number,
-  opts: { margin?: number; footer?: boolean; style?: ExportStyle; cellPad?: number } = {}
+  opts: { margin?: number; footer?: boolean; style?: ExportStyle; cellPad?: number; fixedHeader?: boolean } = {}
 ): jsPDF {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   registerPdfFonts(doc);
   const fs = contentSize / 9;
+  // The TA journal's header/footer block — the SOUTH COAST RAILWAY title, the
+  // TRAVELLING ALLOWANCE JOURNAL heading, the profile rows and the signature
+  // lines — stays at its default size (the size it renders at content size 10).
+  // Raising the content-size setting never shrinks or wraps them, and only the
+  // table grows; the fixed block also sidesteps the cramped 5pt "Pay" column
+  // that the proportional column layout produced at every size.
+  const headFs = opts.fixedHeader ? DEFAULT_CONTENT_FONT_SIZE / 9 : fs;
   const baseMargin = opts.margin ?? 40;
   const withFooter = opts.footer ?? true;
   // "plain" drops every fill and colour so the report renders as the reference
@@ -517,7 +524,7 @@ export function buildPdf(
     }
 
     if (tag === "h1") {
-      pageBreak(38 * fs);
+      pageBreak(38 * headFs);
       doc.setFont("helvetica", "bold").setTextColor(...INK);
       // The title stays on a single line — when it would wrap (e.g. a long
       // "DIARY OF SRI … FOR THE MONTH OF …"), shrink the heading font until it
@@ -529,11 +536,11 @@ export function buildPdf(
       let headingW = maxW;
       let noteW = 0;
       if (rightNote) {
-        doc.setFont("helvetica", "normal").setFontSize(8 * fs);
+        doc.setFont("helvetica", "normal").setFontSize(8 * headFs);
         noteW = doc.getTextWidth(rightNote) + 16;
         headingW = maxW - noteW;
       }
-      let headingSize = 15 * fs;
+      let headingSize = 15 * headFs;
       let tw = 0;
       if (text) {
         // Measure at the real base size — otherwise getTextWidth reports the
@@ -560,17 +567,17 @@ export function buildPdf(
       // A right-hand note on the title's baseline (the TA Journal's "In lieu of
       // G.A.31"), drawn small and light so it never competes with the heading.
       if (rightNote) {
-        doc.setFont("helvetica", "normal").setFontSize(8 * fs).setTextColor(plain ? 15 : 30, 23, 59);
+        doc.setFont("helvetica", "normal").setFontSize(8 * headFs).setTextColor(plain ? 15 : 30, 23, 59);
         doc.text(rightNote, pageW - margin, y, { align: "right" });
         doc.setFont("helvetica", "bold").setFontSize(headingSize).setTextColor(...INK);
       }
       const tight = el.className.includes("tight");
-      y += lines.length * (tight ? 14 * fs : 18 * fs) + (tight ? 2 : 4);
+      y += lines.length * (tight ? 14 * headFs : 18 * headFs) + (tight ? 2 : 4);
       doc.setDrawColor(...INK).setLineWidth(plain ? 0.75 : 1.5).line(margin, y, pageW - margin, y);
       y += 14;
     } else if (tag === "h2") {
-      pageBreak(30 * fs);
-      doc.setFont("helvetica", "bold").setFontSize(11 * fs).setTextColor(...INK);
+      pageBreak(30 * headFs);
+      doc.setFont("helvetica", "bold").setFontSize(11 * headFs).setTextColor(...INK);
       const lines = doc.splitTextToSize(text, maxW) as string[];
       const centered = el.className.includes("centered");
       doc.text(lines, centered ? pageW / 2 : margin, y, centered ? { align: "center" } : undefined);
@@ -578,7 +585,7 @@ export function buildPdf(
       // gap (~4pt) between the glyphs and the table border; otherwise keep
       // normal line spacing for whatever follows (e.g. another heading, which
       // needs room for its ascenders).
-      const size = 11 * fs;
+      const size = 11 * headFs;
       y += nextIsTable
         ? (lines.length - 1) * (1.15 * size) + 0.21 * size + 4
         : lines.length * (1.15 * size);
@@ -599,35 +606,46 @@ export function buildPdf(
       // block and the days summary, where the reference sheet aligns columns.
       const colsAttr = el.getAttribute("data-cols");
       if (cls.includes("cols") && colsAttr) {
-      pageBreak(22 * fs);
+      pageBreak(22 * headFs);
       const offsets = colsAttr.split(",").map((s) => Number(s.trim()) || 0);
       const spans = Array.from(el.querySelectorAll("span")).map((s) => tidy(s.textContent ?? ""));
-      doc.setFont("helvetica", "normal").setFontSize(9 * fs).setTextColor(15, 23, 42);
-      // Column offsets scale with the text size (the reference layout is
-      // defined at the base size) but stop growing once the last column would
-      // reach the page edge.
+      const baseSize = 9 * headFs;
+      doc.setFont("helvetica", "normal").setFontSize(baseSize).setTextColor(15, 23, 42);
+      // Every value renders at the full base size on one line — never shrunk
+      // and never wrapped. Columns start at their reference offsets scaled by
+      // the base size; when a column would run over its neighbour it is pushed
+      // right, and if the last column would pass the page edge the spacing
+      // shrinks so it still ends at the right margin. Only the column
+      // positions move — the text keeps its natural size.
+      const gap = 8;
+      const right = pageW - margin;
+      const widths = spans.map((t) => (t ? doc.getTextWidth(t) : 0));
       const lastOffset = offsets[offsets.length - 1] ?? 0;
-      const k = lastOffset > 0 ? Math.min(fs, maxW / lastOffset) : fs;
-      const cols = offsets.map((o) => margin + o * k);
-      let colLines = 1;
-      const baseSize = 9 * fs;
+      const kMax = lastOffset > 0 ? Math.min(headFs, maxW / lastOffset) : headFs;
+      const place = (k: number) => {
+        const xs: number[] = [];
+        for (let i = 0; i < offsets.length; i++) {
+          const natural = margin + offsets[i] * k;
+          xs.push(i === 0 ? natural : Math.max(natural, xs[i - 1] + widths[i - 1] + gap));
+        }
+        return xs;
+      };
+      const fits = (xs: number[]) => xs.length === 0 || xs[xs.length - 1] + (widths[widths.length - 1] ?? 0) <= right;
+      // Largest k in [0, kMax] that still fits the widest (last) column on the
+      // page; column positions are monotonic in k, so binary search applies.
+      let lo = 0;
+      let hi = kMax;
+      for (let it = 0; it < 40; it++) {
+        const mid = (lo + hi) / 2;
+        if (fits(place(mid))) lo = mid;
+        else hi = mid;
+      }
+      const cols = place(lo);
       spans.forEach((t, i) => {
         if (!t) return;
-        const x = cols[i] ?? cols[cols.length - 1];
-        // Each value stays on one line inside its own column slot; when it is
-        // too wide for the slot (e.g. the TA header's designation), shrink that
-        // span's font to fit so it never runs over its neighbour.
-        const next = cols[i + 1] ?? pageW - margin;
-        const slot = Math.max(30, next - x - 2);
-        const tw = doc.getTextWidth(t);
-        const size = tw > slot ? Math.max(5, baseSize * (slot / tw) * 0.98) : baseSize;
-        doc.setFontSize(size);
-        const lines = doc.splitTextToSize(t, slot) as string[];
-        doc.text(lines, x, y);
-        doc.setFontSize(baseSize);
-        if (lines.length > colLines) colLines = lines.length;
+        doc.text(t, cols[i] ?? margin, y);
       });
-      y += colLines * (13 * fs) + 4;
+      y += 13 * headFs + 4;
       continue;
       }
       const left = Number(el.getAttribute("data-left")) || 0;
@@ -636,7 +654,7 @@ export function buildPdf(
       const rightPad = right ? Number(el.getAttribute("data-right-pad")) || 0 : 0;
       const bold = el.querySelector("strong") ? "bold" : "normal";
       y += Number(el.getAttribute("data-space-top")) || 0;
-      doc.setFont("helvetica", meta ? "italic" : bold).setFontSize(9 * fs);
+      doc.setFont("helvetica", meta ? "italic" : bold).setFontSize(9 * headFs);
       if (meta) doc.setTextColor(plain ? 15 : GREY[0], 23, 42);
       else doc.setTextColor(15, 23, 42);
       const lines = doc.splitTextToSize(text, right ? maxW - rightPad : maxW - left) as string[];
@@ -650,7 +668,7 @@ export function buildPdf(
         const lineIdx = lines.findIndex((l) => l.includes(uText));
         if (lineIdx >= 0) {
           const line = lines[lineIdx];
-          const baseline = y + lineIdx * (1.15 * 9 * fs);
+          const baseline = y + lineIdx * (1.15 * 9 * headFs);
           const w = doc.getTextWidth(uText);
           const x = right
             ? pageW - margin - rightPad - doc.getTextWidth(line.slice(line.indexOf(uText)))
@@ -658,7 +676,7 @@ export function buildPdf(
           doc.setDrawColor(...INK).setLineWidth(0.7).line(x, baseline + 1.4, x + w, baseline + 1.4);
         }
       }
-      y += lines.length * (12 * fs) + 8;
+      y += lines.length * (12 * headFs) + 8;
     } else if (tag === "ul") {
       for (const li of Array.from(el.children)) {
         const parts = liText(li as HTMLElement).split("\n").filter((p) => p.trim());
@@ -881,14 +899,21 @@ export function buildPdf(
  * margins and no footer, shrinking the content size until it lands on a single
  * page (or hits the fit floor, below which the text would be unreadable).
  */
-export function buildFitOnePagePdf(title: string, bodyHtml: string, startSize: number, style: ExportStyle = "colour", cellPad?: number): jsPDF {
+export function buildFitOnePagePdf(
+  title: string,
+  bodyHtml: string,
+  startSize: number,
+  style: ExportStyle = "colour",
+  cellPad?: number,
+  fixedHeader = false
+): jsPDF {
   const FIT_MARGIN = 24;
   const FIT_FONT_MIN = 6;
   let size = startSize;
-  let doc = buildPdf(title, bodyHtml, size, { margin: FIT_MARGIN, footer: false, style, ...(cellPad != null ? { cellPad } : {}) });
+  let doc = buildPdf(title, bodyHtml, size, { margin: FIT_MARGIN, footer: false, style, fixedHeader, ...(cellPad != null ? { cellPad } : {}) });
   while (doc.getNumberOfPages() > 1 && size > FIT_FONT_MIN) {
     size -= 1;
-    doc = buildPdf(title, bodyHtml, size, { margin: FIT_MARGIN, footer: false, style, ...(cellPad != null ? { cellPad } : {}) });
+    doc = buildPdf(title, bodyHtml, size, { margin: FIT_MARGIN, footer: false, style, fixedHeader, ...(cellPad != null ? { cellPad } : {}) });
   }
   return doc;
 }
@@ -1186,10 +1211,14 @@ export function exportDocument(
           const size = chosenSize();
           const cellPad = opts?.cellPad;
           const src = pageMode === "two" && twoBody ? twoBody : bodyHtml;
+          // The TA journal keeps its header/footer (title, heading, profile
+          // rows, signature lines) at the default size — only the table grows
+          // with the chosen content size.
+          const fixedHeader = type === "ta";
           const doc =
             pageMode === "fit"
-              ? buildFitOnePagePdf(title, bodyHtml, size, style, cellPad)
-              : buildPdf(title, src, size, { style, ...(cellPad != null ? { cellPad } : {}) });
+              ? buildFitOnePagePdf(title, bodyHtml, size, style, cellPad, fixedHeader)
+              : buildPdf(title, src, size, { style, fixedHeader, ...(cellPad != null ? { cellPad } : {}) });
           if (pageMode !== "fit") persistContentFontSize(type, size);
           artifact = {
             filename: `${slug(title)}.pdf`,

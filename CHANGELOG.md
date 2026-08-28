@@ -3,7 +3,23 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
-## 1.7.7.4 — 2026-08-28
+## 1.7.7.5 — 2026-08-28
+
+**Minor: TA Journal PDF keeps its header and footer at the default size — only the table scales with the text size**
+
+- Raising the content-size setting in the TA Journal export scaled everything
+  proportionally, so the header block (the SOUTH COAST RAILWAY title, the
+  TRAVELLING ALLOWANCE JOURNAL heading, the profile rows) grew too — and at
+  large sizes the profile columns were crushed down to ~5pt with the 4th
+  column ("Pay Metric" / "Pay") shrunk into a cramped wrapped block even at
+  the default size.
+- **Fix:** the header/footer block (title, heading, profile rows, signature
+  and certification lines) now always renders at the default size — it never
+  shrinks, wraps or grows — while only the table scales with the chosen text
+  size. The profile values render at full size on one line, and the columns
+  shift to the right only when needed to fit on the page. Sizes 10–18 fit
+  cleanly with no overlap or overflow.
+
 
 **Minor: stray horizontal lines removed from the TA Journal KMS column**
 
