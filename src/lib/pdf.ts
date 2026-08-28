@@ -499,6 +499,10 @@ export function buildPdf(
   const margin = effectiveMargin(root, bodyFit, headFit, pageW, baseMargin);
   const maxW = pageW - margin * 2;
   let y = margin;
+  // Column segments (x start + drawn width) of the last "cols" paragraph, so a
+  // following signature-labels paragraph can centre each label over the line
+  // drawn just above it.
+  let lastColsSegs: { x: number; w: number }[] | null = null;
 
   const pageBreak = (needed: number) => {
     if (y + needed > doc.internal.pageSize.getHeight() - margin) {
@@ -606,47 +610,91 @@ export function buildPdf(
       // block and the days summary, where the reference sheet aligns columns.
       const colsAttr = el.getAttribute("data-cols");
       if (cls.includes("cols") && colsAttr) {
-      pageBreak(22 * headFs);
-      const offsets = colsAttr.split(",").map((s) => Number(s.trim()) || 0);
-      const spans = Array.from(el.querySelectorAll("span")).map((s) => tidy(s.textContent ?? ""));
-      const baseSize = 9 * headFs;
-      doc.setFont("helvetica", "normal").setFontSize(baseSize).setTextColor(15, 23, 42);
-      // Every value renders at the full base size on one line — never shrunk
-      // and never wrapped. Columns start at their reference offsets scaled by
-      // the base size; when a column would run over its neighbour it is pushed
-      // right, and if the last column would pass the page edge the spacing
-      // shrinks so it still ends at the right margin. Only the column
-      // positions move — the text keeps its natural size.
-      const gap = 8;
-      const right = pageW - margin;
-      const widths = spans.map((t) => (t ? doc.getTextWidth(t) : 0));
-      const lastOffset = offsets[offsets.length - 1] ?? 0;
-      const kMax = lastOffset > 0 ? Math.min(headFs, maxW / lastOffset) : headFs;
-      const place = (k: number) => {
-        const xs: number[] = [];
-        for (let i = 0; i < offsets.length; i++) {
-          const natural = margin + offsets[i] * k;
-          xs.push(i === 0 ? natural : Math.max(natural, xs[i - 1] + widths[i - 1] + gap));
+        const baseSize = 9 * headFs;
+        const offsets = colsAttr.split(",").map((s) => Number(s.trim()) || 0);
+        const gap = 8;
+        const right = pageW - margin;
+        doc.setFont("helvetica", "normal").setFontSize(baseSize).setTextColor(15, 23, 42);
+
+        // A "cols sigs" paragraph (the TA Journal's signature block) centres
+        // each label over the underline drawn by the preceding cols paragraph.
+        const sigs = cls.split(/\s+/).includes("sigs");
+        if (sigs) {
+          pageBreak(22 * headFs);
+          const spans = Array.from(el.querySelectorAll("span")).map((s) => tidy(s.textContent ?? ""));
+          spans.forEach((t, i) => {
+            if (!t) return;
+            const w = doc.getTextWidth(t);
+            const seg = lastColsSegs ? lastColsSegs[i] : undefined;
+            const x = seg
+              ? seg.x + Math.max(0, (seg.w - w) / 2)
+              : Math.min(margin + (offsets[i] ?? 0), right - w);
+            doc.text(t, Math.max(margin, x), y);
+          });
+          y += 13 * headFs + 4;
+          continue;
         }
-        return xs;
-      };
-      const fits = (xs: number[]) => xs.length === 0 || xs[xs.length - 1] + (widths[widths.length - 1] ?? 0) <= right;
-      // Largest k in [0, kMax] that still fits the widest (last) column on the
-      // page; column positions are monotonic in k, so binary search applies.
-      let lo = 0;
-      let hi = kMax;
-      for (let it = 0; it < 40; it++) {
-        const mid = (lo + hi) / 2;
-        if (fits(place(mid))) lo = mid;
-        else hi = mid;
-      }
-      const cols = place(lo);
-      spans.forEach((t, i) => {
-        if (!t) return;
-        doc.text(t, cols[i] ?? margin, y);
-      });
-      y += 13 * headFs + 4;
-      continue;
+
+        // Consecutive cols paragraphs that share data-cols are laid out as one
+        // block: the column positions come from the widest value in each column
+        // across the whole block, so vertically matching fields (the two TA
+        // Journal profile lines) start at the same x on every line.
+        const group: Element[] = [el];
+        while (i + 1 < els.length) {
+          const nxt = els[i + 1];
+          const nxtCls = nxt.className || "";
+          if (
+            nxt.tagName.toLowerCase() === "p" &&
+            nxt.getAttribute("data-cols") === colsAttr &&
+            nxtCls.includes("cols") &&
+            !nxtCls.split(/\s+/).includes("sigs")
+          ) {
+            group.push(nxt);
+            i++;
+          } else break;
+        }
+        const rows = group.map((g) => Array.from(g.querySelectorAll("span")).map((s) => tidy(s.textContent ?? "")));
+        const nCols = rows.reduce((m, r) => Math.max(m, r.length), 0);
+        const colW = Array.from({ length: nCols }, (_, c) =>
+          rows.reduce((m, r) => Math.max(m, r[c] ? doc.getTextWidth(r[c]) : 0), 0)
+        );
+        // Every value renders at the full base size on one line — never shrunk
+        // and never wrapped. Columns start at their reference offsets scaled by
+        // the base size; when a column would run over its neighbour it is pushed
+        // right, and if the last column would pass the page edge the spacing
+        // shrinks so it still ends at the right margin. Only the column
+        // positions move — the text keeps its natural size.
+        const lastOffset = offsets[offsets.length - 1] ?? 0;
+        const kMax = lastOffset > 0 ? Math.min(headFs, maxW / lastOffset) : headFs;
+        const place = (k: number) => {
+          const xs: number[] = [];
+          for (let i = 0; i < offsets.length; i++) {
+            const natural = margin + offsets[i] * k;
+            xs.push(i === 0 ? natural : Math.max(natural, xs[i - 1] + colW[i - 1] + gap));
+          }
+          return xs;
+        };
+        const fits = (xs: number[]) => xs.length === 0 || xs[xs.length - 1] + (colW[colW.length - 1] ?? 0) <= right;
+        // Largest k in [0, kMax] that still fits the widest (last) column on the
+        // page; column positions are monotonic in k, so binary search applies.
+        let lo = 0;
+        let hi = kMax;
+        for (let it = 0; it < 40; it++) {
+          const mid = (lo + hi) / 2;
+          if (fits(place(mid))) lo = mid;
+          else hi = mid;
+        }
+        const cols = place(lo);
+        lastColsSegs = cols.map((x, i) => ({ x, w: colW[i] ?? 0 }));
+        rows.forEach((row) => {
+          pageBreak(22 * headFs);
+          row.forEach((t, i) => {
+            if (!t) return;
+            doc.text(t, cols[i] ?? margin, y);
+          });
+          y += 13 * headFs + 4;
+        });
+        continue;
       }
       const left = Number(el.getAttribute("data-left")) || 0;
       const meta = cls.includes("meta") || cls.includes("empty");

@@ -3,6 +3,24 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.6 — 2026-08-28
+
+**Minor: TA Journal PDF profile details align vertically and signature labels sit centred above their lines**
+
+- The two profile lines below the TRAVELLING ALLOWANCE JOURNAL heading
+  (`Name: …` / `Designation: …` / `P.F.NO: …` / `Pay Metric: …` and
+  `Headquarters: …` / `Month: …` / `B.U.No: …` / `Pay: …`) each computed their
+  own column positions from their own content, so matching fields started at
+  different x positions between the two lines.
+- **Fix:** consecutive `cols` paragraphs that share the same `data-cols` are now
+  laid out as one block — the column positions come from the widest value in
+  each column across the whole block, so `Name` and `Headquarters` start at the
+  same point, and likewise `Designation`/`Month`, `P.F.NO`/`B.U.No` and
+  `Pay Metric`/`Pay`.
+- The three signature labels (CONTROLLING OFFICER, HEAD OF OFFICE, SIGNATURE OF
+  OFFICER/ CLAIMING TA) are now centred horizontally above their underline
+  instead of left-aligned at a fixed offset.
+
 ## 1.7.7.5 — 2026-08-28
 
 **Minor: TA Journal PDF keeps its header and footer at the default size — only the table scales with the text size**

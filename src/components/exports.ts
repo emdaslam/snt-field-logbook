@@ -1111,7 +1111,7 @@ export function exportTaJournal(
 
     body += `<p class="meta nocaps">I here certify that the above mentioned <u>employee</u> was absent on duty from his headquarters station during the period charged for in the bill on Railway Business.</p>`;
     body += `<p class="cols" data-cols="0,190,390"><span>${"".padEnd(20, "_")}</span><span>${"".padEnd(19, "_")}</span><span>${"".padEnd(22, "_")}</span></p>`;
-    body += `<p class="cols" data-cols="0,195,365"><span>CONTROLLING OFFICER</span><span>HEAD OF OFFICE</span><span>SIGNATURE OF OFFICER/ CLAIMING TA</span></p>`;
+    body += `<p class="cols sigs" data-cols="0,190,390"><span>CONTROLLING OFFICER</span><span>HEAD OF OFFICE</span><span>SIGNATURE OF OFFICER/ CLAIMING TA</span></p>`;
   }
 
   const summaryRows: XlsxSheet["rows"] = [
