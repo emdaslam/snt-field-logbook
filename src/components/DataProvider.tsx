@@ -144,7 +144,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (typeof window === "undefined") return "light";
     try {
       const saved = localStorage.getItem("snt.theme");
-      return saved === "dark" || saved === "ocean" ? saved : "light";
+      return saved === "dark" || saved === "ocean" || saved === "sunset" ? saved : "light";
     } catch {
       return "light";
     }

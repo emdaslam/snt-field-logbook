@@ -8,8 +8,8 @@
  * attribute on <html> can swap the whole palette at runtime. `@theme inline`
  * makes the utilities reference `var(--…)` directly, which is what allows the
  * switch without rebuilding. The default values below are Tailwind's own
- * palette, so the light theme looks exactly like before; `data-theme="dark"`
- * and `data-theme="ocean"` override the tokens.
+ * palette, so the light theme looks exactly like before; `data-theme="dark"`,
+ * `data-theme="ocean"` and `data-theme="sunset"` override the tokens.
  */
 @theme inline {
   --color-surface: var(--surface);
@@ -366,6 +366,36 @@ html[data-theme="ocean"] {
   --b-700: #0f5a8c;
   --b-800: #114c75;
   --b-900: #12405f;
+}
+
+/*
+ * Sunset theme — a bright, warm look. Sunlit cream surfaces, warm sand
+ * neutrals and a vivid coral brand replace the slate/blue; the status
+ * families keep their light defaults so the chips stay familiar on the
+ * warm background.
+ */
+html[data-theme="sunset"] {
+  --surface: #fff6ec;
+  --n-50: #fdf8f2;
+  --n-100: #f7eee3;
+  --n-200: #eddcc9;
+  --n-300: #dcc3a8;
+  --n-400: #c4a382;
+  --n-500: #ab8560;
+  --n-600: #8e6a47;
+  --n-700: #725238;
+  --n-800: #4f3726;
+  --n-900: #37261a;
+  --b-50: #fff1ec;
+  --b-100: #ffe0d5;
+  --b-200: #ffc2ad;
+  --b-300: #ff9a7b;
+  --b-400: #ff6f45;
+  --b-500: #f34a1d;
+  --b-600: #d93a10;
+  --b-700: #b22e0e;
+  --b-800: #8d2610;
+  --b-900: #732210;
 }
 
 /*

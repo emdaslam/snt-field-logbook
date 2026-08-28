@@ -131,12 +131,13 @@ export function isSpecialMovement(l: { movementKind?: string | null }): boolean 
 }
 
 /** Color theme of the app. "light" is the default look. */
-export type AppTheme = "light" | "dark" | "ocean";
-export const THEMES: AppTheme[] = ["light", "dark", "ocean"];
+export type AppTheme = "light" | "dark" | "ocean" | "sunset";
+export const THEMES: AppTheme[] = ["light", "dark", "ocean", "sunset"];
 export const THEME_LABEL: Record<AppTheme, string> = {
   light: "Light",
   dark: "Dark",
   ocean: "Ocean",
+  sunset: "Sunset",
 };
 
 /** App-wide font size preference, applied to the UI and the exported PDFs. */
@@ -201,5 +202,5 @@ export function variableKmText(km: number | string | null | undefined): string |
 }
 
 /** App version shown in Settings → About. Bump alongside android/app/build.gradle. */
-export const APP_VERSION_BASE = "1.7.7.1";
+export const APP_VERSION_BASE = "1.7.7.2";
 export const APP_VERSION = `${APP_VERSION_BASE}${AUTO_TIMINGS ? "p" : ""}`;

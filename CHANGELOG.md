@@ -3,6 +3,15 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.2 — 2026-08-27
+
+**Minor: a new Sunset theme joins the appearance options**
+
+- **Sunset — a bright, warm look.** Choose Sunset in Settings → Appearance and
+  the app switches to sunlit cream surfaces with warm sand neutrals and a vivid
+  coral accent on buttons, links and selected chips. Light remains the default,
+  and Dark, Ocean and Sunset now all sit together in Appearance.
+
 ## 1.7.7.1 — 2026-08-27
 
 **Minor: report headers wrap between words instead of breaking mid-word**
