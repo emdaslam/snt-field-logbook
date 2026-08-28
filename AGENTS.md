@@ -27,7 +27,9 @@ remote commits), integrate them into the working copy first:
    take those as-is. Rebuild only when making NEW changes that bump the version,
    never just to "refresh" already-committed artifacts — a rebuild produces a
    binary-only diff with no functional value.
-   When a NEW change does need a build, `npm run apk:build` builds both variants
+   When a NEW change does need a build, follow §2.5: commit and push the code
+   first, then ask for build approval — never auto-build while integrating.
+   `npm run apk:build` builds both variants
    (web bundles → `cap sync android` → `gradlew assembleDebug` → stages
    `.apk-download/SnTFieldlogbook-v<version>.apk` and `...v<version>p.apk`);
    `npm run apk:build normal` or `npm run apk:build p` builds one side only.
@@ -51,13 +53,22 @@ For **every** code change, the following release steps are mandatory:
    `src/lib/tutorials.ts` for the new version. The catalog is version-ordered
    (ascending); `getPendingTutorials()` shows it to any user upgrading from an
    older version. Minor changes never get tutorial entries.
-3. **Release the APKs.** Every change ships both APK variants
-   (`npm run apk:build` → `.apk-download/SnTFieldlogbook-v<version>.apk` and
-   `...v<version>p.apk`) and stages them in `.apk-download/`. Never skip the
-   build or the staging step. Verify the signing with `apksigner` (SHA-1
-   `7B:C9:5F:C1:7F:0F:E4:93:52:1B:48:09:54:46:13:48:4E:73:B7:81`) only on the
-   **first** build of an agent session; once the keystore is known good, skip
-   the apksigner re-check on every later build.
+3. **Commit and push the code first.** After the code change is complete
+   (with its CHANGELOG / tutorial entries), commit and push it to `master`
+   before any build. Code is never left uncommitted while an APK is built.
+4. **Build the APK only after approval.** **Ask** (with `question`) whether to
+   build the APK; do **not** run the build until the user approves. When
+   approved, `npm run apk:build` builds both variants
+   (`.apk-download/SnTFieldlogbook-v<version>.apk` and `...v<version>p.apk`)
+   and stages them in `.apk-download/`. Never skip the build or the staging
+   step for an approved build.
+5. **Commit and push the APKs.** After the build, commit the staged APKs
+   (together with any `.apk-download/index.html` update) and push them to
+   `origin` — a separate commit after the code commit.
+6. **Signing verification is not required** in general. Only a brand-new agent
+   verifies the signing with `apksigner` (SHA-1
+   `7B:C9:5F:C1:7F:0F:E4:93:52:1B:48:09:54:46:13:48:4E:73:B7:81`) on its
+   **first** build of a session; all later builds skip the check.
 
 ## 3. Changes must always be committed and pushed
 
