@@ -1,0 +1,330 @@
+{
+  "exportedAt": "2026-08-28T01:12:24.548Z",
+  "version": 5,
+  "offline": true,
+  "settings": {
+    "snt.theme": "ocean"
+  },
+  "stations": [
+    {
+      "name": "NOSSAM",
+      "code": "NOSM",
+      "id": 1,
+      "createdAt": "2026-07-31T10:48:27.091Z",
+      "distanceFromHq": "above8",
+      "travelMin": 60,
+      "travelMax": 80
+    },
+    {
+      "name": "PRODDATUR",
+      "code": "PRDT",
+      "id": 2,
+      "createdAt": "2026-07-31T10:48:35.847Z",
+      "distanceFromHq": "above8",
+      "travelMin": 55,
+      "travelMax": 75
+    },
+    {
+      "name": "YERRAGUNTLA",
+      "code": "YA",
+      "id": 3,
+      "createdAt": "2026-07-31T10:48:42.308Z",
+      "distanceFromHq": "above8",
+      "travelMin": 75,
+      "travelMax": 95
+    },
+    {
+      "name": "S.UPPALAPADU",
+      "code": "SUPP",
+      "id": 4,
+      "createdAt": "2026-07-31T10:48:57.896Z",
+      "distanceFromHq": "variable",
+      "travelMin": 40,
+      "travelMax": 50,
+      "variableKm": "82/1-2"
+    },
+    {
+      "name": "JAMMALAMADUGU",
+      "code": "JMDG",
+      "id": 5,
+      "createdAt": "2026-07-31T10:49:09.672Z"
+    },
+    {
+      "name": "SANJAMALA",
+      "code": "SJMA",
+      "id": 6,
+      "createdAt": "2026-07-31T10:49:20.600Z",
+      "distanceFromHq": "above8",
+      "travelMin": 80,
+      "travelMax": 100
+    },
+    {
+      "name": "KOILAKUNTLA",
+      "code": "KLKA",
+      "id": 7,
+      "createdAt": "2026-07-31T10:49:29.777Z",
+      "distanceFromHq": "above8",
+      "travelMin": 90,
+      "travelMax": 110
+    },
+    {
+      "name": "BANAGANAPALLI",
+      "code": "BGNP",
+      "distanceFromHq": "above8",
+      "travelMin": 100,
+      "travelMax": 120,
+      "id": 8,
+      "createdAt": "2026-08-17T12:47:26.611Z"
+    },
+    {
+      "name": "MADDURU",
+      "code": "MADI ",
+      "distanceFromHq": "above8",
+      "travelMin": 120,
+      "travelMax": 140,
+      "id": 9,
+      "createdAt": "2026-08-19T15:56:25.140Z"
+    }
+  ],
+  "staff": [
+    {
+      "name": "E.MD.ASLAM",
+      "designation": "JE/SIG/JMDG",
+      "phone": "9701374884",
+      "email": "",
+      "department": "Signalling",
+      "stationIds": [
+        1,
+        2,
+        4,
+        6,
+        5,
+        3
+      ],
+      "headquartersStationId": 5,
+      "isCurrentUser": true,
+      "id": 1,
+      "createdAt": "2026-07-31T10:49:55.705Z",
+      "pfNo": "24529804450",
+      "buNo": "3705705",
+      "taRate": "1000",
+      "payMetric": "L-VI",
+      "pay": "42,300"
+    },
+    {
+      "name": "Shanthakumar",
+      "designation": "ESM/II/NOSM",
+      "phone": "",
+      "email": "",
+      "department": "Signalling",
+      "stationIds": [
+        1,
+        4
+      ],
+      "headquartersStationId": 1,
+      "isCurrentUser": false,
+      "id": 2,
+      "createdAt": "2026-08-01T07:50:49.382Z"
+    },
+    {
+      "name": "Gangaiah ",
+      "designation": "ESM/I/NOSM",
+      "phone": "",
+      "email": "",
+      "department": "Signalling",
+      "stationIds": [
+        1,
+        4
+      ],
+      "headquartersStationId": 1,
+      "isCurrentUser": false,
+      "id": 3,
+      "createdAt": "2026-08-02T00:20:02.488Z"
+    },
+    {
+      "name": "Chandra",
+      "designation": "ESM/I/PRDT",
+      "phone": "",
+      "email": "",
+      "department": "Signalling",
+      "stationIds": [
+        2,
+        5
+      ],
+      "headquartersStationId": 2,
+      "isCurrentUser": false,
+      "id": 4,
+      "createdAt": "2026-08-02T00:20:25.678Z"
+    },
+    {
+      "name": "Karimulla ",
+      "designation": "Sr.TECH/KLKA",
+      "phone": "",
+      "email": "",
+      "department": "Signalling",
+      "stationIds": [
+        7,
+        6
+      ],
+      "headquartersStationId": 7,
+      "isCurrentUser": false,
+      "id": 5,
+      "createdAt": "2026-08-02T00:24:06.308Z"
+    }
+  ],
+  "tags": [
+    {
+      "name": "monthly inspection",
+      "color": "#2563eb",
+      "id": 1,
+      "createdAt": "2026-07-31T10:48:13.325Z",
+      "remindEnabled": true,
+      "remindIntervalDays": 30,
+      "remindBeforeDays": 4
+    },
+    {
+      "name": "joint inspection",
+      "color": "#059669",
+      "id": 3,
+      "createdAt": "2026-07-31T10:48:13.327Z"
+    },
+    {
+      "name": "failures",
+      "color": "#dc2626",
+      "id": 6,
+      "createdAt": "2026-07-31T10:48:13.327Z"
+    },
+    {
+      "name": "Machine blocks",
+      "color": "#000000",
+      "remindEnabled": false,
+      "remindIntervalDays": null,
+      "remindBeforeDays": null,
+      "id": 9,
+      "createdAt": "2026-08-03T06:10:30.680Z"
+    },
+    {
+      "name": "Special works",
+      "color": "#d6b600",
+      "needsSide": false,
+      "remindEnabled": false,
+      "remindIntervalDays": null,
+      "remindBeforeDays": null,
+      "id": 10,
+      "createdAt": "2026-08-05T02:27:30.858Z"
+    },
+    {
+      "name": "Annual inspection",
+      "color": "#ff00ff",
+      "needsSide": false,
+      "remindEnabled": true,
+      "remindIntervalDays": 365,
+      "remindBeforeDays": 335,
+      "id": 11,
+      "createdAt": "2026-08-12T00:16:02.383Z"
+    },
+    {
+      "name": "quarterly inspection",
+      "color": "#0e7490",
+      "id": 12,
+      "createdAt": "2026-08-20T13:42:12.999Z"
+    },
+    {
+      "name": "maintenance",
+      "color": "#0d9488",
+      "id": 13,
+      "createdAt": "2026-08-28T01:11:20.712Z"
+    },
+    {
+      "name": "point oiling",
+      "color": "#ea580c",
+      "id": 14,
+      "createdAt": "2026-08-28T01:11:20.714Z"
+    },
+    {
+      "name": "battery distilled water",
+      "color": "#0d9488",
+      "id": 15,
+      "createdAt": "2026-08-28T01:11:20.714Z"
+    }
+  ],
+  "dailyLogs": [
+    {
+      "logDate": "2026-04-13",
+      "stationMovement": "SANJAMALA ",
+      "movementKind": null,
+      "leaveKind": null,
+      "crFrom": null,
+      "crTo": null,
+      "workDone": "(S/L Section) Dn Home Signal S30 and Calling-on Signal S30A were not obeyed for Dn 77212 Passenger. As per data logger report, S30 RLR and S30A RLR relays were not picked up.\nUpon checking by JE/S/JMDG and staff, it was observed that S30 RLR and S30A RLR relays were not pickedup as in their circuit, the drop contacts of S3–30A UYR1, UYR2, UYR3, and UYR4 relays were required. However, these relays remained in the picked-up state even after completion of the previous Up train movement.\nFurther detailed checking revealed that in relay room, S3/4/5/8 ASPR4 relay was in the dropped condition as in its circuit, the S3/4/5/8 ASR relay C7–C8 front contact was offering high resistance (1.08 MΩ). Due to this, even though S3/4/5/8 ASR relay was picked up, S3–30A UYR1, UYR2, UYR3, and UYR4 relays did not drop, as a stick path was continuously offered through the drop contact of S3/4/5/8 ASPR4 relay.\nThe defective relay was replaced and Signals were tested and normal working was restored.\n",
+      "ta": null,
+      "taPercent": 70,
+      "ownerStaffId": 1,
+      "pcdoWork": null,
+      "pcdoStationId": null,
+      "pcdoDate": null,
+      "hasDisconnections": false,
+      "discSpecialWork": 0,
+      "discFailure": 0,
+      "discMaintenance": 0,
+      "inspectionKind": null,
+      "inspectionStationId": null,
+      "inspectionTowardsStationId": null,
+      "inspectionJointDept": null,
+      "inspectionPeriodicity": null,
+      "inspectionRemindDays": null,
+      "inspectionSide": null,
+      "footplateShift": null,
+      "footplateDirection": null,
+      "footplateUp": null,
+      "footplateDown": null,
+      "footplateDay": null,
+      "footplateNight": null,
+      "tagIds": [
+        6
+      ],
+      "tagSides": {},
+      "attachments": [],
+      "id": 8,
+      "createdAt": "2026-08-04T11:01:41.142Z"
+    },
+    {
+      "logDate": "2026-05-14",
+      "stationMovement": "NOSSAM",
+      "movementKind": null,
+      "leaveKind": null,
+      "crFrom": null,
+      "crTo": null,
+      "workDone": "Attende block and bpac failure",
+      "ta": null,
+      "taPercent": 70,
+      "ownerStaffId": 1,
+      "pcdoWork": null,
+      "pcdoStationId": null,
+      "pcdoDate": null,
+      "hasDisconnections": false,
+      "discSpecialWork": 0,
+      "discFailure": 0,
+      "discMaintenance": 0,
+      "inspectionKind": null,
+      "inspectionStationId": null,
+      "inspectionTowardsStationId": null,
+      "inspectionJointDept": null,
+      "inspectionPeriodicity": null,
+      "inspectionRemindDays": null,
+      "inspectionSide": null,
+      "footplateShift": null,
+      "footplateDirection": null,
+      "footplateUp": null,
+      "footplateDown": null,
+      "footplateDay": null,
+      "footplateNight": null,
+      "tagIds": [
+        6
+      ],
+      "tagSides": {},
+      "attachments": [
+        {
+          "name": "1000617542.jpg",
+          "type": "image/jpeg",
+          "dataUrl": "data:image/jpeg;base64,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
