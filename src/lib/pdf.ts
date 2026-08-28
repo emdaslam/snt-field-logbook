@@ -163,6 +163,19 @@ function parseTableBody(trs: Element[]): { body: PdfCell[][]; notes: VtextNote[]
         row.push(cell);
       }
     }
+    // A row may end before a column still covered by a vtext note (the TA
+    // journal's return-leg rows carry no cell after their fifth column). Emit
+    // the pending borderless empty cells so autoTable does not synthesize a
+    // default-styled cell that draws full borders across the note column.
+    // (`active` is deliberately not flushed: real rowspans are tracked by
+    // autoTable itself, and adding cells here would shift its raw-row indexing.)
+    while (vtextRows.has(col)) {
+      row.push({ content: "", rowSpan: 1, colSpan: 1, styles: { halign: "center", valign: "middle", lineWidth: NOTE_CELL_LINE_WIDTH } });
+      const left = vtextRows.get(col)! - 1;
+      if (left <= 0) vtextRows.delete(col);
+      else vtextRows.set(col, left);
+      col++;
+    }
     body.push(row);
   }
   return { body, notes };

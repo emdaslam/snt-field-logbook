@@ -3,6 +3,18 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.4 — 2026-08-28
+
+**Minor: stray horizontal lines removed from the TA Journal KMS column**
+
+- On the TA Journal export, return-leg rows (which have no cell under the KMS
+  note) ended before the KMS column, so the PDF builder left that column empty
+  for those rows and autoTable drew a default-styled cell there — a stray
+  stroked border line down the middle of the merged KMS note.
+- **Fix:** after every row, the pending KMS note cells are now flushed as
+  borderless empties, matching the Word export. The KMS note stays cleanly
+  merged with no stray line.
+
 ## 1.7.7.3 — 2026-08-28
 
 **Major: the export sheet now follows the app theme — no more light-theme popup in Dark, Ocean or Sunset**
