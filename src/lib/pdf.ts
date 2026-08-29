@@ -184,44 +184,58 @@ function parseTableBody(trs: Element[]): { body: PdfCell[][]; notes: VtextNote[]
 /**
  * Draw a vertical note (one line of text per row, e.g. the TA journal's KMS
  * note) down the middle of a table column after the table has been rendered.
- * The note keeps its natural line spacing and is centred over the column's
- * full height, flowing across pages exactly like the spanning cell it
- * replaces.
+ * The note is drawn in full on every page the column appears on, centred
+ * within that page's column span, and only when the whole note fits the
+ * available space — a page too short to hold it gets no note rather than a
+ * clipped fragment, so the note never overflows the column. The column's
+ * bottom border is also closed on every page, so the merged column reads as a
+ * finished cell at the bottom of each page instead of trailing open.
  */
 function drawVtextNotes(
   doc: jsPDF,
   notes: VtextNote[],
   cells: { page: number; col: number; x: number; width: number; top: number; bottom: number }[],
-  fontSize: number
+  fontSize: number,
+  lineColor: [number, number, number],
+  lineWidth: number
 ) {
   if (!notes.length || !cells.length) return;
   const lineHeight = doc.getLineHeightFactor() * fontSize;
-  const pageH = doc.internal.pageSize.getHeight();
   doc.setFont("helvetica", "normal").setFontSize(fontSize).setTextColor(15, 23, 42);
   for (const note of notes) {
     const colCells = cells.filter((c) => c.col === note.colIndex);
     if (!colCells.length) continue;
     const lines = note.text.split("\n");
     if (!lines.length) continue;
-    // Positions in each cell are relative to its own page; lift them onto a
-    // single absolute axis so the note can be centred over the whole column
-    // and flow across page boundaries.
-    const absTop = Math.min(...colCells.map((c) => c.top + (c.page - 1) * pageH));
-    const absBottom = Math.max(...colCells.map((c) => c.bottom + (c.page - 1) * pageH));
-    const span = absBottom - absTop;
     const noteHeight = (lines.length - 1) * lineHeight;
-    const start = absTop + Math.max(0, (span - noteHeight) / 2);
     const x = colCells[0].x + colCells[0].width / 2;
-    for (const pg of new Set(colCells.map((c) => c.page))) {
-      const pageAbsTop = (pg - 1) * pageH;
-      const pageAbsBottom = pg * pageH;
-      doc.setPage(pg);
-      lines.forEach((line, i) => {
-        if (!line) return;
-        const absY = start + i * lineHeight;
-        if (absY < pageAbsTop || absY > pageAbsBottom) return;
-        doc.text(line, x, absY - pageAbsTop, { align: "center" });
-      });
+    // Group the column's cells by page: each page's span runs from the top of
+    // its first cell to the bottom of its last, so the note and the closing
+    // bottom border are placed per page instead of flowing across pages.
+    const byPage = new Map<number, { top: number; bottom: number }>();
+    for (const c of colCells) {
+      const span = byPage.get(c.page);
+      if (span) {
+        if (c.top < span.top) span.top = c.top;
+        if (c.bottom > span.bottom) span.bottom = c.bottom;
+      } else {
+        byPage.set(c.page, { top: c.top, bottom: c.bottom });
+      }
+    }
+    doc.setDrawColor(...lineColor).setLineWidth(lineWidth);
+    for (const page of [...byPage.keys()].sort((a, b) => a - b)) {
+      const { top, bottom } = byPage.get(page)!;
+      doc.setPage(page);
+      // Close the column: the horizontal border at the bottom of every page.
+      doc.line(colCells[0].x, bottom, colCells[0].x + colCells[0].width, bottom);
+      // The note only when it fits entirely inside this page's column span.
+      if (noteHeight <= bottom - top) {
+        const start = top + (bottom - top - noteHeight) / 2;
+        lines.forEach((line, i) => {
+          if (!line) return;
+          doc.text(line, x, start + i * lineHeight, { align: "center" });
+        });
+      }
     }
   }
 }
@@ -908,7 +922,10 @@ export function buildPdf(
       const last = (doc as unknown as {
         lastAutoTable?: { finalY: number; startY: number; pageNumber?: number; startPageNumber?: number };
       }).lastAutoTable;
-      drawVtextNotes(doc, notes, vtextCells, 8 * fs);
+      // Close the KMS column and repeat its note per page (see drawVtextNotes).
+      // The closing line matches the table's grid: grey in the colour export,
+      // black ink in the plain export.
+      drawVtextNotes(doc, notes, vtextCells, 8 * fs, plain ? INK : [200, 200, 200], GRID_LINE_WIDTH);
       // The table may span pages; its last drawn page is where finalY lives.
       // Jump back there so the following block (summary, certificate, …) starts
       // right after the table instead of on the page drawVtextNotes last left.

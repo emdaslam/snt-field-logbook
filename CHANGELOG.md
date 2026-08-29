@@ -3,6 +3,22 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.7 — 2026-08-29
+
+**Minor: TA Journal PDF closes the KMS column bottom border on every page and repeats the "ALL ARE ABOVE 8 KMS" note per page without overflow**
+
+- The vertical "kms" column of the TA Journal table rendered as one merged cell
+  that flowed across pages: the note was centred over the whole column and cut
+  off at page boundaries, and the column's bottom border only appeared once at
+  the very end of the table.
+- **Fix:** the column's bottom border is now closed at the bottom of every
+  page, so the merged column reads as a finished cell on each page. The
+  "ALL ARE ABOVE 8 KMS" note is drawn in full, centred vertically within each
+  page's column span; a page too short to fit the whole note shows no note at
+  all instead of a clipped fragment — the note never overflows the column.
+- The closing border uses the table grid colour (grey in the colour export,
+  black ink in the plain export).
+
 ## 1.7.7.6 — 2026-08-28
 
 **Minor: TA Journal PDF profile details align vertically and signature labels sit centred above their lines**
