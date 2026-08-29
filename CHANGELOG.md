@@ -38,6 +38,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
   shift to the right only when needed to fit on the page. Sizes 10–18 fit
   cleanly with no overlap or overflow.
 
+## 1.7.7.4 — 2026-08-28
 
 **Minor: stray horizontal lines removed from the TA Journal KMS column**
 
