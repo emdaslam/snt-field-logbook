@@ -5,13 +5,25 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.7.9 — 2026-08-29
 
-**Minor: for a CR entry, the "Worked on rest day" date can only be before today — you can't pick today or a future date**
+**Minor: for a CR entry, the "Worked on rest day" date capped at yesterday**
 
 - The CR (Compensatory Rest) form asks which rest day was worked, and that date
   picker previously accepted any date, including today and the future.
-- **Fix:** the "Worked on rest day" date input now caps its selectable range at
-  yesterday, so only dates strictly before today are allowed. Native pickers
-  grey out today and any later date.
+- **Initial fix:** the "Worked on rest day" date input now caps its selectable
+  range at yesterday, so only dates strictly before today are allowed. Native
+  pickers grey out today and any later date.
+
+## 1.7.7.10 — 2026-08-29
+
+**Minor: CR "Worked on rest day" date now capped at the movement (log) date**
+
+- The 1.7.7.9 cap (yesterday) was replaced with the correct constraint: a rest
+  day worked can only be on or before the movement date for the entry, since a
+  rest day after the journey's date cannot be claimed retrospectively.
+- **Fix:** the "Worked on rest day" date picker's `max` is now the entry's
+  movement date (`logDate`); if no movement date is chosen yet, the picker is
+  unrestricted until one is.
+
 
 ## 1.7.7.8 — 2026-08-29
 

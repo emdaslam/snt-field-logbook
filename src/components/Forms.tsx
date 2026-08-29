@@ -802,7 +802,7 @@ export function DailyLogForm({
                 type="date"
                 className={inputClass}
                 value={crFrom}
-                max={toISODate(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() - 1))}
+                max={logDate || undefined}
                 onChange={(e) => setCrDate(e.target.value)}
               />
             </label>
