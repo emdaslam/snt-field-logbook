@@ -226,6 +226,13 @@ function drawVtextNotes(
     for (const page of [...byPage.keys()].sort((a, b) => a - b)) {
       const { top, bottom } = byPage.get(page)!;
       doc.setPage(page);
+      // The page's span runs from the top of the first body cell to the bottom
+      // of the last, so the first body cell's top is the head→body boundary:
+      // re-draw the horizontal grid line there for this column, which autotable
+      // can drop on a split page (the head has a rowspan cell) and so leave the
+      // column's top edge open while every other column stays bordered.
+      const first = colCells.find((c) => c.page === page)!;
+      doc.line(first.x, first.top, first.x + first.width, first.top);
       // Close the column: the horizontal border at the bottom of every page.
       doc.line(colCells[0].x, bottom, colCells[0].x + colCells[0].width, bottom);
       // The note only when it fits entirely inside this page's column span.
@@ -952,6 +959,18 @@ export function buildPdf(
       // The closing line matches the table's grid: grey in the colour export,
       // black ink in the plain export.
       drawVtextNotes(doc, notes, vtextCells, 8 * fs, plain ? INK : [200, 200, 200], GRID_LINE_WIDTH);
+      if (process.env.DEBUG_VTEXT) {
+        const dbg = vtextCells.map((c) => `page${c.page} col${c.col} top${c.top.toFixed(1)} bot${c.bottom.toFixed(1)} x${c.x.toFixed(1)} w${c.width.toFixed(1)}`);
+        const spans: string[] = [];
+        for (const note of notes) {
+          const colCells = vtextCells.filter((c) => c.col === note.colIndex);
+          const byPage = new Map<number, { top: number; bottom: number }>();
+          for (const c of colCells) { const s = byPage.get(c.page) ?? { top: c.top, bottom: c.bottom }; s.top = Math.min(s.top, c.top); s.bottom = Math.max(s.bottom, c.bottom); byPage.set(c.page, s); }
+          for (const [pg, s] of [...byPage.entries()].sort((a, b) => a[0] - b[0])) spans.push(`note col${note.colIndex} page${pg}: top${s.top.toFixed(1)} bot${s.bottom.toFixed(1)} (${(s.bottom - s.top).toFixed(1)}pt)`);
+        }
+        console.error('DEBUG_VTEXT cells:\n' + dbg.join('\n'));
+        console.error('DEBUG_VTEXT spans:\n' + spans.join('\n'));
+      }
       // The table may span pages; its last drawn page is where finalY lives.
       // Jump back there so the following block (summary, certificate, …) starts
       // right after the table instead of on the page drawVtextNotes last left.

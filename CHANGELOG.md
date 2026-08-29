@@ -3,15 +3,18 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
-## 1.7.7.9 — 2026-08-29
+## 1.7.7.11 — 2026-08-29
 
-**Minor: for a CR entry, the "Worked on rest day" date capped at yesterday**
+**Minor: TA Journal PDF KMS column top/bottom borders now match grid on every page**
 
-- The CR (Compensatory Rest) form asks which rest day was worked, and that date
-  picker previously accepted any date, including today and the future.
-- **Initial fix:** the "Worked on rest day" date input now caps its selectable
-  range at yesterday, so only dates strictly before today are allowed. Native
-  pickers grey out today and any later date.
+- In the two-page TA Journal PDF export, the KMS (vertical "ALL ARE ABOVE 8 KMS") column
+  was missing its top horizontal border at the head→body boundary on each page,
+  and its bottom closing line used a different grey. Neighboring columns were
+  continuous.
+- **Fix:** the per-page vtext renderer now draws both the head→body separator
+  (top of the first body cell) and the page-bottom closing line for the KMS
+  column, using the same grid colour and line width as the table. The column
+  now reads as a closed cell on every page.
 
 ## 1.7.7.10 — 2026-08-29
 
