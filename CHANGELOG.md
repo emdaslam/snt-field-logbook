@@ -3,6 +3,18 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.12 — 2026-08-29
+
+**Minor: TA Journal PDF KMS column borders now render at the correct weight in plain output**
+
+- The 1.7.7.11 fix drew the KMS column's top and bottom borders, but in plain
+  output those lines still appeared lighter than the neighbouring grid lines.
+- **Fix:** the per-page stroke state (`setDrawColor` / `setLineWidth`) was being
+  written into the previously-active page's content buffer before the target
+  page was selected, so the KMS lines on each page were drawn with the page
+  default (grey, zero width). The stroke state is now applied after switching to
+  the target page, so the borders match the grid colour and weight exactly.
+
 ## 1.7.7.11 — 2026-08-29
 
 **Minor: TA Journal PDF KMS column top/bottom borders now match grid on every page**

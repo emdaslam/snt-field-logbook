@@ -222,10 +222,14 @@ function drawVtextNotes(
         byPage.set(c.page, { top: c.top, bottom: c.bottom });
       }
     }
-    doc.setDrawColor(...lineColor).setLineWidth(lineWidth);
     for (const page of [...byPage.keys()].sort((a, b) => a - b)) {
       const { top, bottom } = byPage.get(page)!;
       doc.setPage(page);
+      // Set the stroke state after switching page: jsPDF writes setDrawColor /
+      // setLineWidth into the *current* page's content buffer, so setting them
+      // before setPage would bind them to the previous page and leave these
+      // lines drawn with a stale/default style on the target page.
+      doc.setDrawColor(...lineColor).setLineWidth(lineWidth);
       // The page's span runs from the top of the first body cell to the bottom
       // of the last, so the first body cell's top is the head→body boundary:
       // re-draw the horizontal grid line there for this column, which autotable
