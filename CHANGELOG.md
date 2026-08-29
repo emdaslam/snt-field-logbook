@@ -3,6 +3,16 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.9 — 2026-08-29
+
+**Minor: for a CR entry, the "Worked on rest day" date can only be before today — you can't pick today or a future date**
+
+- The CR (Compensatory Rest) form asks which rest day was worked, and that date
+  picker previously accepted any date, including today and the future.
+- **Fix:** the "Worked on rest day" date input now caps its selectable range at
+  yesterday, so only dates strictly before today are allowed. Native pickers
+  grey out today and any later date.
+
 ## 1.7.7.8 — 2026-08-29
 
 **Minor: TA Journal PDF signature labels are centred over their lines — the "SIGNATURE OF OFFICER/CLAIMING TA" label no longer overflows**
