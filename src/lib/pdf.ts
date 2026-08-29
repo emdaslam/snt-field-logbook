@@ -632,6 +632,10 @@ export function buildPdf(
 
         // A "cols sigs" paragraph (the TA Journal's signature block) centres
         // each label over the underline drawn by the preceding cols paragraph.
+        // When a label is wider than its line it is still centred on the line's
+        // midpoint — never left-aligned to the line — so the line stays in the
+        // middle of the label; the label is pulled back only if it would cross
+        // the page margins.
         const sigs = cls.split(/\s+/).includes("sigs");
         if (sigs) {
           pageBreak(22 * headFs);
@@ -641,9 +645,9 @@ export function buildPdf(
             const w = doc.getTextWidth(t);
             const seg = lastColsSegs ? lastColsSegs[i] : undefined;
             const x = seg
-              ? seg.x + Math.max(0, (seg.w - w) / 2)
-              : Math.min(margin + (offsets[i] ?? 0), right - w);
-            doc.text(t, Math.max(margin, x), y);
+              ? Math.max(margin, Math.min(seg.x + (seg.w - w) / 2, right - w))
+              : Math.max(margin, Math.min(margin + (offsets[i] ?? 0), right - w));
+            doc.text(t, x, y);
           });
           y += 13 * headFs + 4;
           continue;
@@ -669,9 +673,31 @@ export function buildPdf(
         }
         const rows = group.map((g) => Array.from(g.querySelectorAll("span")).map((s) => tidy(s.textContent ?? "")));
         const nCols = rows.reduce((m, r) => Math.max(m, r.length), 0);
-        const colW = Array.from({ length: nCols }, (_, c) =>
+        // Width of what this paragraph actually draws in each column.
+        const drawW = Array.from({ length: nCols }, (_, c) =>
           rows.reduce((m, r) => Math.max(m, r[c] ? doc.getTextWidth(r[c]) : 0), 0)
         );
+        // A signature-labels paragraph following this one and sharing data-cols
+        // centres its labels over the lines drawn here — reserve room for the
+        // widest label so those lines sit far enough left for a centred label
+        // to stay on the page.
+        const nxtEl = els[i + 1];
+        const sigW: number[] = [];
+        if (
+          nxtEl &&
+          nxtEl.tagName.toLowerCase() === "p" &&
+          (nxtEl.className || "").split(/\s+/).includes("sigs") &&
+          nxtEl.getAttribute("data-cols") === colsAttr
+        ) {
+          Array.from(nxtEl.querySelectorAll("span")).forEach((s, c) => {
+            const t = tidy(s.textContent ?? "");
+            if (t) sigW[c] = Math.max(sigW[c] ?? 0, doc.getTextWidth(t));
+          });
+        }
+        // Column positions reserve the widest of the drawn content and the
+        // signature labels, but lastColsSegs keeps the actual drawn width so
+        // the centring uses the real line.
+        const colW = drawW.map((w, c) => Math.max(w, sigW[c] ?? 0));
         // Every value renders at the full base size on one line — never shrunk
         // and never wrapped. Columns start at their reference offsets scaled by
         // the base size; when a column would run over its neighbour it is pushed
@@ -699,7 +725,7 @@ export function buildPdf(
           else hi = mid;
         }
         const cols = place(lo);
-        lastColsSegs = cols.map((x, i) => ({ x, w: colW[i] ?? 0 }));
+        lastColsSegs = cols.map((x, i) => ({ x, w: drawW[i] ?? 0 }));
         rows.forEach((row) => {
           pageBreak(22 * headFs);
           row.forEach((t, i) => {

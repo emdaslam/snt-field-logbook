@@ -3,6 +3,22 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.8 — 2026-08-29
+
+**Minor: TA Journal PDF signature labels are centred over their lines — the "SIGNATURE OF OFFICER/CLAIMING TA" label no longer overflows**
+
+- Each signature label was centred over the underline drawn above it, but a
+  label wider than its line was pinned to the line's left edge, so the longest
+  label ("SIGNATURE OF OFFICER/ CLAIMING TA") ran past the end of its line and
+  off the right edge of the page.
+- **Fix:** a label wider than its line is still centred on the line's midpoint
+  — the line now sits in the middle of the label — and is pulled back only if
+  it would cross a page margin. The underline layout also reserves room for the
+  widest label, so the signature lines shift left just enough for a centred
+  label to stay on the page.
+- Result: CONTROLLING OFFICER, HEAD OF OFFICE and SIGNATURE OF OFFICER/CLAIMING
+  TA each sit centred above their line, and none overflows the page.
+
 ## 1.7.7.7 — 2026-08-29
 
 **Minor: TA Journal PDF closes the KMS column bottom border on every page and repeats the "ALL ARE ABOVE 8 KMS" note per page without overflow**
