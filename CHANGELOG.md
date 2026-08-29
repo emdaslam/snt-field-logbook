@@ -14,6 +14,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
   page was selected, so the KMS lines on each page were drawn with the page
   default (grey, zero width). The stroke state is now applied after switching to
   the target page, so the borders match the grid colour and weight exactly.
+- Implemented in `a6334c9`.
 
 ## 1.7.7.11 — 2026-08-29
 
@@ -27,6 +28,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
   (top of the first body cell) and the page-bottom closing line for the KMS
   column, using the same grid colour and line width as the table. The column
   now reads as a closed cell on every page.
+- Implemented in `46eeffc`.
 
 ## 1.7.7.10 — 2026-08-29
 
@@ -38,7 +40,18 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 - **Fix:** the "Worked on rest day" date picker's `max` is now the entry's
   movement date (`logDate`); if no movement date is chosen yet, the picker is
   unrestricted until one is.
+- Implemented in `9e4376e`.
 
+## 1.7.7.9 — 2026-08-29
+
+**Minor: for a CR entry, the "Worked on rest day" date capped at yesterday**
+
+- The CR (Compensatory Rest) form asks which rest day was worked, and that date
+  picker previously accepted any date, including today and the future.
+- **Initial fix:** the "Worked on rest day" date input now caps its selectable
+  range at yesterday, so only dates strictly before today are allowed. Native
+  pickers grey out today and any later date.
+- Implemented in `8ade465`.
 
 ## 1.7.7.8 — 2026-08-29
 
@@ -55,6 +68,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
   label to stay on the page.
 - Result: CONTROLLING OFFICER, HEAD OF OFFICE and SIGNATURE OF OFFICER/CLAIMING
   TA each sit centred above their line, and none overflows the page.
+- Implemented in `ff3bcca`.
 
 ## 1.7.7.7 — 2026-08-29
 
@@ -71,6 +85,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
   all instead of a clipped fragment — the note never overflows the column.
 - The closing border uses the table grid colour (grey in the colour export,
   black ink in the plain export).
+- Implemented in `7ec9903`.
 
 ## 1.7.7.6 — 2026-08-28
 
