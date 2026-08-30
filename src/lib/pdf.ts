@@ -917,11 +917,16 @@ export function buildPdf(
             section?: string;
             column: { index: number };
             cell: { x: number; width: number; y: number; height: number };
-            table: { pageNumber: number };
           }) => {
             if (data.section !== "body" || !vtextCols.has(data.column.index)) return;
+            // autoTable's cached `data.table.pageNumber` counts only the pages
+            // it added itself — a page inserted by the caller beforehand (the
+            // two-page layout's explicit break) is invisible to it, so the
+            // second half's cells would all report page 1 and its note would
+            // be drawn over the first page. Read the page the cell is actually
+            // being drawn on instead.
             vtextCells.push({
-              page: data.table.pageNumber,
+              page: (doc.internal as any).getCurrentPageInfo().pageNumber,
               col: data.column.index,
               x: data.cell.x,
               width: data.cell.width,
