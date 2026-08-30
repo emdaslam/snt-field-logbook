@@ -277,6 +277,10 @@ function liText(el: HTMLElement): string {
  *  default margins allow. */
 const MIN_MARGIN = 20;
 
+/** Narrowest the NATURE OF WORK column may go in fit-on-one-page mode — wide
+ *  enough to stay readable but well under the ~280pt it otherwise absorbs. */
+const MIN_NATURE_COL = 40;
+
 /**
  * Per-column fit of a table's body cells, measured at the table body font
  * (8·fs): `full` is the widest single-line cell text plus horizontal padding —
@@ -483,7 +487,7 @@ export function buildPdf(
   title: string,
   bodyHtml: string,
   contentSize: number,
-  opts: { margin?: number; footer?: boolean; style?: ExportStyle; cellPad?: number; fixedHeader?: boolean; contentWidths?: Record<number, number> } = {}
+  opts: { margin?: number; footer?: boolean; style?: ExportStyle; cellPad?: number; fixedHeader?: boolean; contentWidths?: Record<number, number>; fitMode?: boolean } = {}
 ): jsPDF {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   registerPdfFonts(doc);
@@ -861,21 +865,13 @@ export function buildPdf(
             // In fit-on-one-page mode, content-width overrides (measured at the
             // current reduced font size) replace the fixed data-width so columns
             // shrink with the text and cells don't end up with excess space.
-            const cw = opts.contentWidths?.[c.colIndex];
-             let cellW = Math.max(
-               cw ?? Number(w),
-               fit[c.colIndex]?.full ?? (cw ?? Number(w)),
-               hf[c.colIndex]?.word ?? 0
-             );
-             // Cap the NATURE OF WORK column (col 9) so it never hogs more than
-             // ~120pt even when body text is long; this lets the fixed columns
-             // absorb the freed room and raises the one-page font size. The cap
-             // is only applied when content-width overrides are present (fit-on-
-             // one-page mode) — in the regular layout the column stays flexible.
-             if (c.colIndex === 9 && cw != null) {
-               cellW = Math.min(cellW, 120);
-             }
-             entry.cellWidth = cellW;
+             const cw = opts.contentWidths?.[c.colIndex];
+              let cellW = Math.max(
+                cw ?? Number(w),
+                fit[c.colIndex]?.full ?? (cw ?? Number(w)),
+                hf[c.colIndex]?.word ?? 0
+              );
+              entry.cellWidth = cellW;
           }
           if (a === "center" && c.colSpan === 1) {
             entry.halign = "center";
@@ -909,6 +905,27 @@ export function buildPdf(
         columnStyles[dateCol] = {
           ...(columnStyles[dateCol] ?? {}),
           cellWidth: Math.max(72, fit[dateCol]?.full ?? 72, hf[dateCol]?.word ?? 0),
+        };
+      }
+
+      // Fit-on-one-page mode only: give the NATURE OF WORK column (index 9) an
+      // explicit width so it stops absorbing the whole leftover row. autoTable
+      // hands every unassigned column the remaining table width, which left a
+      // near-empty ~280pt column and squeezed the others. Its width is its own
+      // content width — never narrower (no extra wrapping) and never wider than
+      // the room the fixed columns leave (no page overflow, the failure the old
+      // rigid data-width attempt caused).
+      if (opts.fitMode) {
+        const avail = pageW - 2 * margin;
+        let used = 0;
+        for (const st of Object.values(columnStyles)) {
+          if (typeof st.cellWidth === "number") used += st.cellWidth;
+        }
+        const content9 = Math.max(fit[9]?.full ?? 0, hf[9]?.word ?? 0, MIN_NATURE_COL);
+        const cap = Math.max(avail - used, MIN_NATURE_COL);
+        columnStyles[9] = {
+          ...(columnStyles[9] ?? {}),
+          cellWidth: Math.min(content9, cap),
         };
       }
 
@@ -1049,6 +1066,12 @@ export function buildFitOnePagePdf(
 ): jsPDF {
   const FIT_MARGIN = 24;
   const FIT_FONT_MIN = 6;
+  // Fit-on-one-page uses tighter cell padding than the default layout: rows
+  // shrink by a couple of points each, which frees the vertical room that lets
+  // the fit loop land on a larger font size (e.g. 8 instead of 6 for a dense
+  // month). Only this one-page build is affected — the two-page and manual-
+  // size exports keep the default padding.
+  const fitPad = cellPad ?? 3;
   // Measure column content widths at the starting font size so we have a
   // reference to scale against as the size shrinks.
   const initDoc = new jsPDF({ unit: "pt", format: "a4" });
@@ -1059,11 +1082,11 @@ export function buildFitOnePagePdf(
   const parsed = new DOMParser().parseFromString(`<div>${bodyHtml}</div>`, "text/html");
   const root = parsed.body.firstElementChild!;
   for (const tbl of Array.from(root.querySelectorAll("table"))) {
-    initBodyFit.set(tbl, measureBodyColumns(tbl, initDoc, initFs, cellPad ?? 4));
-    initHeadFit.set(tbl, measureHeadColumns(tbl, initDoc, initFs, cellPad ?? 4));
+    initBodyFit.set(tbl, measureBodyColumns(tbl, initDoc, initFs, fitPad));
+    initHeadFit.set(tbl, measureHeadColumns(tbl, initDoc, initFs, fitPad));
   }
   let size = startSize;
-  let doc = buildPdf(title, bodyHtml, size, { margin: FIT_MARGIN, footer: false, style, fixedHeader, ...(cellPad != null ? { cellPad } : {}) });
+  let doc = buildPdf(title, bodyHtml, size, { margin: FIT_MARGIN, footer: false, style, fixedHeader, cellPad: fitPad, fitMode: true });
   while (doc.getNumberOfPages() > 1 && size > FIT_FONT_MIN) {
     size -= 1;
     const fs = size / 9;
@@ -1072,8 +1095,8 @@ export function buildFitOnePagePdf(
     const curBodyFit = new Map<Element, Record<number, ColFit>>();
     const curHeadFit = new Map<Element, Record<number, ColFit>>();
     for (const tbl of Array.from(root.querySelectorAll("table"))) {
-      curBodyFit.set(tbl, measureBodyColumns(tbl, initDoc, fs, cellPad ?? 4));
-      curHeadFit.set(tbl, measureHeadColumns(tbl, initDoc, fs, cellPad ?? 4));
+      curBodyFit.set(tbl, measureBodyColumns(tbl, initDoc, fs, fitPad));
+      curHeadFit.set(tbl, measureHeadColumns(tbl, initDoc, fs, fitPad));
     }
     const contentWidths: Record<number, number> = {};
     for (const tbl of Array.from(root.querySelectorAll("table"))) {
@@ -1093,8 +1116,7 @@ export function buildFitOnePagePdf(
       }
     }
     doc = buildPdf(title, bodyHtml, size, {
-      margin: FIT_MARGIN, footer: false, style, fixedHeader,
-      ...(cellPad != null ? { cellPad } : {}),
+      margin: FIT_MARGIN, footer: false, style, fixedHeader, cellPad: fitPad, fitMode: true,
       ...(Object.keys(contentWidths).length ? { contentWidths } : {}),
     });
   }

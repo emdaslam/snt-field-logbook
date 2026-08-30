@@ -3,6 +3,34 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.20 — 2026-08-30
+
+**Minor: one-page TA Journal export lands on a larger font and stops giving the whole right margin to NATURE OF WORK**
+
+- The fit-on-one-page loop was shrinking the font all the way down to the 6pt
+  floor for a typical 31-day month because the default cell padding left
+  enough vertical space only at that minimum. At the same time, autoTable's
+  default layout gave every unassigned column the remaining table width — so
+  NATURE OF WORK (the only unfixed column) absorbed the full ~280pt leftover
+  and sat next to very narrow fixed columns, with the body text barely using
+  the extra room.
+- **Fix — tighter padding in the one-page build only.** `buildFitOnePagePdf`
+  now passes `cellPad = 3` internally (down from the default 4) when no
+  explicit pad is requested. Rows shrink by a couple of points each, freeing
+  enough vertical room for the fit loop to land on a larger font size — for a
+  dense 31-day month with medium-length nature text the final size rises from
+  6 to 8, with short-text months still rendering at the user's chosen size.
+  The two-page and manual-size exports keep `cellPad = 4` untouched.
+- **Fix — cap the NATURE OF WORK column at its own content width.** In the
+  same one-page build (`fitMode`), the renderer gives column 9 an explicit
+  `cellWidth` equal to the measured content width (`fit[9].full` / `hf[9].word`),
+  floored at 40pt and capped at the remaining room left by the fixed columns.
+  This stops autoTable from handing the column the entire leftover strip
+  (a near-empty ~280pt column) while never forcing text below its natural
+  width — so no extra wrapping is introduced, and the "rigid fixed width
+  caused overflow" failure from the previous data-width attempt is avoided.
+  Implemented in `src/lib/pdf.ts`.
+
 ## 1.7.7.19 — 2026-08-30
 
 **Minor: fix overflow in TA Journal NATURE OF WORK column caused by wrong fix in 1.7.7.18**
