@@ -3,6 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.23 — 2026-08-30
+
+**Minor: two-page Diary export fills page 1 before spilling to page 2**
+
+- The previous two-page layout used a manual half-split (`Math.ceil(dayKeys.length / 2)`) with an explicit `<div class="page-break">` marker. When a month had fewer entries than roughly half its days, page 1 still ended up with a small table and a large empty gap, while page 2 carried the rest — leaving both pages looking sparse.
+- **Fix:** drop the manual split entirely. The Diary now exports as one continuous table (all day rows) followed by the signature line. autoTable's native pagination takes over — each row lands whole; if it won't fit on page 1 it moves to page 2. Page 1 therefore fills to capacity before anything spills, giving a balanced layout even for months with few diary entries. The Excel sheet stays one continuous grid unchanged.
+
 ## 1.7.7.22 — 2026-08-30
 
 **Minor: two-page TA Journal fills page 1 before spilling to page 2**

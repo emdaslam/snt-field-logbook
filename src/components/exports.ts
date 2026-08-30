@@ -841,13 +841,6 @@ export function exportDiary(
 
   const dayKeys = Array.from(days.keys());
   const { grid, merges } = buildGrid(dayKeys);
-  // Two-page layout: the first 15/16 days (half the month, rounded up) go on
-  // page 1, the remaining days on page 2 — only when a second half exists.
-  const half = Math.ceil(dayKeys.length / 2);
-  const halves =
-    half < dayKeys.length
-      ? [buildGrid(dayKeys.slice(0, half)), buildGrid(dayKeys.slice(half))]
-      : null;
 
   const who = me?.name || me?.designation ? `${me?.name?.toUpperCase() ?? ""}, ${me?.designation?.toUpperCase() ?? ""}`.replace(/^,\s*|,\s*$/g, "") : "";
   const titleText = who
@@ -869,15 +862,11 @@ export function exportDiary(
       : "";
 
     body += diaryTable(grid, merges) + signature;
-    // Two-page body: table (first ~half) + page-break marker + table (rest).
-    // The PDF / Word renderers honour the marker; the Excel sheet stays one
-    // continuous grid.
-    twoPageBody += halves
-      ? diaryTable(halves[0].grid, halves[0].merges) +
-        `<div class="page-break"></div>` +
-        diaryTable(halves[1].grid, halves[1].merges) +
-        signature
-      : diaryTable(grid, merges) + signature;
+    // Two-page body: one continuous table (all day rows) followed by the
+    // signature line. autoTable handles pagination natively — each row lands
+    // whole, never split mid-row; page 1 fills to capacity before spilling to
+    // page 2, so the layout stays balanced even when the month is sparse.
+    twoPageBody += diaryTable(grid, merges) + signature;
   }
 
   const allMerges: XlsxMerge[] = [
