@@ -3,6 +3,22 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.21 — 2026-08-30
+
+**Minor: one-page TA Journal NATURE OF WORK column uses all remaining space instead of being capped at content width**
+
+- The v1.7.7.20 fix gave column 9 an explicit `cellWidth` equal to
+  `Math.min(content9, avail - used)`, which prevented it from swallowing the
+  whole page margin but also capped it at its own text width — leaving empty
+  space inside the column whenever the nature-of-work description was shorter
+  than the room available. The column's space utilisation remained poor.
+- **Fix:** drop the content-width cap and assign column 9 the full remaining
+  room (`avail - used`) directly. It now fills every available pixel up to the
+  page edge while still being floored at `MIN_NATURE_COL` (40pt) so the column
+  never collapses. No extra wrapping is introduced because the cap was removed,
+  not lowered. Only the one-page fit build is affected; two-page and manual-size
+  exports keep their existing behaviour.
+
 ## 1.7.7.20 — 2026-08-30
 
 **Minor: one-page TA Journal export lands on a larger font and stops giving the whole right margin to NATURE OF WORK**

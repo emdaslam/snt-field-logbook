@@ -921,11 +921,17 @@ export function buildPdf(
         for (const st of Object.values(columnStyles)) {
           if (typeof st.cellWidth === "number") used += st.cellWidth;
         }
-        const content9 = Math.max(fit[9]?.full ?? 0, hf[9]?.word ?? 0, MIN_NATURE_COL);
+        // In fit-on-one-page mode col 9 (NATURE OF WORK) is the only unassigned
+        // column, so autoTable hands it every leftover pixel. Without an
+        // explicit width it swallows the whole remainder (~280pt), crowding the
+        // other columns and dropping font size to the floor. We assign it the
+        // exact remaining room instead — it uses all of it rather than being
+        // capped at its own content width and leaving empty space inside the
+        // column. Never go below MIN_NATURE_COL so the column stays readable.
         const cap = Math.max(avail - used, MIN_NATURE_COL);
         columnStyles[9] = {
           ...(columnStyles[9] ?? {}),
-          cellWidth: Math.min(content9, cap),
+          cellWidth: cap,
         };
       }
 
