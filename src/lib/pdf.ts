@@ -862,11 +862,23 @@ export function buildPdf(
             // current reduced font size) replace the fixed data-width so columns
             // shrink with the text and cells don't end up with excess space.
             const cw = opts.contentWidths?.[c.colIndex];
-            entry.cellWidth = Math.max(
-              cw ?? Number(w),
-              fit[c.colIndex]?.full ?? (cw ?? Number(w)),
-              hf[c.colIndex]?.word ?? 0
-            );
+             // In fit-on-one-page mode, content-width overrides (measured at the
+             // current reduced font size) replace the fixed data-width so columns
+             // shrink with the text and cells don't end up with excess space.
+             let cellW = Math.max(
+               cw ?? Number(w),
+               fit[c.colIndex]?.full ?? (cw ?? Number(w)),
+               hf[c.colIndex]?.word ?? 0
+             );
+             // Cap the NATURE OF WORK column (col 9) so it never hogs more than
+             // ~120pt even when body text is long; this lets the fixed columns
+             // absorb the freed room and raises the one-page font size. The cap
+             // is only applied when content-width overrides are present (fit-on-
+             // one-page mode) — in the regular layout the column stays flexible.
+             if (c.colIndex === 9 && cw != null) {
+               cellW = Math.min(cellW, 120);
+             }
+             entry.cellWidth = cellW;
           }
           if (a === "center" && c.colSpan === 1) {
             entry.halign = "center";

@@ -5,17 +5,19 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 ## 1.7.7.18 — 2026-08-30
 
-**Minor: the TA Journal NATURE OF WORK column no longer hoards space in fit-on-one-page**
+**Minor: the TA Journal NATURE OF WORK column is capped so fit-on-one-page uses a larger font**
 
-- The NATURE OF WORK column had no `data-width`, so it absorbed all remaining
-  table width and left the fixed columns (DATE, TRAIN NO, TIMES, STATIONS, KMS,
+- The NATURE OF WORK column had no fixed width, so it absorbed all remaining
+  table room and left the fixed columns (DATE, TRAIN NO, TIMES, STATIONS, KMS,
   DAYS, AMOUNT) with a disproportionate share of the page — the available font
   size shrank more than necessary before fitting on one page.
-- **Fix:** the column now carries `data-width="90"`, placing it alongside the
-  other fixed columns. In fit-on-one-page mode it scales down proportionally
-  with the text instead of holding its original width, so margins shrink and
-  every cell renders at a larger font size for the same one-page result. The
-  constraint also applies consistently to the Word export.
+- **Fix:** in fit-on-one-page mode the renderer now caps the NATURE OF WORK
+  column at 120pt (`src/lib/pdf.ts:871`). Before the cap the body-fit fallback
+  could expand it far beyond what the page allowed, eating space that should
+  have gone to the fixed columns. Capping it lets the margin shrink further and
+  pushes the one-page font size up; the cap only applies when content-width
+  overrides are active (fit-on-one-page), so the regular two-page layout is
+  unaffected.
 
 ## 1.7.7.17 — 2026-08-30
 
