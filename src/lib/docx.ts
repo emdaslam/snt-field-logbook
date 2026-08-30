@@ -136,7 +136,7 @@ function para(
 /** One paragraph with fixed columns: each <span> jumps to the next tab stop
  *  (offsets in pts become twips). Used by the TA Journal's header info block
  *  and the days summary so Word mirrors the PDF column alignment. */
-function colsPara(spans: string[], offsets: number[]): string {
+function colsPara(spans: string[], offsets: number[], before = 0): string {
   const indent = Math.round((offsets[0] ?? 0) * 20);
   const tabs = offsets
     .slice(1)
@@ -152,7 +152,7 @@ function colsPara(spans: string[], offsets: number[]): string {
       return `<w:r>${runProps({ sz: 18 })}${tab}<w:t xml:space="preserve">${esc(t)}</w:t></w:r>`;
     })
     .join("");
-  const pPr = `<w:pPr>${tabs ? `<w:tabs>${tabs}</w:tabs>` : ""}<w:ind w:left="${indent}"/><w:spacing w:before="0" w:after="160"/></w:pPr>`;
+  const pPr = `<w:pPr>${tabs ? `<w:tabs>${tabs}</w:tabs>` : ""}<w:ind w:left="${indent}"/><w:spacing w:before="${before}" w:after="160"/></w:pPr>`;
   return `<w:p>${pPr}${runs}</w:p>`;
 }
 
@@ -389,7 +389,8 @@ export function buildDocx(title: string, bodyHtml: string, style: ExportStyle = 
       if (colsAttr) {
         const spans = Array.from(el.querySelectorAll("span")).map((s) => tidy(s.textContent ?? ""));
         const offsets = colsAttr.split(",").map((s) => Number(s.trim()) || 0);
-        parts.push(colsPara(spans, offsets));
+        const before = Math.round((Number(el.getAttribute("data-space-top")) || 0) * 20);
+        parts.push(colsPara(spans, offsets, before));
         continue;
       }
       const meta = el.className.includes("meta") || el.className.includes("empty");

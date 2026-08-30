@@ -635,6 +635,9 @@ export function buildPdf(
       // block and the days summary, where the reference sheet aligns columns.
       const colsAttr = el.getAttribute("data-cols");
       if (cls.includes("cols") && colsAttr) {
+        // A cols paragraph may open with extra blank space (the TA signature
+        // lines leave room for the handwritten signature above them).
+        y += Number(el.getAttribute("data-space-top")) || 0;
         const baseSize = 9 * headFs;
         const offsets = colsAttr.split(",").map((s) => Number(s.trim()) || 0);
         const gap = 8;

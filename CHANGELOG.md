@@ -3,6 +3,16 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.16 — 2026-08-30
+
+**Minor: the TA Journal signature lines have more space above them for signing**
+
+- The certification paragraph and the three signature lines (CONTROLLING OFFICER,
+  HEAD OF OFFICE, SIGNATURE OF OFFICER/ CLAIMING TA) were too close together on
+  the printed page, leaving little room for the handwritten signature.
+- **Fix:** the signature underline paragraph now opens with extra vertical space
+  (24pt), doubling the blank area above the line compared to the reference form.
+
 ## 1.7.7.15 — 2026-08-30
 
 **Minor: two-page TA Journal export draws its KMS-column note on the correct page**
