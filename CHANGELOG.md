@@ -3,6 +3,24 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.19 — 2026-08-30
+
+**Minor: fix overflow in TA Journal NATURE OF WORK column caused by wrong fix in 1.7.7.18**
+
+- The 1.7.7.18 fix added `data-width="90"` to the NATURE OF WORK column header,
+  but that made autoTable treat it as a rigid fixed-width column — when work text
+  was longer than 90pt the cell overflown instead of shrinking or wrapping. At the
+  same time the proportional scaling that fit-on-one-page relies on no longer
+  helped because the body-fit fallback (which raises the width when content is
+  wider than the reference) overrode the cap entirely.
+- **Fix:** drop `data-width` on the NATURE OF WORK header again and instead apply
+  a 120pt upper cap directly in the PDF renderer (`src/lib/pdf.ts:871`). The cap
+  only activates when content-width overrides are present (i.e. inside the
+  fit-on-one-page shrink loop), so the regular two-page layout stays fully
+  flexible. Capping at 120pt prevents the column from hogging all remaining room
+  and lets the fixed columns take more of the page, which pushes the one-page
+  font size up without any text overflow.
+
 ## 1.7.7.18 — 2026-08-30
 
 **Minor: the TA Journal NATURE OF WORK column is capped so fit-on-one-page uses a larger font**
