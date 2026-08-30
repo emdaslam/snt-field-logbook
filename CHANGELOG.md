@@ -3,6 +3,25 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.13 — 2026-08-29
+
+**Major: two-page TA Journal export — the first half of the TA days on page 1, the remaining days on page 2**
+
+- **Split the TA journal by days.** In the TA Journal export, tap “Two pages
+  (split by days)”. The month's TA days are then printed across two pages —
+  the first half on page 1 and the remaining days on page 2, each with its own
+  DATE / TRAIN NO / TIME / STATION / KMS / DAYS / AMOUNT / NATURE OF WORK
+  column heading. The vertical "ALL ARE ABOVE 8 KMS" note is drawn in full
+  down its column on every page.
+- **PDF and Word.** The split applies to both the PDF and Word exports; the
+  TOTAL row, the rate summary (100 / 70 / 30 %), the certification line and
+  the signature block sit at the end of the second page. Excel stays one
+  continuous sheet.
+- **Footer in colour, none in plain.** Colour exports carry the page footer on
+  both pages; the plain reference layout stays clean without one. The existing
+  “Fit on one page” and “Earlier output (font size)” options are unchanged.
+- A "What's New" tutorial introduces the change.
+
 ## 1.7.7.12 — 2026-08-29
 
 **Minor: TA Journal PDF KMS column borders now render at the correct weight in plain output**

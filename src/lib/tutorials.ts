@@ -455,6 +455,28 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.7.13",
+    tag: "Two-page TA Journal export",
+    subtitle: "Split the month's TA Journal over two pages — the first half of the TA days on page 1, the rest on page 2.",
+    slides: [
+      {
+        glyph: "▦",
+        title: "Split the TA journal by days",
+        body: "In the TA Journal export, tap “Two pages (split by days)”. The month's TA days are then printed across two pages — the first half on page 1 and the remaining days on page 2, each with its own DATE / TRAIN NO / TIME / STATION / KMS / DAYS / AMOUNT / NATURE OF WORK heading. The vertical “ALL ARE ABOVE 8 KMS” note is drawn in full on every page.",
+      },
+      {
+        glyph: "▤",
+        title: "Works for PDF and Word",
+        body: "The split applies to both the PDF and Word exports. The TOTAL row, the 100 / 70 / 30 % summary, the certification line and the signature block sit at the end of the second page. Excel stays one continuous sheet.",
+      },
+      {
+        glyph: "◈",
+        title: "Colour pages, plain pages",
+        body: "Colour exports carry the page footer on both pages; the plain reference layout stays clean without a footer. The fit-on-one-page and earlier font-size options are still there when you need them.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {

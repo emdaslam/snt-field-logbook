@@ -923,7 +923,7 @@ export function exportTaJournal(
   logs: DailyLog[],
   stations: Station[],
   me: Staff | undefined,
-  out: (title: string, body: string, type: string, sheet?: XlsxSheet, opts?: { onePage?: boolean; style?: ExportStyle }) => void = exportDocument
+  out: (title: string, body: string, type: string, sheet?: XlsxSheet, opts?: { onePage?: boolean; twoPageBody?: string; style?: ExportStyle }) => void = exportDocument
 ) {
   const hq = stations.find((s) => s.id === me?.headquartersStationId);
   const hqCode = hqLabel(hq);
@@ -987,95 +987,109 @@ export function exportTaJournal(
   const amountCell = (p: number): string | number =>
     taRate != null ? money((p / 100) * taRate) : rateMissingText;
 
-  const grid: XlsxCell[][] = [];
-  const merges: XlsxMerge[] = [];
-  const dataStart = grid.length;
-  for (const d of taDays) {
-    const l = d.log;
-    const p = l.taPercent ?? 100;
-    const r = grid.length;
-    const emptyRow = (i: number) => (i === 0 ? dmy(l.logDate) : "") as string | number;
-    // Footplate day — each journey leg is its own row (HQ → boarding, train
-    // leg(s), boarding → HQ); the date, days, amount and work span all legs.
-    if (l.movementKind === "footplate") {
-      const boarding = l.footplateJourney
-        ? stations.find((s) => s.id === l.footplateJourney!.boardingStationId)
-        : undefined;
-      const t = boarding
-        ? journeyTimes(l, asMovementStation(boarding), l.logDate, taCfg ? taCfg[taRateKey(l.taPercent)] : undefined)
-        : null;
-      const legs = l.footplateJourney && t ? footplateLegs(l, stations, hqCode, t) : null;
-      if (legs) {
-        legs.forEach((leg, i) => {
+  // Build the TA table grid for a set of TA days. A day produces a vertical
+  // two-leg row pair (the journey out and the return), and the vertical KMS
+  // note spans every row of the table (the full-column merge is added here so
+  // each half of a two-page layout gets its own note over its own rows).
+  const buildTaGrid = (
+    days: { log: DailyLog; work: string }[]
+  ): { grid: XlsxCell[][]; merges: XlsxMerge[] } => {
+    const grid: XlsxCell[][] = [];
+    const merges: XlsxMerge[] = [];
+    const dataStart = grid.length;
+    for (const d of days) {
+      const l = d.log;
+      const p = l.taPercent ?? 100;
+      const r = grid.length;
+      const emptyRow = (i: number) => (i === 0 ? dmy(l.logDate) : "") as string | number;
+      // Footplate day — each journey leg is its own row (HQ → boarding, train
+      // leg(s), boarding → HQ); the date, days, amount and work span all legs.
+      if (l.movementKind === "footplate") {
+        const boarding = l.footplateJourney
+          ? stations.find((s) => s.id === l.footplateJourney!.boardingStationId)
+          : undefined;
+        const t = boarding
+          ? journeyTimes(l, asMovementStation(boarding), l.logDate, taCfg ? taCfg[taRateKey(l.taPercent)] : undefined)
+          : null;
+        const legs = l.footplateJourney && t ? footplateLegs(l, stations, hqCode, t) : null;
+        if (legs) {
+          legs.forEach((leg, i) => {
+            grid.push([
+              styled(emptyRow(i), { center: true }),
+              styled(leg.trainNo, { center: true }),
+              styled(leg.dep, { center: true }),
+              styled(leg.arr, { center: true }),
+              styled(leg.from, { center: true }),
+              styled(leg.to, { center: true }),
+              styled("", { center: true }),
+              styled(i === 0 ? `${p}%` : "", { center: true }),
+              styled(i === 0 ? amountCell(p) : "", { center: true }),
+              styled(i === 0 ? d.work : "", { wrap: true }),
+            ]);
+          });
+          merges.push(
+            [r, 0, r + legs.length - 1, 0],
+            [r, 7, r + legs.length - 1, 7],
+            [r, 8, r + legs.length - 1, 8],
+            [r, 9, r + legs.length - 1, 9]
+          );
+        } else {
+          // Incomplete journey — keep the day visible with a single row.
           grid.push([
-            styled(emptyRow(i), { center: true }),
-            styled(leg.trainNo, { center: true }),
-            styled(leg.dep, { center: true }),
-            styled(leg.arr, { center: true }),
-            styled(leg.from, { center: true }),
-            styled(leg.to, { center: true }),
+            styled(dmy(l.logDate), { center: true }),
+            styled("---", { center: true }),
+            styled("---", { center: true }),
+            styled("---", { center: true }),
+            styled("FOOTPLATE", { center: true }),
             styled("", { center: true }),
-            styled(i === 0 ? `${p}%` : "", { center: true }),
-            styled(i === 0 ? amountCell(p) : "", { center: true }),
-            styled(i === 0 ? d.work : "", { wrap: true }),
+            styled("", { center: true }),
+            styled(`${p}%`, { center: true }),
+            styled(amountCell(p), { center: true }),
+            styled(d.work, { wrap: true }),
           ]);
-        });
-        merges.push(
-          [r, 0, r + legs.length - 1, 0],
-          [r, 7, r + legs.length - 1, 7],
-          [r, 8, r + legs.length - 1, 8],
-          [r, 9, r + legs.length - 1, 9]
-        );
-      } else {
-        // Incomplete journey — keep the day visible with a single row.
-        grid.push([
-          styled(dmy(l.logDate), { center: true }),
-          styled("---", { center: true }),
-          styled("---", { center: true }),
-          styled("---", { center: true }),
-          styled("FOOTPLATE", { center: true }),
-          styled("", { center: true }),
-          styled("", { center: true }),
-          styled(`${p}%`, { center: true }),
-          styled(amountCell(p), { center: true }),
-          styled(d.work, { wrap: true }),
-        ]);
+        }
+        continue;
       }
-      continue;
+      const st = movementStation(l, stations)!;
+      const t = diaryTimes(l, st, l.logDate, taCfg ? taCfg[taRateKey(l.taPercent)] : undefined);
+      grid.push([
+        styled(dmy(l.logDate), { center: true }),
+        styled(trainNoLabel(l.travelMode, l.travelTrainNo), { center: true }),
+        styled(t.outDep, { center: true }),
+        styled(t.outArr, { center: true }),
+        styled(hqCode, { center: true }),
+        styled(st.code, { center: true }),
+        styled("", { center: true }),
+        styled(`${p}%`, { center: true }),
+        styled(amountCell(p), { center: true }),
+        styled(d.work, { wrap: true }),
+      ]);
+      grid.push([
+        styled("", { center: true }),
+        styled(trainNoLabel(l.returnMode, l.returnTrainNo), { center: true }),
+        styled(t.retDep, { center: true }),
+        styled(t.retArr, { center: true }),
+        styled(st.code, { center: true }),
+        styled(hqCode, { center: true }),
+        styled("", { center: true }),
+        styled("", { center: true }),
+        styled("", { center: true }),
+        styled("", { center: true }),
+      ]);
+      merges.push([r, 0, r + 1, 0], [r, 7, r + 1, 7], [r, 8, r + 1, 8], [r, 9, r + 1, 9]);
     }
-    const st = movementStation(l, stations)!;
-    const t = diaryTimes(l, st, l.logDate, taCfg ? taCfg[taRateKey(l.taPercent)] : undefined);
-    grid.push([
-      styled(dmy(l.logDate), { center: true }),
-      styled(trainNoLabel(l.travelMode, l.travelTrainNo), { center: true }),
-      styled(t.outDep, { center: true }),
-      styled(t.outArr, { center: true }),
-      styled(hqCode, { center: true }),
-      styled(st.code, { center: true }),
-      styled("", { center: true }),
-      styled(`${p}%`, { center: true }),
-      styled(amountCell(p), { center: true }),
-      styled(d.work, { wrap: true }),
-    ]);
-    grid.push([
-      styled("", { center: true }),
-      styled(trainNoLabel(l.returnMode, l.returnTrainNo), { center: true }),
-      styled(t.retDep, { center: true }),
-      styled(t.retArr, { center: true }),
-      styled(st.code, { center: true }),
-      styled(hqCode, { center: true }),
-      styled("", { center: true }),
-      styled("", { center: true }),
-      styled("", { center: true }),
-      styled("", { center: true }),
-    ]);
-    merges.push([r, 0, r + 1, 0], [r, 7, r + 1, 7], [r, 8, r + 1, 8], [r, 9, r + 1, 9]);
-  }
-  const dataEnd = grid.length - 1;
-  if (dataStart <= dataEnd) {
-    merges.push([dataStart, 6, dataEnd, 6]); // KMS note spans all rows
-    grid[dataStart][6] = styled(KMS_NOTE_VERT, { center: true, wrap: true });
-  }
+    const dataEnd = grid.length - 1;
+    if (dataStart <= dataEnd) {
+      merges.push([dataStart, 6, dataEnd, 6]); // KMS note spans all rows
+      grid[dataStart][6] = styled(KMS_NOTE_VERT, { center: true, wrap: true });
+    }
+    return { grid, merges };
+  };
+  const { grid, merges } = buildTaGrid(taDays);
+  // Two-page layout: the first half of the TA days go on page 1 and the rest
+  // on page 2 — only when a second half exists.
+  const half = Math.ceil(taDays.length / 2);
+  const halves = half < taDays.length ? [buildTaGrid(taDays.slice(0, half)), buildTaGrid(taDays.slice(half))] : null;
 
   const month = monthStamp(period.label);
   const name = me?.name ? `Name: ${me.name}` : "Name: not updated in profile";
@@ -1088,30 +1102,53 @@ export function exportTaJournal(
   const cert =
     "I here certify that the above mentioned employee was absent on duty from his headquarters station during the period charged for in the bill on Railway Business.";
 
+  // The TA table's two-tier header (DATE / TRAIN NO / TIME DEPT+ARR / STATION
+  // FROM+TO / KMS / DAYS / AMOUNT / NATURE OF WORK) — shared by the single
+  // table and each half of the two-page layout, so every page repeats its own
+  // column heading.
+  const taHead =
+    `<tr><th rowspan="2" class="date" data-width="56" data-align="center">DATE</th><th rowspan="2" data-width="40" data-align="center">TRAIN NO</th><th colspan="2" data-align="center">TIME</th><th colspan="2" data-align="center">STATION</th><th rowspan="2" data-width="30" data-align="center">KMS</th><th rowspan="2" data-width="32" data-align="center">DAYS</th><th rowspan="2" data-width="56" data-align="center">AMOUNT</th><th rowspan="2" data-align="center">NATURE OF WORK</th></tr>` +
+    `<tr><th data-width="36" data-align="center">TIME DEPT</th><th data-width="36" data-align="center">TIME ARR</th><th data-width="40" data-align="center">FROM</th><th data-width="40" data-align="center">TO</th></tr>`;
+  const taGridHtml = (g: XlsxCell[][], m: XlsxMerge[]) =>
+    gridHtml(pdfGridOf(g), m, { dateCol: 0, centerCols: new Set([0, 1, 2, 3, 4, 5, 6, 7, 8]), leftCols: new Set([9]), vTextCols: new Set([6]), fontCols: new Set([8]), valignCols: new Set([9]) });
+  // The TOTAL row closes the table. In the two-page layout it sits at the end
+  // of the second table only, so page 1's table carries just the day rows.
+  const taTotalRow =
+    `<tr><td colspan="7" data-align="center"><strong>TOTAL NO. OF DAYS</strong></td><td><strong>${daysLabel(totalDays)} DAYS</strong></td><td data-font="rupee" data-align="center"><strong>${rateNotSet ? esc(rateMissingText) : `₹ ${formatRupee(totalAmount!)}`}</strong></td><td></td></tr>`;
+  const taTable = (g: XlsxCell[][], m: XlsxMerge[], withTotal: boolean) =>
+    `<table>${taHead}${taGridHtml(g, m)}${withTotal ? taTotalRow : ""}</table>`;
+  // The summary by rate, the signing lines and the certification, which follow
+  // the table (in the two-page layout they land at the end of the second page).
+  const taFooter =
+    `<p class="cols" data-cols="46,83,115"><span>100%</span><span>X ${n100}</span><span>= ${daysLabel(days100)} DAYS</span></p>` +
+    `<p class="cols" data-cols="46,83,115"><span>70%</span><span>X ${n70}</span><span>= ${daysLabel(days70)} DAYS</span></p>` +
+    `<p class="cols" data-cols="46,83,115"><span>30%</span><span>X ${n30}</span><span>= ${daysLabel(days30)} DAYS</span></p>` +
+    `<p class="cols" data-cols="55"><span>${"".padEnd(24, "_")}</span></p>` +
+    `<p class="cols" data-cols="46,83,115"><span><strong>TOTAL</strong></span><span></span><span>= ${daysLabel(totalDays)} DAYS</span></p>` +
+    `<p class="meta nocaps">I here certify that the above mentioned <u>employee</u> was absent on duty from his headquarters station during the period charged for in the bill on Railway Business.</p>` +
+    `<p class="cols" data-cols="0,190,390"><span>${"".padEnd(20, "_")}</span><span>${"".padEnd(19, "_")}</span><span>${"".padEnd(22, "_")}</span></p>` +
+    `<p class="cols sigs" data-cols="0,190,390"><span>CONTROLLING OFFICER</span><span>HEAD OF OFFICE</span><span>SIGNATURE OF OFFICER/ CLAIMING TA</span></p>`;
+
   let body = `<h1 class="centered tight" data-right-note="IN LIEU OF G.A.31">SOUTH COAST RAILWAY. GUNTAKAL DIVISION</h1>`;
   body += `<h2 class="centered">TRAVELLING ALLOWANCE JOURNAL</h2>`;
   body += `<p class="cols" data-cols="0,150,300,450"><span>${esc(name)}</span><span>${esc(designation)}</span><span>${esc(pf)}</span><span>${esc(payMetric)}</span></p>`;
   body += `<p class="cols" data-cols="0,150,300,450"><span>${esc(`Headquarters: ${hqCode}`)}</span><span>${esc(`Month: ${month}`)}</span><span>${esc(bu)}</span><span>${esc(pay)}</span></p>`;
+  let twoPageBody = body;
 
   if (taDays.length === 0) {
     body += `<p class="empty">No TA days in this period.</p>`;
+    twoPageBody = body;
   } else {
-    body += `<table>`;
-    body += `<tr><th rowspan="2" class="date" data-width="56" data-align="center">DATE</th><th rowspan="2" data-width="40" data-align="center">TRAIN NO</th><th colspan="2" data-align="center">TIME</th><th colspan="2" data-align="center">STATION</th><th rowspan="2" data-width="30" data-align="center">KMS</th><th rowspan="2" data-width="32" data-align="center">DAYS</th><th rowspan="2" data-width="56" data-align="center">AMOUNT</th><th rowspan="2" data-align="center">NATURE OF WORK</th></tr>`;
-    body += `<tr><th data-width="36" data-align="center">TIME DEPT</th><th data-width="36" data-align="center">TIME ARR</th><th data-width="40" data-align="center">FROM</th><th data-width="40" data-align="center">TO</th></tr>`;
-    body += gridHtml(pdfGridOf(grid), merges, { dateCol: 0, centerCols: new Set([0, 1, 2, 3, 4, 5, 6, 7, 8]), leftCols: new Set([9]), vTextCols: new Set([6]), fontCols: new Set([8]), valignCols: new Set([9]) });
-    body += `<tr><td colspan="7" data-align="center"><strong>TOTAL NO. OF DAYS</strong></td><td><strong>${daysLabel(totalDays)} DAYS</strong></td><td data-font="rupee" data-align="center"><strong>${rateNotSet ? esc(rateMissingText) : `₹ ${formatRupee(totalAmount!)}`}</strong></td><td></td></tr>`;
-    body += `</table>`;
-
-    body += `<p class="cols" data-cols="46,83,115"><span>100%</span><span>X ${n100}</span><span>= ${daysLabel(days100)} DAYS</span></p>`;
-    body += `<p class="cols" data-cols="46,83,115"><span>70%</span><span>X ${n70}</span><span>= ${daysLabel(days70)} DAYS</span></p>`;
-    body += `<p class="cols" data-cols="46,83,115"><span>30%</span><span>X ${n30}</span><span>= ${daysLabel(days30)} DAYS</span></p>`;
-    body += `<p class="cols" data-cols="55"><span>${"".padEnd(24, "_")}</span></p>`;
-    body += `<p class="cols" data-cols="46,83,115"><span><strong>TOTAL</strong></span><span></span><span>= ${daysLabel(totalDays)} DAYS</span></p>`;
-
-    body += `<p class="meta nocaps">I here certify that the above mentioned <u>employee</u> was absent on duty from his headquarters station during the period charged for in the bill on Railway Business.</p>`;
-    body += `<p class="cols" data-cols="0,190,390"><span>${"".padEnd(20, "_")}</span><span>${"".padEnd(19, "_")}</span><span>${"".padEnd(22, "_")}</span></p>`;
-    body += `<p class="cols sigs" data-cols="0,190,390"><span>CONTROLLING OFFICER</span><span>HEAD OF OFFICE</span><span>SIGNATURE OF OFFICER/ CLAIMING TA</span></p>`;
+    body += taTable(grid, merges, true) + taFooter;
+    // Two-page body: table (first ~half) + page-break marker + table (rest,
+    // with the TOTAL row) + summary/cert/signature. The PDF / Word renderers
+    // honour the marker; the Excel sheet stays one continuous grid.
+    twoPageBody += halves
+      ? taTable(halves[0].grid, halves[0].merges, false) +
+        `<div class="page-break"></div>` +
+        taTable(halves[1].grid, halves[1].merges, true) +
+        taFooter
+      : taTable(grid, merges, true) + taFooter;
   }
 
   const summaryRows: XlsxSheet["rows"] = [
@@ -1195,7 +1232,11 @@ export function exportTaJournal(
     colWidths: [10.43, 8.14, 9.71, 9.29, 6.71, 8.43, 4.29, 9.71, 11.43, 51, 12.14, 9],
   };
 
-  out(`TA Journal ${period.label}`, upperText(body), "ta", upperSheet(sheet), { onePage: true, style: "plain" });
+  out(`TA Journal ${period.label}`, upperText(body), "ta", upperSheet(sheet), {
+    onePage: true,
+    twoPageBody: upperText(twoPageBody),
+    style: "plain",
+  });
 }
 
 
