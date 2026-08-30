@@ -862,9 +862,6 @@ export function buildPdf(
             // current reduced font size) replace the fixed data-width so columns
             // shrink with the text and cells don't end up with excess space.
             const cw = opts.contentWidths?.[c.colIndex];
-             // In fit-on-one-page mode, content-width overrides (measured at the
-             // current reduced font size) replace the fixed data-width so columns
-             // shrink with the text and cells don't end up with excess space.
              let cellW = Math.max(
                cw ?? Number(w),
                fit[c.colIndex]?.full ?? (cw ?? Number(w)),
