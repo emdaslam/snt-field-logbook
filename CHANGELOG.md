@@ -3,6 +3,22 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.14 — 2026-08-30
+
+**Minor: the two-page TA Journal / Diary export sizes itself — no more "more than two pages"**
+
+- **No manual text size for the two-page layout.** The "Text size" prompt no
+  longer appears for the "Two pages (split by days)" option, so the font can
+  no longer be raised past the point where the report spills onto a third
+  page.
+- **The size is chosen automatically.** The renderer picks the largest text
+  size that keeps the split on exactly two pages — the first-half table fills
+  page 1 and that same size is applied to page 2, which carries the remaining
+  days (plus the TOTAL row, the rate summary, the certification line and the
+  signature block). Both the diary and the TA Journal use it.
+- The "Fit on one page" and "Earlier output (font size)" options are
+  unchanged.
+
 ## 1.7.7.13 — 2026-08-29
 
 **Major: two-page TA Journal export — the first half of the TA days on page 1, the remaining days on page 2**

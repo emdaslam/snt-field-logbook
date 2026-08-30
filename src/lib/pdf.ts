@@ -1033,6 +1033,47 @@ export function buildFitOnePagePdf(
 }
 
 /**
+ * Fit-on-two-pages rendering for the two-page diary / TA journal layout. The
+ * layout carries no manual text size — instead this picks the largest content
+ * size that keeps the whole split on exactly two pages, so the first-page
+ * table fills page 1 and the same size carries over to page 2. Page count is
+ * monotonic in the size (a larger size never produces fewer pages), so the
+ * boundary is found with a binary search.
+ */
+export function buildFitTwoPagePdf(
+  title: string,
+  bodyHtml: string,
+  style: ExportStyle = "colour",
+  cellPad?: number,
+  fixedHeader = false
+): jsPDF {
+  const TWO_PAGE_FONT_MIN = 6;
+  const TWO_PAGE_FONT_MAX = 30;
+  const render = (size: number) =>
+    buildPdf(title, bodyHtml, size, {
+      style,
+      fixedHeader,
+      ...(cellPad != null ? { cellPad } : {}),
+    });
+  // Even the smallest size may still exceed two pages for a very dense month —
+  // fall back to it (best effort) when the search finds no fitting size.
+  let best = render(TWO_PAGE_FONT_MIN);
+  let lo = TWO_PAGE_FONT_MIN;
+  let hi = TWO_PAGE_FONT_MAX;
+  while (lo <= hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    const doc = render(mid);
+    if (doc.getNumberOfPages() <= 2) {
+      best = doc;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  return best;
+}
+
+/**
  * @param type export kind used to remember the last chosen text size per
  * export type (e.g. "monthly", "tomorrow", "diary", "ta", "pcdo",
  * "inspection").
@@ -1189,10 +1230,20 @@ export function exportDocument(
   fitNote.textContent = "Auto-shrinks the text and trims margins so the whole report fits on one page.";
   fitNote.style.display = "none";
   box.appendChild(fitNote);
+  // The two-page layout has no manual text size — the renderer picks the
+  // largest size that keeps the split on exactly two pages.
+  const twoNote = document.createElement("p");
+  twoNote.style.cssText =
+    "margin:0 0 14px;font-size:12px;color:var(--n-500);text-align:center";
+  twoNote.textContent = "Text size is chosen automatically so the split fills both pages.";
+  twoNote.style.display = "none";
+  box.appendChild(twoNote);
   const refreshPdfOptions = () => {
     const fit = pageMode === "fit";
-    row.style.display = format === "pdf" && !fit ? "flex" : "none";
+    const two = pageMode === "two";
+    row.style.display = format === "pdf" && !fit && !two ? "flex" : "none";
     fitNote.style.display = format === "pdf" && fit ? "block" : "none";
+    twoNote.style.display = format === "pdf" && two ? "block" : "none";
     styleRow.style.display = format === "pdf" || format === "docx" ? "flex" : "none";
   };
   if (onePage) {
@@ -1322,18 +1373,24 @@ export function exportDocument(
             base64: xlsxToBase64(buildXlsx(sheet ?? { rows: [] })),
           };
         } else {
-          const size = chosenSize();
           const cellPad = opts?.cellPad;
-          const src = pageMode === "two" && twoBody ? twoBody : bodyHtml;
           // The TA journal keeps its header/footer (title, heading, profile
           // rows, signature lines) at the default size — only the table grows
           // with the chosen content size.
           const fixedHeader = type === "ta";
-          const doc =
-            pageMode === "fit"
-              ? buildFitOnePagePdf(title, bodyHtml, size, style, cellPad, fixedHeader)
-              : buildPdf(title, src, size, { style, fixedHeader, ...(cellPad != null ? { cellPad } : {}) });
-          if (pageMode !== "fit") persistContentFontSize(type, size);
+          let doc: jsPDF;
+          if (pageMode === "fit") {
+            doc = buildFitOnePagePdf(title, bodyHtml, chosenSize(), style, cellPad, fixedHeader);
+          } else if (pageMode === "two" && twoBody) {
+            // The two-page layout has no manual size — the largest size that
+            // keeps the split on exactly two pages fills page 1 and applies
+            // the same size to page 2.
+            doc = buildFitTwoPagePdf(title, twoBody, style, cellPad, fixedHeader);
+          } else {
+            const size = chosenSize();
+            doc = buildPdf(title, bodyHtml, size, { style, fixedHeader, ...(cellPad != null ? { cellPad } : {}) });
+            persistContentFontSize(type, size);
+          }
           artifact = {
             filename: `${slug(title)}.pdf`,
             mimeType: "application/pdf",
