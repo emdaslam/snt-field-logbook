@@ -3,6 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.22 — 2026-08-30
+
+**Minor: two-page TA Journal fills page 1 before spilling to page 2**
+
+- The previous two-page layout used a manual half-split (`Math.ceil(taDays.length / 2)`) with an explicit `<div class="page-break">` marker. When a month had few TA days the split still forced a second table onto page 2, leaving page 1 looking sparse and under-filled.
+- **Fix:** drop the manual split entirely. The TA Journal now exports as one continuous table (all day rows + the TOTAL row) followed by the summary/cert/signature block. autoTable's native pagination takes over — each full day row (or the TOTAL row) lands as one unit; if it won't fit on page 1 it moves whole to page 2. Page 1 therefore fills to capacity before anything spills, so the layout looks balanced and no day row is ever split in half. The column header repeats automatically via autoTable's default `showHead: "everyPage"` setting. The Excel sheet stays one continuous grid unchanged.
+
 ## 1.7.7.21 — 2026-08-30
 
 **Minor: one-page TA Journal NATURE OF WORK column uses all remaining space instead of being capped at content width**
