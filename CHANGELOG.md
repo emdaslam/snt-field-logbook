@@ -3,6 +3,19 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.17 — 2026-08-30
+
+**Minor: fit-on-one-page shrinks TA Journal columns with the text instead of keeping fixed widths**
+
+- When "Fit on one page" reduced the font size the fixed `data-width` values
+  kept the columns at their original pt widths while the text shrank, leaving
+  more empty space than content in each cell.
+- **Fix:** `buildFitOnePagePdf` now re-measures body and header content widths
+  at each reduced font size and derives per-column scale factors, replacing the
+  fixed widths so columns shrink in lockstep with the text. Both margins and
+  autotable `cellWidth`s use the scaled values, maximising the final font size
+  without overflow. Implemented in `90925a0`.
+
 ## 1.7.7.16 — 2026-08-30
 
 **Minor: the TA Journal signature lines have more space above them for signing**
