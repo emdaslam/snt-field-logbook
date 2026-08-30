@@ -1086,10 +1086,6 @@ export function exportTaJournal(
     return { grid, merges };
   };
   const { grid, merges } = buildTaGrid(taDays);
-  // Two-page layout: the first half of the TA days go on page 1 and the rest
-  // on page 2 — only when a second half exists.
-  const half = Math.ceil(taDays.length / 2);
-  const halves = half < taDays.length ? [buildTaGrid(taDays.slice(0, half)), buildTaGrid(taDays.slice(half))] : null;
 
   const month = monthStamp(period.label);
   const name = me?.name ? `Name: ${me.name}` : "Name: not updated in profile";
@@ -1111,14 +1107,14 @@ export function exportTaJournal(
     `<tr><th data-width="36" data-align="center">TIME DEPT</th><th data-width="36" data-align="center">TIME ARR</th><th data-width="40" data-align="center">FROM</th><th data-width="40" data-align="center">TO</th></tr>`;
   const taGridHtml = (g: XlsxCell[][], m: XlsxMerge[]) =>
     gridHtml(pdfGridOf(g), m, { dateCol: 0, centerCols: new Set([0, 1, 2, 3, 4, 5, 6, 7, 8]), leftCols: new Set([9]), vTextCols: new Set([6]), fontCols: new Set([8]), valignCols: new Set([9]) });
-  // The TOTAL row closes the table. In the two-page layout it sits at the end
-  // of the second table only, so page 1's table carries just the day rows.
+  // The TOTAL row closes the table — it travels with the day rows so the
+  // whole ledger stays together on a single page whenever possible.
   const taTotalRow =
     `<tr><td colspan="7" data-align="center"><strong>TOTAL NO. OF DAYS</strong></td><td><strong>${daysLabel(totalDays)} DAYS</strong></td><td data-font="rupee" data-align="center"><strong>${rateNotSet ? esc(rateMissingText) : `₹ ${formatRupee(totalAmount!)}`}</strong></td><td></td></tr>`;
   const taTable = (g: XlsxCell[][], m: XlsxMerge[], withTotal: boolean) =>
     `<table>${taHead}${taGridHtml(g, m)}${withTotal ? taTotalRow : ""}</table>`;
-  // The summary by rate, the signing lines and the certification, which follow
-  // the table (in the two-page layout they land at the end of the second page).
+  // The summary by rate, the signing lines and the certification follow the
+  // table. With the native two-page flow they appear at the end of page 2.
   const taFooter =
     `<p class="cols" data-cols="46,83,115"><span>100%</span><span>X ${n100}</span><span>= ${daysLabel(days100)} DAYS</span></p>` +
     `<p class="cols" data-cols="46,83,115"><span>70%</span><span>X ${n70}</span><span>= ${daysLabel(days70)} DAYS</span></p>` +
@@ -1140,15 +1136,11 @@ export function exportTaJournal(
     twoPageBody = body;
   } else {
     body += taTable(grid, merges, true) + taFooter;
-    // Two-page body: table (first ~half) + page-break marker + table (rest,
-    // with the TOTAL row) + summary/cert/signature. The PDF / Word renderers
-    // honour the marker; the Excel sheet stays one continuous grid.
-    twoPageBody += halves
-      ? taTable(halves[0].grid, halves[0].merges, false) +
-        `<div class="page-break"></div>` +
-        taTable(halves[1].grid, halves[1].merges, true) +
-        taFooter
-      : taTable(grid, merges, true) + taFooter;
+    // Two-page body: one continuous table (all day rows + TOTAL row) followed
+    // by the summary/cert/signature block. autoTable handles pagination natively
+    // — a full day (or the TOTAL row) always lands as one unit, never split
+    // across pages. Page 1 fills to capacity before the next page starts.
+    twoPageBody += taTable(grid, merges, true) + taFooter;
   }
 
   const summaryRows: XlsxSheet["rows"] = [
