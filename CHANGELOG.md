@@ -12,6 +12,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
   the printed page, leaving little room for the handwritten signature.
 - **Fix:** the signature underline paragraph now opens with extra vertical space
   (24pt), doubling the blank area above the line compared to the reference form.
+- Implemented in `ea1c5c9`.
 
 ## 1.7.7.15 — 2026-08-30
 
