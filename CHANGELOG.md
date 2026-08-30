@@ -3,6 +3,20 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.15 — 2026-08-30
+
+**Minor: two-page TA Journal export draws its KMS-column note on the correct page**
+
+- **The vertical "ALL ARE ABOVE 8 KMS" note now appears once per page.** Before
+  this fix, when the layout split the month across two pages via an explicit
+  page break, jspdf-autotable reported the second half's body-cell coordinates
+  as being on page 1 (it only increments its internal page counter on its own
+  splits, not on caller-inserted breaks), so both halves' notes landed on page 1
+  and page 2 got none. The renderer now reads the actual current page from
+  jsPDF's internal state, matching where autoTable is physically drawing.
+- No change to the fit-on-one-page or single-table-auto-split paths — those
+  already incremented autoTable's own counter correctly and were unaffected.
+
 ## 1.7.7.14 — 2026-08-30
 
 **Minor: the two-page TA Journal / Diary export sizes itself — no more "more than two pages"**
