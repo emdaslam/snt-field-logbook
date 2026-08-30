@@ -3,6 +3,20 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.18 — 2026-08-30
+
+**Minor: the TA Journal NATURE OF WORK column no longer hoards space in fit-on-one-page**
+
+- The NATURE OF WORK column had no `data-width`, so it absorbed all remaining
+  table width and left the fixed columns (DATE, TRAIN NO, TIMES, STATIONS, KMS,
+  DAYS, AMOUNT) with a disproportionate share of the page — the available font
+  size shrank more than necessary before fitting on one page.
+- **Fix:** the column now carries `data-width="90"`, placing it alongside the
+  other fixed columns. In fit-on-one-page mode it scales down proportionally
+  with the text instead of holding its original width, so margins shrink and
+  every cell renders at a larger font size for the same one-page result. The
+  constraint also applies consistently to the Word export.
+
 ## 1.7.7.17 — 2026-08-30
 
 **Minor: fit-on-one-page shrinks TA Journal columns with the text instead of keeping fixed widths**

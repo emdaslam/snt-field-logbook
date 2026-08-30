@@ -1107,7 +1107,7 @@ export function exportTaJournal(
   // table and each half of the two-page layout, so every page repeats its own
   // column heading.
   const taHead =
-    `<tr><th rowspan="2" class="date" data-width="56" data-align="center">DATE</th><th rowspan="2" data-width="40" data-align="center">TRAIN NO</th><th colspan="2" data-align="center">TIME</th><th colspan="2" data-align="center">STATION</th><th rowspan="2" data-width="30" data-align="center">KMS</th><th rowspan="2" data-width="32" data-align="center">DAYS</th><th rowspan="2" data-width="56" data-align="center">AMOUNT</th><th rowspan="2" data-align="center">NATURE OF WORK</th></tr>` +
+    `<tr><th rowspan="2" class="date" data-width="56" data-align="center">DATE</th><th rowspan="2" data-width="40" data-align="center">TRAIN NO</th><th colspan="2" data-align="center">TIME</th><th colspan="2" data-align="center">STATION</th><th rowspan="2" data-width="30" data-align="center">KMS</th><th rowspan="2" data-width="32" data-align="center">DAYS</th><th rowspan="2" data-width="56" data-align="center">AMOUNT</th><th rowspan="2" data-width="90" data-align="center">NATURE OF WORK</th></tr>` +
     `<tr><th data-width="36" data-align="center">TIME DEPT</th><th data-width="36" data-align="center">TIME ARR</th><th data-width="40" data-align="center">FROM</th><th data-width="40" data-align="center">TO</th></tr>`;
   const taGridHtml = (g: XlsxCell[][], m: XlsxMerge[]) =>
     gridHtml(pdfGridOf(g), m, { dateCol: 0, centerCols: new Set([0, 1, 2, 3, 4, 5, 6, 7, 8]), leftCols: new Set([9]), vTextCols: new Set([6]), fontCols: new Set([8]), valignCols: new Set([9]) });
