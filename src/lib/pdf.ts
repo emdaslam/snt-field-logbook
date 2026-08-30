@@ -441,7 +441,8 @@ function effectiveMargin(
   bodyFit: Map<Element, Record<number, ColFit>>,
   headFit: Map<Element, Record<number, ColFit>>,
   pageW: number,
-  baseMargin: number
+  baseMargin: number,
+  headWidths?: Record<number, number>
 ): number {
   let widest = 0;
   for (const tbl of Array.from(root.querySelectorAll("table"))) {
@@ -458,7 +459,11 @@ function effectiveMargin(
     base.forEach((w, col) => {
       const f = fit[col];
       const word = Math.max(f?.word ?? 0, hf[col]?.word ?? 0);
-      total += w != null ? Math.max(w, f?.full ?? 0, hf[col]?.word ?? 0) : word;
+      // When content-width overrides are provided (fit-on-one-page mode), use
+      // those instead of the fixed data-width, so columns shrink with the font
+      // and cells don't end up with excess empty space.
+      const bw = headWidths ? headWidths[col] : undefined;
+      total += w != null ? Math.max(bw ?? w, f?.full ?? 0, hf[col]?.word ?? 0) : word;
     });
     if (total > widest) widest = total;
   }
@@ -478,7 +483,7 @@ export function buildPdf(
   title: string,
   bodyHtml: string,
   contentSize: number,
-  opts: { margin?: number; footer?: boolean; style?: ExportStyle; cellPad?: number; fixedHeader?: boolean } = {}
+  opts: { margin?: number; footer?: boolean; style?: ExportStyle; cellPad?: number; fixedHeader?: boolean; contentWidths?: Record<number, number> } = {}
 ): jsPDF {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   registerPdfFonts(doc);
@@ -521,7 +526,7 @@ export function buildPdf(
     headFit.set(tbl, measureHeadColumns(tbl, doc, fs, cellPad));
   }
   doc.setFont("helvetica", "normal").setFontSize(8 * fs);
-  const margin = effectiveMargin(root, bodyFit, headFit, pageW, baseMargin);
+    const margin = effectiveMargin(root, bodyFit, headFit, pageW, baseMargin, opts.contentWidths);
   const maxW = pageW - margin * 2;
   let y = margin;
   // Column segments (x start + drawn width) of the last "cols" paragraph, so a
@@ -847,15 +852,19 @@ export function buildPdf(
           const w = c.el.getAttribute("data-width");
           const a = c.el.getAttribute("data-align");
           const entry: ColStyle = { ...columnStyles[c.colIndex] };
-          if (w && c.colSpan === 1) {
+           if (w && c.colSpan === 1) {
             // Keep the reference width but never narrower than the column's body
             // content or the header's widest word, so the dates / times / train
             // numbers / stations stay on a single line and a header like
             // "TRAIN NO" wraps between words instead of mid-word, even when the
             // text size is increased.
+            // In fit-on-one-page mode, content-width overrides (measured at the
+            // current reduced font size) replace the fixed data-width so columns
+            // shrink with the text and cells don't end up with excess space.
+            const cw = opts.contentWidths?.[c.colIndex];
             entry.cellWidth = Math.max(
-              Number(w),
-              fit[c.colIndex]?.full ?? Number(w),
+              cw ?? Number(w),
+              fit[c.colIndex]?.full ?? (cw ?? Number(w)),
               hf[c.colIndex]?.word ?? 0
             );
           }
@@ -1031,11 +1040,54 @@ export function buildFitOnePagePdf(
 ): jsPDF {
   const FIT_MARGIN = 24;
   const FIT_FONT_MIN = 6;
+  // Measure column content widths at the starting font size so we have a
+  // reference to scale against as the size shrinks.
+  const initDoc = new jsPDF({ unit: "pt", format: "a4" });
+  registerPdfFonts(initDoc);
+  const initFs = startSize / 9;
+  const initBodyFit = new Map<Element, Record<number, ColFit>>();
+  const initHeadFit = new Map<Element, Record<number, ColFit>>();
+  const parsed = new DOMParser().parseFromString(`<div>${bodyHtml}</div>`, "text/html");
+  const root = parsed.body.firstElementChild!;
+  for (const tbl of Array.from(root.querySelectorAll("table"))) {
+    initBodyFit.set(tbl, measureBodyColumns(tbl, initDoc, initFs, cellPad ?? 4));
+    initHeadFit.set(tbl, measureHeadColumns(tbl, initDoc, initFs, cellPad ?? 4));
+  }
   let size = startSize;
   let doc = buildPdf(title, bodyHtml, size, { margin: FIT_MARGIN, footer: false, style, fixedHeader, ...(cellPad != null ? { cellPad } : {}) });
   while (doc.getNumberOfPages() > 1 && size > FIT_FONT_MIN) {
     size -= 1;
-    doc = buildPdf(title, bodyHtml, size, { margin: FIT_MARGIN, footer: false, style, fixedHeader, ...(cellPad != null ? { cellPad } : {}) });
+    const fs = size / 9;
+    // Re-measure body and header content at the current font size so we can
+    // derive per-column widths that shrink proportionally with the text.
+    const curBodyFit = new Map<Element, Record<number, ColFit>>();
+    const curHeadFit = new Map<Element, Record<number, ColFit>>();
+    for (const tbl of Array.from(root.querySelectorAll("table"))) {
+      curBodyFit.set(tbl, measureBodyColumns(tbl, initDoc, fs, cellPad ?? 4));
+      curHeadFit.set(tbl, measureHeadColumns(tbl, initDoc, fs, cellPad ?? 4));
+    }
+    const contentWidths: Record<number, number> = {};
+    for (const tbl of Array.from(root.querySelectorAll("table"))) {
+      const trs = Array.from(tbl.querySelectorAll("tr"));
+      let headCount = 0;
+      while (headCount < trs.length && trs[headCount].querySelector("th")) headCount++;
+      if (!headCount) continue;
+      const base = headerBaseWidths(trs, headCount);
+      const initFit = initBodyFit.get(tbl) ?? {};
+      const curFit = curBodyFit.get(tbl) ?? {};
+      const initHf = initHeadFit.get(tbl) ?? {};
+      for (const [col, w] of base.entries()) {
+        if (w == null) continue;
+        const initFull = Math.max(initFit[col]?.full ?? 0, initHf[col]?.word ?? 0);
+        const curFull = Math.max(curFit[col]?.full ?? 0, curHeadFit.get(tbl)![col]?.word ?? 0);
+        if (initFull > 0) contentWidths[col] = w * (curFull / initFull);
+      }
+    }
+    doc = buildPdf(title, bodyHtml, size, {
+      margin: FIT_MARGIN, footer: false, style, fixedHeader,
+      ...(cellPad != null ? { cellPad } : {}),
+      ...(Object.keys(contentWidths).length ? { contentWidths } : {}),
+    });
   }
   return doc;
 }
