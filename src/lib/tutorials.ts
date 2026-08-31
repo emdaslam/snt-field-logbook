@@ -463,7 +463,7 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       {
         glyph: "▦",
         title: "Split the TA journal by days",
-        body: "In the TA Journal export, tap “Two pages (split by days)”. The month's TA days are then printed across two pages — the first half on page 1 and the remaining days on page 2, each with its own DATE / TRAIN NO / TIME / STATION / KMS / DAYS / AMOUNT / NATURE OF WORK heading. The vertical “ALL ARE ABOVE 8 KMS” note is drawn in full on every page.",
+        body: `In the TA Journal export, tap "Two pages (split by days)". The month's TA days are then printed across two pages — the first half on page 1 and the remaining days on page 2, each with its own DATE / TRAIN NO / TIME / STATION / KMS / DAYS / AMOUNT / NATURE OF WORK heading. The vertical "ALL ARE ABOVE 8 KMS" note is drawn in full on every page.`,
       },
       {
         glyph: "▤",
@@ -474,6 +474,28 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
         glyph: "◈",
         title: "Colour pages, plain pages",
         body: "Colour exports carry the page footer on both pages; the plain reference layout stays clean without a footer. The fit-on-one-page and earlier font-size options are still there when you need them.",
+      },
+    ],
+  },
+  {
+    version: "1.7.7.26",
+    tag: "Editable Diary / TA export rows",
+    subtitle: "Replace the fixed HQ ↔ station two-row layout with your own list of journey legs.",
+    slides: [
+      {
+        glyph: "▦",
+        title: "Open the daily log and switch on Edit export rows",
+        body: "Tap a station-movement entry to edit it. Below the normal Timings and Travel Details fields you will see a dashed border panel titled 'Edit export rows'. Tap that button and the form switches to an editable list of journey legs instead of the fixed two-row layout.",
+      },
+      {
+        glyph: "▤",
+        title: "Each leg carries From, To, Time dept, Time arr and mode",
+        body: "Every row lets you pick From and To from the stations list (or type free text when the place is not saved), enter the departure and arrival clock times, and choose Road or Train with a train number. The first leg fills the primary tour departure/arrival; the last leg fills the return. Add more legs for intermediate stops, or delete the default ones if they are not needed.",
+      },
+      {
+        glyph: "◈",
+        title: "The Diary and TA Journal follow the custom rows",
+        body: "Once saved, each leg appears as its own row in both the Diary and TA Journal exports — the date and Nature of Work columns span all legs exactly as they do on footplate days. Switching the toggle back off restores the original two-row layout automatically.",
       },
     ],
   },

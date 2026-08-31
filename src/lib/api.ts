@@ -660,6 +660,11 @@ function normaliseLog(b: Partial<DailyLog>) {
     // Travel mode for the station → HQ return journey and (when by train) its number
     returnMode: b.returnMode === "train" ? "train" : "road",
     returnTrainNo: b.returnTrainNo ?? null,
+    // Custom export rows — when non-empty each leg becomes its own line in
+    // the Diary and TA Journal exports; otherwise the default two-leg layout
+    // is used. Stored as an empty array rather than null so the DB layer has
+    // a stable shape regardless of whether the user toggled the editor on.
+    journeyLegs: Array.isArray(b.journeyLegs) ? b.journeyLegs : [],
     movementKind: b.movementKind ?? null,
     leaveKind: b.leaveKind ?? null,
     crFrom: b.crFrom ?? null,

@@ -543,6 +543,44 @@ function footplateLegs(
   return legs;
 }
 
+/** True when the log carries one or more custom export rows — the user has
+ *  chosen to edit the Diary / TA rows directly instead of using the fixed
+ *  two-leg layout. */
+function hasCustomJourneyRows(l: DailyLog): boolean {
+  return Array.isArray(l.journeyLegs) && l.journeyLegs.length > 0;
+}
+
+/**
+ * Build the display rows for a station-movement day with custom export rows.
+ * Each custom row becomes its own table row; the date and work text span all
+ * rows (just like the built-in two-leg layout, and like footplate legs). Times
+ * fall back to the generated tour times for the first / last leg and to "not
+ * entered in daily log" for middle legs in the manual build.
+ */
+function customJourneyRows(
+  l: DailyLog,
+  stations: Station[],
+  hqCode: string,
+  t: { outDep: string; outArr: string; retDep: string; retArr: string },
+  isTa: boolean,
+  miss: string
+): { trainNo: string; dep: string; arr: string; from: string; to: string }[] {
+  const legs: NonNullable<DailyLog['journeyLegs']> = l.journeyLegs;
+  if (!legs.length) return [];
+  const st = movementStation(l, stations);
+  return legs.map((leg, i) => ({
+    trainNo: trainNoLabel(leg.mode, leg.trainNo || undefined),
+    dep:
+      leg.timeDep ||
+      (i === 0 ? t.outDep : i === legs.length - 1 ? t.retDep : miss),
+    arr:
+      leg.timeArr ||
+      (i === 0 ? t.outArr : i === legs.length - 1 ? t.retArr : miss),
+    from: leg.from || (i === 0 ? hqCode : ""),
+    to: leg.to || (i === legs.length - 1 ? hqCode : ""),
+  }));
+}
+
 /** "AVAILED REST" + "REST" style pair for a Rest / NH / Leave / CR day. */
 function specialPair(l: DailyLog): [string, string] | null {
   switch (l.movementKind) {
@@ -824,6 +862,27 @@ export function exportDiary(
       }
       const t = diaryTimes(primary, st, date, taCfg ? taCfg[taRateKey(primary.taPercent)] : undefined);
       const r = grid.length;
+      // Custom export rows — each leg becomes its own row with date + work
+      // spanning all legs, matching the footplate layout pattern.
+      if (hasCustomJourneyRows(primary)) {
+        const miss = AUTO_TIMINGS ? "" : "not entered in daily log";
+        const legs = customJourneyRows(primary, stations, hqCode, t, false, miss);
+        if (legs.length > 0) {
+          legs.forEach((leg, i) => {
+            grid.push([
+              i === 0 ? dmy(date) : "",
+              leg.trainNo,
+              leg.dep,
+              leg.arr,
+              leg.from,
+              leg.to,
+              i === 0 ? work : "",
+            ]);
+          });
+          merges.push([r, 0, r + legs.length - 1, 0], [r, 6, r + legs.length - 1, 6]);
+          continue;
+        }
+      }
       grid.push([
         dmy(date),
         trainNoLabel(primary.travelMode, primary.travelTrainNo),
@@ -1041,6 +1100,37 @@ export function exportTaJournal(
       }
       const st = movementStation(l, stations)!;
       const t = diaryTimes(l, st, l.logDate, taCfg ? taCfg[taRateKey(l.taPercent)] : undefined);
+      // Custom export rows — each leg becomes its own row with date / % /
+      // amount / work spanning all legs, matching the footplate pattern.
+      if (hasCustomJourneyRows(l)) {
+        const miss = AUTO_TIMINGS ? "" : "not entered in daily log";
+        const legs = customJourneyRows(l, stations, hqCode, t, true, miss);
+        if (legs.length > 0) {
+          const baseR = grid.length;
+          legs.forEach((leg, i) => {
+            grid.push([
+              styled(i === 0 ? dmy(l.logDate) : "", { center: true }),
+              styled(leg.trainNo, { center: true }),
+              styled(leg.dep, { center: true }),
+              styled(leg.arr, { center: true }),
+              styled(leg.from, { center: true }),
+              styled(leg.to, { center: true }),
+              styled("", { center: true }),
+              styled(i === 0 ? `${p}%` : "", { center: true }),
+              styled(i === 0 ? amountCell(p) : "", { center: true }),
+              styled(i === 0 ? d.work : "", { wrap: true }),
+            ]);
+          });
+          merges.push(
+            [baseR, 0, baseR + legs.length - 1, 0],
+            [baseR, 7, baseR + legs.length - 1, 7],
+            [baseR, 8, baseR + legs.length - 1, 8],
+            [baseR, 9, baseR + legs.length - 1, 9],
+          );
+          continue;
+        }
+      }
+      const defaultR = grid.length;
       grid.push([
         styled(dmy(l.logDate), { center: true }),
         styled(trainNoLabel(l.travelMode, l.travelTrainNo), { center: true }),
@@ -1065,7 +1155,7 @@ export function exportTaJournal(
         styled("", { center: true }),
         styled("", { center: true }),
       ]);
-      merges.push([r, 0, r + 1, 0], [r, 7, r + 1, 7], [r, 8, r + 1, 8], [r, 9, r + 1, 9]);
+      merges.push([defaultR, 0, defaultR + 1, 0], [defaultR, 7, defaultR + 1, 7], [defaultR, 8, defaultR + 1, 8], [defaultR, 9, defaultR + 1, 9]);
     }
     const dataEnd = grid.length - 1;
     if (dataStart <= dataEnd) {

@@ -8,7 +8,7 @@ import { DEPARTMENT_COLORS } from "@/lib/types";
 import { isSharedLog } from "@/lib/backup";
 import { INSPECTION_RULES, addDays, type InspectionKind } from "@/lib/inspections";
 import { AttachmentPreviewModal } from "./AttachmentPreviewModal";
-import type { DailyLog, Attachment, FootplateBlock, FootplateDetail, FootplateJourneyTrain } from "@/db/schema";
+import type { DailyLog, Attachment, FootplateBlock, FootplateDetail, FootplateJourneyTrain, JourneyLeg } from "@/db/schema";
 import { FootplateDetailRows } from "./FootplateRows";
 
 export function LogDetailModal({
@@ -54,6 +54,23 @@ export function LogDetailModal({
               label="Travel"
               value={`On-board ${log.travelMode === "train" ? `Train ${log.travelTrainNo || ""}`.trim() : "Road"}  ·  Return ${log.returnMode === "train" ? `Train ${log.returnTrainNo || ""}`.trim() : "Road"}`}
             />
+          ) : null}
+          {Array.isArray(log.journeyLegs) && log.journeyLegs.length > 0 ? (
+            <div className="mb-3 rounded-lg border border-sky-200 bg-sky-50 p-3">
+              <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-sky-700">
+                Export rows ({log.journeyLegs.length} leg{log.journeyLegs.length !== 1 ? "s" : ""})
+              </p>
+              <div className="space-y-1">
+                {log.journeyLegs.map((leg: JourneyLeg, i: number) => (
+                  <p key={i} className="text-xs text-sky-950">
+                    <strong>{i + 1}.</strong> {leg.from || "—"} → {leg.to || "—"}
+                    {leg.timeDep ? ` · Dep ${leg.timeDep}` : ""}
+                    {leg.timeArr ? ` Arr ${leg.timeArr}` : ""}
+                    {leg.mode === "train" && leg.trainNo ? ` · Train ${leg.trainNo}` : ""}
+                  </p>
+                ))}
+              </div>
+            </div>
           ) : null}
           {log.movementKind === "footplate" && log.footplateJourney && (
             <JourneySummary log={log} stationName={stationName} />

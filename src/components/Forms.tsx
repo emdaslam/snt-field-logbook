@@ -38,6 +38,7 @@ import type {
   PlannedWork,
   FootplateBlock,
   FootplateJourneyTrain,
+  JourneyLeg,
 } from "@/db/schema";
 
 async function filesToAttachments(files: FileList | null): Promise<Attachment[]> {
@@ -159,6 +160,159 @@ function TravelLeg({
   );
 }
 
+/** One editable journey leg in the custom-export-rows editor. */
+function JourneyLegRow({
+  leg,
+  stationsList,
+  hqName,
+  onChange,
+  onRemove,
+  canRemove,
+}: {
+  leg: JourneyLeg;
+  stationsList: Array<{ id?: number; name: string; code: string }>;
+  hqName: string;
+  onChange: (l: JourneyLeg) => void;
+  onRemove: () => void;
+  canRemove: boolean;
+}) {
+  const [showOtherFrom, setShowOtherFrom] = useState(
+    !stationsList.some((s) => s.name === leg.from || s.code === leg.from) && leg.from !== hqName
+  );
+  const [showOtherTo, setShowOtherTo] = useState(
+    !stationsList.some((s) => s.name === leg.to || s.code === leg.to) && leg.to !== hqName
+  );
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-xs font-semibold text-slate-500">Leg</span>
+        {canRemove && (
+          <button
+            type="button"
+            onClick={onRemove}
+            className="text-xs text-red-500 hover:text-red-700"
+          >
+            Remove
+          </button>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <label className="block">
+          <span className="mb-0.5 block text-[11px] text-slate-600">From</span>
+          {!showOtherFrom ? (
+            <select
+              className={inputClass}
+              value={leg.from === hqName ? hqName : leg.from}
+              onChange={(e) => {
+                if (e.target.value === "___other") {
+                  setShowOtherFrom(true);
+                  return;
+                }
+                onChange({ ...leg, from: e.target.value });
+              }}
+            >
+              <option value={hqName}>HQ ({hqName})</option>
+              {stationsList.map((s) => (
+                <option key={s.id ?? s.name} value={s.code?.trim() ? s.code : s.name}>
+                  {s.name}
+                  {s.code?.trim() ? ` (${s.code})` : ""}
+                </option>
+              ))}
+              <option value="___other">— Other —</option>
+            </select>
+          ) : (
+            <input
+              type="text"
+              className={inputClass}
+              value={leg.from}
+              placeholder="Free text…"
+              onChange={(e) => {
+                onChange({ ...leg, from: e.target.value });
+                if (e.target.value && stationsList.some((s) => s.name === e.target.value || s.code === e.target.value)) {
+                  setShowOtherFrom(false);
+                }
+              }}
+              onBlur={() => {
+                if (!leg.from.trim()) setShowOtherFrom(false);
+              }}
+            />
+          )}
+        </label>
+        <label className="block">
+          <span className="mb-0.5 block text-[11px] text-slate-600">To</span>
+          {!showOtherTo ? (
+            <select
+              className={inputClass}
+              value={leg.to === hqName ? hqName : leg.to}
+              onChange={(e) => {
+                if (e.target.value === "___other") {
+                  setShowOtherTo(true);
+                  return;
+                }
+                onChange({ ...leg, to: e.target.value });
+              }}
+            >
+              <option value="">— Select —</option>
+              {stationsList.map((s) => (
+                <option key={s.id ?? s.name} value={s.code?.trim() ? s.code : s.name}>
+                  {s.name}
+                  {s.code?.trim() ? ` (${s.code})` : ""}
+                </option>
+              ))}
+              <option value="___other">— Other —</option>
+            </select>
+          ) : (
+            <input
+              type="text"
+              className={inputClass}
+              value={leg.to}
+              placeholder="Free text…"
+              onChange={(e) => {
+                onChange({ ...leg, to: e.target.value });
+                if (e.target.value && stationsList.some((s) => s.name === e.target.value || s.code === e.target.value)) {
+                  setShowOtherTo(false);
+                }
+              }}
+              onBlur={() => {
+                if (!leg.to.trim()) setShowOtherTo(false);
+              }}
+            />
+          )}
+        </label>
+      </div>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <label className="block">
+          <span className="mb-0.5 block text-[11px] text-slate-600">Time dept</span>
+          <input
+            type="time"
+            className={inputClass}
+            value={leg.timeDep ?? ""}
+            onChange={(e) => onChange({ ...leg, timeDep: e.target.value || null })}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-0.5 block text-[11px] text-slate-600">Time arr</span>
+          <input
+            type="time"
+            className={inputClass}
+            value={leg.timeArr ?? ""}
+            onChange={(e) => onChange({ ...leg, timeArr: e.target.value || null })}
+          />
+        </label>
+      </div>
+      <div className="mt-2">
+        <TravelLeg
+          title=""
+          mode={leg.mode}
+          setMode={(m) => onChange({ ...leg, mode: m })}
+          trainNo={leg.trainNo}
+          setTrainNo={(v) => onChange({ ...leg, trainNo: v })}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function DailyLogForm({
   open,
   onClose,
@@ -191,6 +345,49 @@ export function DailyLogForm({
     existing?.returnMode === "train" ? "train" : "road"
   );
   const [returnTrainNo, setReturnTrainNo] = useState(existing?.returnTrainNo ?? "");
+  // Custom export rows — when ON the user edits individual Diary / TA rows
+  // directly. When OFF the existing fixed Timings + Travel Details sections
+  // drive the exports (default two-leg layout). Saved as `journeyLegs` on the
+  // log; an empty array means "not customised".
+  const [editExportRows, setEditExportRows] = useState<boolean>(
+    Array.isArray(existing?.journeyLegs) && existing.journeyLegs.length > 0
+  );
+  const [journeyLegs, setJourneyLegs] = useState<JourneyLeg[]>(() => {
+    if (Array.isArray(existing?.journeyLegs) && existing.journeyLegs.length > 0) {
+      return existing.journeyLegs as JourneyLeg[];
+    }
+    return [];
+  });
+  // HQ station name (code when set, else name) used as default From / To for
+  // auto-generated legs so the rows mirror the actual export output.
+  const hqStation = stations.find(
+    (s) => s.id === currentUser?.headquartersStationId
+  );
+  const hqName = hqStation?.code?.trim() ? hqStation.code : hqStation?.name || "";
+  const enableExportRows = () => {
+    setEditExportRows(true);
+    setJourneyLegs((cur) => {
+      if (cur.length > 0) return cur;
+      return [
+        {
+          from: hqName,
+          to: movement,
+          timeDep: timeDep || "",
+          timeArr: timeArr || "",
+          mode: travelMode,
+          trainNo: travelTrainNo,
+        },
+        {
+          from: movement,
+          to: hqName,
+          timeDep: returnTimeDep || "",
+          timeArr: returnTimeArr || "",
+          mode: returnMode,
+          trainNo: returnTrainNo,
+        },
+      ];
+    });
+  };
   const [movementKind, setMovementKind] = useState<"station" | "rest" | "leave" | "cr" | "nh" | "footplate">(
     existing?.movementKind === "rest" ||
       existing?.movementKind === "leave" ||
@@ -560,28 +757,57 @@ export function DailyLogForm({
       // In the auto-timings build a field only holds a value once the user typed
       // one (or an entry already stores one) — untouched fields stay null so the
       // exports keep generating them from the TA settings.
+      // When custom export rows are active, mirror the first / last leg back
+      // into the legacy time fields so the LogDetail modal and auto-gen still
+      // have something to show.
       timeDep:
-        (movementKind === "station" || isFp) && !isHeadquarters ? timeDep || null : null,
+        (movementKind === "station" || isFp) && !isHeadquarters ?
+          (editExportRows && journeyLegs.length > 0
+            ? (journeyLegs[0].timeDep || null)
+            : timeDep || null)
+          : null,
       timeArr:
-        (movementKind === "station" || isFp) && !isHeadquarters ? timeArr || null : null,
+        (movementKind === "station" || isFp) && !isHeadquarters ?
+          (editExportRows && journeyLegs.length > 0
+            ? (journeyLegs[0].timeArr || null)
+            : timeArr || null)
+          : null,
       returnTimeDep:
-        (movementKind === "station" || isFp) && !isHeadquarters ? returnTimeDep || null : null,
+        (movementKind === "station" || isFp) && !isHeadquarters ?
+          (editExportRows && journeyLegs.length > 0
+            ? (journeyLegs[journeyLegs.length - 1].timeDep || null)
+            : returnTimeDep || null)
+          : null,
       returnTimeArr:
-        (movementKind === "station" || isFp) && !isHeadquarters ? returnTimeArr || null : null,
+        (movementKind === "station" || isFp) && !isHeadquarters ?
+          (editExportRows && journeyLegs.length > 0
+            ? (journeyLegs[journeyLegs.length - 1].timeArr || null)
+            : returnTimeArr || null)
+          : null,
       // Travel mode for the HQ → station journey and (when by train) its number
       travelMode:
-        (movementKind === "station" || isFp) && !isHeadquarters ? travelMode : null,
+        (movementKind === "station" || isFp) && !isHeadquarters ?
+          (editExportRows && journeyLegs.length > 0 ? journeyLegs[0].mode : travelMode)
+          : null,
       travelTrainNo:
-        (movementKind === "station" || isFp) && !isHeadquarters && travelMode === "train"
-          ? travelTrainNo.trim() || null
+        (movementKind === "station" || isFp) && !isHeadquarters &&
+        (editExportRows && journeyLegs.length > 0 ? journeyLegs[0].mode : travelMode) === "train"
+          ? (editExportRows && journeyLegs.length > 0 ? (journeyLegs[0].trainNo.trim() || null) : (travelTrainNo.trim() || null))
           : null,
       // Travel mode for the station → HQ return journey and (when by train) its number
       returnMode:
-        (movementKind === "station" || isFp) && !isHeadquarters ? returnMode : null,
-      returnTrainNo:
-        (movementKind === "station" || isFp) && !isHeadquarters && returnMode === "train"
-          ? returnTrainNo.trim() || null
+        (movementKind === "station" || isFp) && !isHeadquarters ?
+          (editExportRows && journeyLegs.length > 0 ? journeyLegs[journeyLegs.length - 1].mode : returnMode)
           : null,
+       returnTrainNo:
+         (movementKind === "station" || isFp) && !isHeadquarters &&
+         (editExportRows && journeyLegs.length > 0 ? journeyLegs[journeyLegs.length - 1].mode : returnMode) === "train"
+           ? (editExportRows && journeyLegs.length > 0 ? (journeyLegs[journeyLegs.length - 1].trainNo.trim() || null) : (returnTrainNo.trim() || null))
+           : null,
+      // Custom export rows — each leg becomes its own row in the Diary and TA
+      // Journal exports when non-empty. An empty array means "use the default
+      // two-leg layout driven by the Timings + Travel fields below".
+      journeyLegs: editExportRows && journeyLegs.length > 0 ? journeyLegs : [],
       movementKind: movementKind !== "station" ? movementKind : null,
       leaveKind: movementKind === "leave" ? leaveKind || null : null,
       crFrom: movementKind === "cr" ? crFrom || null : null,
@@ -831,96 +1057,166 @@ export function DailyLogForm({
           </span>
         )}
       </Field>
-      {!isSpecial && !isHeadquarters && (
-        <Field label="Timings">
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-            {AUTO_TIMINGS && (
-              <p className="mb-2 text-xs text-slate-500">
-                Pre-filled from your TA Auto-Generation settings — edit any time to override the
-                tour for this day; untouched entries keep following the settings.
+      {!isSpecial && !isHeadquarters && movementKind === "station" && (
+        <>
+          {editExportRows ? (
+            <Field label="Diary / TA export rows">
+              <div className="space-y-3">
+                <p className="text-xs text-slate-500">
+                  Each row becomes one line in the Diary and TA Journal exports. Use the HQ
+                  station code below as the default starting point — you can add, delete or
+                  reorder legs freely. The first leg&apos;s times feed the primary tour
+                  timings; the last leg feeds the return timing.
+                </p>
+                <div className="space-y-2">
+                  {journeyLegs.map((leg, i) => (
+                    <JourneyLegRow
+                      key={i}
+                      leg={leg}
+                      stationsList={stations.map((s) => ({ id: s.id, name: s.name, code: s.code || "" }))}
+                      hqName={hqName}
+                      onChange={(updated) =>
+                        setJourneyLegs((prev) => prev.map((l, idx) => (idx === i ? updated : l)))
+                      }
+                      onRemove={() => setJourneyLegs((prev) => prev.filter((_, idx) => idx !== i))}
+                      canRemove={journeyLegs.length > 1}
+                    />
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setJourneyLegs((prev) => [
+                      ...prev,
+                      {
+                        from: "",
+                        to: "",
+                        timeDep: null,
+                        timeArr: null,
+                        mode: "road",
+                        trainNo: "",
+                      },
+                    ])
+                  }
+                  className="mt-1 rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                >
+                  + Add leg
+                </button>
+                {AUTO_TIMINGS && (
+                  <p className="mt-1 text-xs text-slate-500">
+                    Blank times on the first and last legs are filled from your TA Auto-Generation
+                    settings; middle-leg blanks print as &quot;not entered in daily log&quot;.
+                  </p>
+                )}
+              </div>
+            </Field>
+          ) : (
+            <Field label="Timings">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                {AUTO_TIMINGS && (
+                  <p className="mb-2 text-xs text-slate-500">
+                    Pre-filled from your TA Auto-Generation settings — edit any time to override the
+                    tour for this day; untouched entries keep following the settings.
+                  </p>
+                )}
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block">
+                    <span className="mb-0.5 block text-[11px] text-slate-600">
+                      Time of departure from HQ
+                    </span>
+                    <input
+                      type="time"
+                      className={inputClass}
+                      value={shownDep}
+                      onChange={(e) => setTimeDep(e.target.value)}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-0.5 block text-[11px] text-slate-600">
+                      Time of arrival at station
+                    </span>
+                    <input
+                      type="time"
+                      className={inputClass}
+                      value={shownArr}
+                      onChange={(e) => setTimeArr(e.target.value)}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-0.5 block text-[11px] text-slate-600">
+                      Time of departure from station
+                    </span>
+                    <input
+                      type="time"
+                      className={inputClass}
+                      value={shownRetDep}
+                      onChange={(e) => setReturnTimeDep(e.target.value)}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-0.5 block text-[11px] text-slate-600">
+                      Time of arrival at HQ
+                    </span>
+                    <input
+                      type="time"
+                      className={inputClass}
+                      value={shownRetArr}
+                      onChange={(e) => setReturnTimeArr(e.target.value)}
+                    />
+                  </label>
+                </div>
+                <p className="mt-1.5 text-xs text-slate-500">
+                  {AUTO_TIMINGS
+                    ? "Edited times are printed verbatim in the Diary and TA Journal exports."
+                    : "These times are printed verbatim in the Diary and TA Journal exports."}
+                </p>
+              </div>
+            </Field>
+          )}
+          {!editExportRows && (
+            <Field label="Travel Details">
+              <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <TravelLeg
+                  title="On-board journey (HQ → station)"
+                  mode={travelMode}
+                  setMode={setTravelMode}
+                  trainNo={travelTrainNo}
+                  setTrainNo={setTravelTrainNo}
+                />
+                <TravelLeg
+                  title="Return journey (station → HQ)"
+                  mode={returnMode}
+                  setMode={setReturnMode}
+                  trainNo={returnTrainNo}
+                  setTrainNo={setReturnTrainNo}
+                />
+                <p className="text-xs text-slate-500">
+                  By Road is selected by default. Choose By Train to enter the train number — both are printed
+                  in the Diary and TA Journal exports.
+                </p>
+              </div>
+            </Field>
+          )}
+          {!editExportRows && (
+            <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3">
+              <p className="mb-2 text-xs font-medium text-slate-600">
+                Edit export rows
               </p>
-            )}
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block">
-                <span className="mb-0.5 block text-[11px] text-slate-600">
-                  Time of departure from HQ
-                </span>
-                <input
-                  type="time"
-                  className={inputClass}
-                  value={shownDep}
-                  onChange={(e) => setTimeDep(e.target.value)}
-                />
-              </label>
-              <label className="block">
-                <span className="mb-0.5 block text-[11px] text-slate-600">
-                  {movementKind === "footplate"
-                    ? "Time of arrival at boarding station"
-                    : "Time of arrival at station"}
-                </span>
-                <input
-                  type="time"
-                  className={inputClass}
-                  value={shownArr}
-                  onChange={(e) => setTimeArr(e.target.value)}
-                />
-              </label>
-              <label className="block">
-                <span className="mb-0.5 block text-[11px] text-slate-600">
-                  {movementKind === "footplate"
-                    ? "Time of departure from boarding station (to HQ)"
-                    : "Time of departure from station"}
-                </span>
-                <input
-                  type="time"
-                  className={inputClass}
-                  value={shownRetDep}
-                  onChange={(e) => setReturnTimeDep(e.target.value)}
-                />
-              </label>
-              <label className="block">
-                <span className="mb-0.5 block text-[11px] text-slate-600">
-                  Time of arrival at HQ
-                </span>
-                <input
-                  type="time"
-                  className={inputClass}
-                  value={shownRetArr}
-                  onChange={(e) => setReturnTimeArr(e.target.value)}
-                />
-              </label>
+              <p className="mb-2 text-xs text-slate-500">
+                Tap the button below to switch to an editable list of Diary / TA export
+                rows. You can then add or delete legs and pick custom From / To stations.
+                The default layout uses two rows (HQ → station, station → HQ).
+              </p>
+              <button
+                type="button"
+                onClick={enableExportRows}
+                className="rounded-lg border border-emerald-500 px-3 py-1.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+              >
+                Edit export rows
+              </button>
             </div>
-            <p className="mt-1.5 text-xs text-slate-500">
-              {AUTO_TIMINGS
-                ? "Edited times are printed verbatim in the Diary and TA Journal exports."
-                : "These times are printed verbatim in the Diary and TA Journal exports."}
-            </p>
-          </div>
-        </Field>
-      )}
-      {!isSpecial && !isHeadquarters && (
-        <Field label="Travel Details">
-          <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-            <TravelLeg
-              title={movementKind === "footplate" ? "On-board journey (HQ → boarding station)" : "On-board journey (HQ → station)"}
-              mode={travelMode}
-              setMode={setTravelMode}
-              trainNo={travelTrainNo}
-              setTrainNo={setTravelTrainNo}
-            />
-            <TravelLeg
-              title={movementKind === "footplate" ? "Return journey (boarding station → HQ)" : "Return journey (station → HQ)"}
-              mode={returnMode}
-              setMode={setReturnMode}
-              trainNo={returnTrainNo}
-              setTrainNo={setReturnTrainNo}
-            />
-            <p className="text-xs text-slate-500">
-              By Road is selected by default. Choose By Train to enter the train number — both are printed
-              in the Diary and TA Journal exports.
-            </p>
-          </div>
-        </Field>
+          )}
+        </>
       )}
       {isVariableSplit && (
         <Field label={variableKm != null ? `Worked at ${variableKm} KMs?` : "Worked at the station's KMs marker?"}>
@@ -1336,8 +1632,95 @@ export function DailyLogForm({
                 </span>
               )}
             </label>
-          </>
-        )}
+        </>
+      )}
+      {!isSpecial && !isHeadquarters && movementKind === "footplate" && (
+        <>
+          <Field label="Timings">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              {AUTO_TIMINGS && (
+                <p className="mb-2 text-xs text-slate-500">
+                  Pre-filled from your TA Auto-Generation settings — edit any time to override the
+                  tour for this day; untouched entries keep following the settings.
+                </p>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="mb-0.5 block text-[11px] text-slate-600">
+                    Time of departure from HQ
+                  </span>
+                  <input
+                    type="time"
+                    className={inputClass}
+                    value={shownDep}
+                    onChange={(e) => setTimeDep(e.target.value)}
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-0.5 block text-[11px] text-slate-600">
+                    Time of arrival at boarding station
+                  </span>
+                  <input
+                    type="time"
+                    className={inputClass}
+                    value={shownArr}
+                    onChange={(e) => setTimeArr(e.target.value)}
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-0.5 block text-[11px] text-slate-600">
+                    Time of departure from boarding station (to HQ)
+                  </span>
+                  <input
+                    type="time"
+                    className={inputClass}
+                    value={shownRetDep}
+                    onChange={(e) => setReturnTimeDep(e.target.value)}
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-0.5 block text-[11px] text-slate-600">
+                    Time of arrival at HQ
+                  </span>
+                  <input
+                    type="time"
+                    className={inputClass}
+                    value={shownRetArr}
+                    onChange={(e) => setReturnTimeArr(e.target.value)}
+                  />
+                </label>
+              </div>
+              <p className="mt-1.5 text-xs text-slate-500">
+                {AUTO_TIMINGS
+                  ? "Edited times are printed verbatim in the Diary and TA Journal exports."
+                  : "These times are printed verbatim in the Diary and TA Journal exports."}
+              </p>
+            </div>
+          </Field>
+          <Field label="Travel Details">
+            <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <TravelLeg
+                title="On-board journey (HQ → boarding station)"
+                mode={travelMode}
+                setMode={setTravelMode}
+                trainNo={travelTrainNo}
+                setTrainNo={setTravelTrainNo}
+              />
+              <TravelLeg
+                title="Return journey (boarding station → HQ)"
+                mode={returnMode}
+                setMode={setReturnMode}
+                trainNo={returnTrainNo}
+                setTrainNo={setReturnTrainNo}
+              />
+              <p className="text-xs text-slate-500">
+                By Road is selected by default. Choose By Train to enter the train number — both are printed
+                in the Diary and TA Journal exports.
+              </p>
+            </div>
+          </Field>
+        </>
+      )}
       </div>
 
       {/* Counter Resets */}

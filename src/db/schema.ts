@@ -88,6 +88,10 @@ export const dailyLogs = pgTable("daily_logs", {
   // How the station → HQ return journey was made: "road" (default) or "train".
   returnMode: varchar("return_mode", { length: 10 }).default("road"),
   returnTrainNo: varchar("return_train_no", { length: 30 }),
+  // Custom export rows — one row per leg, each with its own from / to and
+  // clock times. When non-empty the Diary and TA Journal exports render each
+  // leg as its own line; otherwise the default two-leg layout is used.
+  journeyLegs: jsonb("journey_legs").$type<JourneyLeg[]>().default([]).notNull(),
   // Non-station movement types: "rest" | "leave" | "cr" (null = a station movement)
   movementKind: varchar("movement_kind", { length: 10 }),
   // For leave: CL / LAP / SICK
@@ -216,6 +220,20 @@ export const notes = pgTable("notes", {
 });
 
 export type Note = typeof notes.$inferSelect;
+
+/** One custom export row for a station-movement daily log. When a log carries
+ *  one or more custom rows (journeyLegs), the Diary and TA Journal exports
+ *  print each row as its own line — letting the user add, delete or reorder
+ *  legs and pick their own from / to instead of the fixed HQ ↔ station pair.
+ *  A null / empty array means "use the default two-leg layout". */
+export type JourneyLeg = {
+  from: string;
+  to: string;
+  timeDep: string | null;
+  timeArr: string | null;
+  mode: "road" | "train";
+  trainNo: string;
+};
 
 export type FootplateDetail = {
   trainNo: string;

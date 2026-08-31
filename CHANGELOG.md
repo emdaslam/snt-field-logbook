@@ -3,6 +3,24 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.26 — 2026-08-31
+
+**Major: editable Diary / TA export rows in the daily log**
+
+- In the daily-log form for a station movement, you can now switch on **Edit export
+  rows** and replace the fixed two-row layout (HQ → station, station → HQ) with an
+  editable list of journey legs. Each leg carries its own From / To, Time dept,
+  Time arr and Road / Train (with train number). You can add, delete or reorder
+  legs freely. The first leg&apos;s times feed the primary tour timings; the last
+  leg feeds the return timing so the LogDetail modal and auto-generated-timings
+  builds stay consistent.
+- Both the Diary and the TA Journal exports honour custom legs — each leg becomes
+  one table row with the date and nature-of-work columns spanning all legs, just
+  like footplate days. When no custom rows are present the layout falls back to
+  the original two-row format unchanged. From and To can be picked from the saved
+  stations list (including the HQ) or typed as free text when the required place
+  is not yet in the station list.
+
 ## 1.7.7.25 — 2026-08-31
 
 **Minor: auto timings — the going (HQ → station) and return (station → HQ) travel durations are now drawn independently**
