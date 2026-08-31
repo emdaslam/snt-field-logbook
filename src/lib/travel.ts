@@ -71,9 +71,10 @@ function fmt(minutes: number): string {
 }
 
 /**
- * One day's HQ → station → HQ timings. The one-way travel duration is drawn
- * from the station's travel range; the HQ departure and return-arrival times
- * are drawn from the TA rate's window (passed in, or the default when absent).
+ * One day's HQ → station → HQ timings. The HQ → station and station → HQ
+ * one-way durations are each drawn independently from the station's travel
+ * range (they need not match); the HQ departure and return-arrival times are
+ * drawn from the TA rate's window (passed in, or the default when absent).
  * The generated tour length (return arrival − departure) stays within the
  * window's duration condition (minHrs → maxHrs) whenever the windows allow it.
  * All values are derived from a seed of (date, TA rate, travel range) so
@@ -89,14 +90,19 @@ export function tripTimes(
   const rate: TaRateKey = String(taPercent) === "100" || String(taPercent) === "30" ? (String(taPercent) as TaRateKey) : "70";
   const w = win ?? TA_GEN_DEFAULTS[rate];
   const rnd = mulberry32(hashSeed(logDate, taPercent, travelMin ?? 0, travelMax ?? 0));
-  const oneWay = Math.max(
-    5,
-    step5(
-      travelMin != null && travelMax != null && travelMax > 0
-        ? randInt(travelMin, travelMax, rnd)
-        : randInt(DEFAULT_TRAVEL_MIN, DEFAULT_TRAVEL_MAX, rnd)
-    )
-  );
+
+  // Independent one-way durations for the HQ → station and station → HQ legs.
+  const drawDur = () =>
+    Math.max(
+      5,
+      step5(
+        travelMin != null && travelMax != null && travelMax > 0
+          ? randInt(travelMin, travelMax, rnd)
+          : randInt(DEFAULT_TRAVEL_MIN, DEFAULT_TRAVEL_MAX, rnd)
+      )
+    );
+  const goingDur = drawDur();
+  const retDur = drawDur();
 
   const d0 = toMinutes(w.depStart);
   const d1 = toMinutes(w.depEnd);
@@ -118,10 +124,19 @@ export function tripTimes(
   const retHi = floor5(Math.min(r1, outDep + maxDur - 1));
   const retArr = step5(randInt(retHi >= retLo ? retLo : r0, retHi >= retLo ? retHi : r1, rnd));
 
+  const outArr = outDep + goingDur;
+  let retDep = retArr - retDur;
+  if (retDep <= outArr) {
+    // The two drawn legs would overlap (only possible when their combined
+    // length approaches the tour) — shift the return departure onto the grid
+    // just after the outbound arrival.
+    retDep = Math.min(retArr - 5, Math.ceil((outArr + 1) / 5) * 5);
+  }
+
   return {
     outDep: fmt(outDep),
-    outArr: fmt(outDep + oneWay),
-    retDep: fmt(retArr - oneWay),
+    outArr: fmt(outArr),
+    retDep: fmt(retDep),
     retArr: fmt(retArr),
   };
 }

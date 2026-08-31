@@ -3,6 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.25 — 2026-08-31
+
+**Minor: auto timings — the going (HQ → station) and return (station → HQ) travel durations are now drawn independently**
+
+- In the personal (auto-timings) build, every generated tour previously used a single one-way travel duration for both directions, so the going and return legs always had exactly the same length even though the two journeys can differ in reality.
+- **Fix:** `tripTimes` in `src/lib/travel.ts` now draws two separate one-way durations from the station's travel range — one for the HQ → station leg and one for the station → HQ leg — so the outbound and return legs can differ. The tour-length window condition (minHrs → maxHrs) still applies to the overall return-arrival minus departure span. A safety clamp keeps the return departure after the outbound arrival even when the two drawn legs together would exceed the tour. Generated times stay deterministic per (date, TA rate, travel range) and on the 5-minute grid; the manual-timings build is unaffected.
+
 ## 1.7.7.24 — 2026-08-31
 
 **Minor: Materials list — material name moves on top, stats laid out horizontally, action buttons no longer overlap**
