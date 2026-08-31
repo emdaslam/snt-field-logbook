@@ -3,6 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.24 — 2026-08-31
+
+**Minor: Materials list — material name moves on top, stats laid out horizontally, action buttons no longer overlap**
+
+- Each material row previously showed the material name + Required / Min spare / Received / Used / In hand pills in a left column that was squeezed between the page edge and the Receive / Use / Transfer / Req buttons on the right. Long material names overlapped onto the buttons, and the pill stack wrapped vertically, wasting horizontal space.
+- **Fix:** restructure the row vertically — the material name sits on its own full-width line at the top, the Required / Min spare / Received / Used / Transferred / In hand pills follow on a horizontal line beneath it (wrapping only when truly needed), and the action buttons (Receive, Use, Transfer, + Req, Req, Details) sit on a row below the stats. Nothing overlaps and the row uses the full width.
+
 ## 1.7.7.23 — 2026-08-30
 
 **Minor: two-page Diary export fills page 1 before spilling to page 2**

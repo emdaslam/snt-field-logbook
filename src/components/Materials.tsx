@@ -343,81 +343,80 @@ export function Materials() {
     const open = expandedDetail.has(detailKey);
     return (
       <div key={m.id} className="px-3 py-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-slate-800">{m.name}</p>
-            <div className="mt-1 flex flex-wrap items-center gap-1.5">
-              <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
-                Required: {qtyLabel(row.requiredQty, m.unit)}
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-slate-800">{m.name}</p>
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+              Required: {qtyLabel(row.requiredQty, m.unit)}
+            </span>
+            {Number(row.minRequiredSpare) > 0 && (
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                Min spare: {qtyLabel(Number(row.minRequiredSpare), m.unit)}
               </span>
-              {Number(row.minRequiredSpare) > 0 && (
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                  Min spare: {qtyLabel(Number(row.minRequiredSpare), m.unit)}
-                </span>
-              )}
-              <span className={statClass(row.received, false)}>Received: {fmtQty(row.received)}</span>
-              <span className={statClass(row.used, false)}>Used: {fmtQty(row.used)}</span>
-              {row.transferredOut > 0 && (
-                <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-700">
-                  Transferred out: {fmtQty(row.transferredOut)}
-                </span>
-              )}
-              {row.transferredIn > 0 && (
-                <span className="rounded-full bg-cyan-50 px-2 py-0.5 text-[11px] font-semibold text-cyan-700">
-                  Transferred in: {fmtQty(row.transferredIn)}
-                </span>
-              )}
-              <span className={statClass(row.inHand, row.inHand < 0)}>In hand: {fmtQty(row.inHand)}</span>
-            </div>
-          </div>
-          <div className="flex flex-shrink-0 items-center gap-1">
-            <button
-              onClick={() => setReceiveForm({ material: m, stationId })}
-              className="rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
-            >
-              Receive
-            </button>
-            <button
-              onClick={() => setUseForm({ material: m, stationId })}
-              className="rounded-lg bg-amber-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
-            >
-              Use
-            </button>
-            <button
-              onClick={() => setTransferForm({ material: m, stationId })}
-              className="rounded-lg bg-violet-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-violet-700"
-              title="Transfer to another station"
-            >
-              Transfer
-            </button>
-            {stationId != null && (
-              <>
-                <button
-                  onClick={() => setAddReqForm({ material: m, stationId })}
-                  className="rounded-lg bg-blue-600 px-2 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
-                  title="Add more to this station's requirement"
-                >
-                  + Req
-                </button>
-                <button
-                  onClick={() => setSetReqForm({ material: m, stationId })}
-                  className="rounded-lg border border-blue-800 px-2 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-50"
-                  title="Set this station's requirement and minimum spare"
-                >
-                  Req
-                </button>
-              </>
             )}
-            <button
-              onClick={() => toggleDetail(detailKey)}
-              className={`rounded-lg border border-slate-300 px-2 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 ${
-                open ? "bg-slate-100" : ""
-              }`}
-              title="Details"
-            >
-              {open ? "▴" : "▾"}
-            </button>
+            <span className={statClass(row.received, false)}>Received: {fmtQty(row.received)}</span>
+            <span className={statClass(row.used, false)}>Used: {fmtQty(row.used)}</span>
+            {row.transferredOut > 0 && (
+              <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-700">
+                Transferred out: {fmtQty(row.transferredOut)}
+              </span>
+            )}
+            {row.transferredIn > 0 && (
+              <span className="rounded-full bg-cyan-50 px-2 py-0.5 text-[11px] font-semibold text-cyan-700">
+                Transferred in: {fmtQty(row.transferredIn)}
+              </span>
+            )}
+            <span className={statClass(row.inHand, row.inHand < 0)}>In hand: {fmtQty(row.inHand)}</span>
           </div>
+        </div>
+
+        <div className="mt-2 flex flex-shrink-0 flex-wrap items-center gap-1">
+          <button
+            onClick={() => setReceiveForm({ material: m, stationId })}
+            className="rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+          >
+            Receive
+          </button>
+          <button
+            onClick={() => setUseForm({ material: m, stationId })}
+            className="rounded-lg bg-amber-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
+          >
+            Use
+          </button>
+          <button
+            onClick={() => setTransferForm({ material: m, stationId })}
+            className="rounded-lg bg-violet-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-violet-700"
+            title="Transfer to another station"
+          >
+            Transfer
+          </button>
+          {stationId != null && (
+            <>
+              <button
+                onClick={() => setAddReqForm({ material: m, stationId })}
+                className="rounded-lg bg-blue-600 px-2 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+                title="Add more to this station's requirement"
+              >
+                + Req
+              </button>
+              <button
+                onClick={() => setSetReqForm({ material: m, stationId })}
+                className="rounded-lg border border-blue-800 px-2 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-50"
+                title="Set this station's requirement and minimum spare"
+              >
+                Req
+              </button>
+            </>
+          )}
+          <button
+            onClick={() => toggleDetail(detailKey)}
+            className={`rounded-lg border border-slate-300 px-2 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 ${
+              open ? "bg-slate-100" : ""
+            }`}
+            title="Details"
+          >
+            {open ? "▴" : "▾"}
+          </button>
         </div>
 
         <div className="mt-1.5 flex items-center gap-3">
