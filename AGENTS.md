@@ -65,7 +65,14 @@ For **every** code change, the following release steps are mandatory:
 5. **Commit and push the APKs.** After the build, commit the staged APKs
    (together with any `.apk-download/index.html` update) and push them to
    `origin` — a separate commit after the code commit.
-6. **Signing verification is not required** in general. Only a brand-new agent
+6. **Publish GitHub releases.** Do **not** publish GitHub releases until the
+   user confirms the change works (and asks to publish). When publishing, each
+   variant gets its own release — tag `v<version>` (title "S&T Field Logbook
+   v<version>") and tag `v<version>p` (title "S&T Field Logbook v<version>p
+   (owner personal build)") — with the matching APK attached and the notes
+   taken from that version's `CHANGELOG.md` entry. The newest `p` release is
+   marked Latest.
+7. **Signing verification is not required** in general. Only a brand-new agent
    verifies the signing with `apksigner` (SHA-1
    `7B:C9:5F:C1:7F:0F:E4:93:52:1B:48:09:54:46:13:48:4E:73:B7:81`) on its
    **first** build of a session; all later builds skip the check.
@@ -79,12 +86,19 @@ For **every** code change, the following release steps are mandatory:
   `emdaslam`.
 - Do NOT publish GitHub releases until the user confirms the change works.
 - After a change is committed and pushed, **ask** (with `question`) whether to
-  prune the old released APKs from `.apk-download/`. When approved, keep only
-  the latest 5 of each variant — the 5 newest `SnTFieldlogbook-v….apk` and the
-  5 newest `SnTFieldlogbook-v…p.apk` — delete the older `SnTFieldlogbook-v…apk`
-  files, and trim `.apk-download/index.html` so it links only to files that
-  still exist. Never remove `index.html`, `privacy.html`, `terms.html` or
-  other non-APK files.
+  prune the old APKs from `.apk-download/`. Pruning is allowed only for
+  versions that are already published as GitHub releases. Before pruning, check
+  `gh release list` against every APK still present in `.apk-download/`: a
+  version is safe to prune only when **both** its variants have a release —
+  tag `v<version>` and tag `v<version>p`, each with its APK attached. If any
+  version in `.apk-download/` is not yet released, publish the GitHub releases
+  for it first (both variants, notes from `CHANGELOG.md`, newest `p` marked
+  Latest), and only then prune.
+- When pruning is approved, keep only the latest 5 of each variant — the 5
+  newest `SnTFieldlogbook-v….apk` and the 5 newest `SnTFieldlogbook-v…p.apk` —
+  delete the older `SnTFieldlogbook-v…apk` files, and trim
+  `.apk-download/index.html` so it links only to files that still exist. Never
+  remove `index.html`, `privacy.html`, `terms.html` or other non-APK files.
 
 ## 4. Versioning and release conventions
 
