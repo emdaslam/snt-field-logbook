@@ -364,29 +364,70 @@ export function DailyLogForm({
     (s) => s.id === currentUser?.headquartersStationId
   );
   const hqName = hqStation?.code?.trim() ? hqStation.code : hqStation?.name || "";
-  const enableExportRows = () => {
+  // Additional movement stops for the same entry. Selecting two or more
+  // movements (the first in the Station/Movement picker, the rest below it)
+  // turns the entry into an editable export-row chain: HQ → m0 → m1 → … → HQ.
+  const [extraMovements, setExtraMovements] = useState<string[]>(() => {
+    const legs = existing?.journeyLegs;
+    if (!Array.isArray(legs) || legs.length === 0) return [];
+    const stops = legs.map((l) => l.to).filter((t): t is string => Boolean(t));
+    // The final leg normally returns to HQ — drop that trailing stop.
+    if (stops.length > 1 && stops[stops.length - 1] === hqName) stops.pop();
+    if (stops.length <= 1) return [];
+    return stops.slice(1).map((v) => {
+      const st = stations.find((s) => s.code === v || s.name === v);
+      return st ? st.name : v;
+    });
+  });
+  // The exports print station codes (or the name when a station has no code),
+  // so the chain legs use the same label the default two-leg layout prints.
+  const legLabel = (v: string) => {
+    const st = stations.find((s) => s.name === v || s.code === v);
+    return st?.code?.trim() ? st.code : st?.name || v;
+  };
+  // Rebuild journeyLegs from a movement chain. Times / modes are reused from
+  // matching legs so edits survive movement changes; the first and last legs
+  // default to the outward / return values typed in the Timings fields.
+  const syncLegs = (chain: string[]) => {
+    const filled = chain.filter((m) => m.trim());
+    if (filled.length < 2) {
+      setEditExportRows(false);
+      setJourneyLegs([]);
+      return;
+    }
     setEditExportRows(true);
     setJourneyLegs((cur) => {
-      if (cur.length > 0) return cur;
-      return [
-        {
-          from: hqName,
-          to: movement,
-          timeDep: timeDep || "",
-          timeArr: timeArr || "",
-          mode: travelMode,
-          trainNo: travelTrainNo,
-        },
-        {
-          from: movement,
-          to: hqName,
-          timeDep: returnTimeDep || "",
-          timeArr: returnTimeArr || "",
-          mode: returnMode,
-          trainNo: returnTrainNo,
-        },
-      ];
+      const nodes = [hqName, ...filled.map(legLabel), hqName];
+      const legs: JourneyLeg[] = [];
+      for (let i = 0; i < nodes.length - 1; i++) {
+        const from = nodes[i];
+        const to = nodes[i + 1];
+        const prev = cur.find((l) => l.from === from && l.to === to);
+        const last = i === nodes.length - 2;
+        legs.push(
+          prev ?? {
+            from,
+            to,
+            timeDep: last ? returnTimeDep || null : i === 0 ? timeDep || null : null,
+            timeArr: last ? returnTimeArr || null : i === 0 ? timeArr || null : null,
+            mode: last ? returnMode : i === 0 ? travelMode : "road",
+            trainNo: last ? returnTrainNo : i === 0 ? travelTrainNo : "",
+          }
+        );
+      }
+      return legs;
     });
+  };
+  const addExtraMovement = () => setExtraMovements((prev) => [...prev, ""]);
+  const changeExtraMovement = (i: number, v: string) => {
+    const next = extraMovements.map((m, idx) => (idx === i ? v : m));
+    setExtraMovements(next);
+    syncLegs([movement, ...next]);
+  };
+  const removeExtraMovement = (i: number) => {
+    const next = extraMovements.filter((_, idx) => idx !== i);
+    setExtraMovements(next);
+    syncLegs([movement, ...next]);
   };
   const [movementKind, setMovementKind] = useState<"station" | "rest" | "leave" | "cr" | "nh" | "footplate">(
     existing?.movementKind === "rest" ||
@@ -519,6 +560,9 @@ export function DailyLogForm({
     if (v === "footplate") {
       setMovementKind("footplate");
       setMovement("Footplate");
+      setExtraMovements([]);
+      setEditExportRows(false);
+      setJourneyLegs([]);
       return;
     }
     if (v === "rest" || v === "leave" || v === "cr" || v === "nh") {
@@ -528,6 +572,9 @@ export function DailyLogForm({
       setWorkDone("");
       setTaPercent("0");
       setMovement(v === "rest" ? "Rest" : v === "leave" ? "Leave" : v === "cr" ? "CR" : "NH");
+      setExtraMovements([]);
+      setEditExportRows(false);
+      setJourneyLegs([]);
       return;
     }
     setMovementKind("station");
@@ -537,6 +584,7 @@ export function DailyLogForm({
     if (st && currentUser?.headquartersStationId != null && st.id === currentUser.headquartersStationId) {
       setTaPercent("0");
     }
+    syncLegs([v, ...extraMovements]);
   };
 
   const setLeave = (k: string) => {
@@ -1037,6 +1085,50 @@ export function DailyLogForm({
             )}
           </div>
         )}
+
+        {movementKind === "station" && movement.trim() !== "" && !isHeadquarters && (
+          <div className="mt-2 space-y-2">
+            {extraMovements.map((m, i) => (
+              <div key={i} className="flex gap-2">
+                <select
+                  className={inputClass}
+                  value={m}
+                  onChange={(e) => changeExtraMovement(i, e.target.value)}
+                >
+                  <option value="">— Select another station —</option>
+                  {stations
+                    .filter((s) => s.id !== currentUser?.headquartersStationId)
+                    .map((s) => (
+                      <option key={s.id} value={s.name}>
+                        {s.name}
+                      </option>
+                    ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => removeExtraMovement(i)}
+                  className="flex-shrink-0 rounded-lg border border-red-200 px-3 text-sm font-semibold text-red-600 hover:bg-red-50"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={addExtraMovement}
+              className="rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+            >
+              + Add another movement
+            </button>
+            {extraMovements.length > 0 && (
+              <p className="text-xs text-slate-500">
+                With two or more movements the entry prints as one row per leg —
+                HQ → station → … → station → HQ — in the Diary and TA Journal
+                exports.
+              </p>
+            )}
+          </div>
+        )}
       </Field>
       <Field label={isSpecial ? "Remarks (optional)" : "Work Done"}>
         <textarea
@@ -1063,10 +1155,11 @@ export function DailyLogForm({
             <Field label="Diary / TA export rows">
               <div className="space-y-3">
                 <p className="text-xs text-slate-500">
-                  Each row becomes one line in the Diary and TA Journal exports. Use the HQ
-                  station code below as the default starting point — you can add, delete or
-                  reorder legs freely. The first leg&apos;s times feed the primary tour
-                  timings; the last leg feeds the return timing.
+                  These rows come from the movements you picked above — the chain is HQ →
+                  station → … → station → HQ. Edit any leg&apos;s From / To, times or Road /
+                  Train details here; the first leg feeds the primary tour timings and the
+                  last leg the return. Use &quot;Add another movement&quot; in Station /
+                  Movement above to add another stop.
                 </p>
                 <div className="space-y-2">
                   {journeyLegs.map((leg, i) => (
@@ -1196,25 +1289,6 @@ export function DailyLogForm({
                 </p>
               </div>
             </Field>
-          )}
-          {!editExportRows && (
-            <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3">
-              <p className="mb-2 text-xs font-medium text-slate-600">
-                Edit export rows
-              </p>
-              <p className="mb-2 text-xs text-slate-500">
-                Tap the button below to switch to an editable list of Diary / TA export
-                rows. You can then add or delete legs and pick custom From / To stations.
-                The default layout uses two rows (HQ → station, station → HQ).
-              </p>
-              <button
-                type="button"
-                onClick={enableExportRows}
-                className="rounded-lg border border-emerald-500 px-3 py-1.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
-              >
-                Edit export rows
-              </button>
-            </div>
           )}
         </>
       )}

@@ -3,6 +3,14 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.27 — 2026-08-31
+
+**Minor: multiple movements per daily log — export rows open by adding another movement, and no longer appear before one is selected**
+
+- **Add another movement below the picker.** In a station-movement daily log, once a movement is selected an **Add another movement** button appears beneath it. Tap it to add a second (or further) station to the same entry; every extra stop gets its own picker with a Remove button.
+- **Export rows enable with two or more movements.** The always-visible "Edit export rows" panel is removed — the form no longer offers it when no movement is selected. Instead, selecting **two or more** movements automatically switches the entry to the editable leg list (HQ → station → … → station → HQ), one row per leg with its own From / To, times and Road / Train details. Removing the extra stops falls back to the normal two-row layout.
+- **Saved chains are remembered.** Entries saved with multiple movements re-open with the same stops in the pickers, and the legs keep their typed times and modes while the stops are changed or reordered.
+
 ## 1.7.7.26 — 2026-08-31
 
 **Major: editable Diary / TA export rows in the daily log**

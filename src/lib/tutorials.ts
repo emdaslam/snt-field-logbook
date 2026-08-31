@@ -479,23 +479,23 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
   },
   {
     version: "1.7.7.26",
-    tag: "Editable Diary / TA export rows",
-    subtitle: "Replace the fixed HQ ↔ station two-row layout with your own list of journey legs.",
+    tag: "Multiple movements and editable export rows",
+    subtitle: "Record more than one station in a single daily log — each stop prints as its own Diary / TA row.",
     slides: [
       {
         glyph: "▦",
-        title: "Open the daily log and switch on Edit export rows",
-        body: "Tap a station-movement entry to edit it. Below the normal Timings and Travel Details fields you will see a dashed border panel titled 'Edit export rows'. Tap that button and the form switches to an editable list of journey legs instead of the fixed two-row layout.",
+        title: "Pick a movement, then add another",
+        body: "In a station-movement daily log, once you select a movement an 'Add another movement' button appears below the picker. Tap it to add another station to the same entry — the journey becomes HQ → station → … → station → HQ. Remove an extra stop any time.",
       },
       {
         glyph: "▤",
-        title: "Each leg carries From, To, Time dept, Time arr and mode",
-        body: "Every row lets you pick From and To from the stations list (or type free text when the place is not saved), enter the departure and arrival clock times, and choose Road or Train with a train number. The first leg fills the primary tour departure/arrival; the last leg fills the return. Add more legs for intermediate stops, or delete the default ones if they are not needed.",
+        title: "Each stop is an export row",
+        body: "With two or more movements the form switches to an editable list of journey legs, one per stop. Each leg carries From, To, Time dept, Time arr and Road / Train (with train number); the first leg fills the primary tour timings and the last leg the return.",
       },
       {
         glyph: "◈",
-        title: "The Diary and TA Journal follow the custom rows",
-        body: "Once saved, each leg appears as its own row in both the Diary and TA Journal exports — the date and Nature of Work columns span all legs exactly as they do on footplate days. Switching the toggle back off restores the original two-row layout automatically.",
+        title: "The Diary and TA Journal follow the rows",
+        body: "Each leg appears as its own row in both the Diary and TA Journal exports — the date and Nature of Work columns span all legs exactly as they do on footplate days. A single movement keeps the normal two-row layout.",
       },
     ],
   },
