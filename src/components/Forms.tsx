@@ -38,6 +38,7 @@ import type {
   PlannedWork,
   FootplateBlock,
   FootplateJourneyTrain,
+  FootplateRide,
   JourneyLeg,
 } from "@/db/schema";
 
@@ -76,9 +77,93 @@ type ChainFpSnap = {
 
 type ChainSnap = {
   travel: ChainTravelSnap;
-  fp: ChainFpSnap;
+  fp: ChainFpSnap[];
   label: (v: string) => string;
 };
+
+const EMPTY_FP_TRAIN: FootplateJourneyTrain = {
+  trainNo: "",
+  engineNo: "",
+  lpName: "",
+  alpName: "",
+  tmrName: "",
+  remarks: "",
+  depTime: "",
+  arrTime: "",
+};
+
+type FpRideDraft = {
+  boardingId: number | null;
+  otherEndId: number | null;
+  fpDay: boolean;
+  fpNight: boolean;
+  fpDayDir: string;
+  fpNightDir: string;
+  fpDayUp: FootplateJourneyTrain;
+  fpDayDn: FootplateJourneyTrain;
+  fpNightUp: FootplateJourneyTrain;
+  fpNightDn: FootplateJourneyTrain;
+};
+
+function emptyFpRide(): FpRideDraft {
+  return {
+    boardingId: null,
+    otherEndId: null,
+    fpDay: false,
+    fpNight: false,
+    fpDayDir: "",
+    fpNightDir: "",
+    fpDayUp: { ...EMPTY_FP_TRAIN },
+    fpDayDn: { ...EMPTY_FP_TRAIN },
+    fpNightUp: { ...EMPTY_FP_TRAIN },
+    fpNightDn: { ...EMPTY_FP_TRAIN },
+  };
+}
+
+function trainFromBlock(
+  t: FootplateJourneyTrain | FootplateBlock["up"] | null | undefined
+): FootplateJourneyTrain {
+  return t ? { ...EMPTY_FP_TRAIN, ...t } : { ...EMPTY_FP_TRAIN };
+}
+
+function draftFromRide(r: FootplateRide): FpRideDraft {
+  const day = r.day;
+  const night = r.night;
+  const shift = (r.shift ?? "").split(",").map((s) => s.trim());
+  return {
+    boardingId: r.boardingStationId || null,
+    otherEndId: r.otherEndStationId || null,
+    fpDay: shift.includes("Day") || Boolean(day),
+    fpNight: shift.includes("Night") || Boolean(night),
+    fpDayDir: day?.direction || "",
+    fpNightDir: night?.direction || "",
+    fpDayUp: trainFromBlock(day?.up),
+    fpDayDn: trainFromBlock(day?.down),
+    fpNightUp: trainFromBlock(night?.up),
+    fpNightDn: trainFromBlock(night?.down),
+  };
+}
+
+function snapFromDraft(
+  d: FpRideDraft,
+  boardingLabel: string,
+  otherEndLabel: string
+): ChainFpSnap {
+  return {
+    boardingLabel,
+    otherEndLabel,
+    boardingId: d.boardingId,
+    otherEndId: d.otherEndId,
+    fpDay: d.fpDay,
+    fpNight: d.fpNight,
+    fpDayDir: d.fpDayDir,
+    fpNightDir: d.fpNightDir,
+    fpDayUp: d.fpDayUp,
+    fpDayDn: d.fpDayDn,
+    fpNightUp: d.fpNightUp,
+    fpNightDn: d.fpNightDn,
+  };
+}
 
 /** Pure builder — kept at module scope so React Compiler does not treat the
  *  Footplate fields as mutated by `setJourneyLegs` (which would skip
@@ -87,24 +172,53 @@ function buildChainLegs(
   filled: string[],
   cur: JourneyLeg[],
   travel: ChainTravelSnap,
-  fp: ChainFpSnap,
+  fps: ChainFpSnap[],
   label: (v: string) => string
 ): JourneyLeg[] {
+  const used = new Set<number>();
   const reuse = (
     from: string,
     to: string,
     mode: "road" | "train",
     trainNo: string,
     fallback: JourneyLeg
-  ): JourneyLeg =>
-    cur.find((l) => l.from === from && l.to === to && l.mode === mode && l.trainNo === trainNo) ??
-    cur.find((l) => l.from === from && l.to === to && l.mode === mode) ??
-    fallback;
+  ): JourneyLeg => {
+    const exact = cur.findIndex(
+      (l, i) => !used.has(i) && l.from === from && l.to === to && l.mode === mode && l.trainNo === trainNo
+    );
+    if (exact >= 0) {
+      used.add(exact);
+      return cur[exact];
+    }
+    const loose = cur.findIndex(
+      (l, i) => !used.has(i) && l.from === from && l.to === to && l.mode === mode
+    );
+    if (loose >= 0) {
+      used.add(loose);
+      return cur[loose];
+    }
+    return fallback;
+  };
   const legs: JourneyLeg[] = [];
   let fromStation = travel.hqName;
   let isFirst = true;
+  let fpIdx = 0;
   for (const m of filled) {
     if (m === FOOTPLATE_SLOT) {
+      const fp = fps[fpIdx++] ?? {
+        boardingLabel: "",
+        otherEndLabel: "",
+        boardingId: null,
+        otherEndId: null,
+        fpDay: false,
+        fpNight: false,
+        fpDayDir: "",
+        fpNightDir: "",
+        fpDayUp: { ...EMPTY_FP_TRAIN },
+        fpDayDn: { ...EMPTY_FP_TRAIN },
+        fpNightUp: { ...EMPTY_FP_TRAIN },
+        fpNightDn: { ...EMPTY_FP_TRAIN },
+      };
       const boarding = fp.boardingLabel;
       const otherEnd = fp.otherEndLabel;
       const roadFit: JourneyLeg = {
@@ -533,33 +647,46 @@ export function DailyLogForm({
   // movements (the first in the Station/Movement picker, the rest below it)
   // turns the entry into an editable export-row chain: HQ → m0 → m1 → … → HQ.
   const [extraMovements, setExtraMovements] = useState<string[]>(() => {
+    if (Array.isArray(existing?.extraStops) && existing.extraStops.length > 0) {
+      return existing.extraStops;
+    }
     const legs = existing?.journeyLegs;
     if (!Array.isArray(legs) || legs.length === 0) return [];
     const isFpPrimary = existing?.movementKind === "footplate";
-    const fj = existing?.footplateJourney;
-    const fjBoarding = fj ? stations.find((s) => s.id === fj.boardingStationId) : undefined;
-    const fjOtherEnd = fj ? stations.find((s) => s.id === fj.otherEndStationId) : undefined;
-    const isFpEndpoint = (v: string) =>
-      Boolean(fj) &&
-      (v === legLabel(fjBoarding?.name || "") ||
-        v === legLabel(fjBoarding?.code || "") ||
-        v === legLabel(fjOtherEnd?.name || "") ||
-        v === legLabel(fjOtherEnd?.code || ""));
-    // Walk the legs and collapse each maximally-consecutive Footplate block
-    // (road into boarding + the train legs between the two ends) into a single
-    // sentinel slot, keeping plain station stops as their names.
+    const storedRides: FootplateRide[] =
+      Array.isArray(existing?.footplateJourneys) && existing.footplateJourneys.length > 0
+        ? existing.footplateJourneys
+        : existing?.footplateJourney
+          ? [
+              {
+                boardingStationId: existing.footplateJourney.boardingStationId,
+                otherEndStationId: existing.footplateJourney.otherEndStationId,
+                shift: existing.footplateJourney.shift,
+                day: existing.footplateDay ?? null,
+                night: existing.footplateNight ?? null,
+              },
+            ]
+          : [];
+    const fpEndpoints = storedRides.flatMap((r) => {
+      const b = stations.find((s) => s.id === r.boardingStationId);
+      const o = stations.find((s) => s.id === r.otherEndStationId);
+      return [legLabel(b?.name || b?.code || ""), legLabel(o?.name || o?.code || "")].filter(Boolean);
+    });
+    const isFpEndpoint = (v: string) => fpEndpoints.includes(v);
     const slots: string[] = [];
     for (let i = 0; i < legs.length; i++) {
       const l = legs[i];
-      const isTrain = l.mode === "train";
       const next = legs[i + 1];
-      const startsBlock = isTrain || (l.to && next && isFpEndpoint(l.to) && next.mode === "train");
+      const startsBlock =
+        l.mode === "train" || (Boolean(l.to) && next && isFpEndpoint(l.to) && next.mode === "train");
       if (startsBlock) {
-        // Skip the road-into-boarding leg too (i increments below); the whole
-        // block stands for the footplate slot. Only add the marker once.
-        if (slots[slots.length - 1] !== FOOTPLATE_SLOT) slots.push(FOOTPLATE_SLOT);
-        while (i < legs.length && (legs[i].mode === "train" || isFpEndpoint(legs[i].to))) i++;
-        i--;
+        slots.push(FOOTPLATE_SLOT);
+        while (
+          i + 1 < legs.length &&
+          (legs[i + 1].mode === "train" || isFpEndpoint(legs[i + 1].to) || isFpEndpoint(legs[i + 1].from))
+        ) {
+          i++;
+        }
         continue;
       }
       const v = l.to;
@@ -567,17 +694,35 @@ export function DailyLogForm({
       const st = stations.find((s) => s.code === v || s.name === v);
       slots.push(st ? st.name : v);
     }
-    // The final leg normally returns to HQ — drop that trailing stop.
     if (slots.length > 1 && slots[slots.length - 1] === hqName) slots.pop();
-    // `slots` includes the primary movement first. Drop it so `extraMovements`
-    // only holds the trailing stops. For a Footplate primary the block is the
-    // first slot.
     if (isFpPrimary) {
       if (slots[0] === FOOTPLATE_SLOT) slots.shift();
       return slots;
     }
     if (slots.length <= 1) return [];
     return slots.slice(1);
+  });
+  const [fpRides, setFpRides] = useState<FpRideDraft[]>(() => {
+    const stored: FootplateRide[] =
+      Array.isArray(existing?.footplateJourneys) && existing.footplateJourneys.length > 0
+        ? existing.footplateJourneys
+        : existing?.footplateJourney
+          ? [
+              {
+                boardingStationId: existing.footplateJourney.boardingStationId,
+                otherEndStationId: existing.footplateJourney.otherEndStationId,
+                shift: existing.footplateJourney.shift,
+                day: existing.footplateDay ?? null,
+                night: existing.footplateNight ?? null,
+              },
+            ]
+          : [];
+    const drafts = stored.map(draftFromRide);
+    const n =
+      (existing?.movementKind === "footplate" ? 1 : 0) +
+      extraMovements.filter((m) => m === FOOTPLATE_SLOT).length;
+    while (drafts.length < n) drafts.push(emptyFpRide());
+    return drafts;
   });
   // Latest chain inputs, written each render after the Footplate fields exist.
   // `syncLegs` reads only this ref so React Compiler does not treat fpDay etc.
@@ -594,17 +739,6 @@ export function DailyLogForm({
     const snap = chainSnapRef.current;
     if (!snap) return;
     setJourneyLegs((cur) => buildChainLegs(filled, cur, snap.travel, snap.fp, snap.label));
-  };
-  const addExtraMovement = () => setExtraMovements((prev) => [...prev, ""]);
-  const changeExtraMovement = (i: number, v: string) => {
-    const next = extraMovements.map((m, idx) => (idx === i ? v : m));
-    setExtraMovements(next);
-    syncLegs([primarySlot, ...next]);
-  };
-  const removeExtraMovement = (i: number) => {
-    const next = extraMovements.filter((_, idx) => idx !== i);
-    setExtraMovements(next);
-    syncLegs([primarySlot, ...next]);
   };
   const [movementKind, setMovementKind] = useState<"station" | "rest" | "leave" | "cr" | "nh" | "footplate">(
     existing?.movementKind === "rest" ||
@@ -709,9 +843,6 @@ export function DailyLogForm({
   const [fpNightDir, setFpNightDir] = useState(nightBlock.direction);
   const [fpNightUp, setFpNightUp] = useState<FootplateJourneyTrain>(nightBlock.up);
   const [fpNightDn, setFpNightDn] = useState<FootplateJourneyTrain>(nightBlock.down);
-  const journey = existing?.footplateJourney ?? null;
-  const [fpBoardingId, setFpBoardingId] = useState<number | null>(journey?.boardingStationId ?? null);
-  const [fpOtherEndId, setFpOtherEndId] = useState<number | null>(journey?.otherEndStationId ?? null);
   const [discOpen, setDiscOpen] = useState(Boolean(existing?.hasDisconnections));
   const [discSpecialWork, setDiscSpecialWork] = useState(String(existing?.discSpecialWork ?? 0));
   const [discFailure, setDiscFailure] = useState(String(existing?.discFailure ?? 0));
@@ -735,9 +866,11 @@ export function DailyLogForm({
   // Footplate, which is a working tour and keeps both.
   const selectMovement = (v: string) => {
     if (v === "footplate") {
+      if (movementKind !== "footplate") {
+        setFpRides((prev) => [emptyFpRide(), ...prev]);
+      }
       setMovementKind("footplate");
       setMovement("Footplate");
-      // Keep the trailing stops, including any extra Footplate slots.
       syncLegs([FOOTPLATE_SLOT, ...extraMovements]);
       return;
     }
@@ -749,9 +882,13 @@ export function DailyLogForm({
       setTaPercent("0");
       setMovement(v === "rest" ? "Rest" : v === "leave" ? "Leave" : v === "cr" ? "CR" : "NH");
       setExtraMovements([]);
+      setFpRides([]);
       setEditExportRows(false);
       setJourneyLegs([]);
       return;
+    }
+    if (movementKind === "footplate") {
+      setFpRides((prev) => prev.slice(1));
     }
     setMovementKind("station");
     setMovement(v);
@@ -779,8 +916,14 @@ export function DailyLogForm({
   const isHeadquarters = resolvedStation?.id === currentUser?.headquartersStationId;
   // Footplate movement helpers — boarding / other-end stations and the summary
   // text stored in stationMovement and printed in the Diary / TA exports.
-  const fpBoarding = stations.find((s) => s.id === fpBoardingId);
-  const fpOtherEnd = stations.find((s) => s.id === fpOtherEndId);
+  const rideLabel = (d: FpRideDraft) => {
+    const b = stations.find((s) => s.id === d.boardingId);
+    const o = stations.find((s) => s.id === d.otherEndId);
+    return {
+      boarding: b ? legLabel(b.name) : "",
+      otherEnd: o ? legLabel(o.name) : "",
+    };
+  };
   useEffect(() => {
     chainSnapRef.current = {
       travel: {
@@ -794,25 +937,12 @@ export function DailyLogForm({
         returnMode,
         returnTrainNo,
       },
-      fp: {
-        boardingLabel: fpBoarding ? legLabel(fpBoarding.name) : "",
-        otherEndLabel: fpOtherEnd ? legLabel(fpOtherEnd.name) : "",
-        boardingId: fpBoarding?.id ?? null,
-        otherEndId: fpOtherEnd?.id ?? null,
-        fpDay,
-        fpNight,
-        fpDayDir,
-        fpNightDir,
-        fpDayUp,
-        fpDayDn,
-        fpNightUp,
-        fpNightDn,
-      },
+      fp: fpRides.map((d) => {
+        const l = rideLabel(d);
+        return snapFromDraft(d, l.boarding, l.otherEnd);
+      }),
       label: legLabel,
     };
-    // fpBoarding/fpOtherEnd are new objects each render and are fully
-    // determined by fpBoardingId/fpOtherEndId, so they are intentionally
-    // omitted from the deps below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     hqName,
@@ -824,32 +954,48 @@ export function DailyLogForm({
     returnTimeArr,
     returnMode,
     returnTrainNo,
-    fpBoardingId,
-    fpOtherEndId,
-    fpDay,
-    fpNight,
-    fpDayDir,
-    fpNightDir,
-    fpDayUp,
-    fpDayDn,
-    fpNightUp,
-    fpNightDn,
+    fpRides,
     legLabel,
   ]);
+  const firstRide = fpRides[0];
+  const firstBoarding = firstRide ? stations.find((s) => s.id === firstRide.boardingId) : undefined;
+  const firstOtherEnd = firstRide ? stations.find((s) => s.id === firstRide.otherEndId) : undefined;
   const fpMovementText =
-    movementKind === "footplate" && fpBoarding && fpOtherEnd
-      ? `Footplate: ${fpBoarding.name} → ${fpOtherEnd.name}`
+    movementKind === "footplate" && firstBoarding && firstOtherEnd
+      ? `Footplate: ${firstBoarding.name} → ${firstOtherEnd.name}`
       : "Footplate";
-  // The first (primary) slot of the movement chain: the sentinel when the
-  // Footplate is the primary movement, else the selected station name.
   const primarySlot = movementKind === "footplate" ? FOOTPLATE_SLOT : movement;
-  // True when the Footplate ride appears anywhere in the chain (primary or as
-  // one of the extra stops). Controls the Footplate Journey panel and payload.
   const hasFootplateInChain = movementKind === "footplate" || extraMovements.includes(FOOTPLATE_SLOT);
-  // Rebuild the export legs whenever the Footplate journey fields change but the
-  // rest of the chain is unchanged. Skipped on mount so a loaded entry keeps its
-  // stored legs. `syncLegs` is intentionally not a dependency — it is recreated
-  // every render and would echo the setJourneyLegs update back into this effect.
+  const extraFpIndex = (extraIdx: number) =>
+    (movementKind === "footplate" ? 1 : 0) +
+    extraMovements.slice(0, extraIdx).filter((m) => m === FOOTPLATE_SLOT).length;
+  const addExtraMovement = () => setExtraMovements((prev) => [...prev, ""]);
+  const changeExtraMovement = (i: number, v: string) => {
+    const prevVal = extraMovements[i];
+    const next = extraMovements.map((m, idx) => (idx === i ? v : m));
+    setExtraMovements(next);
+    if (prevVal !== FOOTPLATE_SLOT && v === FOOTPLATE_SLOT) {
+      const at = extraFpIndex(i);
+      setFpRides((prev) => {
+        const copy = [...prev];
+        copy.splice(at, 0, emptyFpRide());
+        return copy;
+      });
+    } else if (prevVal === FOOTPLATE_SLOT && v !== FOOTPLATE_SLOT) {
+      const at = extraFpIndex(i);
+      setFpRides((prev) => prev.filter((_, idx) => idx !== at));
+    }
+    syncLegs([primarySlot, ...next]);
+  };
+  const removeExtraMovement = (i: number) => {
+    if (extraMovements[i] === FOOTPLATE_SLOT) {
+      const at = extraFpIndex(i);
+      setFpRides((prev) => prev.filter((_, idx) => idx !== at));
+    }
+    const next = extraMovements.filter((_, idx) => idx !== i);
+    setExtraMovements(next);
+    syncLegs([primarySlot, ...next]);
+  };
   const didMount = useRef(false);
   useEffect(() => {
     if (!didMount.current) {
@@ -857,12 +1003,9 @@ export function DailyLogForm({
       return;
     }
     if (!hasFootplateInChain) return;
-    // Rebuilding the legs to reflect the edited journey and skipping the
-    // derived dependencies is intentional: a stale snapshot is fine here and
-    // including syncLegs/extraMovements would echo the setJourneyLegs update.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     syncLegs([primarySlot, ...extraMovements]);
-  }, [fpBoardingId, fpOtherEndId, fpDay, fpNight, fpDayDir, fpNightDir, fpDayUp, fpDayDn, fpNightUp, fpNightDn]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fpRides]); // eslint-disable-line react-hooks/exhaustive-deps
   const pcdoStationId = pcdoStationOverride ?? resolvedStation?.id ?? null;
   const pcdoDate = logDate;
   const needsSideTags = tags.filter((t) => t.needsSide && !kindFromTagName(t.name));
@@ -895,12 +1038,11 @@ export function DailyLogForm({
     const win = loadTaGenConfig();
     const pct = Number(taPercentEffective) || 0;
     const rate: TaRateKey = pct === 100 || pct === 30 ? (String(pct) as TaRateKey) : "70";
-    if (movementKind === "footplate") {
-      const boarding = stations.find((s) => s.id === fpBoardingId);
+    if (hasFootplateInChain) {
+      const first = fpRides[0];
+      const boarding = first ? stations.find((s) => s.id === first.boardingId) : undefined;
       if (!boarding) return null;
       const g = tripTimes(logDate, pct, boarding.travelMin, boarding.travelMax, win[rate]);
-      // The Day/Night Up/Down trains in the same order the exports emit them;
-      // each gets its own slot within the boarding-station window.
       const trains: Array<{ key: string; train: FootplateJourneyTrain }> = [];
       const push = (
         upKey: string,
@@ -914,8 +1056,10 @@ export function DailyLogForm({
         if ((dir === "Up" || dir === "Both") && up.trainNo) trains.push({ key: upKey, train: up });
         if ((dir === "Down" || dir === "Both") && dn.trainNo) trains.push({ key: dnKey, train: dn });
       };
-      push("dayUp", "dayDn", fpDay, fpDayDir, fpDayUp, fpDayDn);
-      push("nightUp", "nightDn", fpNight, fpNightDir, fpNightUp, fpNightDn);
+      fpRides.forEach((d, i) => {
+        push(`${i}-dayUp`, `${i}-dayDn`, d.fpDay, d.fpDayDir, d.fpDayUp, d.fpDayDn);
+        push(`${i}-nightUp`, `${i}-nightDn`, d.fpNight, d.fpNightDir, d.fpNightUp, d.fpNightDn);
+      });
       const fpShown: Record<string, { depTime: string; arrTime: string }> = {};
       if (trains.length > 0) {
         const slots = journeyTrainTimes(
@@ -951,21 +1095,12 @@ export function DailyLogForm({
     movement,
     logDate,
     taPercentEffective,
-    fpBoardingId,
-    fpDay,
-    fpNight,
-    fpDayDir,
-    fpDayUp,
-    fpDayDn,
-    fpNightDir,
-    fpNightUp,
-    fpNightDn,
+    hasFootplateInChain,
+    fpRides,
     stations,
     isSpecial,
     isHeadquarters,
   ]);
-  // The values shown in the timing fields: the user's own value when one has
-  // been typed (or was stored), else the derived auto-generated one.
   const shownDep = AUTO_TIMINGS ? timeDep || autoGenTimes?.base.outDep || "" : timeDep;
   const shownArr = AUTO_TIMINGS ? timeArr || autoGenTimes?.base.outArr || "" : timeArr;
   const shownRetDep = AUTO_TIMINGS ? returnTimeDep || autoGenTimes?.base.retDep || "" : returnTimeDep;
@@ -980,6 +1115,8 @@ export function DailyLogForm({
   const shownFpDayDn = shownFpTrain("dayDn", fpDayDn);
   const shownFpNightUp = shownFpTrain("nightUp", fpNightUp);
   const shownFpNightDn = shownFpTrain("nightDn", fpNightDn);
+  const patchFpRide = (i: number, patch: Partial<FpRideDraft>) =>
+    setFpRides((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
 
   async function createStation() {
     if (!newStationDraft.name.trim()) return;
@@ -1022,12 +1159,13 @@ export function DailyLogForm({
     }
     setSaving(true);
     const isFp = movementKind === "footplate";
-    // The Footplate ride can be the primary movement or an extra stop; either
-    // way its journey / shift / inspection data is saved on the entry.
     const fpInChain = hasFootplateInChain;
-    const fpShift = fpInChain
-      ? [fpDay ? "Day" : "", fpNight ? "Night" : ""].filter(Boolean).join(",") || null
-      : null;
+    const first = fpRides[0];
+    const fpShift = first
+      ? [first.fpDay ? "Day" : "", first.fpNight ? "Night" : ""].filter(Boolean).join(",") || null
+      : fpInChain
+        ? [fpDay ? "Day" : "", fpNight ? "Night" : ""].filter(Boolean).join(",") || null
+        : null;
     const strip = (t: FootplateJourneyTrain | null): FootplateJourneyTrain | null =>
       t && (t.trainNo || t.engineNo || t.lpName || t.alpName || t.tmrName || t.remarks)
         ? {
@@ -1041,8 +1179,6 @@ export function DailyLogForm({
             arrTime: t.arrTime,
           }
         : null;
-    // A footplate movement is itself the footplate inspection: each selected
-    // shift (Day / Night) records its own direction and Up/Down train details.
     const fpBlock = (
       shiftActive: boolean,
       dir: string,
@@ -1054,6 +1190,14 @@ export function DailyLogForm({
       if (dir === "Down") return { direction: "Down", up: null, down: strip(down) };
       return { direction: "Both", up: strip(up), down: strip(down) };
     };
+    const ridesPayload: FootplateRide[] = fpRides.map((d) => ({
+      boardingStationId: d.boardingId ?? 0,
+      otherEndStationId: d.otherEndId ?? 0,
+      shift: [d.fpDay ? "Day" : "", d.fpNight ? "Night" : ""].filter(Boolean).join(",") || null,
+      day: fpBlock(d.fpDay, d.fpDayDir, d.fpDayUp, d.fpDayDn),
+      night: fpBlock(d.fpNight, d.fpNightDir, d.fpNightUp, d.fpNightDn),
+    }));
+    const firstRidePayload = ridesPayload[0];
     const payload = {
       id: existing?.id,
       logDate,
@@ -1126,7 +1270,11 @@ export function DailyLogForm({
       // over the route), so it feeds the periodic-inspection tracking and the
       // Inspection export even when the footplate tag isn't ticked.
       inspectionKind: fpInChain ? "footplate" : inspectionKind,
-      inspectionStationId: fpInChain ? fpBoardingId : inspectionKind ? pcdoStationId : null,
+      inspectionStationId: fpInChain
+        ? (firstRidePayload?.boardingStationId || null)
+        : inspectionKind
+          ? pcdoStationId
+          : null,
       inspectionTowardsStationId:
         !fpInChain && inspectionKind && inspectionKind !== "footplate" && inspectionSide !== "Both"
           ? inspectionTowardsId
@@ -1135,46 +1283,57 @@ export function DailyLogForm({
       inspectionJointDept: !fpInChain && inspectionKind === "joint" ? jointDept || null : null,
       inspectionPeriodicity:
         fpInChain || (inspectionKind && PERIODIC_KINDS.includes(inspectionKind)) ? periodicity : null,
-      // The point oiling / battery cycle is now configured per-tag in Settings
       inspectionRemindDays: null,
-      footplateShift: fpInChain ? fpShift : inspectionKind === "footplate"
-        ? [fpDay ? "Day" : "", fpNight ? "Night" : ""].filter(Boolean).join(",") || null
-        : null,
+      extraStops: extraMovements.filter((m) => m.trim()),
+      footplateJourneys: fpInChain ? ridesPayload : [],
+      footplateShift: fpInChain
+        ? fpShift
+        : inspectionKind === "footplate"
+          ? [fpDay ? "Day" : "", fpNight ? "Night" : ""].filter(Boolean).join(",") || null
+          : null,
       footplateDirection: null,
       footplateUp: null,
       footplateDown: null,
-      footplateDay:
-        fpInChain
-          ? fpBlock(fpDay, fpDayDir, fpDayUp, fpDayDn)
-          : inspectionKind === "footplate" && fpDay
-            ? fpBlock(true, fpDayDir, fpDayUp, fpDayDn)
-            : null,
-      footplateNight:
-        fpInChain
-          ? fpBlock(fpNight, fpNightDir, fpNightUp, fpNightDn)
-          : inspectionKind === "footplate" && fpNight
-            ? fpBlock(true, fpNightDir, fpNightUp, fpNightDn)
-            : null,
-      footplateJourney: fpInChain
+      footplateDay: firstRidePayload
+        ? firstRidePayload.day
+        : inspectionKind === "footplate" && fpDay
+          ? fpBlock(true, fpDayDir, fpDayUp, fpDayDn)
+          : null,
+      footplateNight: firstRidePayload
+        ? firstRidePayload.night
+        : inspectionKind === "footplate" && fpNight
+          ? fpBlock(true, fpNightDir, fpNightUp, fpNightDn)
+          : null,
+      footplateJourney: firstRidePayload
         ? {
-            boardingStationId: fpBoardingId ?? 0,
-            otherEndStationId: fpOtherEndId ?? 0,
-            direction: fpDay ? fpDayDir : fpNight ? fpNightDir : "",
-            shift: fpShift,
-            outbound: fpDay
-              ? fpDayDir === "Down"
-                ? strip(fpDayDn)
-                : strip(fpDayUp)
-              : fpNight
-                ? fpNightDir === "Down"
-                  ? strip(fpNightDn)
-                  : strip(fpNightUp)
-                : null,
-            inbound: fpDay && fpDayDir === "Both"
-              ? strip(fpDayDn)
-              : fpNight && fpNightDir === "Both"
-                ? strip(fpNightDn)
-                : null,
+            boardingStationId: firstRidePayload.boardingStationId,
+            otherEndStationId: firstRidePayload.otherEndStationId,
+            direction: first
+              ? first.fpDay
+                ? first.fpDayDir
+                : first.fpNight
+                  ? first.fpNightDir
+                  : ""
+              : "",
+            shift: firstRidePayload.shift,
+            outbound: first
+              ? first.fpDay
+                ? first.fpDayDir === "Down"
+                  ? strip(first.fpDayDn)
+                  : strip(first.fpDayUp)
+                : first.fpNight
+                  ? first.fpNightDir === "Down"
+                    ? strip(first.fpNightDn)
+                    : strip(first.fpNightUp)
+                  : null
+              : null,
+            inbound: first
+              ? first.fpDay && first.fpDayDir === "Both"
+                ? strip(first.fpDayDn)
+                : first.fpNight && first.fpNightDir === "Both"
+                  ? strip(first.fpNightDn)
+                  : null
+              : null,
           }
         : null,
       ownerStaffId: existing?.ownerStaffId ?? currentUser?.id ?? null,
@@ -1384,7 +1543,8 @@ export function DailyLogForm({
               <p className="text-xs text-slate-500">
                 With two or more movements the entry prints as one row per leg —
                 HQ → stop → … → stop → HQ — in the Diary and TA Journal
-                exports. Each extra stop can be a station or Footplate.
+                exports. Each extra stop can be a station or Footplate; each
+                Footplate asks for its own boarding, trains and times.
               </p>
             )}
           </div>
@@ -1624,147 +1784,32 @@ export function DailyLogForm({
       </Field>
       )}
 
-      {/* Footplate — special movement: HQ → boarding station → ride the engine
-          to the other end (Up/Down), optionally ride back in the opposite
-          direction, then return to HQ. Shown whenever the Footplate ride is part
-          of the chain — as the primary movement or as an extra stop. */}
       {hasFootplateInChain && (
-        <div className="mb-3 rounded-lg border border-cyan-200 bg-cyan-50/70 p-3">
-          <p className="text-sm font-semibold text-cyan-900">Footplate Journey</p>
-          <p className="mt-1 text-xs text-cyan-800">
-            From HQ to the boarding station, ride the engine of a train to the other end,{" "}
-            {fpDayDir === "Both" || fpNightDir === "Both"
-              ? "ride back in the opposite direction,"
-              : "optionally ride back in the opposite direction,"}{" "}
-            then return to HQ.
-          </p>
-
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-slate-700">
-                Boarding station <span className="font-normal text-slate-400">(from HQ)</span>
-              </span>
-              <select
-                className={inputClass}
-                value={fpBoardingId ?? ""}
-                onChange={(e) => setFpBoardingId(e.target.value ? Number(e.target.value) : null)}
-              >
-                <option value="">— Select boarding station —</option>
-                {stations.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-slate-700">
-                Other end station <span className="font-normal text-slate-400">(far end)</span>
-              </span>
-              <select
-                className={inputClass}
-                value={fpOtherEndId ?? ""}
-                onChange={(e) => setFpOtherEndId(e.target.value ? Number(e.target.value) : null)}
-              >
-                <option value="">— Select other end —</option>
-                {stations.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          {fpBoardingId != null && fpBoardingId === fpOtherEndId && (
-            <p className="mt-1 text-xs text-amber-600">
-              Boarding and other end must be different stations.
-            </p>
-          )}
-
-          <p className="mt-2 text-xs text-cyan-800">
-            For each shift you select below, pick the direction (Up / Down / Both) and enter the train
-            details — Train No, Engine No, LP, ALP, TMR and Remarks (deficiency noted while on the engine).
-          </p>
-
-          <span className="mb-1 mt-2 block text-xs font-medium text-slate-700">
-            Day or Night? <span className="font-normal text-slate-400">(select both if applicable)</span>
-          </span>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setFpDay((v) => !v)}
-              className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium ${
-                fpDay ? "border-cyan-600 bg-cyan-50 text-cyan-800" : "border-slate-300 text-slate-600"
-              }`}
-            >
-              Day
-            </button>
-            <button
-              type="button"
-              onClick={() => setFpNight((v) => !v)}
-              className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium ${
-                fpNight ? "border-cyan-600 bg-cyan-50 text-cyan-800" : "border-slate-300 text-slate-600"
-              }`}
-            >
-              Night
-            </button>
-          </div>
-          {!fpDay && !fpNight && (
-            <p className="mt-1 text-xs text-amber-600">Select Day and/or Night.</p>
-          )}
-
-          {fpDay && (
-            <ShiftDetails
-              label="☀ Day"
-              direction={fpDayDir}
-              setDirection={setFpDayDir}
-              up={shownFpDayUp}
-              setUp={setFpDayUp}
-              down={shownFpDayDn}
-              setDown={setFpDayDn}
-            />
-          )}
-          {fpNight && (
-            <ShiftDetails
-              label="🌙 Night"
-              direction={fpNightDir}
-              setDirection={setFpNightDir}
-              up={shownFpNightUp}
-              setUp={setFpNightUp}
-              down={shownFpNightDn}
-              setDown={setFpNightDn}
-            />
-          )}
-
-          {PERIODIC_KINDS.includes("footplate") && (
-            <label className="mt-2 block">
-              <span className="mb-1 block text-xs font-medium text-slate-700">Periodicity</span>
-              <div className="flex gap-2">
-                {PERIODICITIES.map((pd) => (
-                  <button
-                    key={pd}
-                    type="button"
-                    onClick={() => setPeriodicity(pd)}
-                    className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium capitalize ${
-                      periodicity === pd
-                        ? "border-cyan-600 bg-cyan-50 text-cyan-800"
-                        : "border-slate-300 text-slate-600"
-                    }`}
-                  >
-                    {pd}
-                  </button>
-                ))}
-              </div>
-            </label>
-          )}
-
-          {fpBoarding && fpOtherEnd && fpBoarding.id !== fpOtherEnd.id && (fpDay || fpNight) && (
-            <p className="mt-1.5 text-xs text-cyan-800">
-              <strong>{[fpDay ? "Day" : "", fpNight ? "Night" : ""].filter(Boolean).join(" + ")}</strong>{" "}
-              footplate {fpBoarding.name} → {fpOtherEnd.name} · {periodicity} cycle — next due{" "}
-              <strong>{addDays(logDate, intervalFor("footplate", periodicity))}</strong>.
-            </p>
-          )}
+        <div className="mb-3 space-y-3">
+          {fpRides.map((ride, i) => {
+            const boarding = stations.find((s) => s.id === ride.boardingId);
+            const otherEnd = stations.find((s) => s.id === ride.otherEndId);
+            return (
+              <FootplateRidePanel
+                key={i}
+                index={i}
+                total={fpRides.length}
+                ride={ride}
+                stations={stations}
+                onChange={(patch) => patchFpRide(i, patch)}
+                shownDayUp={shownFpTrain(`${i}-dayUp`, ride.fpDayUp)}
+                shownDayDn={shownFpTrain(`${i}-dayDn`, ride.fpDayDn)}
+                shownNightUp={shownFpTrain(`${i}-nightUp`, ride.fpNightUp)}
+                shownNightDn={shownFpTrain(`${i}-nightDn`, ride.fpNightDn)}
+                periodicity={periodicity}
+                setPeriodicity={setPeriodicity}
+                showPeriodicity={i === 0 && PERIODIC_KINDS.includes("footplate")}
+                logDate={logDate}
+                boardingName={boarding?.name}
+                otherEndName={otherEnd?.name}
+              />
+            );
+          })}
         </div>
       )}
 
@@ -2522,12 +2567,12 @@ export function DailyLogForm({
 
           {inspectionKind === "footplate" ? (
             movementKind === "footplate" ? (
-              fpBoarding && fpOtherEnd && fpBoarding.id !== fpOtherEnd.id && (fpDay || fpNight) ? (
+              firstBoarding && firstOtherEnd && firstBoarding.id !== firstOtherEnd.id && firstRide && (firstRide.fpDay || firstRide.fpNight) ? (
                 <p className="mt-1.5 text-xs text-sky-800">
                   <strong>
-                    {[fpDay ? "Day" : "", fpNight ? "Night" : ""].filter(Boolean).join(" + ")}
+                    {[firstRide.fpDay ? "Day" : "", firstRide.fpNight ? "Night" : ""].filter(Boolean).join(" + ")}
                   </strong>{" "}
-                  footplate {fpBoarding.name} → {fpOtherEnd.name} · {periodicity} cycle — next due{" "}
+                  footplate {firstBoarding.name} → {firstOtherEnd.name} · {periodicity} cycle — next due{" "}
                   <strong>{addDays(logDate, intervalFor(inspectionKind, periodicity))}</strong>.
                 </p>
               ) : (
@@ -2864,6 +2909,184 @@ function TrainDetails({
           />
         </label>
       </div>
+    </div>
+  );
+}
+
+function FootplateRidePanel({
+  index,
+  total,
+  ride,
+  stations,
+  onChange,
+  shownDayUp,
+  shownDayDn,
+  shownNightUp,
+  shownNightDn,
+  periodicity,
+  setPeriodicity,
+  showPeriodicity,
+  logDate,
+  boardingName,
+  otherEndName,
+}: {
+  index: number;
+  total: number;
+  ride: FpRideDraft;
+  stations: { id: number; name: string }[];
+  onChange: (patch: Partial<FpRideDraft>) => void;
+  shownDayUp: FootplateJourneyTrain;
+  shownDayDn: FootplateJourneyTrain;
+  shownNightUp: FootplateJourneyTrain;
+  shownNightDn: FootplateJourneyTrain;
+  periodicity: string;
+  setPeriodicity: (v: string) => void;
+  showPeriodicity: boolean;
+  logDate: string;
+  boardingName?: string;
+  otherEndName?: string;
+}) {
+  const title = total > 1 ? `Footplate Journey ${index + 1}` : "Footplate Journey";
+  return (
+    <div className="rounded-lg border border-cyan-200 bg-cyan-50/70 p-3">
+      <p className="text-sm font-semibold text-cyan-900">{title}</p>
+      <p className="mt-1 text-xs text-cyan-800">
+        Boarding station, other end, and Day / Night trains for this Footplate stop.
+        Each Footplate in the chain has its own details and its own export legs.
+      </p>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-slate-700">
+            Boarding station <span className="font-normal text-slate-400">(from HQ)</span>
+          </span>
+          <select
+            className={inputClass}
+            value={ride.boardingId ?? ""}
+            onChange={(e) => onChange({ boardingId: e.target.value ? Number(e.target.value) : null })}
+          >
+            <option value="">— Select boarding station —</option>
+            {stations.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-slate-700">
+            Other end station <span className="font-normal text-slate-400">(far end)</span>
+          </span>
+          <select
+            className={inputClass}
+            value={ride.otherEndId ?? ""}
+            onChange={(e) => onChange({ otherEndId: e.target.value ? Number(e.target.value) : null })}
+          >
+            <option value="">— Select other end —</option>
+            {stations.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      {ride.boardingId != null && ride.boardingId === ride.otherEndId && (
+        <p className="mt-1 text-xs text-amber-600">
+          Boarding and other end must be different stations.
+        </p>
+      )}
+      <p className="mt-2 text-xs text-cyan-800">
+        For each shift you select below, pick the direction (Up / Down / Both) and enter the train
+        details — Train No, Engine No, LP, ALP, TMR and Remarks (deficiency noted while on the engine).
+      </p>
+      <span className="mb-1 mt-2 block text-xs font-medium text-slate-700">
+        Day or Night? <span className="font-normal text-slate-400">(select both if applicable)</span>
+      </span>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => onChange({ fpDay: !ride.fpDay })}
+          className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium ${
+            ride.fpDay ? "border-cyan-600 bg-cyan-50 text-cyan-800" : "border-slate-300 text-slate-600"
+          }`}
+        >
+          Day
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange({ fpNight: !ride.fpNight })}
+          className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium ${
+            ride.fpNight ? "border-cyan-600 bg-cyan-50 text-cyan-800" : "border-slate-300 text-slate-600"
+          }`}
+        >
+          Night
+        </button>
+      </div>
+      {!ride.fpDay && !ride.fpNight && (
+        <p className="mt-1 text-xs text-amber-600">Select Day and/or Night.</p>
+      )}
+      {ride.fpDay && (
+        <ShiftDetails
+          label="Day"
+          direction={ride.fpDayDir}
+          setDirection={(v) => onChange({ fpDayDir: v })}
+          up={shownDayUp}
+          setUp={(v) => onChange({ fpDayUp: v })}
+          down={shownDayDn}
+          setDown={(v) => onChange({ fpDayDn: v })}
+        />
+      )}
+      {ride.fpNight && (
+        <ShiftDetails
+          label="Night"
+          direction={ride.fpNightDir}
+          setDirection={(v) => onChange({ fpNightDir: v })}
+          up={shownNightUp}
+          setUp={(v) => onChange({ fpNightUp: v })}
+          down={shownNightDn}
+          setDown={(v) => onChange({ fpNightDn: v })}
+        />
+      )}
+      {showPeriodicity && (
+        <label className="mt-2 block">
+          <span className="mb-1 block text-xs font-medium text-slate-700">Periodicity</span>
+          <div className="flex gap-2">
+            {PERIODICITIES.map((pd) => (
+              <button
+                key={pd}
+                type="button"
+                onClick={() => setPeriodicity(pd)}
+                className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium capitalize ${
+                  periodicity === pd
+                    ? "border-cyan-600 bg-cyan-50 text-cyan-800"
+                    : "border-slate-300 text-slate-600"
+                }`}
+              >
+                {pd}
+              </button>
+            ))}
+          </div>
+        </label>
+      )}
+      {boardingName &&
+        otherEndName &&
+        ride.boardingId !== ride.otherEndId &&
+        (ride.fpDay || ride.fpNight) && (
+          <p className="mt-1.5 text-xs text-cyan-800">
+            <strong>
+              {[ride.fpDay ? "Day" : "", ride.fpNight ? "Night" : ""].filter(Boolean).join(" + ")}
+            </strong>{" "}
+            footplate {boardingName} → {otherEndName}
+            {showPeriodicity ? (
+              <>
+                {" "}
+                · {periodicity} cycle — next due{" "}
+                <strong>{addDays(logDate, intervalFor("footplate", periodicity))}</strong>
+              </>
+            ) : null}
+            .
+          </p>
+        )}
     </div>
   );
 }

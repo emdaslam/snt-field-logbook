@@ -8,7 +8,7 @@ import { DEPARTMENT_COLORS } from "@/lib/types";
 import { isSharedLog } from "@/lib/backup";
 import { INSPECTION_RULES, addDays, type InspectionKind } from "@/lib/inspections";
 import { AttachmentPreviewModal } from "./AttachmentPreviewModal";
-import type { DailyLog, Attachment, FootplateBlock, FootplateDetail, FootplateJourneyTrain, JourneyLeg } from "@/db/schema";
+import type { DailyLog, Attachment, FootplateBlock, FootplateDetail, FootplateJourneyTrain, FootplateRide, JourneyLeg } from "@/db/schema";
 import { FootplateDetailRows } from "./FootplateRows";
 
 export function LogDetailModal({
@@ -72,7 +72,12 @@ export function LogDetailModal({
               </div>
             </div>
           ) : null}
-          {log.footplateJourney && (
+          {(Array.isArray(log.footplateJourneys) && log.footplateJourneys.length > 0
+            ? log.footplateJourneys
+            : log.footplateJourney
+              ? [log.footplateJourney]
+              : []
+          ).length > 0 && (
             <JourneySummary log={log} stationName={stationName} />
           )}
           <Row label="Work Done" value={log.workDone} multiline />
@@ -264,11 +269,6 @@ function JourneySummary({
   log: DailyLog;
   stationName: (id: number | null) => string;
 }) {
-  const fj = log.footplateJourney;
-  if (!fj) return null;
-  const boarding = fj.boardingStationId ? stationName(fj.boardingStationId) : "—";
-  const other = fj.otherEndStationId ? stationName(fj.otherEndStationId) : "—";
-  const shift = log.footplateShift ? `${log.footplateShift} shift` : fj.shift || "—";
   type FpTrain = FootplateDetail & Partial<Pick<FootplateJourneyTrain, "depTime" | "arrTime">>;
   const trainLine = (title: string, t: FpTrain | null | undefined) =>
     t?.trainNo ? (
@@ -279,34 +279,63 @@ function JourneySummary({
         {t.remarks ? ` · ${t.remarks}` : ""}
       </p>
     ) : null;
-  const shiftRows: ReactNode[] = [];
-  const pushShift = (shiftLabel: string, b: FootplateBlock | FootplateDetail | null | undefined) => {
-    if (!b) return;
-    if ("direction" in b) {
-      if (b.up?.trainNo) shiftRows.push(trainLine(`${shiftLabel} UP`, b.up));
-      if (b.down?.trainNo) shiftRows.push(trainLine(`${shiftLabel} DN`, b.down));
-    } else if (b.trainNo) {
-      shiftRows.push(trainLine(shiftLabel, b));
-    }
+  const shiftRowsOf = (day: FootplateBlock | null | undefined, night: FootplateBlock | null | undefined) => {
+    const shiftRows: ReactNode[] = [];
+    const pushShift = (shiftLabel: string, b: FootplateBlock | FootplateDetail | null | undefined) => {
+      if (!b) return;
+      if ("direction" in b) {
+        if (b.up?.trainNo) shiftRows.push(trainLine(`${shiftLabel} UP`, b.up));
+        if (b.down?.trainNo) shiftRows.push(trainLine(`${shiftLabel} DN`, b.down));
+      } else if (b.trainNo) {
+        shiftRows.push(trainLine(shiftLabel, b));
+      }
+    };
+    pushShift("Day", day);
+    pushShift("Night", night);
+    return shiftRows;
   };
-  pushShift("Day", log.footplateDay);
-  pushShift("Night", log.footplateNight);
+  const rides: FootplateRide[] =
+    Array.isArray(log.footplateJourneys) && log.footplateJourneys.length > 0
+      ? log.footplateJourneys
+      : log.footplateJourney
+        ? [
+            {
+              boardingStationId: log.footplateJourney.boardingStationId,
+              otherEndStationId: log.footplateJourney.otherEndStationId,
+              shift: log.footplateJourney.shift,
+              day: log.footplateDay ?? null,
+              night: log.footplateNight ?? null,
+            },
+          ]
+        : [];
+  if (rides.length === 0) return null;
   return (
-    <div className="mb-3 rounded-lg border border-violet-200 bg-violet-50 p-3">
-      <p className="text-xs font-bold uppercase tracking-wide text-violet-700">
-        🚆 Footplate Journey
-      </p>
-      <p className="text-sm text-violet-950">
-        Boarding {boarding} → {other} ({fj.direction}) · {shift}
-      </p>
-      {shiftRows.length > 0 ? (
-        shiftRows
-      ) : (
-        <>
-          {trainLine("Out", fj.outbound)}
-          {trainLine("Return", fj.inbound)}
-        </>
-      )}
+    <div className="mb-3 space-y-2">
+      {rides.map((r, i) => {
+        const boarding = r.boardingStationId ? stationName(r.boardingStationId) : "—";
+        const other = r.otherEndStationId ? stationName(r.otherEndStationId) : "—";
+        const shift = r.shift ? `${r.shift} shift` : "—";
+        const rows = shiftRowsOf(r.day, r.night);
+        const title = rides.length > 1 ? `Footplate Journey ${i + 1}` : "Footplate Journey";
+        return (
+          <div key={i} className="rounded-lg border border-violet-200 bg-violet-50 p-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-violet-700">
+              {title}
+            </p>
+            <p className="text-sm text-violet-950">
+              Boarding {boarding} → {other} · {shift}
+            </p>
+            {rows.length > 0 ? (
+              rows
+            ) : i === 0 && log.footplateJourney ? (
+              <>
+                {trainLine("Out", log.footplateJourney.outbound)}
+                {trainLine("Return", log.footplateJourney.inbound)}
+              </>
+            ) : null}
+          </div>
+        );
+      })}
     </div>
   );
 }

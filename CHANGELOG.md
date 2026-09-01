@@ -3,6 +3,12 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.30 — 2026-09-01
+
+**Minor: each Footplate in a movement chain has its own boarding / trains form and export legs**
+
+- Selecting Footplate more than once on the same daily log no longer reuses a single shared boarding-and-trains form. Each Footplate stop now has its own Journey panel — boarding station, other end, Day / Night, train numbers and times — and the Diary / TA export rows follow each ride in chain order instead of combining them.
+
 ## 1.7.7.29 — 2026-09-01
 
 **Minor: extra-stop picker keeps Footplate selected and available more than once**

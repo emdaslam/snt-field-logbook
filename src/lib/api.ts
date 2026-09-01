@@ -697,6 +697,8 @@ function normaliseLog(b: Partial<DailyLog>) {
     footplateDay: b.footplateDay ?? null,
     footplateNight: b.footplateNight ?? null,
     footplateJourney: b.footplateJourney ?? null,
+    footplateJourneys: Array.isArray(b.footplateJourneys) ? b.footplateJourneys : [],
+    extraStops: Array.isArray(b.extraStops) ? b.extraStops : [],
     tagIds: b.tagIds ?? [],
     tagSides: b.tagSides ?? {},
     attachments: b.attachments ?? [],

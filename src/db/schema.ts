@@ -128,8 +128,16 @@ export const dailyLogs = pgTable("daily_logs", {
   footplateDay: jsonb("footplate_day").$type<FootplateBlock | null>(),
   footplateNight: jsonb("footplate_night").$type<FootplateBlock | null>(),
   // Structured data of a "Footplate" movement entry — the boarding / other-end
-  // stations, direction, shift, and the outbound / return train legs.
+  // stations, direction, shift, and the outbound / return train legs. The first
+  // ride in a multi-Footplate chain is mirrored here for older app versions.
   footplateJourney: jsonb("footplate_journey").$type<FootplateJourney | null>(),
+  // Every Footplate ride in the movement chain, each with its own boarding /
+  // other-end stations and Day / Night train details. Empty on logs with no
+  // Footplate stop. The first item is kept in sync with footplateJourney.
+  footplateJourneys: jsonb("footplate_journeys").$type<FootplateRide[]>().default([]).notNull(),
+  // Extra movement-chain stops after the primary (station names, or the
+  // "__footplate__" sentinel). Empty when the entry is a single movement.
+  extraStops: jsonb("extra_stops").$type<string[]>().default([]).notNull(),
   inspectionSide: varchar("inspection_side", { length: 160 }),
   // Author of this log — private data is only visible to its owner
   ownerStaffId: integer("owner_staff_id"),
@@ -271,6 +279,17 @@ export type FootplateJourney = {
   shift: string | null; // "Day" | "Night" | "Day,Night"
   outbound: FootplateJourneyTrain | null;
   inbound: FootplateJourneyTrain | null;
+};
+
+/** One Footplate ride in a daily-log movement chain. Unlike FootplateJourney
+ *  (the flattened first-ride shape), this keeps Day and Night blocks so two
+ *  rides in the same entry can each have their own trains and times. */
+export type FootplateRide = {
+  boardingStationId: number;
+  otherEndStationId: number;
+  shift: string | null;
+  day: FootplateBlock | null;
+  night: FootplateBlock | null;
 };
 
 export type Attachment = {
