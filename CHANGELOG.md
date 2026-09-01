@@ -3,6 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.29 — 2026-09-01
+
+**Minor: extra-stop picker keeps Footplate selected and available more than once**
+
+- Selecting Footplate as a later movement no longer falls back to "Select another stop" — the extra-stop picker now keeps Footplate as the chosen value.
+- Footplate stays in the extra-stop list after it is used, so a second or third stop can also be Footplate. Extra Footplate stops still share the same boarding / trains form.
+
 ## 1.7.7.28 — 2026-09-01
 
 **Major: mix a Footplate ride into a daily-log movement chain**

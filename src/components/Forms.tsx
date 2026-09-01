@@ -598,14 +598,6 @@ export function DailyLogForm({
   const addExtraMovement = () => setExtraMovements((prev) => [...prev, ""]);
   const changeExtraMovement = (i: number, v: string) => {
     const next = extraMovements.map((m, idx) => (idx === i ? v : m));
-    // Keep only one Footplate block in the chain.
-    if (v === FOOTPLATE_SLOT && next.filter((m) => m === FOOTPLATE_SLOT).length > 1) {
-      const fpI = next.indexOf(FOOTPLATE_SLOT);
-      next[fpI] = "";
-      setExtraMovements(next);
-      syncLegs([primarySlot, ...next]);
-      return;
-    }
     setExtraMovements(next);
     syncLegs([primarySlot, ...next]);
   };
@@ -745,11 +737,8 @@ export function DailyLogForm({
     if (v === "footplate") {
       setMovementKind("footplate");
       setMovement("Footplate");
-      // Keep the trailing station stops; the Footplate becomes the primary
-      // movement (drop any prior sentinel so there is only one in the chain).
-      const next = extraMovements.filter((m) => m !== FOOTPLATE_SLOT);
-      setExtraMovements(next);
-      syncLegs([FOOTPLATE_SLOT, ...next]);
+      // Keep the trailing stops, including any extra Footplate slots.
+      syncLegs([FOOTPLATE_SLOT, ...extraMovements]);
       return;
     }
     if (v === "rest" || v === "leave" || v === "cr" || v === "nh") {
@@ -1373,10 +1362,7 @@ export function DailyLogForm({
                         {s.name}
                       </option>
                     ))}
-                  {/* The Footplate ride can be one of the stops — once per chain. */}
-                  {!hasFootplateInChain && (
-                    <option value={FOOTPLATE_SLOT}>Footplate</option>
-                  )}
+                  <option value={FOOTPLATE_SLOT}>Footplate</option>
                 </select>
                 <button
                   type="button"
@@ -1397,8 +1383,8 @@ export function DailyLogForm({
             {extraMovements.length > 0 && (
               <p className="text-xs text-slate-500">
                 With two or more movements the entry prints as one row per leg —
-                HQ → station → … → station → HQ — in the Diary and TA Journal
-                exports.
+                HQ → stop → … → stop → HQ — in the Diary and TA Journal
+                exports. Each extra stop can be a station or Footplate.
               </p>
             )}
           </div>
@@ -1430,7 +1416,7 @@ export function DailyLogForm({
               <div className="space-y-3">
                 <p className="text-xs text-slate-500">
                   These rows come from the movements you picked above — the chain is HQ →
-                  station → … → station → HQ. Edit any leg&apos;s From / To, times or Road /
+                  stop → … → stop → HQ. Edit any leg&apos;s From / To, times or Road /
                   Train details here; the first leg feeds the primary tour timings and the
                   last leg the return. Use &quot;Add another movement&quot; in Station /
                   Movement above to add another stop.
