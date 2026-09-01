@@ -13,7 +13,15 @@ import {
   formatInspectionDates,
   type InspectionKind,
 } from "@/lib/inspections";
-import { fmtDate, footplateTrainList, formatFootplateShifts, formatFootplateSummary } from "@/lib/api";
+import {
+  fmtDate,
+  footplateTrainList,
+  footplateRidesOf,
+  footplateTrainListFromRide,
+  formatFootplateShifts,
+  formatFootplateSummary,
+  logMatchesInspectionStation,
+} from "@/lib/api";
 
 export function InspectionExportModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { logs, stations, stationName } = useData();
@@ -37,7 +45,7 @@ export function InspectionExportModal({ open, onClose }: { open: boolean; onClos
         .filter((l) => {
           if (!kinds.includes(l.inspectionKind as InspectionKind)) return false;
           if (l.logDate < period.from || l.logDate > period.to) return false;
-          if (stationFilter && l.inspectionStationId !== stationFilter) return false;
+          if (stationFilter && !logMatchesInspectionStation(l, stationFilter)) return false;
           if (periodicity && l.inspectionPeriodicity !== periodicity) return false;
           return true;
         })
@@ -54,7 +62,8 @@ export function InspectionExportModal({ open, onClose }: { open: boolean; onClos
     const prefix = kinds.length > 1 ? `${INSPECTION_RULES[kd].label.replace(" Inspection", "")} · ` : "";
     let k: string;
     if (kd === "footplate") {
-      k = `${prefix}${formatFootplateShifts(r.footplateShift) || "-"} footplate`;
+      const rides = footplateRidesOf(r);
+      k = `${prefix}${formatFootplateShifts(rides[0]?.shift ?? r.footplateShift) || "-"} footplate`;
     } else {
       const at = stationName(r.inspectionStationId);
       k = prefix + (kd === "joint" && r.inspectionJointDept ? `${at} (with ${r.inspectionJointDept})` : at);
@@ -62,7 +71,14 @@ export function InspectionExportModal({ open, onClose }: { open: boolean; onClos
     if (!grouped.has(k)) grouped.set(k, []);
     grouped.get(k)!.push(r);
   }
-  const trainsOf = (r: (typeof rows)[number]) => footplateTrainList(r);
+  const trainsOf = (r: (typeof rows)[number]) => {
+    const rides = footplateRidesOf(r);
+    if (rides.length === 0) return footplateTrainList(r);
+    return rides
+      .map((ride) => footplateTrainListFromRide(ride))
+      .filter(Boolean)
+      .join("; ");
+  };
 
   const toggle = (id: number) => {
     const n = new Set(deselected);
@@ -210,7 +226,16 @@ export function InspectionExportModal({ open, onClose }: { open: boolean; onClos
               <p key={st} className="text-sm text-sky-900">
                 <strong>{st}</strong>:{" "}
                 {items[0].inspectionKind === "footplate"
-                  ? items.map((i) => `${trainsOf(i) || "-"} (${i.logDate.slice(8)})`).join("; ")
+                  ? items
+                      .flatMap((i) => {
+                        const rides = footplateRidesOf(i);
+                        const lists =
+                          rides.length > 0
+                            ? rides.map((ride) => footplateTrainListFromRide(ride) || "-")
+                            : [trainsOf(i) || "-"];
+                        return lists.map((t) => `${t} (${i.logDate.slice(8)})`);
+                      })
+                      .join("; ")
                   : formatInspectionDates(items.map((i) => i.logDate))}
               </p>
             ))}

@@ -812,6 +812,12 @@ export function DailyLogForm({
   const [inspectionTowardsId, setInspectionTowardsId] = useState<number | null>(
     existing?.inspectionTowardsStationId ?? null
   );
+  const [inspectionStationOverride, setInspectionStationOverride] = useState<number | null>(() => {
+    if (!existing?.inspectionStationId) return null;
+    const mv = stations.find((s) => s.name === existing.stationMovement);
+    if (!mv) return existing.inspectionStationId;
+    return mv.id === existing.inspectionStationId ? null : existing.inspectionStationId;
+  });
   const [jointDept, setJointDept] = useState(existing?.inspectionJointDept ?? "");
   const [periodicity, setPeriodicity] = useState(existing?.inspectionPeriodicity ?? "monthly");
   const [fpDay, setFpDay] = useState(
@@ -1007,6 +1013,23 @@ export function DailyLogForm({
     syncLegs([primarySlot, ...extraMovements]);
   }, [fpRides]); // eslint-disable-line react-hooks/exhaustive-deps
   const pcdoStationId = pcdoStationOverride ?? resolvedStation?.id ?? null;
+  const chainStations = (() => {
+    const names: string[] = [];
+    if (movementKind === "station" && movement.trim()) names.push(movement);
+    for (const m of extraMovements) {
+      if (m && m !== FOOTPLATE_SLOT && !names.includes(m)) names.push(m);
+    }
+    return names
+      .map((n) => stations.find((s) => s.name === n))
+      .filter((s): s is (typeof stations)[number] => Boolean(s));
+  })();
+  const taggedStationId =
+    (inspectionStationOverride && chainStations.some((s) => s.id === inspectionStationOverride)
+      ? inspectionStationOverride
+      : null) ??
+    chainStations[0]?.id ??
+    resolvedStation?.id ??
+    null;
   const pcdoDate = logDate;
   const needsSideTags = tags.filter((t) => t.needsSide && !kindFromTagName(t.name));
   const kindIntervalDays = (() => {
@@ -1273,7 +1296,7 @@ export function DailyLogForm({
       inspectionStationId: fpInChain
         ? (firstRidePayload?.boardingStationId || null)
         : inspectionKind
-          ? pcdoStationId
+          ? taggedStationId
           : null,
       inspectionTowardsStationId:
         !fpInChain && inspectionKind && inspectionKind !== "footplate" && inspectionSide !== "Both"
@@ -2385,7 +2408,7 @@ export function DailyLogForm({
                     <option value="">— Select side —</option>
                     <option value="0">Both sides</option>
                     {stations
-                      .filter((st) => st.id !== resolvedStation?.id)
+                      .filter((st) => st.id !== taggedStationId)
                       .map((st) => (
                         <option key={st.id} value={st.id}>
                           {st.name} side
@@ -2409,13 +2432,33 @@ export function DailyLogForm({
           </p>
           <p className="mt-1 text-xs text-sky-800">
             Done at{" "}
-            <strong className={pcdoStationId ? "" : "text-amber-600"}>
-              {pcdoStationId
-                ? stations.find((x) => x.id === pcdoStationId)?.name
+            <strong className={taggedStationId ? "" : "text-amber-600"}>
+              {taggedStationId
+                ? stations.find((x) => x.id === taggedStationId)?.name
                 : movement || "no station selected above"}
-            </strong>{" "}
-            — taken from this log entry.
+            </strong>
+            {chainStations.length <= 1 ? " — taken from this log entry." : ""}
           </p>
+          {inspectionKind !== "footplate" && chainStations.length > 1 && (
+            <label className="mt-2 block">
+              <span className="mb-1 block text-xs font-medium text-slate-700">
+                Applies at which station?
+              </span>
+              <select
+                className={inputClass}
+                value={taggedStationId ?? ""}
+                onChange={(e) =>
+                  setInspectionStationOverride(e.target.value ? Number(e.target.value) : null)
+                }
+              >
+                {chainStations.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
 
           {inspectionKind !== "footplate" && (
           <label className="mt-2 block">
@@ -2438,7 +2481,7 @@ export function DailyLogForm({
               <option value="">— Select side —</option>
               <option value="__both__">Both sides</option>
               {stations
-                .filter((st) => st.id !== resolvedStation?.id)
+                .filter((st) => st.id !== taggedStationId)
                 .map((st) => (
                   <option key={st.id} value={st.id}>
                     {st.name} side
@@ -2593,9 +2636,9 @@ export function DailyLogForm({
                 Select the station above, then Day and/or Night.
               </p>
             )
-          ) : pcdoStationId && (inspectionSide === "Both" || inspectionTowardsId) ? (
+          ) : taggedStationId && (inspectionSide === "Both" || inspectionTowardsId) ? (
             <p className="mt-1.5 text-xs text-sky-800">
-              At <strong>{stations.find((x) => x.id === pcdoStationId)?.name}</strong> towards{" "}
+              At <strong>{stations.find((x) => x.id === taggedStationId)?.name}</strong> towards{" "}
               <strong>
                 {inspectionSide === "Both"
                   ? "Both sides"

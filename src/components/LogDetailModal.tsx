@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { useData } from "./DataProvider";
 import { Modal, Chip } from "./ui";
-import { api, fmtDate, dayName, formatFootplateSummary, pcdoWorkEntries, counterResetsOf, counterResetTotal } from "@/lib/api";
+import { api, fmtDate, dayName, formatFootplateSummary, footplateRidesOf, pcdoWorkEntries, counterResetsOf, counterResetTotal } from "@/lib/api";
 import { DEPARTMENT_COLORS } from "@/lib/types";
 import { isSharedLog } from "@/lib/backup";
 import { INSPECTION_RULES, addDays, type InspectionKind } from "@/lib/inspections";
@@ -111,7 +111,16 @@ export function LogDetailModal({
                   {formatFootplateSummary(log)} footplate
                 </p>
               )}
-              <FootplateDetailRows log={log} />
+              {log.inspectionKind === "footplate" && footplateRidesOf(log).length > 1
+                ? footplateRidesOf(log).map((ride, i) => (
+                    <div key={i} className="mt-1">
+                      <p className="text-xs font-medium text-sky-800">Ride {i + 1}</p>
+                      <FootplateDetailRows
+                        log={{ footplateDay: ride.day, footplateNight: ride.night }}
+                      />
+                    </div>
+                  ))
+                : <FootplateDetailRows log={log} />}
               <p className="mt-0.5 text-xs text-sky-700">
                 Next due{" "}
                 {addDays(

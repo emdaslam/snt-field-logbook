@@ -17,6 +17,8 @@ import type {
   PlannedWork,
   FootplateDetail,
   FootplateBlock,
+  FootplateJourney,
+  FootplateRide,
   Material,
   MaterialReceipt,
   MaterialUsage,
@@ -860,4 +862,68 @@ export function footplateTrainList(l: {
   if (l.footplateUp?.trainNo) parts.push(`UP ${l.footplateUp.trainNo}`);
   if (l.footplateDown?.trainNo) parts.push(`DN ${l.footplateDown.trainNo}`);
   return parts.join(", ");
+}
+
+/** All Footplate rides on a log — `footplateJourneys` when present, else the first-ride columns. */
+export function footplateRidesOf(l: {
+  footplateJourneys?: FootplateRide[] | null;
+  footplateJourney?: FootplateJourney | null;
+  footplateDay?: FootplateBlock | FootplateDetail | null;
+  footplateNight?: FootplateBlock | FootplateDetail | null;
+  footplateShift?: string | null;
+}): FootplateRide[] {
+  if (Array.isArray(l.footplateJourneys) && l.footplateJourneys.length > 0) {
+    return l.footplateJourneys;
+  }
+  if (l.footplateJourney) {
+    return [
+      {
+        boardingStationId: l.footplateJourney.boardingStationId,
+        otherEndStationId: l.footplateJourney.otherEndStationId,
+        shift: l.footplateJourney.shift ?? l.footplateShift ?? null,
+        day: (l.footplateDay as FootplateBlock) ?? null,
+        night: (l.footplateNight as FootplateBlock) ?? null,
+      },
+    ];
+  }
+  if (l.footplateDay || l.footplateNight) {
+    return [
+      {
+        boardingStationId: 0,
+        otherEndStationId: 0,
+        shift: l.footplateShift ?? null,
+        day: (l.footplateDay as FootplateBlock) ?? null,
+        night: (l.footplateNight as FootplateBlock) ?? null,
+      },
+    ];
+  }
+  return [];
+}
+
+export function footplateTrainListFromRide(ride: {
+  day?: FootplateBlock | FootplateDetail | null;
+  night?: FootplateBlock | FootplateDetail | null;
+}) {
+  return footplateTrainList({
+    footplateDay: ride.day,
+    footplateNight: ride.night,
+  });
+}
+
+/** True when the log's inspection station or any Footplate ride endpoint matches. */
+export function logMatchesInspectionStation(
+  l: {
+    inspectionStationId?: number | null;
+    footplateJourneys?: FootplateRide[] | null;
+    footplateJourney?: FootplateJourney | null;
+    footplateDay?: FootplateBlock | FootplateDetail | null;
+    footplateNight?: FootplateBlock | FootplateDetail | null;
+    footplateShift?: string | null;
+  },
+  stationId: number
+) {
+  if (l.inspectionStationId === stationId) return true;
+  return footplateRidesOf(l).some(
+    (r) => r.boardingStationId === stationId || r.otherEndStationId === stationId
+  );
 }

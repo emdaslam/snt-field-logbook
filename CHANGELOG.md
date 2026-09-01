@@ -3,6 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.31 — 2026-09-01
+
+**Minor: multi-movement inspection export lists every Footplate ride, and tags pick which chain station they apply to**
+
+- A daily log with two (or more) Footplate rides now lists each ride on its own row in the Inspection export — Day/Night, train numbers and date — instead of showing only the first ride.
+- When a daily log has two or more station movements, selecting an inspection tag (monthly, point oiling, and the rest) shows **Applies at which station?** so the tag is recorded against the chosen stop, not always the first.
+
 ## 1.7.7.30 — 2026-09-01
 
 **Minor: each Footplate in a movement chain has its own boarding / trains form and export legs**

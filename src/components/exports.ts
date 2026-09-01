@@ -1,5 +1,5 @@
 import { exportDocument } from "@/lib/pdf";
-import { fmtDate, toISODate, formatFootplateShifts, footplateTrainList, pcdoWorkEntries, counterResetsOf, formatRupee } from "@/lib/api";
+import { fmtDate, toISODate, formatFootplateShifts, footplateTrainList, footplateRidesOf, footplateTrainListFromRide, logMatchesInspectionStation, pcdoWorkEntries, counterResetsOf, formatRupee } from "@/lib/api";
 import { formatInspectionDates } from "@/lib/inspections";
 import { isSpecialMovement, EQUIPMENT_DEFAULTS, variableKmText, type ExportStyle } from "@/lib/types";
 import { AUTO_TIMINGS } from "@/lib/timingsMode";
@@ -1392,11 +1392,19 @@ export function exportInspections(
 
   const inScope = (l: DailyLog) => {
     if (l.logDate < period.from || l.logDate > period.to) return false;
-    if (stationFilter && l.inspectionStationId !== stationFilter) return false;
+    if (stationFilter && !logMatchesInspectionStation(l, stationFilter)) return false;
     return true;
   };
 
-  const total = logs.filter((l) => kindList.includes(l.inspectionKind as InspKind) && inScope(l)).length;
+  const total = logs
+    .filter((l) => kindList.includes(l.inspectionKind as InspKind) && inScope(l))
+    .reduce((n, l) => {
+      if (l.inspectionKind === "footplate") {
+        const rides = footplateRidesOf(l);
+        return n + Math.max(rides.length, 1);
+      }
+      return n + 1;
+    }, 0);
 
   let body = `<h1 class="centered">${esc(kindLabel)} — ${esc(period.label)}</h1>`;
   body += `<p class="meta">${fmtDate(period.from)} to ${fmtDate(period.to)} · ${total} inspection${total !== 1 ? "s" : ""}</p>`;
@@ -1417,14 +1425,19 @@ export function exportInspections(
     }
 
     if (kind === "footplate") {
-      // Train numbers only — one row per footplate inspection
+      // One row per Footplate ride (a chain with two rides lists both)
       body += `<table>`;
       body += `<tr><th style="width:120px">Day / Night</th><th>Train No.</th><th style="width:110px">Date</th></tr>`;
       for (const r of rows) {
-        const trains = footplateTrainList(r);
-        body += `<tr><td>${esc(formatFootplateShifts(r.footplateShift) || "-")} footplate</td><td>${
-          esc(trains) || "-"
-        }</td><td>${fmtDate(r.logDate)}</td></tr>`;
+        const rides = footplateRidesOf(r);
+        const emit = rides.length > 0 ? rides : [null];
+        for (const ride of emit) {
+          const trains = ride ? footplateTrainListFromRide(ride) : footplateTrainList(r);
+          const shift = formatFootplateShifts(ride?.shift ?? r.footplateShift) || "-";
+          body += `<tr><td>${esc(shift)} footplate</td><td>${
+            esc(trains) || "-"
+          }</td><td>${fmtDate(r.logDate)}</td></tr>`;
+        }
       }
       body += `</table>`;
       continue;
