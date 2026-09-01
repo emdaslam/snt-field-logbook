@@ -525,9 +525,8 @@ function footplateLegs(
   ];
   let lastTo = b;
   trains.forEach((tr, i) => {
-    const up = tr.dir !== "DN";
-    const from = up ? b : o;
-    const to = up ? o : b;
+    const from = lastTo;
+    const to = lastTo === o ? b : o;
     lastTo = to;
     const train = tr.train as FootplateJourneyTrain;
     const slot = slots[i];

@@ -3,6 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.32 — 2026-09-01
+
+**Minor: Down-only Footplate train legs follow boarding → other-end instead of reversing or repeating the boarding station**
+
+- A single Footplate ride with only Down selected (Day or Night) no longer swaps From/To on the train movement — the train now leaves the boarding station for the other end, matching the rest of the journey sequence.
+- When two or more Footplate rides are in the same daily log and a ride is Down-only, that ride no longer writes boarding → boarding and no longer starts the HQ return from the boarding station. Each Down hop now goes boarding → other end, and the next road leg (or HQ return) continues from the other end.
+
 ## 1.7.7.31 — 2026-09-01
 
 **Minor: multi-movement inspection export lists every Footplate ride, and tags pick which chain station they apply to**

@@ -197,6 +197,18 @@ function buildChainLegs(
       used.add(loose);
       return cur[loose];
     }
+    const byTrain = cur.findIndex(
+      (l, i) =>
+        !used.has(i) &&
+        mode === "train" &&
+        Boolean(trainNo) &&
+        l.mode === "train" &&
+        l.trainNo === trainNo
+    );
+    if (byTrain >= 0) {
+      used.add(byTrain);
+      return { ...cur[byTrain], from, to };
+    }
     return fallback;
   };
   const legs: JourneyLeg[] = [];
@@ -234,54 +246,24 @@ function buildChainLegs(
       }
       let lastTo = boarding || fromStation;
       if (fp.boardingId && fp.otherEndId && fp.boardingId !== fp.otherEndId) {
-        if (fp.fpDay && (fp.fpDayDir === "Up" || fp.fpDayDir === "Both") && fp.fpDayUp.trainNo) {
+        const hopTrain = (active: boolean, dirOk: boolean, train: FootplateJourneyTrain) => {
+          if (!active || !dirOk || !train.trainNo) return;
+          const dest = lastTo === otherEnd ? boarding : otherEnd;
           const fit: JourneyLeg = {
             from: lastTo,
-            to: otherEnd,
-            timeDep: fp.fpDayUp.depTime || null,
-            timeArr: fp.fpDayUp.arrTime || null,
+            to: dest,
+            timeDep: train.depTime || null,
+            timeArr: train.arrTime || null,
             mode: "train",
-            trainNo: fp.fpDayUp.trainNo,
+            trainNo: train.trainNo,
           };
-          legs.push(reuse(lastTo, otherEnd, "train", fp.fpDayUp.trainNo, fit));
-          lastTo = otherEnd;
-        }
-        if (fp.fpDay && (fp.fpDayDir === "Down" || fp.fpDayDir === "Both") && fp.fpDayDn.trainNo) {
-          const fit: JourneyLeg = {
-            from: lastTo,
-            to: boarding,
-            timeDep: fp.fpDayDn.depTime || null,
-            timeArr: fp.fpDayDn.arrTime || null,
-            mode: "train",
-            trainNo: fp.fpDayDn.trainNo,
-          };
-          legs.push(reuse(lastTo, boarding, "train", fp.fpDayDn.trainNo, fit));
-          lastTo = boarding;
-        }
-        if (fp.fpNight && (fp.fpNightDir === "Up" || fp.fpNightDir === "Both") && fp.fpNightUp.trainNo) {
-          const fit: JourneyLeg = {
-            from: lastTo,
-            to: otherEnd,
-            timeDep: fp.fpNightUp.depTime || null,
-            timeArr: fp.fpNightUp.arrTime || null,
-            mode: "train",
-            trainNo: fp.fpNightUp.trainNo,
-          };
-          legs.push(reuse(lastTo, otherEnd, "train", fp.fpNightUp.trainNo, fit));
-          lastTo = otherEnd;
-        }
-        if (fp.fpNight && (fp.fpNightDir === "Down" || fp.fpNightDir === "Both") && fp.fpNightDn.trainNo) {
-          const fit: JourneyLeg = {
-            from: lastTo,
-            to: boarding,
-            timeDep: fp.fpNightDn.depTime || null,
-            timeArr: fp.fpNightDn.arrTime || null,
-            mode: "train",
-            trainNo: fp.fpNightDn.trainNo,
-          };
-          legs.push(reuse(lastTo, boarding, "train", fp.fpNightDn.trainNo, fit));
-          lastTo = boarding;
-        }
+          legs.push(reuse(lastTo, dest, "train", train.trainNo, fit));
+          lastTo = dest;
+        };
+        hopTrain(fp.fpDay, fp.fpDayDir === "Up" || fp.fpDayDir === "Both", fp.fpDayUp);
+        hopTrain(fp.fpDay, fp.fpDayDir === "Down" || fp.fpDayDir === "Both", fp.fpDayDn);
+        hopTrain(fp.fpNight, fp.fpNightDir === "Up" || fp.fpNightDir === "Both", fp.fpNightUp);
+        hopTrain(fp.fpNight, fp.fpNightDir === "Down" || fp.fpNightDir === "Both", fp.fpNightDn);
       }
       fromStation = lastTo;
       isFirst = false;
@@ -1002,12 +984,7 @@ export function DailyLogForm({
     setExtraMovements(next);
     syncLegs([primarySlot, ...next]);
   };
-  const didMount = useRef(false);
   useEffect(() => {
-    if (!didMount.current) {
-      didMount.current = true;
-      return;
-    }
     if (!hasFootplateInChain) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     syncLegs([primarySlot, ...extraMovements]);
