@@ -72,7 +72,7 @@ export function LogDetailModal({
               </div>
             </div>
           ) : null}
-          {log.movementKind === "footplate" && log.footplateJourney && (
+          {log.footplateJourney && (
             <JourneySummary log={log} stationName={stationName} />
           )}
           <Row label="Work Done" value={log.workDone} multiline />

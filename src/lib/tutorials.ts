@@ -499,6 +499,29 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.7.28",
+    tag: "Mix a Footplate ride into a daily-log chain",
+    subtitle:
+      "Combine station stops and one Footplate journey in the same daily log — the export rows follow the chain in riding order.",
+    slides: [
+      {
+        glyph: "◫",
+        title: "Add Footplate as a stop",
+        body: "When your trip mixes stations and a single Footplate ride, add the Footplate entry to that day's movement chain. It joins the chain as a special stop — set its boarding and other-end station, and the Day / Night trains as on a normal Footplate day.",
+      },
+      {
+        glyph: "◭",
+        title: "Rows follow the ride order",
+        body: "The Diary and TA Journal list every leg of the chain in order — road legs to each station and the Footplate's boarding and train legs — so a mixed trip still reads top to bottom as you actually travelled it.",
+      },
+      {
+        glyph: "◮",
+        title: "One Footplate per entry",
+        body: "Only one Footplate journey is allowed in a single daily log. If the chain already includes one, the option disappears from the extra-stop picker — keep using separate daily logs for any second Footplate ride.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {

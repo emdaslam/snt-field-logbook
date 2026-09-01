@@ -3,7 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
-## 1.7.7.27 — 2026-08-31
+## 1.7.7.28 — 2026-09-01
+
+**Major: mix a Footplate ride into a daily-log movement chain**
+
+- **Footplate joins the chain as a stop.** In a daily log you can now combine station stops with a single Footplate journey in the same entry. The Footplate appears as a special stop in the movement chain — set its boarding and other-end station and the Day / Night trains exactly as on a regular Footplate day.
+- **Export rows follow the ride order.** The Diary and TA Journal list every leg of the chain in order — the road legs to each station plus the Footplate's boarding and train legs — so a mixed trip reads top-to-bottom as you actually travelled it.
+- **One Footplate per entry.** Only one Footplate journey is allowed per daily log; once the chain already includes one, the option is hidden from the extra-stop picker. Use a separate daily log for a second Footplate ride.
 
 **Minor: multiple movements per daily log — export rows open by adding another movement, and no longer appear before one is selected**
 

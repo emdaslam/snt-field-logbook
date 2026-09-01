@@ -838,9 +838,31 @@ export function exportDiary(
           : undefined;
         const t = boarding
           ? journeyTimes(primary, asMovementStation(boarding), date, taCfg ? taCfg[taRateKey(primary.taPercent)] : undefined)
-          : null;
-        const legs = primary.footplateJourney && t ? footplateLegs(primary, stations, hqCode, t) : null;
+          : { outDep: "", outArr: "", retDep: "", retArr: "" };
         const r = grid.length;
+        // A Footplate day with custom export rows (extra movements or an edited
+        // leg list) prints them directly; otherwise fall back to the built-in
+        // Footplate legs. The custom path also correctly ends at HQ.
+        if (hasCustomJourneyRows(primary)) {
+          const miss = AUTO_TIMINGS ? "" : "not entered in daily log";
+          const cLegs = customJourneyRows(primary, stations, hqCode, t, false, miss);
+          if (cLegs.length > 0) {
+            cLegs.forEach((leg, i) => {
+              grid.push([
+                i === 0 ? dmy(date) : "",
+                leg.trainNo,
+                leg.dep,
+                leg.arr,
+                leg.from,
+                leg.to,
+                i === 0 ? work : "",
+              ]);
+            });
+            merges.push([r, 0, r + cLegs.length - 1, 0], [r, 6, r + cLegs.length - 1, 6]);
+            continue;
+          }
+        }
+        const legs = primary.footplateJourney && t ? footplateLegs(primary, stations, hqCode, t) : null;
         if (legs) {
           legs.forEach((leg, i) => {
             grid.push([
@@ -1058,7 +1080,38 @@ export function exportTaJournal(
           : undefined;
         const t = boarding
           ? journeyTimes(l, asMovementStation(boarding), l.logDate, taCfg ? taCfg[taRateKey(l.taPercent)] : undefined)
-          : null;
+          : { outDep: "", outArr: "", retDep: "", retArr: "" };
+        // A Footplate day with custom export rows (extra movements / edited
+        // legs) prints them directly; otherwise fall back to the built-in
+        // Footplate legs. The custom path also correctly ends at HQ.
+        if (hasCustomJourneyRows(l)) {
+          const miss = AUTO_TIMINGS ? "" : "not entered in daily log";
+          const cLegs = customJourneyRows(l, stations, hqCode, t, true, miss);
+          if (cLegs.length > 0) {
+            const baseR = grid.length;
+            cLegs.forEach((leg, i) => {
+              grid.push([
+                styled(i === 0 ? dmy(l.logDate) : "", { center: true }),
+                styled(leg.trainNo, { center: true }),
+                styled(leg.dep, { center: true }),
+                styled(leg.arr, { center: true }),
+                styled(leg.from, { center: true }),
+                styled(leg.to, { center: true }),
+                styled("", { center: true }),
+                styled(i === 0 ? `${p}%` : "", { center: true }),
+                styled(i === 0 ? amountCell(p) : "", { center: true }),
+                styled(i === 0 ? d.work : "", { wrap: true }),
+              ]);
+            });
+            merges.push(
+              [baseR, 0, baseR + cLegs.length - 1, 0],
+              [baseR, 7, baseR + cLegs.length - 1, 7],
+              [baseR, 8, baseR + cLegs.length - 1, 8],
+              [baseR, 9, baseR + cLegs.length - 1, 9],
+            );
+            continue;
+          }
+        }
         const legs = l.footplateJourney && t ? footplateLegs(l, stations, hqCode, t) : null;
         if (legs) {
           legs.forEach((leg, i) => {
