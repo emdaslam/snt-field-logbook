@@ -1621,6 +1621,128 @@ export function DailyLogForm({
           </span>
         )}
       </Field>
+      {hasFootplateInChain && (
+        <div className="mb-3 space-y-3">
+          {fpRides.map((ride, i) => {
+            const boarding = stations.find((s) => s.id === ride.boardingId);
+            const otherEnd = stations.find((s) => s.id === ride.otherEndId);
+            return (
+              <FootplateRidePanel
+                key={i}
+                index={i}
+                total={fpRides.length}
+                ride={ride}
+                stations={stations}
+                onChange={(patch) => patchFpRide(i, patch)}
+                shownDayUp={shownFpTrain(`${i}-dayUp`, ride.fpDayUp)}
+                shownDayDn={shownFpTrain(`${i}-dayDn`, ride.fpDayDn)}
+                shownNightUp={shownFpTrain(`${i}-nightUp`, ride.fpNightUp)}
+                shownNightDn={shownFpTrain(`${i}-nightDn`, ride.fpNightDn)}
+                periodicity={periodicity}
+                setPeriodicity={setPeriodicity}
+                showPeriodicity={i === 0 && PERIODIC_KINDS.includes("footplate")}
+                logDate={logDate}
+                boardingName={boarding?.name}
+                otherEndName={otherEnd?.name}
+              />
+            );
+          })}
+        </div>
+      )}
+      {!isSpecial && !isHeadquarters && movementKind === "footplate" && !editExportRows && (
+        <>
+          <Field label="Timings">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              {AUTO_TIMINGS && (
+                <p className="mb-2 text-xs text-slate-500">
+                  Pre-filled from your TA Auto-Generation settings — edit any time to override the
+                  tour for this day; untouched entries keep following the settings.
+                </p>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="mb-0.5 block text-[11px] text-slate-600">
+                    Time of departure from HQ
+                  </span>
+                  <input
+                    type="time"
+                    className={inputClass}
+                    value={shownDep}
+                    onChange={(e) => setTimeDep(e.target.value)}
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-0.5 block text-[11px] text-slate-600">
+                    Time of arrival at boarding station
+                  </span>
+                  <input
+                    type="time"
+                    className={inputClass}
+                    value={shownArr}
+                    onChange={(e) => setTimeArr(e.target.value)}
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-0.5 block text-[11px] text-slate-600">
+                    Time of departure from boarding station (to HQ)
+                  </span>
+                  <input
+                    type="time"
+                    className={inputClass}
+                    value={shownRetDep}
+                    onChange={(e) => setReturnTimeDep(e.target.value)}
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-0.5 block text-[11px] text-slate-600">
+                    Time of arrival at HQ
+                  </span>
+                  <input
+                    type="time"
+                    className={inputClass}
+                    value={shownRetArr}
+                    onChange={(e) => setReturnTimeArr(e.target.value)}
+                  />
+                </label>
+              </div>
+              <p className="mt-1.5 text-xs text-slate-500">
+                {AUTO_TIMINGS
+                  ? "Edited times are printed verbatim in the Diary and TA Journal exports."
+                  : "These times are printed verbatim in the Diary and TA Journal exports."}
+              </p>
+              <button
+                type="button"
+                onClick={startSingleRowEdit}
+                className="mt-3 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Edit the rows
+              </button>
+            </div>
+          </Field>
+          <Field label="Travel Details">
+            <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <TravelLeg
+                title="On-board journey (HQ → boarding station)"
+                mode={travelMode}
+                setMode={setTravelMode}
+                trainNo={travelTrainNo}
+                setTrainNo={setTravelTrainNo}
+              />
+              <TravelLeg
+                title="Return journey (boarding station → HQ)"
+                mode={returnMode}
+                setMode={setReturnMode}
+                trainNo={returnTrainNo}
+                setTrainNo={setReturnTrainNo}
+              />
+              <p className="text-xs text-slate-500">
+                By Road is selected by default. Choose By Train to enter the train number — both are printed
+                in the Diary and TA Journal exports.
+              </p>
+            </div>
+          </Field>
+        </>
+      )}
       {!isSpecial && !isHeadquarters && (movementKind === "station" || editExportRows) && (
         <>
           {editExportRows ? (
@@ -1845,35 +1967,6 @@ export function DailyLogForm({
       </Field>
       )}
 
-      {hasFootplateInChain && (
-        <div className="mb-3 space-y-3">
-          {fpRides.map((ride, i) => {
-            const boarding = stations.find((s) => s.id === ride.boardingId);
-            const otherEnd = stations.find((s) => s.id === ride.otherEndId);
-            return (
-              <FootplateRidePanel
-                key={i}
-                index={i}
-                total={fpRides.length}
-                ride={ride}
-                stations={stations}
-                onChange={(patch) => patchFpRide(i, patch)}
-                shownDayUp={shownFpTrain(`${i}-dayUp`, ride.fpDayUp)}
-                shownDayDn={shownFpTrain(`${i}-dayDn`, ride.fpDayDn)}
-                shownNightUp={shownFpTrain(`${i}-nightUp`, ride.fpNightUp)}
-                shownNightDn={shownFpTrain(`${i}-nightDn`, ride.fpNightDn)}
-                periodicity={periodicity}
-                setPeriodicity={setPeriodicity}
-                showPeriodicity={i === 0 && PERIODIC_KINDS.includes("footplate")}
-                logDate={logDate}
-                boardingName={boarding?.name}
-                otherEndName={otherEnd?.name}
-              />
-            );
-          })}
-        </div>
-      )}
-
       {/* PCDO — special works */}
       <div className="mb-3 rounded-lg border border-indigo-200 bg-indigo-50/60 p-3">
         <label className="flex cursor-pointer items-center gap-2">
@@ -2073,100 +2166,6 @@ export function DailyLogForm({
                 </span>
               )}
             </label>
-        </>
-      )}
-      {!isSpecial && !isHeadquarters && movementKind === "footplate" && !editExportRows && (
-        <>
-          <Field label="Timings">
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-              {AUTO_TIMINGS && (
-                <p className="mb-2 text-xs text-slate-500">
-                  Pre-filled from your TA Auto-Generation settings — edit any time to override the
-                  tour for this day; untouched entries keep following the settings.
-                </p>
-              )}
-              <div className="grid grid-cols-2 gap-3">
-                <label className="block">
-                  <span className="mb-0.5 block text-[11px] text-slate-600">
-                    Time of departure from HQ
-                  </span>
-                  <input
-                    type="time"
-                    className={inputClass}
-                    value={shownDep}
-                    onChange={(e) => setTimeDep(e.target.value)}
-                  />
-                </label>
-                <label className="block">
-                  <span className="mb-0.5 block text-[11px] text-slate-600">
-                    Time of arrival at boarding station
-                  </span>
-                  <input
-                    type="time"
-                    className={inputClass}
-                    value={shownArr}
-                    onChange={(e) => setTimeArr(e.target.value)}
-                  />
-                </label>
-                <label className="block">
-                  <span className="mb-0.5 block text-[11px] text-slate-600">
-                    Time of departure from boarding station (to HQ)
-                  </span>
-                  <input
-                    type="time"
-                    className={inputClass}
-                    value={shownRetDep}
-                    onChange={(e) => setReturnTimeDep(e.target.value)}
-                  />
-                </label>
-                <label className="block">
-                  <span className="mb-0.5 block text-[11px] text-slate-600">
-                    Time of arrival at HQ
-                  </span>
-                  <input
-                    type="time"
-                    className={inputClass}
-                    value={shownRetArr}
-                    onChange={(e) => setReturnTimeArr(e.target.value)}
-                  />
-                </label>
-              </div>
-              <p className="mt-1.5 text-xs text-slate-500">
-                {AUTO_TIMINGS
-                  ? "Edited times are printed verbatim in the Diary and TA Journal exports."
-                  : "These times are printed verbatim in the Diary and TA Journal exports."}
-              </p>
-              <button
-                type="button"
-                onClick={startSingleRowEdit}
-                className="mt-3 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
-              >
-                Edit the rows
-              </button>
-            </div>
-          </Field>
-          <Field label="Travel Details">
-            <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <TravelLeg
-                title="On-board journey (HQ → boarding station)"
-                mode={travelMode}
-                setMode={setTravelMode}
-                trainNo={travelTrainNo}
-                setTrainNo={setTravelTrainNo}
-              />
-              <TravelLeg
-                title="Return journey (boarding station → HQ)"
-                mode={returnMode}
-                setMode={setReturnMode}
-                trainNo={returnTrainNo}
-                setTrainNo={setReturnTrainNo}
-              />
-              <p className="text-xs text-slate-500">
-                By Road is selected by default. Choose By Train to enter the train number — both are printed
-                in the Diary and TA Journal exports.
-              </p>
-            </div>
-          </Field>
         </>
       )}
       </div>

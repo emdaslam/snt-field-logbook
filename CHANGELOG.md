@@ -3,6 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.36 — 2026-09-02
+
+**Minor: Footplate details sit above Diary / TA rows, and single-Footplate Edit the rows is no longer inside Disconnections**
+
+- A daily log with Footplate now asks for boarding / trains (Footplate details) first; the Diary / TA export-row editor and the single-ride Timings / Edit the rows block sit below that group.
+- On a single Footplate entry, tapping Edit the rows no longer opens inside the Disconnections Given card — those rows belong with the Footplate details above.
+
 ## 1.7.7.35 — 2026-09-02
 
 **Major: tap a Reports list row to open that entry, Back returns to the same list**
