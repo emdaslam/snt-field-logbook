@@ -3,6 +3,12 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.33 — 2026-09-02
+
+**Minor: multi-movement export rows can print --- instead of a clock time**
+
+- When two or more movements are selected, each Diary / TA export row now has a **---** tick next to Time dept and Time arr. Ticking it writes --- in that column of the Diary and TA Journal instead of a clock time (or the auto-generated fallback). A single movement keeps the normal time pickers with no --- option.
+
 ## 1.7.7.32 — 2026-09-01
 
 **Minor: Down-only Footplate train legs follow boarding → other-end instead of reversing or repeating the boarding station**

@@ -570,11 +570,15 @@ function customJourneyRows(
   return legs.map((leg, i) => ({
     trainNo: trainNoLabel(leg.mode, leg.trainNo || undefined),
     dep:
-      leg.timeDep ||
-      (i === 0 ? t.outDep : i === legs.length - 1 ? t.retDep : miss),
+      leg.timeDep === "---"
+        ? "---"
+        : leg.timeDep ||
+          (i === 0 ? t.outDep : i === legs.length - 1 ? t.retDep : miss),
     arr:
-      leg.timeArr ||
-      (i === 0 ? t.outArr : i === legs.length - 1 ? t.retArr : miss),
+      leg.timeArr === "---"
+        ? "---"
+        : leg.timeArr ||
+          (i === 0 ? t.outArr : i === legs.length - 1 ? t.retArr : miss),
     from: leg.from || (i === 0 ? hqCode : ""),
     to: leg.to || (i === legs.length - 1 ? hqCode : ""),
   }));

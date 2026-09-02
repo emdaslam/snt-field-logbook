@@ -536,24 +536,46 @@ function JourneyLegRow({
         </label>
       </div>
       <div className="mt-2 grid grid-cols-2 gap-2">
-        <label className="block">
+        <div>
           <span className="mb-0.5 block text-[11px] text-slate-600">Time dept</span>
-          <input
-            type="time"
-            className={inputClass}
-            value={leg.timeDep ?? ""}
-            onChange={(e) => onChange({ ...leg, timeDep: e.target.value || null })}
-          />
-        </label>
-        <label className="block">
+          <div className="flex items-center gap-2">
+            <input
+              type="time"
+              className={`${inputClass} min-w-0 flex-1`}
+              value={leg.timeDep === "---" ? "" : (leg.timeDep ?? "")}
+              disabled={leg.timeDep === "---"}
+              onChange={(e) => onChange({ ...leg, timeDep: e.target.value || null })}
+            />
+            <label className="flex flex-shrink-0 items-center gap-1 text-[11px] text-slate-600">
+              <input
+                type="checkbox"
+                checked={leg.timeDep === "---"}
+                onChange={(e) => onChange({ ...leg, timeDep: e.target.checked ? "---" : null })}
+              />
+              ---
+            </label>
+          </div>
+        </div>
+        <div>
           <span className="mb-0.5 block text-[11px] text-slate-600">Time arr</span>
-          <input
-            type="time"
-            className={inputClass}
-            value={leg.timeArr ?? ""}
-            onChange={(e) => onChange({ ...leg, timeArr: e.target.value || null })}
-          />
-        </label>
+          <div className="flex items-center gap-2">
+            <input
+              type="time"
+              className={`${inputClass} min-w-0 flex-1`}
+              value={leg.timeArr === "---" ? "" : (leg.timeArr ?? "")}
+              disabled={leg.timeArr === "---"}
+              onChange={(e) => onChange({ ...leg, timeArr: e.target.value || null })}
+            />
+            <label className="flex flex-shrink-0 items-center gap-1 text-[11px] text-slate-600">
+              <input
+                type="checkbox"
+                checked={leg.timeArr === "---"}
+                onChange={(e) => onChange({ ...leg, timeArr: e.target.checked ? "---" : null })}
+              />
+              ---
+            </label>
+          </div>
+        </div>
       </div>
       <div className="mt-2">
         <TravelLeg
@@ -1212,25 +1234,29 @@ export function DailyLogForm({
       timeDep:
         (movementKind === "station" || isFp) && !isHeadquarters ?
           (editExportRows && journeyLegs.length > 0
-            ? (journeyLegs[0].timeDep || null)
+            ? (journeyLegs[0].timeDep && journeyLegs[0].timeDep !== "---" ? journeyLegs[0].timeDep : null)
             : timeDep || null)
           : null,
       timeArr:
         (movementKind === "station" || isFp) && !isHeadquarters ?
           (editExportRows && journeyLegs.length > 0
-            ? (journeyLegs[0].timeArr || null)
+            ? (journeyLegs[0].timeArr && journeyLegs[0].timeArr !== "---" ? journeyLegs[0].timeArr : null)
             : timeArr || null)
           : null,
       returnTimeDep:
         (movementKind === "station" || isFp) && !isHeadquarters ?
           (editExportRows && journeyLegs.length > 0
-            ? (journeyLegs[journeyLegs.length - 1].timeDep || null)
+            ? (journeyLegs[journeyLegs.length - 1].timeDep && journeyLegs[journeyLegs.length - 1].timeDep !== "---"
+                ? journeyLegs[journeyLegs.length - 1].timeDep
+                : null)
             : returnTimeDep || null)
           : null,
       returnTimeArr:
         (movementKind === "station" || isFp) && !isHeadquarters ?
           (editExportRows && journeyLegs.length > 0
-            ? (journeyLegs[journeyLegs.length - 1].timeArr || null)
+            ? (journeyLegs[journeyLegs.length - 1].timeArr && journeyLegs[journeyLegs.length - 1].timeArr !== "---"
+                ? journeyLegs[journeyLegs.length - 1].timeArr
+                : null)
             : returnTimeArr || null)
           : null,
       // Travel mode for the HQ → station journey and (when by train) its number
@@ -1578,8 +1604,9 @@ export function DailyLogForm({
                   These rows come from the movements you picked above — the chain is HQ →
                   stop → … → stop → HQ. Edit any leg&apos;s From / To, times or Road /
                   Train details here; the first leg feeds the primary tour timings and the
-                  last leg the return. Use &quot;Add another movement&quot; in Station /
-                  Movement above to add another stop.
+                  last leg the return. Tick --- on Time dept or Time arr to print --- in
+                  the Diary / TA instead of a clock time. Use &quot;Add another
+                  movement&quot; in Station / Movement above to add another stop.
                 </p>
                 <div className="space-y-2">
                   {journeyLegs.map((leg, i) => (
@@ -1619,6 +1646,7 @@ export function DailyLogForm({
                   <p className="mt-1 text-xs text-slate-500">
                     Blank times on the first and last legs are filled from your TA Auto-Generation
                     settings; middle-leg blanks print as &quot;not entered in daily log&quot;.
+                    Tick --- to print --- instead of a generated or blank time.
                   </p>
                 )}
               </div>
