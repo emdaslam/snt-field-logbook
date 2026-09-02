@@ -123,6 +123,8 @@ export function AppShell() {
   const [searchNote, setSearchNote] = useState<Note | null>(null);
   const [taskTab, setTaskTab] = useState<"deficiencies" | "planned" | "archive">("deficiencies");
   const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [reportsDrill, setReportsDrill] = useState(false);
+  const closeReportsDrill = useRef<() => void>(() => {});
 
   function openNotification(n: (typeof notifications)[number]) {
     setNotifOpen(false);
@@ -194,6 +196,7 @@ export function AppShell() {
     inspOpen,
     notifOpen,
     exportMenu,
+    reportsDrill,
   });
   // Keep the snapshot fresh for the back-button handler (runs after commit,
   // so the handler always sees the latest overlay / view state)
@@ -217,6 +220,7 @@ export function AppShell() {
       inspOpen,
       notifOpen,
       exportMenu,
+      reportsDrill,
     };
   });
 
@@ -248,6 +252,7 @@ export function AppShell() {
             [s.inspOpen, () => setInspOpen(false)],
             [s.notifOpen, () => setNotifOpen(false)],
             [s.exportMenu, () => setExportMenu(false)],
+            [s.reportsDrill, () => closeReportsDrill.current()],
           ] as [boolean, () => void][]
         ).find(([open]) => open)?.[1];
 
@@ -618,7 +623,16 @@ export function AppShell() {
                 onOpenNote={(n) => { setView("notes"); setSearchNote(n); }}
               />
             )}
-            {view === "reports" && <Reports onOpenMonthly={() => setMonthlyOpen(true)} />}
+            {view === "reports" && (
+              <Reports
+                onOpenMonthly={() => setMonthlyOpen(true)}
+                onOpenLog={(l) => setDetailLog(l)}
+                onOpenDef={(d) => setSearchDef(d)}
+                onOpenPlan={(p) => setSearchPlan(p)}
+                onDrillChange={setReportsDrill}
+                drillCloseRef={closeReportsDrill}
+              />
+            )}
             {view === "notes" && <Notes focusNote={searchNote} />}
             {view === "attachments" && <AttachmentsView onSelect={setSelAttachment} />}
             {view === "materials" && <Materials />}

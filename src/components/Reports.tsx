@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type MutableRefObject } from "react";
 import { useData } from "./DataProvider";
 import { TomorrowWorkModal } from "./TomorrowWorkModal";
 import { PcdoExportModal } from "./PcdoExportModal";
@@ -12,8 +12,23 @@ import { fmtDate, pcdoWorkEntries, counterResetsOf, counterResetTotal, isTaClaim
 import { PrimaryButton } from "./ui";
 import { StatDetailModal, type StatRow } from "./StatDetailModal";
 import { computeAllSchedules, INSPECTION_RULES, tagReminderConfigs } from "@/lib/inspections";
+import type { DailyLog, DeficiencyTask, PlannedWork } from "@/db/schema";
 
-export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
+export function Reports({
+  onOpenMonthly,
+  onOpenLog,
+  onOpenDef,
+  onOpenPlan,
+  onDrillChange,
+  drillCloseRef,
+}: {
+  onOpenMonthly: () => void;
+  onOpenLog: (l: DailyLog) => void;
+  onOpenDef: (d: DeficiencyTask) => void;
+  onOpenPlan: (p: PlannedWork) => void;
+  onDrillChange?: (open: boolean) => void;
+  drillCloseRef?: MutableRefObject<() => void>;
+}) {
   const { logs, deficiencies, planned, stations, stationName, tags, currentUser } = useData();
   const [tomorrowOpen, setTomorrowOpen] = useState(false);
   const [pcdoOpen, setPcdoOpen] = useState(false);
@@ -23,6 +38,33 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
   const [period, setPeriod] = useState<Period>(() => monthPeriod(0));
   const [custom, setCustom] = useState(false);
   const [drill, setDrill] = useState<{ title: string; rows: StatRow[]; footer?: string } | null>(null);
+
+  useEffect(() => {
+    onDrillChange?.(Boolean(drill));
+    return () => onDrillChange?.(false);
+  }, [drill, onDrillChange]);
+
+  useEffect(() => {
+    if (!drillCloseRef) return;
+    drillCloseRef.current = () => setDrill(null);
+  }, [drillCloseRef]);
+
+  function openRow(row: StatRow) {
+    if (row.logId != null) {
+      const l = logs.find((x) => x.id === row.logId);
+      if (l) onOpenLog(l);
+      return;
+    }
+    if (row.defId != null) {
+      const d = deficiencies.find((x) => x.id === row.defId);
+      if (d) onOpenDef(d);
+      return;
+    }
+    if (row.planId != null) {
+      const p = planned.find((x) => x.id === row.planId);
+      if (p) onOpenPlan(p);
+    }
+  }
 
   const inRange = (d: string | null | undefined) => !!d && d >= period.from && d <= period.to;
 
@@ -120,6 +162,7 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
                 title: l.workDone?.trim() || l.stationMovement?.trim() || "No entry",
                 sub: l.stationMovement ?? undefined,
                 badge: `${l.taPercent ?? 100}%`,
+                logId: l.id,
               })),
             })
           }
@@ -137,6 +180,7 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
                 title: l.stationMovement?.trim() || "—",
                 sub: l.workDone ?? undefined,
                 badge: `${l.taPercent ?? 100}%`,
+                logId: l.id,
               })),
               footer: `Total: ${stats.ta.toFixed(1)} days`,
             })
@@ -159,6 +203,7 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
                     : l.pcdoStationId
                       ? stationName(l.pcdoStationId)
                       : undefined,
+                  logId: l.id,
                 }))
               ),
             })
@@ -183,6 +228,7 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
                   title: l.stationMovement?.trim() || "—",
                   sub: `Special work ${l.discSpecialWork} · Failure ${l.discFailure} · Maintenance ${l.discMaintenance} · Not permitted ${l.discNotPermitted}`,
                   badge: `${l.discSpecialWork + l.discFailure + l.discMaintenance + l.discNotPermitted}`,
+                  logId: l.id,
                 })),
               footer: `Total: ${stats.discTotal} disconnections`,
             })
@@ -208,6 +254,7 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
                     }`,
                     sub: `Failures ${r.failures} · Testing ${r.testing}`,
                     badge: `${r.failures + r.testing}`,
+                    logId: l.id,
                   }))
                 ),
               footer: `Total: ${stats.counter} counter resets`,
@@ -228,6 +275,7 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
                   date: l.logDate,
                   title: l.stationMovement?.trim() || "Leave",
                   sub: l.leaveKind ? `Leave type: ${l.leaveKind}` : undefined,
+                  logId: l.id,
                 })),
               footer: `Total: ${stats.leaves} leave${stats.leaves === 1 ? "" : "s"}`,
             })
@@ -251,6 +299,7 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
                   title: d.title,
                   sub: `${d.department} · ${stationName(d.stationId)}`,
                   badge: d.priority,
+                  defId: d.id,
                 })),
             })
           }
@@ -269,6 +318,7 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
                   date: d.dueDate || String(d.createdAt).slice(0, 10),
                   title: d.title,
                   sub: `${d.department} · ${stationName(d.stationId)}`,
+                  defId: d.id,
                 })),
             })
           }
@@ -290,6 +340,7 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
                   date: p.plannedDate,
                   title: p.title,
                   sub: stationName(p.stationId),
+                  planId: p.id,
                 })),
             })
           }
@@ -308,6 +359,7 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
                   date: p.plannedDate,
                   title: p.title,
                   sub: stationName(p.stationId),
+                  planId: p.id,
                 })),
             })
           }
@@ -382,6 +434,7 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
                           date: l.logDate,
                           title: l.workDone?.trim() || "No entry",
                           badge: `${l.taPercent ?? 100}%`,
+                          logId: l.id,
                         })),
                     })
                   }
@@ -402,31 +455,49 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
             Inspection Schedule
           </h3>
           <ul className="divide-y divide-slate-100">
-            {schedules.map((d) => (
-              <li key={d.key} className="flex items-center justify-between gap-2 py-2">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-slate-800">
-                    {INSPECTION_RULES[d.kind].label} · {d.station}
-                    {d.kind === "footplate" ? "" : ` → towards ${d.towards}${d.towards === "Both sides" ? "" : " side"}`}
-                    {d.jointDept ? ` (with ${d.jointDept})` : ""}
-                  </p>
-                  <p className="text-xs text-slate-400">
-                    Last {d.lastDone} → next {d.nextDue}
-                  </p>
-                </div>
-                <span
-                  className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                    d.overdue
-                      ? "bg-red-100 text-red-700"
-                      : d.daysLeft <= 5
-                        ? "bg-amber-100 text-amber-800"
-                        : "bg-slate-100 text-slate-500"
-                  }`}
-                >
-                  {d.overdue ? `${Math.abs(d.daysLeft)}d overdue` : `in ${d.daysLeft}d`}
-                </span>
-              </li>
-            ))}
+            {schedules.map((d) => {
+              const log = d.sourceLogId != null ? logs.find((x) => x.id === d.sourceLogId) : undefined;
+              const body = (
+                <>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-slate-800">
+                      {INSPECTION_RULES[d.kind].label} · {d.station}
+                      {d.kind === "footplate" ? "" : ` → towards ${d.towards}${d.towards === "Both sides" ? "" : " side"}`}
+                      {d.jointDept ? ` (with ${d.jointDept})` : ""}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      Last {d.lastDone} → next {d.nextDue}
+                    </p>
+                  </div>
+                  <span
+                    className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                      d.overdue
+                        ? "bg-red-100 text-red-700"
+                        : d.daysLeft <= 5
+                          ? "bg-amber-100 text-amber-800"
+                          : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {d.overdue ? `${Math.abs(d.daysLeft)}d overdue` : `in ${d.daysLeft}d`}
+                  </span>
+                </>
+              );
+              return (
+                <li key={d.key}>
+                  {log ? (
+                    <button
+                      type="button"
+                      onClick={() => onOpenLog(log)}
+                      className="flex w-full items-center justify-between gap-2 py-2 text-left transition hover:text-blue-700"
+                    >
+                      {body}
+                    </button>
+                  ) : (
+                    <div className="flex items-center justify-between gap-2 py-2">{body}</div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
@@ -481,6 +552,7 @@ export function Reports({ onOpenMonthly }: { onOpenMonthly: () => void }) {
         title={drill?.title ?? ""}
         rows={drill?.rows ?? []}
         footer={drill?.footer}
+        onOpenRow={openRow}
       />
     </div>
   );

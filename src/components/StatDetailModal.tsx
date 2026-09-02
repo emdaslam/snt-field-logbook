@@ -9,7 +9,14 @@ export type StatRow = {
   title: string;
   sub?: string;
   badge?: string;
+  logId?: number;
+  defId?: number;
+  planId?: number;
 };
+
+function rowOpens(r: StatRow) {
+  return r.logId != null || r.defId != null || r.planId != null;
+}
 
 export function StatDetailModal({
   open,
@@ -18,6 +25,7 @@ export function StatDetailModal({
   rows,
   emptyText = "No entries in this period.",
   footer,
+  onOpenRow,
 }: {
   open: boolean;
   onClose: () => void;
@@ -25,6 +33,7 @@ export function StatDetailModal({
   rows: StatRow[];
   emptyText?: string;
   footer?: string;
+  onOpenRow?: (row: StatRow) => void;
 }) {
   return (
     <Modal open={open} onClose={onClose} title={title} wide>
@@ -40,22 +49,40 @@ export function StatDetailModal({
         <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">
           {[...rows]
             .sort((a, b) => a.date.localeCompare(b.date))
-            .map((r) => (
-              <li key={r.key} className="flex items-start gap-3 px-3 py-2.5">
-                <span className="w-24 flex-shrink-0 text-xs font-medium text-blue-800">
-                  {fmtDate(r.date)}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-slate-800">{r.title}</p>
-                  {r.sub && <p className="text-xs text-slate-500">{r.sub}</p>}
-                </div>
-                {r.badge && (
-                  <span className="flex-shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                    {r.badge}
+            .map((r) => {
+              const clickable = Boolean(onOpenRow && rowOpens(r));
+              const body = (
+                <>
+                  <span className="w-24 flex-shrink-0 text-xs font-medium text-blue-800">
+                    {fmtDate(r.date)}
                   </span>
-                )}
-              </li>
-            ))}
+                  <div className="min-w-0 flex-1 text-left">
+                    <p className="text-sm text-slate-800">{r.title}</p>
+                    {r.sub && <p className="text-xs text-slate-500">{r.sub}</p>}
+                  </div>
+                  {r.badge && (
+                    <span className="flex-shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                      {r.badge}
+                    </span>
+                  )}
+                </>
+              );
+              return (
+                <li key={r.key}>
+                  {clickable ? (
+                    <button
+                      type="button"
+                      onClick={() => onOpenRow!(r)}
+                      className="flex w-full items-start gap-3 px-3 py-2.5 text-left transition hover:bg-slate-50 active:bg-slate-100"
+                    >
+                      {body}
+                    </button>
+                  ) : (
+                    <div className="flex items-start gap-3 px-3 py-2.5">{body}</div>
+                  )}
+                </li>
+              );
+            })}
         </ul>
       )}
 

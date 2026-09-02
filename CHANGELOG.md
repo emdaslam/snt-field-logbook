@@ -3,6 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.35 — 2026-09-02
+
+**Major: tap a Reports list row to open that entry, Back returns to the same list**
+
+- Every Reports list that shows entries — Daily Logs, Total TA, PCDO Special Works, Disconnections, Counter Resets, Leaves, Logs by Station, Inspection Schedule, Deficiencies and Planned Works — now opens the matching daily log (or task) when you tap a row.
+- Closing the entry, or pressing Android Back, returns you to the same Reports list you came from, not Home.
+
 ## 1.7.7.34 — 2026-09-02
 
 **Minor: single-movement entries can edit Diary / TA rows after tapping Edit the rows**

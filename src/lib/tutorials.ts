@@ -522,6 +522,23 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.7.35",
+    tag: "Open a log from Reports",
+    subtitle: "Tap any Reports list row to open that entry — Back brings you back to the same list.",
+    slides: [
+      {
+        glyph: "▤",
+        title: "Tap a row to open it",
+        body: "On the Reports tab, every list of entries is now tappable — Daily Logs, Total TA, PCDO, Disconnections, Counter Resets, Leaves, Logs by Station, Inspection Schedule, Deficiencies and Planned Works. Tap a row to open that daily log or task.",
+      },
+      {
+        glyph: "◂",
+        title: "Back stays on that list",
+        body: "Close the entry, or press Android Back, and you return to the same Reports list you came from — not Home. The period filter and the flag you opened stay as they were.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {
