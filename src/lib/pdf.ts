@@ -497,8 +497,11 @@ export function buildPdf(
   // lines — stays at its default size (the size it renders at content size 10).
   // Raising the content-size setting never shrinks or wraps them, and only the
   // table grows; the fixed block also sidesteps the cramped 5pt "Pay" column
-  // that the proportional column layout produced at every size.
-  const headFs = opts.fixedHeader ? DEFAULT_CONTENT_FONT_SIZE / 9 : fs;
+  // that the proportional column layout produced at every size. Fit-on-one-page
+  // is the exception: there the whole page shrinks to fit, so the block scales
+  // with the fitted size too — keeping it fixed ate ~40pt of vertical room
+  // that the fit loop otherwise spends on a larger table font.
+  const headFs = opts.fixedHeader && !opts.fitMode ? DEFAULT_CONTENT_FONT_SIZE / 9 : fs;
   const baseMargin = opts.margin ?? 40;
   const withFooter = opts.footer ?? true;
   // "plain" drops every fill and colour so the report renders as the reference
@@ -908,31 +911,47 @@ export function buildPdf(
         };
       }
 
-      // Fit-on-one-page mode only: give the NATURE OF WORK column (index 9) an
-      // explicit width so it stops absorbing the whole leftover row. autoTable
-      // hands every unassigned column the remaining table width, which left a
-      // near-empty ~280pt column and squeezed the others. Its width is its own
-      // content width — never narrower (no extra wrapping) and never wider than
-      // the room the fixed columns leave (no page overflow, the failure the old
-      // rigid data-width attempt caused).
+      // Fit-on-one-page mode: size the NATURE OF WORK column (index 9, the only
+      // column without a data-width) from its own content — the widest single
+      // line of work text at the current font size — instead of handing it the
+      // whole leftover row. The column is never wider than its content (no long
+      // empty strip inside the cell), never wider than the room the fixed
+      // columns leave (no page overflow, the failure the old rigid data-width
+      // attempt caused), and never below MIN_NATURE_COL. When the content
+      // leaves room to spare, that leftover is spread over the fixed columns in
+      // proportion, so the table still fills the printable width and those
+      // cells get roomier — and the fit loop can land on a larger font size,
+      // because a wider column no longer costs a wrapped work-text line.
       if (opts.fitMode) {
         const avail = pageW - 2 * margin;
         let used = 0;
-        for (const st of Object.values(columnStyles)) {
-          if (typeof st.cellWidth === "number") used += st.cellWidth;
+        const fixedCols: number[] = [];
+        for (const [col, st] of Object.entries(columnStyles)) {
+          if (typeof st.cellWidth === "number") {
+            used += st.cellWidth;
+            fixedCols.push(Number(col));
+          }
         }
-        // In fit-on-one-page mode col 9 (NATURE OF WORK) is the only unassigned
-        // column, so autoTable hands it every leftover pixel. Without an
-        // explicit width it swallows the whole remainder (~280pt), crowding the
-        // other columns and dropping font size to the floor. We assign it the
-        // exact remaining room instead — it uses all of it rather than being
-        // capped at its own content width and leaving empty space inside the
-        // column. Never go below MIN_NATURE_COL so the column stays readable.
-        const cap = Math.max(avail - used, MIN_NATURE_COL);
+        const room = Math.max(avail - used, 0);
+        const content = Math.max(fit[9]?.full ?? 0, hf[9]?.word ?? 0);
+        const cap = Math.max(
+          Math.min(content > 0 ? content : room, room),
+          Math.min(MIN_NATURE_COL, room)
+        );
         columnStyles[9] = {
           ...(columnStyles[9] ?? {}),
           cellWidth: cap,
         };
+        if (used > 0) {
+          const extra = avail - cap - used;
+          if (extra > 0) {
+            const scale = (used + extra) / used;
+            for (const col of fixedCols) {
+              const st = columnStyles[col];
+              if (typeof st.cellWidth === "number") st.cellWidth = st.cellWidth * scale;
+            }
+          }
+        }
       }
 
       const head: { content: string; rowSpan?: number; colSpan?: number; styles?: ColStyle }[][] | undefined =

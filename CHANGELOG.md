@@ -3,6 +3,14 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.38 — 2026-09-02
+
+**Minor: TA Journal one-page export sizes the Nature of Work column to its content and fits a larger font**
+
+- In the fit-on-one-page TA Journal, the Nature of Work column no longer absorbs the whole leftover row width — it is sized to the widest work-text line (floor 40pt, never wider than the room the other columns leave). Any leftover room is spread over the date / train / time / station / kms / days / amount columns, so the table still fills the full page width and those cells get roomier.
+- On a fitted one-page TA Journal the title, heading, profile rows and signature block now shrink with the table instead of staying at their default size. The freed vertical room lets the fit land on a larger body font — a dense 16-day month now renders at 8.0pt instead of 6.2pt, and 8–10 day months at 8.9pt.
+- No overflow: the Nature of Work column can never exceed the room available, and every fitted render stays inside the page margins. Two-page and manual-size TA exports are unchanged.
+
 ## 1.7.7.37 — 2026-09-02
 
 **Minor: Footplate train numbers in the Diary / TA row editor keep every digit as you type**
