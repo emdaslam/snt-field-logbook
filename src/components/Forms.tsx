@@ -625,7 +625,9 @@ export function DailyLogForm({
   // Custom export rows — when ON the user edits individual Diary / TA rows
   // directly. When OFF the existing fixed Timings + Travel Details sections
   // drive the exports (default two-leg layout). Saved as `journeyLegs` on the
-  // log; an empty array means "not customised".
+  // log; an empty array means "not customised". Two or more movements turn
+  // this on automatically. A single movement stays on the Timings form until
+  // the user taps "Edit the rows".
   const [editExportRows, setEditExportRows] = useState<boolean>(
     Array.isArray(existing?.journeyLegs) && existing.journeyLegs.length > 0
   );
@@ -732,17 +734,33 @@ export function DailyLogForm({
   // `syncLegs` reads only this ref so React Compiler does not treat fpDay etc.
   // as mutated by setJourneyLegs (which would skip autoGenTimes compilation).
   const chainSnapRef = useRef<ChainSnap | null>(null);
-  const syncLegs = (chain: string[]) => {
-    const filled = chain.filter((m) => m.trim());
-    if (filled.length < 2) {
-      setEditExportRows(false);
-      setJourneyLegs([]);
-      return;
-    }
-    setEditExportRows(true);
+  // Single-movement entries keep the Timings form until the user taps
+  // "Edit the rows". Saved single-entry custom legs reopen already unlocked.
+  const singleRowEditRef = useRef(
+    Array.isArray(existing?.journeyLegs) &&
+      existing.journeyLegs.length > 0 &&
+      !(Array.isArray(existing?.extraStops) && existing.extraStops.length > 0)
+  );
+  const applyLegs = (filled: string[]) => {
     const snap = chainSnapRef.current;
     if (!snap) return;
     setJourneyLegs((cur) => buildChainLegs(filled, cur, snap.travel, snap.fp, snap.label));
+  };
+  const syncLegs = (chain: string[]) => {
+    const filled = chain.filter((m) => m.trim());
+    if (filled.length >= 2) {
+      singleRowEditRef.current = true;
+      setEditExportRows(true);
+      applyLegs(filled);
+      return;
+    }
+    if (filled.length === 1 && singleRowEditRef.current) {
+      setEditExportRows(true);
+      applyLegs(filled);
+      return;
+    }
+    setEditExportRows(false);
+    setJourneyLegs([]);
   };
   const [movementKind, setMovementKind] = useState<"station" | "rest" | "leave" | "cr" | "nh" | "footplate">(
     existing?.movementKind === "rest" ||
@@ -893,6 +911,7 @@ export function DailyLogForm({
       setMovement(v === "rest" ? "Rest" : v === "leave" ? "Leave" : v === "cr" ? "CR" : "NH");
       setExtraMovements([]);
       setFpRides([]);
+      singleRowEditRef.current = false;
       setEditExportRows(false);
       setJourneyLegs([]);
       return;
@@ -1005,6 +1024,13 @@ export function DailyLogForm({
     const next = extraMovements.filter((_, idx) => idx !== i);
     setExtraMovements(next);
     syncLegs([primarySlot, ...next]);
+  };
+  const startSingleRowEdit = () => {
+    const filled = [primarySlot, ...extraMovements].filter((m) => m.trim());
+    if (filled.length === 0) return;
+    singleRowEditRef.current = true;
+    setEditExportRows(true);
+    applyLegs(filled);
   };
   useEffect(() => {
     if (!hasFootplateInChain) return;
@@ -1711,6 +1737,13 @@ export function DailyLogForm({
                     ? "Edited times are printed verbatim in the Diary and TA Journal exports."
                     : "These times are printed verbatim in the Diary and TA Journal exports."}
                 </p>
+                <button
+                  type="button"
+                  onClick={startSingleRowEdit}
+                  className="mt-3 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Edit the rows
+                </button>
               </div>
             </Field>
           )}
@@ -2042,7 +2075,7 @@ export function DailyLogForm({
             </label>
         </>
       )}
-      {!isSpecial && !isHeadquarters && movementKind === "footplate" && (
+      {!isSpecial && !isHeadquarters && movementKind === "footplate" && !editExportRows && (
         <>
           <Field label="Timings">
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
@@ -2103,6 +2136,13 @@ export function DailyLogForm({
                   ? "Edited times are printed verbatim in the Diary and TA Journal exports."
                   : "These times are printed verbatim in the Diary and TA Journal exports."}
               </p>
+              <button
+                type="button"
+                onClick={startSingleRowEdit}
+                className="mt-3 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Edit the rows
+              </button>
             </div>
           </Field>
           <Field label="Travel Details">

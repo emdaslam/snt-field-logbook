@@ -3,6 +3,12 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.34 — 2026-09-02
+
+**Minor: single-movement entries can edit Diary / TA rows after tapping Edit the rows**
+
+- A daily log with only one station or Footplate movement now has an **Edit the rows** button on the Timings block. The Diary / TA export-row editor stays locked until that button is tapped; after the click, each leg can be edited the same way as a multi-movement chain (From / To, times, Road / Train, ---). Two or more movements still open the editor automatically.
+
 ## 1.7.7.33 — 2026-09-02
 
 **Minor: multi-movement export rows can print --- instead of a clock time**
