@@ -3,6 +3,12 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.37 — 2026-09-02
+
+**Minor: Footplate train numbers in the Diary / TA row editor keep every digit as you type**
+
+- Typing a train number in Footplate details no longer leaves only the first digit on that ride's Diary / TA export row. Each extra character now updates the matching train leg, and boarding / alighting times from the Footplate form follow through as well.
+
 ## 1.7.7.36 — 2026-09-02
 
 **Minor: Footplate details sit above Diary / TA rows, and single-Footplate Edit the rows is no longer inside Disconnections**

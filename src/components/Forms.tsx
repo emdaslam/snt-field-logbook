@@ -257,7 +257,16 @@ function buildChainLegs(
             mode: "train",
             trainNo: train.trainNo,
           };
-          legs.push(reuse(lastTo, dest, "train", train.trainNo, fit));
+          const reused = reuse(lastTo, dest, "train", train.trainNo, fit);
+          legs.push({
+            ...reused,
+            from: lastTo,
+            to: dest,
+            mode: "train",
+            trainNo: train.trainNo,
+            timeDep: train.depTime || reused.timeDep,
+            timeArr: train.arrTime || reused.timeArr,
+          });
           lastTo = dest;
         };
         hopTrain(fp.fpDay, fp.fpDayDir === "Up" || fp.fpDayDir === "Both", fp.fpDayUp);
