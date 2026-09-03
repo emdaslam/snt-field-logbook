@@ -1,5 +1,5 @@
 import { toISODate } from "./api";
-import type { FootplateBlock } from "@/db/schema";
+import type { FootplateBlock, FootplateDetail } from "@/db/schema";
 
 export type InspectionKind =
   | "monthly"
@@ -44,6 +44,52 @@ export function intervalFor(kind: InspectionKind, periodicity?: string | null) {
 
 export const FOOTPLATE_SHIFTS = ["Day", "Night"] as const;
 export const FOOTPLATE_DIRECTIONS = ["Up", "Down", "Both"] as const;
+
+/**
+ * Dedicated footplate reminder settings (Settings → Notifications → Footplate
+ * inspection reminder). Each periodicity gets its own cycle length and its own
+ * "warn N days before due" window; a null cycle day-count keeps the built-in
+ * default (30 for monthly, 90 for quarterly) and a null warn count means 5.
+ */
+export type FootplatePeriodSetting = {
+  enabled: boolean;
+  periodicityDays: number | null;
+  warnDays: number | null;
+};
+export type FootplateReminderSettings = {
+  monthly: FootplatePeriodSetting;
+  quarterly: FootplatePeriodSetting;
+};
+export const DEFAULT_FOOTPLATE_REMINDER: FootplateReminderSettings = {
+  monthly: { enabled: true, periodicityDays: null, warnDays: null },
+  quarterly: { enabled: true, periodicityDays: null, warnDays: null },
+};
+
+/** Parse the persisted JSON (localStorage) into a full settings object. */
+export function normalizeFootplateReminder(v: unknown): FootplateReminderSettings {
+  const num = (x: unknown): number | null =>
+    typeof x === "number" && Number.isFinite(x) && x > 0 ? Math.round(x) : null;
+  const period = (x: unknown, def: FootplatePeriodSetting): FootplatePeriodSetting => {
+    if (!x || typeof x !== "object") return def;
+    const o = x as Record<string, unknown>;
+    return {
+      enabled: o.enabled === undefined ? def.enabled : o.enabled === true,
+      periodicityDays: num(o.periodicityDays) ?? null,
+      warnDays:
+        o.warnDays === undefined || o.warnDays === null
+          ? null
+          : typeof o.warnDays === "number" && Number.isFinite(o.warnDays)
+            ? Math.max(0, Math.round(o.warnDays))
+            : null,
+    };
+  };
+  if (!v || typeof v !== "object") return DEFAULT_FOOTPLATE_REMINDER;
+  const o = v as Record<string, unknown>;
+  return {
+    monthly: period(o.monthly, DEFAULT_FOOTPLATE_REMINDER.monthly),
+    quarterly: period(o.quarterly, DEFAULT_FOOTPLATE_REMINDER.quarterly),
+  };
+}
 
 /** Departments a joint inspection can be carried out with. */
 export const JOINT_DEPARTMENTS = ["Engg", "OHE"] as const;
@@ -136,6 +182,10 @@ export type InspectionRecord = {
   footplateDirection?: string | null;
   footplateDay?: FootplateBlock | null;
   footplateNight?: FootplateBlock | null;
+  footplateUp?: FootplateDetail | null;
+  footplateDown?: FootplateDetail | null;
+  footplateJourney?: { boardingStationId?: number | null } | null;
+  footplateJourneys?: { boardingStationId?: number | null; day?: FootplateBlock | null; night?: FootplateBlock | null }[] | null;
   stationMovement?: string | null;
 };
 
@@ -152,6 +202,9 @@ export type InspectionDue = {
   jointDept?: string | null;
   /** For joint/footplate: the chosen monthly or quarterly cycle */
   periodicity?: string | null;
+  /** Footplate only: which shift (Day / Night) and direction (Up / Down) this schedule tracks */
+  fpShift?: string | null;
+  fpDir?: string | null;
   lastDone: string;
   nextDue: string;
   daysLeft: number;
@@ -172,15 +225,66 @@ function isBlock(b: FootplateBlock | null | undefined): b is FootplateBlock {
   return Boolean(b && "direction" in b);
 }
 
-/** Footplate schedules are keyed by shift + direction (Day Both ≠ Day Up). */
-function footplateVariant(r: InspectionRecord) {
-  const shift = (r.footplateShift || "").toLowerCase();
-  if (isBlock(r.footplateDay) || isBlock(r.footplateNight)) {
-    const day = (r.footplateDay?.direction || "").toLowerCase();
-    const night = (r.footplateNight?.direction || "").toLowerCase();
-    return `${shift}::d:${day}|n:${night}`;
+/**
+ * The individual (shift, direction) facts a footplate log records. A direction
+ * of "Both" (or an old block with train details for both) splits into separate
+ * Up and Down facts, so each entered direction tracks its own schedule. Chain
+ * logs contribute one fact per ride, each at its own boarding station;
+ * standalone logs use the logged station.
+ */
+export function footplateFactsOf(r: InspectionRecord): {
+  stationId: number | null;
+  shift: "Day" | "Night";
+  dir: "Up" | "Down";
+  date: string;
+  periodicity: string | null;
+  logId?: number;
+}[] {
+  const per = r.inspectionPeriodicity ?? null;
+  const out: { stationId: number | null; shift: "Day" | "Night"; dir: "Up" | "Down"; date: string; periodicity: string | null; logId?: number }[] = [];
+  const add = (shift: "Day" | "Night", dir: "Up" | "Down", stationId: number | null) =>
+    out.push({ stationId, shift, dir, date: r.logDate, periodicity: per, logId: r.id });
+  const blockDirs = (b: FootplateBlock | null | undefined): ("Up" | "Down")[] => {
+    if (!isBlock(b)) return [];
+    const d = (b.direction || "").toLowerCase();
+    if (d === "up") return ["Up"];
+    if (d === "down") return ["Down"];
+    if (d === "both") return ["Up", "Down"];
+    // Old entries where the train details were filled but the direction
+    // selection is missing/stale — take it from the details that exist
+    const dirs: ("Up" | "Down")[] = [];
+    if (b.up) dirs.push("Up");
+    if (b.down) dirs.push("Down");
+    return dirs;
+  };
+  const rides = Array.isArray(r.footplateJourneys) ? r.footplateJourneys : [];
+  if (rides.length > 0) {
+    for (const ride of rides) {
+      const st = ride?.boardingStationId ?? r.inspectionStationId ?? null;
+      for (const dir of blockDirs(ride?.day ?? null)) add("Day", dir, st);
+      for (const dir of blockDirs(ride?.night ?? null)) add("Night", dir, st);
+    }
+    return out;
   }
-  return `${shift}::${(r.footplateDirection || "").toLowerCase()}`;
+  for (const dir of blockDirs(r.footplateDay ?? null)) add("Day", dir, r.inspectionStationId ?? null);
+  for (const dir of blockDirs(r.footplateNight ?? null)) add("Night", dir, r.inspectionStationId ?? null);
+  // Legacy form (before the per-shift blocks): one shifted direction for
+  // whichever shift(es) were picked
+  if (out.length === 0 && (r.footplateShift || r.footplateDirection)) {
+    const shifts = (r.footplateShift || "Day").split(",").map((s) => s.trim().toLowerCase());
+    const d = (r.footplateDirection || "").toLowerCase();
+    let dirs: ("Up" | "Down")[] =
+      d === "down" ? ["Down"] : d === "both" ? ["Up", "Down"] : d === "up" ? ["Up"] : [];
+    if (dirs.length === 0) {
+      if (r.footplateUp) dirs.push("Up");
+      if (r.footplateDown) dirs.push("Down");
+    }
+    for (const s of shifts) {
+      const shift = s === "night" ? "Night" : "Day";
+      for (const dir of dirs) add(shift, dir, r.inspectionStationId ?? null);
+    }
+  }
+  return out;
 }
 
 function collectLatest(records: InspectionRecord[], resolve: StationResolver) {
@@ -202,6 +306,10 @@ function collectLatest(records: InspectionRecord[], resolve: StationResolver) {
   for (const r of records) {
     const kind = r.inspectionKind as InspectionKind | null;
     if (!kind || !INSPECTION_RULES[kind]) continue;
+    // Footplate is scheduled per shift + direction by collectFootplate (a "Both"
+    // ride counts as BOTH directions), which the generic collector would key
+    // as a third "both" schedule that side entries never refresh.
+    if (kind === "footplate") continue;
     const st = resolve(r);
     // A station's inspection is one schedule: the most recent entry for that
     // station (a specific side, or "Both sides") is its "last done" date. Sides
@@ -212,17 +320,12 @@ function collectLatest(records: InspectionRecord[], resolve: StationResolver) {
     // Joint inspections still track each partner department separately.
     const dept = kind === "joint" ? (r.inspectionJointDept || "").toLowerCase() : "";
     const per = PERIODIC_KINDS.includes(kind) ? (r.inspectionPeriodicity || "").toLowerCase() : "";
-    // Footplate has no "towards side" — it is keyed by shift and direction instead,
-    // so a Day and a Night run on the same date are two separate schedules.
     // A station's schedule is keyed by its resolved name (normalised). The same
     // station can be recorded once with a station id and once as free text
     // (or under a slightly different spelling); keying by name keeps both on
     // ONE schedule so the reminder doesn't fire twice for the same station.
     const stationKey = st.name.toLowerCase();
-    const key =
-      kind === "footplate"
-        ? `${kind}::${stationKey}::${footplateVariant(r)}::${dept}::${per}`
-        : `${kind}::${stationKey}::${dept}::${per}`;
+    const key = `${kind}::${stationKey}::${dept}::${per}`;
     const prev = latest.get(key);
     if (!prev || r.logDate > prev.date)
       latest.set(key, {
@@ -246,6 +349,104 @@ export type FootplateLogRecord = InspectionRecord & {
   footplateJourney?: { boardingStationId?: number | null } | null;
   footplateJourneys?: { boardingStationId?: number | null }[] | null;
 };
+
+type FootplateLatest = {
+  station: string;
+  stationId: number | null;
+  shift: "Day" | "Night";
+  dir: "Up" | "Down";
+  date: string;
+  periodicity: string | null;
+  id?: number;
+};
+
+/**
+ * Most recent fact per (station, shift, direction). This is what makes footplate
+ * behave per direction: doing only Up leaves the Down schedule at its own last
+ * done date (due again after the periodicity), and a "Both" entry refreshes
+ * BOTH directions at once.
+ */
+function collectFootplate(records: InspectionRecord[], resolve: StationResolver): Map<string, FootplateLatest> {
+  const latest = new Map<string, FootplateLatest>();
+  for (const r of records) {
+    if (r.inspectionKind !== "footplate") continue;
+    const base = resolve(r);
+    for (const f of footplateFactsOf(r)) {
+      // Chain-ride facts resolve at their own boarding station
+      const st =
+        f.stationId === null || f.stationId === base.id
+          ? base
+          : resolve({ ...r, inspectionStationId: f.stationId, inspectionTowardsStationId: null, stationMovement: null });
+      const key = `${st.name.toLowerCase()}::${f.shift}::${f.dir}`;
+      const prev = latest.get(key);
+      if (!prev || f.date > prev.date)
+        latest.set(key, {
+          station: st.name,
+          stationId: st.id,
+          shift: f.shift,
+          dir: f.dir,
+          date: f.date,
+          periodicity: f.periodicity,
+          id: f.logId,
+        });
+    }
+  }
+  return latest;
+}
+
+/**
+ * One schedule per (station, shift, direction) that the user has ever entered.
+ * Each is due `interval` days after its own last done date (the period set on
+ * that entry — monthly / quarterly, with the dedicated settings overriding the
+ * lengths), warned from `warnDays` before due and tracked once overdue.
+ * `all` (Reports) lists every tracked schedule; otherwise only the ones inside
+ * their warning window or overdue — and the reminder is suppressed when the
+ * footplate tag's "Remind me" is off or that periodicity is switched off in
+ * the footplate reminder settings.
+ */
+function footplateSchedules(
+  records: InspectionRecord[],
+  today: string,
+  resolve: StationResolver,
+  tagConfig?: TagReminderConfigMap,
+  footplateSettings?: FootplateReminderSettings,
+  all = false
+): InspectionDue[] {
+  const latest = collectFootplate(records, resolve);
+  const out: InspectionDue[] = [];
+  for (const [key, v] of latest) {
+    const perKey = (v.periodicity ?? "").toLowerCase() === "quarterly" ? "quarterly" : "monthly";
+    const ps = footplateSettings?.[perKey] ?? DEFAULT_FOOTPLATE_REMINDER[perKey];
+    if (!all && tagConfig?.footplate?.enabled === false) continue;
+    if (!all && !ps.enabled) continue;
+    const interval =
+      ps.periodicityDays && ps.periodicityDays > 0 ? ps.periodicityDays : PERIODICITY_DAYS[perKey];
+    const warn =
+      ps.warnDays !== null && ps.warnDays !== undefined && ps.warnDays >= 0
+        ? ps.warnDays
+        : INSPECTION_RULES.footplate.remindBefore;
+    const nextDue = addDays(v.date, interval);
+    const daysLeft = daysBetween(today, nextDue);
+    if (!all && daysLeft > warn) continue;
+    out.push({
+      key: `footplate::${key}`,
+      kind: "footplate",
+      station: v.station,
+      stationId: v.stationId,
+      towards: "Unspecified side",
+      towardsId: null,
+      periodicity: perKey,
+      fpShift: v.shift,
+      fpDir: v.dir,
+      lastDone: v.date,
+      nextDue,
+      daysLeft,
+      overdue: daysLeft < 0,
+      sourceLogId: v.id,
+    });
+  }
+  return out.sort((a, b) => a.daysLeft - b.daysLeft);
+}
 
 /**
  * One log can record two inspection facts: the tagged periodic inspection kept
@@ -307,7 +508,8 @@ export function computeInspectionDues(
   records: InspectionRecord[],
   today: string = toISODate(new Date()),
   resolveStation: StationResolver = defaultResolver,
-  tagConfig?: TagReminderConfigMap
+  tagConfig?: TagReminderConfigMap,
+  footplateSettings?: FootplateReminderSettings
 ): InspectionDue[] {
   const latest = collectLatest(records, resolveStation);
 
@@ -338,6 +540,7 @@ export function computeInspectionDues(
       });
     }
   }
+  out.push(...footplateSchedules(records, today, resolveStation, tagConfig, footplateSettings));
   return out.sort((a, b) => a.daysLeft - b.daysLeft);
 }
 
@@ -346,17 +549,18 @@ export function computeAllSchedules(
   records: InspectionRecord[],
   today: string = toISODate(new Date()),
   resolveStation: StationResolver = defaultResolver,
-  tagConfig?: TagReminderConfigMap
+  tagConfig?: TagReminderConfigMap,
+  footplateSettings?: FootplateReminderSettings
 ): InspectionDue[] {
   const latest = collectLatest(records, resolveStation);
-  return [...latest.entries()]
-    .map(([key, v]) => {
+  const out: InspectionDue[] = [...latest.entries()].map(([key, v]) => {
       const cfg = tagConfig?.[v.kind];
       const nextDue = addDays(v.date, intervalForSchedule(v, cfg));
       const daysLeft = daysBetween(today, nextDue);
       return { key, kind: v.kind, station: v.station, stationId: v.stationId, towards: v.towards, towardsId: v.towardsId, jointDept: v.jointDept, periodicity: v.periodicity, lastDone: v.date, nextDue, daysLeft, overdue: daysLeft < 0, sourceLogId: v.id };
-    })
-    .sort((a, b) => a.daysLeft - b.daysLeft);
+    });
+  out.push(...footplateSchedules(records, today, resolveStation, tagConfig, footplateSettings, true));
+  return out.sort((a, b) => a.daysLeft - b.daysLeft);
 }
 
 export type TagDue = {

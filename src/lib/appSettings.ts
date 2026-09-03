@@ -3,6 +3,7 @@ export type AppSettings = Record<string, string>;
 const SETTINGS_KEYS = [
   "snt.taGenConfig",
   "snt.reminderDays",
+  "snt.footplateReminder",
   "snt.fontSize",
   "snt.theme",
   "snt.contentScale",

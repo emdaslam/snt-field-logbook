@@ -30,7 +30,7 @@ export function Reports({
   onDrillChange?: (open: boolean) => void;
   drillCloseRef?: MutableRefObject<() => void>;
 }) {
-  const { logs, deficiencies, planned, stations, stationName, tags, currentUser } = useData();
+  const { logs, deficiencies, planned, stations, stationName, tags, currentUser, footplateReminder } = useData();
   const [tomorrowOpen, setTomorrowOpen] = useState(false);
   const [pcdoOpen, setPcdoOpen] = useState(false);
   const [diaryOpen, setDiaryOpen] = useState(false);
@@ -146,8 +146,8 @@ export function Reports({
               ? "Both sides"
               : tw?.name ?? "Unspecified side",
         };
-      }, tagReminderConfigs(tags)),
-    [logs, stations, tags]
+      }, tagReminderConfigs(tags), footplateReminder),
+    [logs, stations, tags, footplateReminder]
   );
 
   return (
@@ -472,7 +472,9 @@ export function Reports({
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-slate-800">
                       {INSPECTION_RULES[d.kind].label} · {d.station}
-                      {d.kind === "footplate" ? "" : ` → towards ${d.towards}${d.towards === "Both sides" ? "" : " side"}`}
+                      {d.kind === "footplate"
+                        ? ` — ${[d.fpShift, d.fpDir].filter(Boolean).join(" ")}`
+                        : ` → towards ${d.towards}${d.towards === "Both sides" ? "" : " side"}`}
                       {d.jointDept ? ` (with ${d.jointDept})` : ""}
                     </p>
                     <p className="text-xs text-slate-400">

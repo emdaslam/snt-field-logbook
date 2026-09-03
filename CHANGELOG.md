@@ -3,6 +3,16 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.42 — 2026-09-03
+
+**Minor: footplate reminders are now tracked per direction (Up / Down, Day / Night), with a dedicated reminder setting**
+
+- Footplate inspection is now scheduled **per direction**: a station's Day Up, Day Down, Night Up and Night Down each keep their own "last done" date and their own due date. Doing only Up no longer refreshes the Down schedule — Down stays due on its own cycle, and its warning starts on its own count-down. Doing **Both** satisfies both directions at once.
+- Each direction is due again **after the periodicity it was entered with** (the Monthly / Quarterly period picked in the entry — the Settings values below set those lengths), you are warned a set number of days **before that due date**, and once the due date passes the direction is tracked as overdue until you do it again.
+- Day and Night are tracked completely independently, exactly the same way.
+- New setting in **Settings → Notifications**, below the deficiency reminder: **Footplate inspection reminder** — switch the monthly and quarterly reminders on or off, set the **periodicity** (blank = default 30 days monthly / 90 days quarterly), and the number of days **before due** to start warning, each separately for monthly and quarterly. Blank warn fields default to 5 days. Overdue directions always warn, and the tag-level "Remind me" still switches all footplate reminders off.
+- The Reports → Inspection Schedule now shows each footplate direction as its own row, e.g. "Footplate Inspection · SECUNDRABAD JN — Day Up" with its last done and next due.
+
 ## 1.7.7.41 — 2026-09-03
 
 **Minor: the row editor has a Cancel edit button, and the Android back key now closes open screens and returns to the previous tab**

@@ -45,7 +45,7 @@ type GroupId = (typeof GROUPS)[number]["id"];
 const SWIPE_THRESHOLD = 48;
 
 export function Settings() {
-  const { stations, staff, tags, currentUser, refresh, fontSize, setFontSize, theme, setTheme, contentScale, setContentScale, reminderDays, setReminderDays } = useData();
+  const { stations, staff, tags, currentUser, refresh, fontSize, setFontSize, theme, setTheme, contentScale, setContentScale, reminderDays, setReminderDays, footplateReminder, setFootplateReminder } = useData();
   const [group, setGroup] = useState<GroupId>("account");
   const [newStation, setNewStation] = useState<StationDraft>(EMPTY_STATION_DRAFT);
   const [editStation, setEditStation] = useState<Station | null>(null);
@@ -57,6 +57,15 @@ export function Settings() {
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [editingReminder, setEditingReminder] = useState(false);
   const [reminderDraft, setReminderDraft] = useState("");
+  const [editingFpReminder, setEditingFpReminder] = useState(false);
+  const [fpDraft, setFpDraft] = useState({
+    monthlyEnabled: true,
+    monthlyDays: "",
+    monthlyWarn: "",
+    quarterlyEnabled: true,
+    quarterlyDays: "",
+    quarterlyWarn: "",
+  });
   const [taGen, setTaGen] = useState<TaGenConfig>(() => loadTaGenConfig());
 
   // Horizontal swipe between the tab groups: the content slides in smoothly
@@ -80,6 +89,42 @@ export function Settings() {
     else if (restoreOpen) setRestoreOpen(false);
     else setTutorialOpen(false);
   });
+
+  // Footplate reminder draft edit
+  const startFpReminderEdit = () => {
+    setFpDraft({
+      monthlyEnabled: footplateReminder.monthly.enabled,
+      monthlyDays: footplateReminder.monthly.periodicityDays != null ? String(footplateReminder.monthly.periodicityDays) : "",
+      monthlyWarn: footplateReminder.monthly.warnDays != null ? String(footplateReminder.monthly.warnDays) : "",
+      quarterlyEnabled: footplateReminder.quarterly.enabled,
+      quarterlyDays: footplateReminder.quarterly.periodicityDays != null ? String(footplateReminder.quarterly.periodicityDays) : "",
+      quarterlyWarn: footplateReminder.quarterly.warnDays != null ? String(footplateReminder.quarterly.warnDays) : "",
+    });
+    setEditingFpReminder(true);
+  };
+  const saveFpReminder = () => {
+    const days = (s: string): number | null => {
+      const v = Math.round(Number(s));
+      return s.trim() !== "" && Number.isFinite(v) && v >= 1 ? v : null;
+    };
+    const warn = (s: string): number | null => {
+      const v = Math.round(Number(s));
+      return s.trim() !== "" && Number.isFinite(v) && v >= 0 ? v : null;
+    };
+    setFootplateReminder({
+      monthly: {
+        enabled: fpDraft.monthlyEnabled,
+        periodicityDays: days(fpDraft.monthlyDays),
+        warnDays: warn(fpDraft.monthlyWarn),
+      },
+      quarterly: {
+        enabled: fpDraft.quarterlyEnabled,
+        periodicityDays: days(fpDraft.quarterlyDays),
+        warnDays: warn(fpDraft.quarterlyWarn),
+      },
+    });
+    setEditingFpReminder(false);
+  };
 
   // Keep the active tab chip visible/centred in the heading row.
   useEffect(() => {
@@ -399,6 +444,125 @@ export function Settings() {
         </div>
         <p className="mt-2 text-xs text-slate-400">
           Default is 3 days. Overdue items always warn regardless of this value.
+        </p>
+        <div className="mt-3 rounded-lg border border-slate-200 p-3">
+          <p className="text-sm font-semibold text-slate-800">
+            Footplate inspection reminder
+          </p>
+          <p className="mb-3 mt-1 text-xs text-slate-400">
+            Every direction (Up / Down) you do for Day and Night is tracked
+            separately: after the periodicity passes from its last done date, a
+            reminder starts a set number of days before it is due.
+          </p>
+          {!editingFpReminder ? (
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-slate-700">
+                Monthly {footplateReminder.monthly.enabled ? "on" : "off"} ·
+                Quarterly {footplateReminder.quarterly.enabled ? "on" : "off"}
+              </span>
+              <button
+                onClick={startFpReminderEdit}
+                className="rounded-lg border border-blue-800 px-4 py-2 text-sm font-semibold text-blue-800"
+              >
+                Edit
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {(["monthly", "quarterly"] as const).map((per) => (
+                <div
+                  key={per}
+                  className="rounded-lg border border-slate-100 bg-slate-50 p-3"
+                >
+                  <label className="flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={
+                        per === "monthly"
+                          ? fpDraft.monthlyEnabled
+                          : fpDraft.quarterlyEnabled
+                      }
+                      onChange={(e) =>
+                        setFpDraft((d) =>
+                          per === "monthly"
+                            ? { ...d, monthlyEnabled: e.target.checked }
+                            : { ...d, quarterlyEnabled: e.target.checked }
+                        )
+                      }
+                      className="h-4 w-4 accent-blue-800"
+                    />
+                    Remind me before the {per} footplate inspection is due
+                  </label>
+                  <div className="mt-2 flex flex-wrap gap-4">
+                    <label className="flex items-center gap-2 text-xs text-slate-600">
+                      Periodicity (days)
+                      <input
+                        type="number"
+                        min={1}
+                        disabled={
+                          per === "monthly"
+                            ? !fpDraft.monthlyEnabled
+                            : !fpDraft.quarterlyEnabled
+                        }
+                        value={
+                          per === "monthly"
+                            ? fpDraft.monthlyDays
+                            : fpDraft.quarterlyDays
+                        }
+                        onChange={(e) =>
+                          setFpDraft((d) =>
+                            per === "monthly"
+                              ? { ...d, monthlyDays: e.target.value }
+                              : { ...d, quarterlyDays: e.target.value }
+                          )
+                        }
+                        className="w-16 rounded-lg border border-slate-300 px-2 py-1 text-center text-sm text-slate-800"
+                      />
+                    </label>
+                    <label className="flex items-center gap-2 text-xs text-slate-600">
+                      Warn (days before due)
+                      <input
+                        type="number"
+                        min={0}
+                        disabled={
+                          per === "monthly"
+                            ? !fpDraft.monthlyEnabled
+                            : !fpDraft.quarterlyEnabled
+                        }
+                        value={
+                          per === "monthly"
+                            ? fpDraft.monthlyWarn
+                            : fpDraft.quarterlyWarn
+                        }
+                        onChange={(e) =>
+                          setFpDraft((d) =>
+                            per === "monthly"
+                              ? { ...d, monthlyWarn: e.target.value }
+                              : { ...d, quarterlyWarn: e.target.value }
+                          )
+                        }
+                        className="w-16 rounded-lg border border-slate-300 px-2 py-1 text-center text-sm text-slate-800"
+                      />
+                    </label>
+                  </div>
+                </div>
+              ))}
+              <div className="flex items-center gap-2">
+                <PrimaryButton onClick={saveFpReminder}>Save</PrimaryButton>
+                <button
+                  onClick={() => setEditingFpReminder(false)}
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+        <p className="mt-2 text-xs text-slate-400">
+          Blank fields keep the defaults: monthly every 30 days, warned 5 days
+          before due; quarterly every 90 days, warned 5 days before due.
+          Overdue footplate inspections always warn regardless.
         </p>
       </Section>
         </>

@@ -17,6 +17,9 @@ import {
   INSPECTION_RULES,
   kindFromTagName,
   tagReminderConfigs,
+  normalizeFootplateReminder,
+  DEFAULT_FOOTPLATE_REMINDER,
+  type FootplateReminderSettings,
 } from "@/lib/inspections";
 import { FONT_SIZE_ROOT, type AppTheme, type FontSize } from "@/lib/types";
 import { isNative, scheduleDailyReminders } from "@/lib/native";
@@ -93,6 +96,9 @@ type Ctx = {
   // How many days before a due date to start warning (deficiency/planned work)
   reminderDays: number;
   setReminderDays: (v: number) => void;
+  // Footplate inspection reminder: periodicity + warn-before per monthly/quarterly
+  footplateReminder: FootplateReminderSettings;
+  setFootplateReminder: (v: FootplateReminderSettings) => void;
   // Automatic Drive sync
   autoDriveSync: boolean;
   setAutoDriveSync: (v: boolean) => void;
@@ -152,6 +158,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   });
   const [autoDriveSync, setAutoDriveSyncState] = useState(true);
   const [reminderDays, setReminderDaysState] = useState(3);
+  const [footplateReminder, setFootplateReminderState] =
+    useState<FootplateReminderSettings>(DEFAULT_FOOTPLATE_REMINDER);
   const [contentScale, setContentScaleState] = useState(100);
 
   const applyFontSize = useCallback((v: FontSize) => {
@@ -237,6 +245,25 @@ export function DataProvider({ children }: { children: ReactNode }) {
     try {
       const v = Number(localStorage.getItem("snt.reminderDays"));
       if (Number.isFinite(v) && v >= 1 && v <= 30) setReminderDaysState(Math.round(v));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const setFootplateReminder = useCallback((v: FootplateReminderSettings) => {
+    const next = normalizeFootplateReminder(v);
+    setFootplateReminderState(next);
+    try {
+      localStorage.setItem("snt.footplateReminder", JSON.stringify(next));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("snt.footplateReminder");
+      if (raw) setFootplateReminderState(normalizeFootplateReminder(JSON.parse(raw)));
     } catch {
       /* ignore */
     }
@@ -540,10 +567,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       expandInspectionRecords(logs),
       toISODate(new Date()),
       resolveInspStation,
-      tagReminderConfigs(tags)
+      tagReminderConfigs(tags),
+      footplateReminder
     )) {
       const rule = INSPECTION_RULES[due.kind];
-      // The "towards … side" phrasing is only shown when the user explicitly
+      // The "towards ... side" phrasing is only shown when the user explicitly
       // selected the side (asks-for-side) on the tag driving this schedule;
       // otherwise notifications stay station-only.
       const sideChosen =
@@ -551,10 +579,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
         due.towards &&
         due.towards !== "Unspecified side" &&
         tags.some((t) => t.needsSide && kindFromTagName(t.name) === due.kind);
+      // Footplate is tracked per shift + direction, so say which one is due.
+      const fpWhich =
+        due.kind === "footplate" && (due.fpShift || due.fpDir)
+          ? [due.fpShift, due.fpDir].filter(Boolean).join(" ")
+          : "";
       notes.push({
         id: "insp-" + due.key,
         title:
           `${rule.label} — ${due.station}` +
+          (fpWhich ? ` (${fpWhich})` : "") +
           (due.jointDept ? ` (with ${due.jointDept})` : ""),
         detail:
           (due.overdue
@@ -565,6 +599,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           (sideChosen
             ? ` · at ${due.station}, towards ${due.towards} side`
             : ` · at ${due.station}`) +
+          (fpWhich ? ` — ${fpWhich.toLowerCase()}` : "") +
           (due.jointDept ? ` with ${due.jointDept}` : ""),
         kind: "inspection",
         target: due.sourceLogId ? { type: "log", id: due.sourceLogId } : undefined,
@@ -599,7 +634,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
 
     setNotifications(notes);
-  }, [planned, deficiencies, logs, stations, tags, reminderDays, materials, materialStations, materialReceipts, materialUsages, materialTransfers]);
+  }, [planned, deficiencies, logs, stations, tags, reminderDays, footplateReminder, materials, materialStations, materialReceipts, materialUsages, materialTransfers]);
 
   /** True when the current user already made a log entry for today. */
   const hasEntryToday = useMemo(() => {
@@ -701,6 +736,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         setContentScale,
         reminderDays,
         setReminderDays,
+        footplateReminder,
+        setFootplateReminder,
         autoDriveSync,
         setAutoDriveSync,
         autoSync,
