@@ -3,6 +3,14 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.40 — 2026-09-03
+
+**Minor: a tagged inspection on a day with a Footplate movement is no longer lost from the Inspection Schedule**
+
+- When a daily log carries more than one movement and one of them is a Footplate, the inspection tagged on that day (e.g. a Monthly Inspection at a station) is no longer clobbered by the Footplate ride. The log keeps the tagged inspection in its own fields, and the Footplate ride is tracked separately from its Footplate journey data — so the Inspection Schedule, the due/overdue notifications and the Inspection reports now show BOTH the station's monthly schedule and the Footplate schedule.
+- A Footplate ride still counts as a Footplate inspection even when the Footplate tag is not ticked. Footplate reports (PDF export and its preview) now list every ride, including rides on logs saved under another tag.
+- Logs saved before this fix that combined a Footplate ride with another inspection tag kept only the Footplate fact — re-saving such an entry (confirming the tagged station) restores its missing schedule.
+
 ## 1.7.7.39 — 2026-09-03
 
 **Minor: TA Journal one-page export spreads the profile, days-summary and signature blocks over the full table width**

@@ -1327,21 +1327,26 @@ export function DailyLogForm({
       // Only meaningful for stations with a variable distance — answers the
       // "did you work at/after the KMs marker?" question for the TA Journal.
       taAtVariableKm: isVariableSplit ? taAtVariableKm === true : null,
-      // A footplate movement records the footplate inspection (the engine ride
-      // over the route), so it feeds the periodic-inspection tracking and the
-      // Inspection export even when the footplate tag isn't ticked.
-      inspectionKind: fpInChain ? "footplate" : inspectionKind,
-      inspectionStationId: fpInChain
-        ? (firstRidePayload?.boardingStationId || null)
-        : inspectionKind
-          ? taggedStationId
-          : null,
+      // The log's own inspection columns keep the TAGGED periodic inspection
+      // (e.g. monthly at a station). A footplate ride in the movement chain is
+      // tracked separately by the scheduler from the footplate columns, so a
+      // day carrying both now produces two schedules — previously the ride
+      // clobbered the tagged inspection and the monthly tag was lost.
+      inspectionKind: inspectionKind,
+      inspectionStationId:
+        inspectionKind === "footplate"
+          ? fpInChain
+            ? firstRidePayload?.boardingStationId || null
+            : taggedStationId
+          : inspectionKind
+            ? taggedStationId
+            : null,
       inspectionTowardsStationId:
-        !fpInChain && inspectionKind && inspectionKind !== "footplate" && inspectionSide !== "Both"
+        inspectionKind && inspectionKind !== "footplate" && inspectionSide !== "Both"
           ? inspectionTowardsId
           : null,
-      inspectionSide: !fpInChain && inspectionKind && inspectionSide === "Both" ? "Both" : null,
-      inspectionJointDept: !fpInChain && inspectionKind === "joint" ? jointDept || null : null,
+      inspectionSide: inspectionKind && inspectionSide === "Both" ? "Both" : null,
+      inspectionJointDept: inspectionKind === "joint" ? jointDept || null : null,
       inspectionPeriodicity:
         fpInChain || (inspectionKind && PERIODIC_KINDS.includes(inspectionKind)) ? periodicity : null,
       inspectionRemindDays: null,

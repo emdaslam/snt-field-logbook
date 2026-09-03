@@ -1399,14 +1399,28 @@ export function exportInspections(
     return true;
   };
 
+  // A log matches "footplate" when it is a footplate inspection or carries a
+  // footplate ride in its movement chain (which the Inspection Schedule tracks
+  // as a footplate inspection even when the log's own kind is another tag).
+  const matchesKind = (l: DailyLog, k: InspKind) =>
+    k === "footplate"
+      ? l.inspectionKind === "footplate" || footplateRidesOf(l).length > 0
+      : l.inspectionKind === k;
+
   const total = logs
-    .filter((l) => kindList.includes(l.inspectionKind as InspKind) && inScope(l))
+    .filter((l) => inScope(l))
     .reduce((n, l) => {
-      if (l.inspectionKind === "footplate") {
-        const rides = footplateRidesOf(l);
-        return n + Math.max(rides.length, 1);
+      let c = 0;
+      for (const k of kindList) {
+        if (!matchesKind(l, k)) continue;
+        if (k === "footplate") {
+          const rides = footplateRidesOf(l);
+          c += rides.length > 0 ? rides.length : l.inspectionKind === "footplate" ? 1 : 0;
+        } else {
+          c += 1;
+        }
       }
-      return n + 1;
+      return n + c;
     }, 0);
 
   let body = `<h1 class="centered">${esc(kindLabel)} — ${esc(period.label)}</h1>`;
@@ -1414,7 +1428,7 @@ export function exportInspections(
 
   for (const kind of kindList) {
     const rows = logs
-      .filter((l) => l.inspectionKind === kind && inScope(l))
+      .filter((l) => matchesKind(l, kind) && inScope(l))
       .sort((a, b) => a.logDate.localeCompare(b.logDate));
 
     // Only head each section when several kinds are combined

@@ -10,6 +10,7 @@ import {
   INSPECTION_KINDS,
   PERIODIC_KINDS,
   PERIODICITIES,
+  expandInspectionRecords,
   formatInspectionDates,
   type InspectionKind,
 } from "@/lib/inspections";
@@ -43,7 +44,16 @@ export function InspectionExportModal({ open, onClose }: { open: boolean; onClos
     () =>
       logs
         .filter((l) => {
-          if (!kinds.includes(l.inspectionKind as InspectionKind)) return false;
+          // Footplate also matches logs whose movement chain carries a ride
+          // (tracked as a footplate inspection even when the log's own kind is
+          // another tag).
+          const matches = kinds.some(
+            (k) =>
+              k === "footplate"
+                ? l.inspectionKind === "footplate" || footplateRidesOf(l).length > 0
+                : l.inspectionKind === k
+          );
+          if (!matches) return false;
           if (l.logDate < period.from || l.logDate > period.to) return false;
           if (stationFilter && !logMatchesInspectionStation(l, stationFilter)) return false;
           if (periodicity && l.inspectionPeriodicity !== periodicity) return false;
@@ -55,21 +65,35 @@ export function InspectionExportModal({ open, onClose }: { open: boolean; onClos
 
   const selected = rows.filter((r) => !deselected.has(r.id));
 
-  // Preview grouping: footplate lists train numbers, others merge dates per station
-  const grouped = new Map<string, typeof rows>();
-  for (const r of selected) {
-    const kd = r.inspectionKind as InspectionKind;
+  // Preview grouping: footplate lists train numbers, others merge dates per
+  // station. A log whose movement chain carries a footplate ride yields an
+  // extra footplate group in addition to its tagged-inspection group.
+  const grouped = new Map<string, { footplate: boolean; items: (typeof rows)[number][] }>();
+  const addToGroup = (k: string, footplate: boolean, item: (typeof rows)[number]) => {
+    const g = grouped.get(k);
+    if (!g) grouped.set(k, { footplate, items: [item] });
+    else g.items.push(item);
+  };
+  for (const rec of expandInspectionRecords(selected)) {
+    const r = rec.id != null ? (selected.find((x) => x.id === rec.id) ?? null) : null;
+    if (!r) continue;
+    const kd = rec.inspectionKind as InspectionKind;
     const prefix = kinds.length > 1 ? `${INSPECTION_RULES[kd].label.replace(" Inspection", "")} · ` : "";
-    let k: string;
     if (kd === "footplate") {
       const rides = footplateRidesOf(r);
-      k = `${prefix}${formatFootplateShifts(rides[0]?.shift ?? r.footplateShift) || "-"} footplate`;
+      addToGroup(
+        `${prefix}${formatFootplateShifts(rides[0]?.shift ?? r.footplateShift) || "-"} footplate`,
+        true,
+        r
+      );
     } else {
       const at = stationName(r.inspectionStationId);
-      k = prefix + (kd === "joint" && r.inspectionJointDept ? `${at} (with ${r.inspectionJointDept})` : at);
+      addToGroup(
+        prefix + (kd === "joint" && r.inspectionJointDept ? `${at} (with ${r.inspectionJointDept})` : at),
+        false,
+        r
+      );
     }
-    if (!grouped.has(k)) grouped.set(k, []);
-    grouped.get(k)!.push(r);
   }
   const trainsOf = (r: (typeof rows)[number]) => {
     const rides = footplateRidesOf(r);
@@ -220,25 +244,25 @@ export function InspectionExportModal({ open, onClose }: { open: boolean; onClos
           <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-sky-900">
             Will export — Station Inspected · Dates
           </p>
-          {[...grouped.entries()]
-            .sort((a, b) => a[0].localeCompare(b[0]))
-            .map(([st, items]) => (
-              <p key={st} className="text-sm text-sky-900">
-                <strong>{st}</strong>:{" "}
-                {items[0].inspectionKind === "footplate"
-                  ? items
-                      .flatMap((i) => {
-                        const rides = footplateRidesOf(i);
-                        const lists =
-                          rides.length > 0
-                            ? rides.map((ride) => footplateTrainListFromRide(ride) || "-")
-                            : [trainsOf(i) || "-"];
-                        return lists.map((t) => `${t} (${i.logDate.slice(8)})`);
-                      })
-                      .join("; ")
-                  : formatInspectionDates(items.map((i) => i.logDate))}
-              </p>
-            ))}
+            {[...grouped.entries()]
+              .sort((a, b) => a[0].localeCompare(b[0]))
+              .map(([st, g]) => (
+                <p key={st} className="text-sm text-sky-900">
+                  <strong>{st}</strong>:{" "}
+                  {g.footplate
+                    ? g.items
+                        .flatMap((i) => {
+                          const rides = footplateRidesOf(i);
+                          const lists =
+                            rides.length > 0
+                              ? rides.map((ride) => footplateTrainListFromRide(ride) || "-")
+                              : [trainsOf(i) || "-"];
+                          return lists.map((t) => `${t} (${i.logDate.slice(8)})`);
+                        })
+                        .join("; ")
+                    : formatInspectionDates(g.items.map((i) => i.logDate))}
+                </p>
+              ))}
         </div>
       )}
 

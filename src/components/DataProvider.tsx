@@ -13,6 +13,7 @@ import { api, toISODate } from "@/lib/api";
 import {
   computeInspectionDues,
   computeTagDues,
+  expandInspectionRecords,
   INSPECTION_RULES,
   kindFromTagName,
   tagReminderConfigs,
@@ -536,7 +537,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       };
     };
     for (const due of computeInspectionDues(
-      logs,
+      expandInspectionRecords(logs),
       toISODate(new Date()),
       resolveInspStation,
       tagReminderConfigs(tags)

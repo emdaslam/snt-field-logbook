@@ -241,6 +241,43 @@ function collectLatest(records: InspectionRecord[], resolve: StationResolver) {
   return latest;
 }
 
+/** A log row extended with the footplate ride columns. */
+export type FootplateLogRecord = InspectionRecord & {
+  footplateJourney?: { boardingStationId?: number | null } | null;
+  footplateJourneys?: { boardingStationId?: number | null }[] | null;
+};
+
+/**
+ * One log can record two inspection facts: the tagged periodic inspection kept
+ * in the log's own columns (e.g. a monthly inspection at a station) and a
+ * footplate ride inside the day's movement chain, whose data lives in the
+ * footplate columns. Expand each such ride into a synthetic "footplate" record
+ * so both schedules coexist; logs that are already footplate (or carry no ride
+ * data) pass through unchanged.
+ */
+export function expandInspectionRecords(logs: FootplateLogRecord[]): InspectionRecord[] {
+  const out: InspectionRecord[] = [];
+  for (const l of logs) {
+    out.push(l);
+    if (l.inspectionKind === "footplate") continue;
+    const rides = Array.isArray(l.footplateJourneys) ? l.footplateJourneys : [];
+    if (rides.length === 0 && !l.footplateJourney && !l.footplateDay && !l.footplateNight) continue;
+    const boarding =
+      rides.find((r) => r?.boardingStationId)?.boardingStationId ??
+      l.footplateJourney?.boardingStationId ??
+      null;
+    out.push({
+      ...l,
+      inspectionKind: "footplate",
+      inspectionStationId: boarding || null,
+      inspectionTowardsStationId: null,
+      inspectionSide: null,
+      inspectionJointDept: null,
+    });
+  }
+  return out;
+}
+
 const defaultResolver: StationResolver = (r) => ({
   id: r.inspectionStationId ?? null,
   name: (r.stationMovement || "").trim() || "Unspecified station",

@@ -11,7 +11,7 @@ import { getPcdoPeriod } from "@/lib/pcdo";
 import { fmtDate, pcdoWorkEntries, counterResetsOf, counterResetTotal, isTaClaimable } from "@/lib/api";
 import { PrimaryButton } from "./ui";
 import { StatDetailModal, type StatRow } from "./StatDetailModal";
-import { computeAllSchedules, INSPECTION_RULES, tagReminderConfigs } from "@/lib/inspections";
+import { computeAllSchedules, expandInspectionRecords, INSPECTION_RULES, tagReminderConfigs } from "@/lib/inspections";
 import type { DailyLog, DeficiencyTask, PlannedWork } from "@/db/schema";
 
 export function Reports({
@@ -124,7 +124,7 @@ export function Reports({
   const pcdoPeriod = getPcdoPeriod();
   const schedules = useMemo(
     () =>
-      computeAllSchedules(logs, undefined, (r) => {
+      computeAllSchedules(expandInspectionRecords(logs), undefined, (r) => {
         const at = stations.find((s) => s.id === r.inspectionStationId);
         const tw = stations.find((s) => s.id === r.inspectionTowardsStationId);
         return {
