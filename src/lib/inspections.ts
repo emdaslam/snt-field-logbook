@@ -97,6 +97,31 @@ export type JointDepartment = (typeof JOINT_DEPARTMENTS)[number];
 
 export const INSPECTION_KINDS = Object.keys(INSPECTION_RULES) as InspectionKind[];
 
+/**
+ * Generic side labels used while a station's sides are not (yet) fully named:
+ * "Both sides" when never a specific side was picked for the station, "The
+ * other side" when exactly one side is named and the work may have been done
+ * toward the other one.
+ */
+export const GENERIC_SIDE_LABELS = {
+  both: "Both sides",
+  other: "The other side",
+} as const;
+
+export function isGenericSideLabel(towards: string): boolean {
+  return towards === GENERIC_SIDE_LABELS.both || towards === GENERIC_SIDE_LABELS.other;
+}
+
+/** Kinds whose tags ask for the station side the work was done towards. */
+export function sideAskingKinds(tags: { name: string; needsSide?: boolean | null }[]): Set<InspectionKind> {
+  const out = new Set<InspectionKind>();
+  for (const t of tags) {
+    const k = kindFromTagName(t.name);
+    if (k && t.needsSide) out.add(k);
+  }
+  return out;
+}
+
 /** Detect which inspection kind a tag name refers to (null if none). */
 export function kindFromTagName(name: string): InspectionKind | null {
   const n = name.toLowerCase();
@@ -287,7 +312,11 @@ export function footplateFactsOf(r: InspectionRecord): {
   return out;
 }
 
-function collectLatest(records: InspectionRecord[], resolve: StationResolver) {
+function collectLatest(
+  records: InspectionRecord[],
+  resolve: StationResolver,
+  sideKinds?: Set<InspectionKind>
+) {
   const latest = new Map<
     string,
     {
@@ -303,6 +332,28 @@ function collectLatest(records: InspectionRecord[], resolve: StationResolver) {
       intervalDays?: number | null;
     }
   >();
+
+  // For kinds that ask for the station side, remember the sides the user has
+  // named per station (from specific-side entries, any period) so a "Both
+  // sides" entry can refresh EVERY of them at once.
+  const namedSides = new Map<string, Map<string, { name: string; date: string }>>();
+  if (sideKinds && sideKinds.size > 0) {
+    for (const r of records) {
+      const k = r.inspectionKind as InspectionKind | null;
+      if (!k || !INSPECTION_RULES[k] || k === "footplate") continue;
+      if (!sideKinds.has(k)) continue;
+      if (r.inspectionSide === "Both" || !r.inspectionTowardsStationId) continue;
+      const st = resolve(r);
+      if (!st.towards || st.towards === "Unspecified side") continue;
+      const stationKey = st.name.toLowerCase();
+      const sideKey = st.towards.toLowerCase();
+      const sides = namedSides.get(stationKey) ?? new Map<string, { name: string; date: string }>();
+      const prev = sides.get(sideKey);
+      if (!prev || r.logDate > prev.date) sides.set(sideKey, { name: st.towards, date: r.logDate });
+      namedSides.set(stationKey, sides);
+    }
+  }
+
   for (const r of records) {
     const kind = r.inspectionKind as InspectionKind | null;
     if (!kind || !INSPECTION_RULES[kind]) continue;
@@ -311,13 +362,6 @@ function collectLatest(records: InspectionRecord[], resolve: StationResolver) {
     // as a third "both" schedule that side entries never refresh.
     if (kind === "footplate") continue;
     const st = resolve(r);
-    // A station's inspection is one schedule: the most recent entry for that
-    // station (a specific side, or "Both sides") is its "last done" date. Sides
-    // used to each keep their own schedule, which left a stale due/overdue
-    // notification behind when the station was done as "Both sides" in one
-    // period and side-by-side on two different days in the next — the old
-    // "Both sides" schedule was never refreshed by the side entries.
-    // Joint inspections still track each partner department separately.
     const dept = kind === "joint" ? (r.inspectionJointDept || "").toLowerCase() : "";
     const per = PERIODIC_KINDS.includes(kind) ? (r.inspectionPeriodicity || "").toLowerCase() : "";
     // A station's schedule is keyed by its resolved name (normalised). The same
@@ -325,6 +369,55 @@ function collectLatest(records: InspectionRecord[], resolve: StationResolver) {
     // (or under a slightly different spelling); keying by name keeps both on
     // ONE schedule so the reminder doesn't fire twice for the same station.
     const stationKey = st.name.toLowerCase();
+
+    // Side-asking kinds track EACH side of the station as its own schedule
+    // (like footplate tracks Up / Down): an entry towards one side refreshes
+    // only that side, a "Both sides" entry refreshes every named side at once.
+    // While the user has not yet named both sides, a generic slot keeps the
+    // unnamed side's own countdown: "Both sides" until the first side is named,
+    // then "The other side". Joint inspections still track each partner
+    // department separately.
+    if (sideKinds?.has(kind)) {
+      const named = namedSides.get(stationKey);
+      const bothLike = r.inspectionSide === "Both" || !r.inspectionTowardsStationId;
+      const facts: { sideKey: string; towards: string; towardsId: number | null }[] = bothLike
+        ? [
+            ...(named?.values() ?? []).map((s) => ({
+              sideKey: s.name.toLowerCase(),
+              towards: s.name,
+              towardsId: null,
+            })),
+            // A "Both sides" entry (or one with no side picked, which used to
+            // clear the whole station) also covers whichever side is not named:
+            ...(named?.size ?? 0) === 0
+              ? [{ sideKey: "__both__", towards: GENERIC_SIDE_LABELS.both, towardsId: null }]
+              : named && named.size === 1
+                ? [{ sideKey: "__other__", towards: GENERIC_SIDE_LABELS.other, towardsId: null }]
+                : [],
+          ]
+        : [{ sideKey: (st.towards || "").toLowerCase(), towards: st.towards, towardsId: st.towardsId }];
+      for (const f of facts) {
+        const key = `${kind}::${stationKey}::${dept}::${per}::${f.sideKey}`;
+        const prev = latest.get(key);
+        if (!prev || r.logDate > prev.date)
+          latest.set(key, {
+            kind,
+            station: st.name,
+            stationId: st.id,
+            towards: f.towards,
+            towardsId: f.towardsId,
+            date: r.logDate,
+            id: r.id,
+            jointDept: r.inspectionJointDept ?? null,
+            periodicity: r.inspectionPeriodicity ?? null,
+            intervalDays: r.inspectionRemindDays ?? null,
+          });
+      }
+      continue;
+    }
+
+    // All other kinds keep ONE schedule per station: the most recent entry for
+    // that station (a specific side, or "Both sides") is its "last done" date.
     const key = `${kind}::${stationKey}::${dept}::${per}`;
     const prev = latest.get(key);
     if (!prev || r.logDate > prev.date)
@@ -509,9 +602,10 @@ export function computeInspectionDues(
   today: string = toISODate(new Date()),
   resolveStation: StationResolver = defaultResolver,
   tagConfig?: TagReminderConfigMap,
-  footplateSettings?: FootplateReminderSettings
+  footplateSettings?: FootplateReminderSettings,
+  sideKinds?: Set<InspectionKind>
 ): InspectionDue[] {
-  const latest = collectLatest(records, resolveStation);
+  const latest = collectLatest(records, resolveStation, sideKinds);
 
   const out: InspectionDue[] = [];
   for (const [key, v] of latest) {
@@ -550,9 +644,10 @@ export function computeAllSchedules(
   today: string = toISODate(new Date()),
   resolveStation: StationResolver = defaultResolver,
   tagConfig?: TagReminderConfigMap,
-  footplateSettings?: FootplateReminderSettings
+  footplateSettings?: FootplateReminderSettings,
+  sideKinds?: Set<InspectionKind>
 ): InspectionDue[] {
-  const latest = collectLatest(records, resolveStation);
+  const latest = collectLatest(records, resolveStation, sideKinds);
   const out: InspectionDue[] = [...latest.entries()].map(([key, v]) => {
       const cfg = tagConfig?.[v.kind];
       const nextDue = addDays(v.date, intervalForSchedule(v, cfg));

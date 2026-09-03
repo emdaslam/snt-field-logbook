@@ -20,6 +20,12 @@ import {
 import { AUTO_TIMINGS } from "@/lib/timingsMode";
 import { tripTimes, journeyTrainTimes } from "@/lib/travel";
 import { loadTaGenConfig, type TaRateKey } from "@/lib/taGenConfig";
+import {
+  loadStationSides,
+  savedSidesFor,
+  saveStationSidesFor,
+  type StationSides,
+} from "@/lib/stationSides";
 import { EMPTY_STATION_DRAFT, StationFields, stationPayload, type StationDraft } from "./StationForm";
 import {
   kindFromTags,
@@ -600,6 +606,147 @@ function JourneyLegRow({
   );
 }
 
+/**
+ * "Towards which side?" picker. A station's two remembered sides (its saved
+ * pair, seeded from the two most recently used sides) are shown as quick
+ * options alongside "Both sides" and "Pick another station…". Picking a
+ * station that is not remembered for a station that already holds two
+ * remembered sides asks which one the new side replaces.
+ */
+function TowardsSidePicker({
+  label,
+  stations,
+  taggedStationId,
+  savedSides,
+  value,
+  isBoth,
+  onPick,
+  onStationSidesChange,
+}: {
+  label: string;
+  stations: { id: number; name: string }[];
+  taggedStationId: number | null;
+  savedSides: number[];
+  value: number | null;
+  isBoth: boolean;
+  onPick: (sideId: number | null, both: boolean) => void;
+  onStationSidesChange: (sides: StationSides) => void;
+}) {
+  const [full, setFull] = useState(false);
+  const [pendingNew, setPendingNew] = useState<number | null>(null);
+  useBackClose(pendingNew != null, () => setPendingNew(null));
+  const showFull = full || savedSides.length === 0;
+  // An entry being edited may hold a side that is no longer in the remembered
+  // pair — keep it visible in the quick list.
+  const quickIds = value != null && !savedSides.includes(value) ? [...savedSides, value] : savedSides;
+  const allOthers = stations.filter((s) => s.id !== taggedStationId);
+  const stationName = (id: number | null | undefined) =>
+    stations.find((s) => s.id === id)?.name ?? "the station";
+  const commitPair = (pair: number[]) => {
+    if (taggedStationId) onStationSidesChange(saveStationSidesFor(taggedStationId, pair));
+  };
+  const choose = (sideId: number) => {
+    if (savedSides.includes(sideId) || sideId === value) {
+      setFull(false);
+      onPick(sideId, false);
+      return;
+    }
+    if (savedSides.length < 2) {
+      // A free slot — the new side just joins the pair.
+      commitPair([...savedSides, sideId]);
+      setFull(false);
+      onPick(sideId, false);
+      return;
+    }
+    setPendingNew(sideId);
+  };
+  const replaceWith = (index: number) => {
+    if (pendingNew == null || !savedSides[index]) return;
+    const next = [...savedSides];
+    next[index] = pendingNew;
+    commitPair(next);
+    setPendingNew(null);
+    setFull(false);
+    onPick(pendingNew, false);
+  };
+  return (
+    <div>
+      <span className="mb-1 block text-xs font-medium text-slate-700">{label}</span>
+      <select
+        className={inputClass}
+        value={isBoth ? "__both__" : value ?? ""}
+        onChange={(e) => {
+          const v = e.target.value;
+          if (v === "") {
+            setFull(false);
+            onPick(null, false);
+          } else if (v === "__both__") {
+            setFull(false);
+            onPick(null, true);
+          } else if (v === "__other__") {
+            setFull(true);
+          } else {
+            choose(Number(v));
+          }
+        }}
+      >
+        <option value="">— Select side —</option>
+        {showFull ? (
+          <>
+            <option value="__both__">Both sides</option>
+            {allOthers.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name} side
+              </option>
+            ))}
+          </>
+        ) : (
+          <>
+            {quickIds.map((id) => {
+              const s = stations.find((x) => x.id === id);
+              if (!s) return null;
+              return (
+                <option key={id} value={id}>
+                  {s.name} side
+                </option>
+              );
+            })}
+            <option value="__both__">Both sides</option>
+            <option value="__other__">Pick another station…</option>
+          </>
+        )}
+      </select>
+      <Modal open={pendingNew != null} onClose={() => setPendingNew(null)} title="Replace a remembered side">
+        <p className="text-sm text-slate-700">
+          {stationName(taggedStationId)} already remembers{" "}
+          <strong>{stationName(savedSides[0])}</strong> and{" "}
+          <strong>{stationName(savedSides[1])}</strong> as the sides of the station. Picking{" "}
+          <strong>{stationName(pendingNew)}</strong> replaces one of them.
+        </p>
+        <div className="mt-4 flex flex-col gap-2">
+          {[0, 1].map((i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => replaceWith(i)}
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700"
+            >
+              Replace {stationName(savedSides[i])}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setPendingNew(null)}
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600"
+          >
+            Cancel
+          </button>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
 export function DailyLogForm({
   open,
   onClose,
@@ -1096,6 +1243,9 @@ export function DailyLogForm({
     chainStations[0]?.id ??
     resolvedStation?.id ??
     null;
+  // The two sides remembered per station for the "towards which side?" pickers
+  const [stationSides, setStationSides] = useState<StationSides>(() => loadStationSides());
+  const taggedSavedSides = savedSidesFor(taggedStationId, stationSides, logs);
   const pcdoDate = logDate;
   const needsSideTags = tags.filter((t) => t.needsSide && !kindFromTagName(t.name));
   const kindIntervalDays = (() => {
@@ -2490,36 +2640,28 @@ export function DailyLogForm({
             {needsSideTags
               .filter((t) => tagIds.includes(t.id))
               .map((t) => (
-                <label key={t.id} className="block">
-                  <span className="mb-1 block text-xs font-medium text-slate-700">
-                    {t.name} — towards which side?
-                  </span>
-                  <select
-                    className={inputClass}
-                    value={tagSides[t.id] ?? ""}
-                    onChange={(e) =>
+                <div key={t.id}>
+                  <TowardsSidePicker
+                    label={`${t.name} — towards which side?`}
+                    stations={stations}
+                    taggedStationId={taggedStationId}
+                    savedSides={taggedSavedSides}
+                    value={tagSides[t.id] ? tagSides[t.id] : null}
+                    isBoth={tagSides[t.id] === 0}
+                    onPick={(id, both) =>
                       setTagSides((prev) => ({
                         ...prev,
-                        [t.id]: e.target.value ? Number(e.target.value) : 0,
+                        [t.id]: both ? 0 : id ?? 0,
                       }))
                     }
-                  >
-                    <option value="">— Select side —</option>
-                    <option value="0">Both sides</option>
-                    {stations
-                      .filter((st) => st.id !== taggedStationId)
-                      .map((st) => (
-                        <option key={st.id} value={st.id}>
-                          {st.name} side
-                        </option>
-                      ))}
-                  </select>
-                  {!tagSides[t.id] && (
+                    onStationSidesChange={setStationSides}
+                  />
+                  {tagSides[t.id] == null && (
                     <span className="mt-1 block text-xs text-amber-600">
                       Select the side this work was done towards.
                     </span>
                   )}
-                </label>
+                </div>
               ))}
           </div>
         )}
@@ -2560,34 +2702,21 @@ export function DailyLogForm({
           )}
 
           {inspectionKind !== "footplate" && (
-          <label className="mt-2 block">
-            <span className="mb-1 block text-xs font-medium text-slate-700">
-              Towards which side?
-            </span>
-            <select
-              className={inputClass}
-              value={inspectionSide === "Both" ? "__both__" : inspectionTowardsId ?? ""}
-              onChange={(e) => {
-                if (e.target.value === "__both__") {
-                  setInspectionTowardsId(null);
-                  setInspectionSide("Both");
-                } else {
-                  setInspectionSide("");
-                  setInspectionTowardsId(e.target.value ? Number(e.target.value) : null);
-                }
-              }}
-            >
-              <option value="">— Select side —</option>
-              <option value="__both__">Both sides</option>
-              {stations
-                .filter((st) => st.id !== taggedStationId)
-                .map((st) => (
-                  <option key={st.id} value={st.id}>
-                    {st.name} side
-                  </option>
-                ))}
-            </select>
-          </label>
+            <div className="mt-2">
+              <TowardsSidePicker
+                label="Towards which side?"
+                stations={stations}
+                taggedStationId={taggedStationId}
+                savedSides={taggedSavedSides}
+                value={inspectionTowardsId}
+                isBoth={inspectionSide === "Both"}
+                onPick={(id, both) => {
+                  setInspectionTowardsId(id);
+                  setInspectionSide(both ? "Both" : "");
+                }}
+                onStationSidesChange={setStationSides}
+              />
+            </div>
           )}
 
           {PERIODIC_KINDS.includes(inspectionKind) && (

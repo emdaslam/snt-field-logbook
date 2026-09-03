@@ -3,6 +3,18 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.43 — 2026-09-03
+
+**Major: reminders for tags that ask for the station side are now tracked per side, and the side picker remembers each station's sides**
+
+- An inspection tag flagged "asks for side" in Settings (e.g. point oiling) now tracks **each side of the station separately**: every side you pick ("towards X side") keeps its own last-done date and its own due date. Do one side on Monday and the other on Friday, and the Friday side is due a full cycle after Friday while the Monday side is due a full cycle after Monday — each warns on its own count-down and is tracked as overdue after its due date, exactly like the footplate Up / Down split.
+- An entry done as **"Both sides"** refreshes the schedules of **both** sides of the station at once, so one entry satisfies both. Do only one side during a period and the other keeps waiting: its warning comes on its own due date and it is tracked as overdue after it.
+- Until you have named sides, the schedule shows as "Both sides" (no specific side entered yet) or "The other side" (exactly one side named). Once both sides are named, only the two specific side schedules remain.
+- The "towards which side?" question in the log form (and the per-tag question for custom "asks for side" tags) now offers only the **two sides remembered for that station**, plus **Both sides** and **Pick another station…** (the full list of stations). The first two sides you pick for a station become its remembered sides for the next entries at the same station.
+- Picking a new, unremembered station for a station that already remembers two sides asks **which remembered side the new one replaces**; cancelling keeps the current selection.
+- The remembered sides live in app settings, so they are carried by backup and restore.
+- Reports → Inspection Schedule now lists each side of the station as its own row, e.g. "Point Oiling · SECUNDRABAD JN → towards ALVARPET side" with its last done and next due.
+
 ## 1.7.7.42 — 2026-09-03
 
 **Minor: footplate reminders are now tracked per direction (Up / Down, Day / Night), with a dedicated reminder setting**

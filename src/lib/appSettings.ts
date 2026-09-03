@@ -4,6 +4,7 @@ const SETTINGS_KEYS = [
   "snt.taGenConfig",
   "snt.reminderDays",
   "snt.footplateReminder",
+  "snt.stationSides",
   "snt.fontSize",
   "snt.theme",
   "snt.contentScale",

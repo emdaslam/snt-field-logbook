@@ -12,7 +12,7 @@ import { useBackClose } from "@/lib/backButton";
 import { fmtDate, pcdoWorkEntries, counterResetsOf, counterResetTotal, isTaClaimable } from "@/lib/api";
 import { PrimaryButton } from "./ui";
 import { StatDetailModal, type StatRow } from "./StatDetailModal";
-import { computeAllSchedules, expandInspectionRecords, INSPECTION_RULES, tagReminderConfigs } from "@/lib/inspections";
+import { computeAllSchedules, expandInspectionRecords, INSPECTION_RULES, isGenericSideLabel, sideAskingKinds, tagReminderConfigs } from "@/lib/inspections";
 import type { DailyLog, DeficiencyTask, PlannedWork } from "@/db/schema";
 
 export function Reports({
@@ -146,7 +146,7 @@ export function Reports({
               ? "Both sides"
               : tw?.name ?? "Unspecified side",
         };
-      }, tagReminderConfigs(tags), footplateReminder),
+      }, tagReminderConfigs(tags), footplateReminder, sideAskingKinds(tags)),
     [logs, stations, tags, footplateReminder]
   );
 
@@ -474,7 +474,9 @@ export function Reports({
                       {INSPECTION_RULES[d.kind].label} · {d.station}
                       {d.kind === "footplate"
                         ? ` — ${[d.fpShift, d.fpDir].filter(Boolean).join(" ")}`
-                        : ` → towards ${d.towards}${d.towards === "Both sides" ? "" : " side"}`}
+                        : ` → ${isGenericSideLabel(d.towards)
+                          ? d.towards.toLowerCase()
+                          : `towards ${d.towards}${d.towards === "Both sides" ? "" : " side"}`}`}
                       {d.jointDept ? ` (with ${d.jointDept})` : ""}
                     </p>
                     <p className="text-xs text-slate-400">

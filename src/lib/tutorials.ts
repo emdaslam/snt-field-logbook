@@ -539,6 +539,29 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.7.43",
+    tag: "Reminders per station side",
+    subtitle:
+      "Tags that ask for the station side now track each side separately — and the side picker remembers each station's sides.",
+    slides: [
+      {
+        glyph: "↔",
+        title: "Each side of the station has its own due date",
+        body: "For inspection tags that ask “towards which side?” (the tags ticked with “asks for side” in Settings), each side you pick — e.g. “towards X side” — keeps its own last-done date and its own countdown. Do one side on Monday and the other on Friday, and the Friday side is due a full cycle after Friday while the Monday side is due a full cycle after Monday. A side that is due warns a set number of days before its due date and is tracked as overdue after it.",
+      },
+      {
+        glyph: "⧉",
+        title: "“Both sides” counts for both at once",
+        body: "An entry done as “Both sides” refreshes the schedules of both sides of that station together, so one entry satisfies both — the reminders stop. Do only one side during a period and the other one keeps waiting: its warning comes on its own due date, exactly like footplate’s Up / Down.",
+      },
+      {
+        glyph: "☰",
+        title: "The side picker remembers the station's sides",
+        body: "The “towards which side?” question now offers only the two sides remembered for that station, plus “Both sides” and “Pick another station…”. The first two sides you pick for a station become its remembered sides. If you pick a new, unremembered station for a station that already remembers two sides, the app asks which remembered side the new one replaces. The remembered sides are kept in app settings, so they survive backup and restore.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {

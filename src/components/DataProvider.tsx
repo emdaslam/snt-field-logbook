@@ -19,6 +19,8 @@ import {
   tagReminderConfigs,
   normalizeFootplateReminder,
   DEFAULT_FOOTPLATE_REMINDER,
+  sideAskingKinds,
+  isGenericSideLabel,
   type FootplateReminderSettings,
 } from "@/lib/inspections";
 import { FONT_SIZE_ROOT, type AppTheme, type FontSize } from "@/lib/types";
@@ -568,7 +570,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       toISODate(new Date()),
       resolveInspStation,
       tagReminderConfigs(tags),
-      footplateReminder
+      footplateReminder,
+      sideAskingKinds(tags)
     )) {
       const rule = INSPECTION_RULES[due.kind];
       // The "towards ... side" phrasing is only shown when the user explicitly
@@ -597,7 +600,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
               ? `Due today (${due.nextDue})`
               : `Due in ${due.daysLeft} day${due.daysLeft !== 1 ? "s" : ""} (${due.nextDue})`) +
           (sideChosen
-            ? ` · at ${due.station}, towards ${due.towards} side`
+            ? ` · at ${due.station}${
+                isGenericSideLabel(due.towards)
+                  ? `, ${due.towards.toLowerCase()}`
+                  : ` — towards ${due.towards} side`
+              }`
             : ` · at ${due.station}`) +
           (fpWhich ? ` — ${fpWhich.toLowerCase()}` : "") +
           (due.jointDept ? ` with ${due.jointDept}` : ""),
