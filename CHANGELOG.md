@@ -3,6 +3,15 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.41 — 2026-09-03
+
+**Minor: the row editor has a Cancel edit button, and the Android back key now closes open screens and returns to the previous tab**
+
+- The Diary / TA export rows editor (opened from a single entry via "Edit the rows") now has a **Cancel edit** button next to "+ Add leg". It discards the row session: a plain single entry goes back to the normal Timings block, while rows that are structural for the entry (two or more movements, or an entry that saved custom rows) revert to the saved / auto-generated rows.
+- On Android, the hardware back key now first closes the topmost open screen — the Reports export modals (Tomorrow Work, PCDO, Diary, TA Journal, Inspections), the attachment preview in log details and task rows, the note form and category manager, the Materials forms and export menu, and the Settings modals — instead of jumping to the Home tab.
+- Back inside the row editor (entered via "Edit the rows") first cancels the row edit; one more press closes the log form.
+- With no screen open, back on a tab now returns to the previously visited tab (e.g. Reports → Tasks → Home) instead of always jumping straight to Home. Double-press-to-exit on Home is unchanged.
+
 ## 1.7.7.40 — 2026-09-03
 
 **Minor: a tagged inspection on a day with a Footplate movement is no longer lost from the Inspection Schedule**

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useData } from "./DataProvider";
+import { useBackClose } from "@/lib/backButton";
 import { api } from "@/lib/api";
 import { inputClass, PrimaryButton, Chip, Modal, Field } from "./ui";
 import { DEPARTMENTS, STATION_DISTANCE_LABEL, STATION_DISTANCE_OPTIONS, variableKmText, type StationDistance } from "@/lib/types";
@@ -68,6 +69,17 @@ export function Settings() {
 
   const groupIndex = GROUPS.findIndex((g) => g.id === group);
   const modalOpen = !!(editStaff || addStaff || editStation || editingTag || backupOpen || restoreOpen);
+
+  // The native back key closes the open settings modal first
+  useBackClose(modalOpen || tutorialOpen, () => {
+    if (addStaff) setAddStaff(false);
+    else if (editStaff) setEditStaff(null);
+    else if (editStation) setEditStation(null);
+    else if (editingTag) setEditingTag(null);
+    else if (backupOpen) setBackupOpen(false);
+    else if (restoreOpen) setRestoreOpen(false);
+    else setTutorialOpen(false);
+  });
 
   // Keep the active tab chip visible/centred in the heading row.
   useEffect(() => {

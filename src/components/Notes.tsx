@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useData } from "./DataProvider";
+import { useBackClose } from "@/lib/backButton";
 import { Modal, Field, inputClass, PrimaryButton, Chip, Highlight } from "./ui";
 import { api, fmtDate } from "@/lib/api";
 import type { Note } from "@/db/schema";
@@ -15,6 +16,12 @@ export function Notes({ focusNote }: { focusNote?: Note | null }) {
   const [editing, setEditing] = useState<Note | null>(null);
   const [adding, setAdding] = useState(false);
   const [managing, setManaging] = useState(false);
+  // The native back key closes the open note form / category manager first
+  useBackClose(adding || editing !== null || managing, () => {
+    if (managing) setManaging(false);
+    else if (adding) setAdding(false);
+    else setEditing(null);
+  });
   // The note opened from Global Search: clear the search/filters so it is
   // visible and expand that one card. Adjusted during render (React's
   // recommended pattern for deriving state from a prop), like PcdoExportModal.

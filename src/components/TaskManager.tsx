@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useData } from "./DataProvider";
+import { useBackClose } from "@/lib/backButton";
 import { Chip } from "./ui";
 import { api, fmtDate, toISODate } from "@/lib/api";
 import { PRIORITY_COLORS, DEPARTMENT_COLORS, DEPARTMENTS } from "@/lib/types";
@@ -47,6 +48,11 @@ export function TaskManager({
   const [planDept, setPlanDept] = useState("");
   const [planStation, setPlanStation] = useState("");
   const [previewAtt, setPreviewAtt] = useState<Attachment | null>(null);
+  // The native back key closes the open attachment preview / convert form first
+  useBackClose(previewAtt !== null || convertDef !== null, () => {
+    if (previewAtt) setPreviewAtt(null);
+    else setConvertDef(null);
+  });
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
   useEffect(() => {
     if (!highlightId) return;

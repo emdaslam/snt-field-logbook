@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useData } from "./DataProvider";
+import { useBackClose } from "@/lib/backButton";
 import { Modal, Field, inputClass, PrimaryButton } from "./ui";
 import { api, toISODate } from "@/lib/api";
 import {
@@ -132,6 +133,23 @@ export function Materials() {
   const [equipmentForm, setEquipmentForm] = useState(false);
   const [exportMenu, setExportMenu] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  // The native back key closes the open Materials modal / menus first
+  useBackClose(
+    materialForm.open ||
+      !!(receiveForm || useForm || transferForm || addReqForm || setReqForm || confirmDelete || equipmentForm || exportMenu),
+    () => {
+      if (exportMenu) setExportMenu(false);
+      else if (confirmDelete) setConfirmDelete(null);
+      else if (addReqForm) setAddReqForm(null);
+      else if (setReqForm) setSetReqForm(null);
+      else if (receiveForm) setReceiveForm(null);
+      else if (useForm) setUseForm(null);
+      else if (transferForm) setTransferForm(null);
+      else if (equipmentForm) setEquipmentForm(false);
+      else setMaterialForm({ open: false });
+    },
+  );
 
   const load = async () => {
     const [m, r, u, t, ms, e] = await Promise.all([

@@ -23,6 +23,7 @@ import { Onboarding } from "./Onboarding";
 import { FeatureTutorials } from "./FeatureTutorials";
 import { getPendingTutorials, markTutorialsSeen, type VersionTutorial } from "@/lib/tutorials";
 import { isNative } from "@/lib/native";
+import { tryCloseTop } from "@/lib/backButton";
 import { APP_VERSION_BASE } from "@/lib/types";
 import { toISODate, fmtDate } from "@/lib/api";
 import type { DailyLog, Attachment, DeficiencyTask, PlannedWork, Note } from "@/db/schema";
@@ -51,6 +52,16 @@ export function AppShell() {
     myStationNames,
   } = useData();
   const [view, setView] = useState<View>("home");
+  // Tab history for the Android back button: each user tab change remembers
+  // the tab it left, so back (with no overlay open) returns there instead of
+  // jumping straight to Home.
+  const viewHistory = useRef<View[]>([]);
+  const go = (v: View) => {
+    if (v === view) return;
+    viewHistory.current.push(view);
+    if (viewHistory.current.length > 24) viewHistory.current.shift();
+    setView(v);
+  };
   const [drawer, setDrawer] = useState(false);
   const [calCollapsed, setCalCollapsed] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -133,7 +144,7 @@ export function AppShell() {
     if (t.type === "log") {
       const l = logs.find((x) => x.id === t.id);
       if (l) {
-        setView("home");
+        go("home");
         setSelectedDate(l.logDate);
         setDetailLog(l);
       }
@@ -142,7 +153,7 @@ export function AppShell() {
     if (t.type === "deficiency") {
       if (deficiencies.some((d) => d.id === t.id)) {
         setTaskTab("deficiencies");
-        setView("tasks");
+        go("tasks");
         setHighlightId("def-" + t.id);
       }
       return;
@@ -150,13 +161,13 @@ export function AppShell() {
     if (t.type === "planned") {
       if (planned.some((p) => p.id === t.id)) {
         setTaskTab("planned");
-        setView("tasks");
+        go("tasks");
         setHighlightId("plan-" + t.id);
       }
       return;
     }
     if (t.type === "materials") {
-      setView("materials");
+      go("materials");
     }
   }
   const [defForm, setDefForm] = useState(false);
@@ -193,6 +204,7 @@ export function AppShell() {
     tomorrowOpen,
     pcdoOpen,
     diaryOpen,
+    taOpen,
     inspOpen,
     notifOpen,
     exportMenu,
@@ -217,6 +229,7 @@ export function AppShell() {
       tomorrowOpen,
       pcdoOpen,
       diaryOpen,
+      taOpen,
       inspOpen,
       notifOpen,
       exportMenu,
@@ -233,6 +246,9 @@ export function AppShell() {
       const { App } = await import("@capacitor/app");
       handle = await App.addListener("backButton", async () => {
         const s = shellState.current;
+        // Overlays owned by the view components (Reports' export modals, the
+        // attachment preview, local forms) register themselves here
+        if (tryCloseTop()) return;
         const closeTop: (() => void) | undefined = (
           [
             [s.detailLog, () => setDetailLog(null)],
@@ -249,6 +265,7 @@ export function AppShell() {
             [s.tomorrowOpen, () => setTomorrowOpen(false)],
             [s.pcdoOpen, () => setPcdoOpen(false)],
             [s.diaryOpen, () => setDiaryOpen(false)],
+            [s.taOpen, () => setTaOpen(false)],
             [s.inspOpen, () => setInspOpen(false)],
             [s.notifOpen, () => setNotifOpen(false)],
             [s.exportMenu, () => setExportMenu(false)],
@@ -258,6 +275,14 @@ export function AppShell() {
 
         if (closeTop) {
           closeTop();
+          return;
+        }
+        // No overlay: return to the previously visited tab, if any
+        const hist = viewHistory.current;
+        const prev = hist[hist.length - 1];
+        if (prev && prev !== s.view) {
+          hist.pop();
+          setView(prev);
           return;
         }
         // No overlay: on a non-home tab, go back Home first
@@ -620,7 +645,7 @@ export function AppShell() {
                 onOpenLog={(l) => setDetailLog(l)}
                 onOpenDef={(d) => setSearchDef(d)}
                 onOpenPlan={(p) => setSearchPlan(p)}
-                onOpenNote={(n) => { setView("notes"); setSearchNote(n); }}
+                onOpenNote={(n) => { go("notes"); setSearchNote(n); }}
               />
             )}
             {view === "reports" && (
@@ -665,7 +690,7 @@ export function AppShell() {
         ] as [View, string, string][]).map(([key, label, path]) => (
           <button
             key={key}
-            onClick={() => { setView(key); if (key === "notes") setSearchNote(null); }}
+            onClick={() => { go(key); if (key === "notes") setSearchNote(null); }}
             className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium ${
               view === key ? "text-blue-800" : "text-slate-400"
             }`}
@@ -696,7 +721,7 @@ export function AppShell() {
             {(["home", "notes", "attachments", "materials", "settings"] as View[]).map((v) => (
               <button
                 key={v}
-                onClick={() => { setView(v); if (v === "notes") setSearchNote(null); setDrawer(false); }}
+                onClick={() => { go(v); if (v === "notes") setSearchNote(null); setDrawer(false); }}
                 className={`mb-1 block w-full rounded-lg px-3 py-2.5 text-left text-sm capitalize ${
                   view === v ? "bg-emerald-500 font-semibold" : "hover:bg-blue-800"
                 }`}

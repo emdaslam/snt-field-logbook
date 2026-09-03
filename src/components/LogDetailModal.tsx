@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { useBackClose } from "@/lib/backButton";
 import { useData } from "./DataProvider";
 import { Modal, Chip } from "./ui";
 import { api, fmtDate, dayName, formatFootplateSummary, footplateRidesOf, pcdoWorkEntries, counterResetsOf, counterResetTotal } from "@/lib/api";
@@ -22,6 +23,7 @@ export function LogDetailModal({
 }) {
   const { tags, stations, stationName, refresh } = useData();
   const [preview, setPreview] = useState<Attachment | null>(null);
+  useBackClose(preview !== null, () => setPreview(null));
   if (!log) return null;
 
   const discTotal =

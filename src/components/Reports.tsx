@@ -8,6 +8,7 @@ import { DiaryExportModal } from "./DiaryExportModal";
 import { InspectionExportModal } from "./InspectionExportModal";
 import { PeriodPicker, monthPeriod, type Period } from "./PeriodPicker";
 import { getPcdoPeriod } from "@/lib/pcdo";
+import { useBackClose } from "@/lib/backButton";
 import { fmtDate, pcdoWorkEntries, counterResetsOf, counterResetTotal, isTaClaimable } from "@/lib/api";
 import { PrimaryButton } from "./ui";
 import { StatDetailModal, type StatRow } from "./StatDetailModal";
@@ -48,6 +49,15 @@ export function Reports({
     if (!drillCloseRef) return;
     drillCloseRef.current = () => setDrill(null);
   }, [drillCloseRef]);
+
+  // The native back key closes these export modals instead of navigating away
+  useBackClose(tomorrowOpen || pcdoOpen || diaryOpen || taOpen || inspOpen, () => {
+    if (tomorrowOpen) setTomorrowOpen(false);
+    else if (pcdoOpen) setPcdoOpen(false);
+    else if (diaryOpen) setDiaryOpen(false);
+    else if (taOpen) setTaOpen(false);
+    else setInspOpen(false);
+  });
 
   function openRow(row: StatRow) {
     if (row.logId != null) {

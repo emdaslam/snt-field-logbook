@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useData } from "./DataProvider";
+import { useBackClose } from "@/lib/backButton";
 import { Modal, Field, inputClass, Chip, PrimaryButton } from "./ui";
 import { api, toISODate, fmtDate, pcdoWorkEntries } from "@/lib/api";
 import {
@@ -646,6 +647,15 @@ export function DailyLogForm({
     }
     return [];
   });
+  // True once the user tapped "Edit the rows" in this session — the native
+  // back key cancels the row edit only in that case.
+  const [editRowsTapped, setEditRowsTapped] = useState(false);
+  // The row state the form was opened with (saved custom legs, or "not
+  // customised") — "Cancel edit" restores the rows and edit mode to this.
+  const initialRowsRef = useRef<{ edit: boolean; legs: JourneyLeg[] }>({
+    edit: Array.isArray(existing?.journeyLegs) && existing.journeyLegs.length > 0,
+    legs: Array.isArray(existing?.journeyLegs) ? (existing.journeyLegs as JourneyLeg[]) : [],
+  });
   // HQ station name (code when set, else name) used as default From / To for
   // auto-generated legs so the rows mirror the actual export output.
   const hqStation = stations.find(
@@ -1038,9 +1048,31 @@ export function DailyLogForm({
     const filled = [primarySlot, ...extraMovements].filter((m) => m.trim());
     if (filled.length === 0) return;
     singleRowEditRef.current = true;
+    setEditRowsTapped(true);
     setEditExportRows(true);
     applyLegs(filled);
   };
+  const cancelRowEdit = () => {
+    setEditRowsTapped(false);
+    const init = initialRowsRef.current;
+    const filled = [primarySlot, ...extraMovements].filter((m) => m.trim());
+    // The row editor is structural for entries with two or more movements (and
+    // for single custom entries that saved legs) — only a plain single entry
+    // reverts to the Timings block.
+    if (init.legs.length > 0 || filled.length >= 2) {
+      singleRowEditRef.current = true;
+      setEditExportRows(true);
+      if (init.legs.length > 0) setJourneyLegs(init.legs);
+      else applyLegs(filled);
+    } else {
+      singleRowEditRef.current = false;
+      setEditExportRows(false);
+      setJourneyLegs([]);
+    }
+  };
+  // While the user entered row editing via "Edit the rows", the native back
+  // key cancels it instead of closing the whole form
+  useBackClose(editRowsTapped && editExportRows, cancelRowEdit);
   useEffect(() => {
     if (!hasFootplateInChain) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -1785,25 +1817,34 @@ export function DailyLogForm({
                     />
                   ))}
                 </div>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setJourneyLegs((prev) => [
-                      ...prev,
-                      {
-                        from: "",
-                        to: "",
-                        timeDep: null,
-                        timeArr: null,
-                        mode: "road",
-                        trainNo: "",
-                      },
-                    ])
-                  }
-                  className="mt-1 rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                >
-                  + Add leg
-                </button>
+                <div className="mt-1 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setJourneyLegs((prev) => [
+                        ...prev,
+                        {
+                          from: "",
+                          to: "",
+                          timeDep: null,
+                          timeArr: null,
+                          mode: "road",
+                          trainNo: "",
+                        },
+                      ])
+                    }
+                    className="flex-1 rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                  >
+                    + Add leg
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cancelRowEdit}
+                    className="flex-1 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+                  >
+                    Cancel edit
+                  </button>
+                </div>
                 {AUTO_TIMINGS && (
                   <p className="mt-1 text-xs text-slate-500">
                     Blank times on the first and last legs are filled from your TA Auto-Generation
