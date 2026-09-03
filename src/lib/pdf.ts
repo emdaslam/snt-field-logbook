@@ -498,9 +498,11 @@ export function buildPdf(
   // Raising the content-size setting never shrinks or wraps them, and only the
   // table grows; the fixed block also sidesteps the cramped 5pt "Pay" column
   // that the proportional column layout produced at every size. Fit-on-one-page
-  // is the exception: there the whole page shrinks to fit, so the block scales
-  // with the fitted size too — keeping it fixed ate ~40pt of vertical room
-  // that the fit loop otherwise spends on a larger table font.
+  // is the exception: the title / heading still scale with the fitted size
+  // (keeping them fixed ate ~40pt of vertical room the fit loop could spend on
+  // a larger table font), while the cols blocks — profile rows, days summary,
+  // signature lines — spread over the whole table width at up to the default
+  // size instead of shrinking with the table.
   const headFs = opts.fixedHeader && !opts.fitMode ? DEFAULT_CONTENT_FONT_SIZE / 9 : fs;
   const baseMargin = opts.margin ?? 40;
   const withFooter = opts.footer ?? true;
@@ -540,6 +542,9 @@ export function buildPdf(
   // following signature-labels paragraph can centre each label over the line
   // drawn just above it.
   let lastColsSegs: { x: number; w: number }[] | null = null;
+  // Scale the most recent cols block settled on in fit mode, so a following
+  // signature-labels paragraph draws its labels at the same size as the lines.
+  let lastColsK: number | null = null;
 
   const pageBreak = (needed: number) => {
     if (y + needed > doc.internal.pageSize.getHeight() - margin) {
@@ -650,10 +655,19 @@ export function buildPdf(
         // A cols paragraph may open with extra blank space (the TA signature
         // lines leave room for the handwritten signature above them).
         y += Number(el.getAttribute("data-space-top")) || 0;
-        const baseSize = 9 * headFs;
         const offsets = colsAttr.split(",").map((s) => Number(s.trim()) || 0);
         const gap = 8;
         const right = pageW - margin;
+        // Fit-on-one-page spreads these blocks (profile rows, days summary,
+        // signature lines) over the whole table width instead of shrinking
+        // them with the fitted table: the scale is the largest that keeps
+        // every value on one line inside the table, capped at the default
+        // size — the font only grows while nothing wraps and the columns keep
+        // their clearance. The fixed layout (manual / two-page exports) draws
+        // at one base size and lets only the offsets shrink.
+        const fitSpread = !!opts.fitMode;
+        const blockK = fitSpread ? (lastColsK ?? 1) : headFs;
+        const baseSize = 9 * blockK;
         doc.setFont("helvetica", "normal").setFontSize(baseSize).setTextColor(15, 23, 42);
 
         // A "cols sigs" paragraph (the TA Journal's signature block) centres
@@ -664,7 +678,7 @@ export function buildPdf(
         // the page margins.
         const sigs = cls.split(/\s+/).includes("sigs");
         if (sigs) {
-          pageBreak(22 * headFs);
+          pageBreak(22 * blockK);
           const spans = Array.from(el.querySelectorAll("span")).map((s) => tidy(s.textContent ?? ""));
           spans.forEach((t, i) => {
             if (!t) return;
@@ -675,7 +689,7 @@ export function buildPdf(
               : Math.max(margin, Math.min(margin + (offsets[i] ?? 0), right - w));
             doc.text(t, x, y);
           });
-          y += 13 * headFs + 4;
+          y += 13 * blockK + 4;
           continue;
         }
 
@@ -699,66 +713,82 @@ export function buildPdf(
         }
         const rows = group.map((g) => Array.from(g.querySelectorAll("span")).map((s) => tidy(s.textContent ?? "")));
         const nCols = rows.reduce((m, r) => Math.max(m, r.length), 0);
-        // Width of what this paragraph actually draws in each column.
-        const drawW = Array.from({ length: nCols }, (_, c) =>
-          rows.reduce((m, r) => Math.max(m, r[c] ? doc.getTextWidth(r[c]) : 0), 0)
-        );
         // A signature-labels paragraph following this one and sharing data-cols
         // centres its labels over the lines drawn here — reserve room for the
         // widest label so those lines sit far enough left for a centred label
         // to stay on the page.
         const nxtEl = els[i + 1];
-        const sigW: number[] = [];
+        const sigSpans: string[] = [];
         if (
           nxtEl &&
           nxtEl.tagName.toLowerCase() === "p" &&
           (nxtEl.className || "").split(/\s+/).includes("sigs") &&
           nxtEl.getAttribute("data-cols") === colsAttr
         ) {
-          Array.from(nxtEl.querySelectorAll("span")).forEach((s, c) => {
-            const t = tidy(s.textContent ?? "");
-            if (t) sigW[c] = Math.max(sigW[c] ?? 0, doc.getTextWidth(t));
-          });
+          Array.from(nxtEl.querySelectorAll("span")).forEach((s) => sigSpans.push(tidy(s.textContent ?? "")));
         }
+        // Width of what the block draws in each column at a given scale. The
+        // fit layout grows the text together with the offsets, so the widths
+        // are re-measured while the scale is searched; the fixed layout draws
+        // at one base size, so a single measurement suffices.
+        const widthsAt = (k: number) => {
+          doc.setFont("helvetica", "normal").setFontSize(9 * k);
+          const dw = Array.from({ length: nCols }, (_, c) =>
+            rows.reduce((m, r) => Math.max(m, r[c] ? doc.getTextWidth(r[c]) : 0), 0)
+          );
+          const cw = dw.slice();
+          if (sigSpans.length)
+            sigSpans.forEach((t, c) => {
+              if (t) cw[c] = Math.max(cw[c] ?? 0, doc.getTextWidth(t));
+            });
+          return { dw, cw };
+        };
         // Column positions reserve the widest of the drawn content and the
         // signature labels, but lastColsSegs keeps the actual drawn width so
         // the centring uses the real line.
-        const colW = drawW.map((w, c) => Math.max(w, sigW[c] ?? 0));
-        // Every value renders at the full base size on one line — never shrunk
-        // and never wrapped. Columns start at their reference offsets scaled by
-        // the base size; when a column would run over its neighbour it is pushed
-        // right, and if the last column would pass the page edge the spacing
-        // shrinks so it still ends at the right margin. Only the column
-        // positions move — the text keeps its natural size.
         const lastOffset = offsets[offsets.length - 1] ?? 0;
-        const kMax = lastOffset > 0 ? Math.min(headFs, maxW / lastOffset) : headFs;
-        const place = (k: number) => {
+        // Every value renders on one line — never wrapped. Columns start at
+        // their reference offsets scaled by k; when a column would run over
+        // its neighbour it is pushed right, and if the last column would pass
+        // the table edge the spacing shrinks until everything still ends at
+        // the right margin. The fit layout caps k at the default size, so the
+        // block only gets roomier — it never grows past the reference layout.
+        const kMax = lastOffset > 0 ? Math.min(fitSpread ? 1 : headFs, maxW / lastOffset) : fitSpread ? 1 : headFs;
+        const place = (k: number, colW: number[]) => {
           const xs: number[] = [];
-          for (let i = 0; i < offsets.length; i++) {
-            const natural = margin + offsets[i] * k;
-            xs.push(i === 0 ? natural : Math.max(natural, xs[i - 1] + colW[i - 1] + gap));
+          for (let c = 0; c < offsets.length; c++) {
+            const natural = margin + offsets[c] * k;
+            xs.push(c === 0 ? natural : Math.max(natural, xs[c - 1] + colW[c - 1] + gap));
           }
           return xs;
         };
-        const fits = (xs: number[]) => xs.length === 0 || xs[xs.length - 1] + (colW[colW.length - 1] ?? 0) <= right;
+        const fits = (xs: number[], colW: number[]) =>
+          xs.length === 0 || xs[xs.length - 1] + (colW[colW.length - 1] ?? 0) <= right;
+        const fixed = fitSpread ? null : widthsAt(headFs);
         // Largest k in [0, kMax] that still fits the widest (last) column on the
         // page; column positions are monotonic in k, so binary search applies.
         let lo = 0;
         let hi = kMax;
         for (let it = 0; it < 40; it++) {
           const mid = (lo + hi) / 2;
-          if (fits(place(mid))) lo = mid;
+          const w = fitSpread ? widthsAt(mid) : fixed!;
+          if (fits(place(mid, w.cw), w.cw)) lo = mid;
           else hi = mid;
         }
-        const cols = place(lo);
-        lastColsSegs = cols.map((x, i) => ({ x, w: drawW[i] ?? 0 }));
+        const found = fitSpread ? widthsAt(lo) : fixed!;
+        const cols = place(lo, found.cw);
+        lastColsSegs = cols.map((x, c) => ({ x, w: found.dw[c] ?? 0 }));
+        if (fitSpread) lastColsK = lo;
+        const stepK = fitSpread ? lo : headFs;
+        const renderSize = fitSpread ? 9 * lo : 9 * headFs;
         rows.forEach((row) => {
-          pageBreak(22 * headFs);
-          row.forEach((t, i) => {
+          pageBreak(22 * stepK);
+          doc.setFont("helvetica", "normal").setFontSize(renderSize).setTextColor(15, 23, 42);
+          row.forEach((t, c) => {
             if (!t) return;
-            doc.text(t, cols[i] ?? margin, y);
+            doc.text(t, cols[c] ?? margin, y);
           });
-          y += 13 * headFs + 4;
+          y += 13 * stepK + 4;
         });
         continue;
       }
@@ -768,10 +798,36 @@ export function buildPdf(
       const rightPad = right ? Number(el.getAttribute("data-right-pad")) || 0 : 0;
       const bold = el.querySelector("strong") ? "bold" : "normal";
       y += Number(el.getAttribute("data-space-top")) || 0;
-      doc.setFont("helvetica", meta ? "italic" : bold).setFontSize(9 * headFs);
+      const availW = right ? maxW - rightPad : maxW - left;
+      // In the fit-on-one-page TA Journal the certification line spans the
+      // whole table width on one line: use the largest size (at most the
+      // default) that fits it without wrapping. It is the only block that may
+      // wrap at all, so this is a best-effort stretch, not a hard guarantee.
+      let paraSize = 9 * headFs;
+      if (opts.fitMode && meta && !right && cls.includes("nocaps")) {
+        // Largest size (at most the default) that still keeps the line on a
+        // single line across the full table width. splitTextToSize is the
+        // ground truth for wrapping, so bisect with it.
+        doc.setFont("helvetica", "italic");
+        const oneLine = (size: number) => {
+          doc.setFontSize(size);
+          return (doc.splitTextToSize(text, availW) as string[]).length === 1;
+        };
+        let lo = 1;
+        let hi = 9;
+        if (oneLine(9)) lo = 9;
+        else
+          for (let it = 0; it < 24; it++) {
+            const mid = (lo + hi) / 2;
+            if (oneLine(mid)) lo = mid;
+            else hi = mid;
+          }
+        paraSize = lo;
+      }
+      doc.setFont("helvetica", meta ? "italic" : bold).setFontSize(paraSize);
       if (meta) doc.setTextColor(plain ? 15 : GREY[0], 23, 42);
       else doc.setTextColor(15, 23, 42);
-      const lines = doc.splitTextToSize(text, right ? maxW - rightPad : maxW - left) as string[];
+      const lines = doc.splitTextToSize(text, availW) as string[];
       doc.text(lines, right ? pageW - margin - rightPad : margin + left, y, right ? { align: "right" } : undefined);
       // Underline support for a single <u>word</u> inside a paragraph (the TA
       // certification line): locate the word on its wrapped line and draw a
@@ -782,7 +838,7 @@ export function buildPdf(
         const lineIdx = lines.findIndex((l) => l.includes(uText));
         if (lineIdx >= 0) {
           const line = lines[lineIdx];
-          const baseline = y + lineIdx * (1.15 * 9 * headFs);
+          const baseline = y + lineIdx * (1.15 * paraSize);
           const w = doc.getTextWidth(uText);
           const x = right
             ? pageW - margin - rightPad - doc.getTextWidth(line.slice(line.indexOf(uText)))
@@ -790,7 +846,7 @@ export function buildPdf(
           doc.setDrawColor(...INK).setLineWidth(0.7).line(x, baseline + 1.4, x + w, baseline + 1.4);
         }
       }
-      y += lines.length * (12 * headFs) + 8;
+      y += lines.length * (12 * (paraSize / 9)) + 8;
     } else if (tag === "ul") {
       for (const li of Array.from(el.children)) {
         const parts = liText(li as HTMLElement).split("\n").filter((p) => p.trim());

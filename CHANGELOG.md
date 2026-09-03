@@ -3,6 +3,15 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.39 — 2026-09-03
+
+**Minor: TA Journal one-page export spreads the profile, days-summary and signature blocks over the full table width**
+
+- In the fit-on-one-page TA Journal the profile rows (Name / Designation / P.F.NO / Pay Metric and Headquarters / Month / B.U.No / Pay), the days-summary lines (100 % / 70 % / 30 % / TOTAL) and the signature lines with their labels no longer shrink with the fitted table — they spread over the full table width at up to the default size: the font only grows while every value stays on one line and the columns keep their clearance. Very long profile values still shrink the block rather than wrap or overflow it.
+- The certification line ("I here certify that…") now spans the full table width on a single line instead of sitting small and left-aligned; it is the only block in that layout that may wrap.
+- Both profile lines keep their four columns vertically aligned (same x start on every line). The fitted table font is unchanged — a dense 16-day month still fits at 7.11pt, and a 12-day month now lands one size up at 8.89pt.
+- Two-page and manual-size TA exports are unchanged.
+
 ## 1.7.7.38 — 2026-09-02
 
 **Minor: TA Journal one-page export sizes the Nature of Work column to its content and fits a larger font**
