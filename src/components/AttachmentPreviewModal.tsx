@@ -235,7 +235,7 @@ function ZoomableImage({ src, alt }: { src: string; alt: string }) {
         alt={alt}
         draggable={false}
         className="pointer-events-none absolute inset-0 m-auto max-h-full max-w-full rounded-lg"
-        style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.s})` }}
+        style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.s})`, transformOrigin: "0 0" }}
       />
       {view.s > 1 ? (
         <button

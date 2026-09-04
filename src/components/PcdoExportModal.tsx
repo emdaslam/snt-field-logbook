@@ -314,8 +314,7 @@ export function PcdoExportModal({ open, onClose }: { open: boolean; onClose: () 
       <div className="flex justify-end">
         <PrimaryButton
           onClick={() => {
-            exportPcdo(period, baseLogs, stations, stationFilter, selectedIds);
-            onClose();
+            exportPcdo(period, baseLogs, stations, stationFilter, selectedIds, onClose);
           }}
         >
           Generate PCDO PDF ({selectedIds.size})

@@ -1258,7 +1258,7 @@ export function exportDocument(
   bodyHtml: string,
   type = "general",
   sheet?: XlsxSheet,
-  opts?: { onePage?: boolean; twoPageBody?: string; style?: ExportStyle; cellPad?: number }
+  opts?: { onePage?: boolean; twoPageBody?: string; style?: ExportStyle; cellPad?: number; onComplete?: () => void }
 ) {
   // Bottom sheet that offers the report as PDF, Word (.docx) or Excel (.xlsx),
   // with a text size prompt for the PDF path. The last chosen format is remembered.
@@ -1474,7 +1474,12 @@ export function exportDocument(
 
   type ExportArtifact = { filename: string; mimeType: string; base64: string };
 
-  const share = async (a: ExportArtifact) => {
+  const isShareCancelled = (e: unknown) => {
+    const s = String(e).toLowerCase();
+    return s.includes("cancel") || s.includes("dismiss") || s.includes("abort");
+  };
+
+  const share = async (a: ExportArtifact): Promise<boolean> => {
     if (isNative()) {
       const [{ Filesystem, Directory }, { Share }] = await Promise.all([
         import("@capacitor/filesystem"),
@@ -1486,13 +1491,18 @@ export function exportDocument(
         directory: Directory.Cache,
         recursive: true,
       });
-      await Share.share({
-        title,
-        text: title,
-        url: written.uri,
-        dialogTitle: "Share export",
-      });
-      return;
+      try {
+        await Share.share({
+          title,
+          text: title,
+          url: written.uri,
+          dialogTitle: "Share export",
+        });
+        return true;
+      } catch (e) {
+        if (isShareCancelled(e)) return false;
+        throw e;
+      }
     }
     // Browser fallback
     const bytes = base64ToBytes(a.base64);
@@ -1500,25 +1510,26 @@ export function exportDocument(
     if (navigator.canShare?.({ files: [file] })) {
       try {
         await navigator.share({ files: [file], title, text: title });
-        return;
+        return true;
       } catch (e) {
-        if (e instanceof DOMException && e.name === "AbortError") return;
+        if (e instanceof DOMException && e.name === "AbortError") return false;
+        if (isShareCancelled(e)) return false;
       }
     }
     throw new Error("Sharing isn’t available here — use Save instead.");
   };
 
-  const save = async (a: ExportArtifact) => {
+  const save = async (a: ExportArtifact): Promise<boolean> => {
     if (isNative()) {
       try {
         const { saveViaPicker } = await import("./documentSave");
         await saveViaPicker({ filename: a.filename, data: a.base64, mimeType: a.mimeType });
+        return true;
       } catch (e) {
         const { isSaveCancelled } = await import("./documentSave");
-        if (isSaveCancelled(e)) return; // user backed out — close quietly
+        if (isSaveCancelled(e)) return false;
         throw e;
       }
-      return;
     }
     try {
       const url = URL.createObjectURL(new Blob([base64ToBytes(a.base64)], { type: a.mimeType }));
@@ -1527,12 +1538,13 @@ export function exportDocument(
       link.download = a.filename;
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      return true;
     } catch {
       throw new Error("Saving was blocked by the browser.");
     }
   };
 
-  const makeButton = (label: string, primary: boolean, run: (a: ExportArtifact) => Promise<void>) => {
+  const makeButton = (label: string, primary: boolean, run: (a: ExportArtifact) => Promise<boolean>) => {
     const b = document.createElement("button");
     b.textContent = label;
     b.style.cssText = `display:block;width:100%;margin-bottom:8px;padding:12px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;border:1px solid ${
@@ -1581,8 +1593,13 @@ export function exportDocument(
             base64: doc.output("datauristring").split(",")[1],
           };
         }
-        await run(artifact);
+        const ok = await run(artifact);
+        if (!ok) {
+          status.textContent = "";
+          return;
+        }
         close();
+        opts?.onComplete?.();
       } catch (e) {
         status.textContent = String(e);
       }

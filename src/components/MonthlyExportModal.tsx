@@ -123,8 +123,7 @@ export function MonthlyExportModal({ open, onClose }: { open: boolean; onClose: 
       <div className="flex justify-end">
         <PrimaryButton
           onClick={() => {
-            exportMonthly(f, logs, deficiencies, planned, stations, tags);
-            onClose();
+            exportMonthly(f, logs, deficiencies, planned, stations, tags, onClose);
           }}
         >
           Generate PDF

@@ -3,6 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.46 — 2026-09-04
+
+**Minor: zoomed photos no longer clip, and BACK on the export sheet returns to the Generate modal**
+
+- Zooming a photo in an attachment preview no longer clips the left side of the picture or leaves a blank strip on the right. Pinch, double-tap and drag still work the same way.
+- After tapping **Generate PDF** (Diary, TA Journal, Tomorrow's Work, PCDO, Inspections, Monthly), the Generate options card stays open under the "Export Report" sheet. **Back** or **Cancel** closes only the sheet and you are back on that card; **Share** or **Save** still closes both once the file is actually shared or saved.
+
 ## 1.7.7.45 — 2026-09-04
 
 **Minor: the Android back key now closes the export report sheet properly, and attachments can be zoomed**

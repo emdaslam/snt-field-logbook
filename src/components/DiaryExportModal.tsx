@@ -205,9 +205,8 @@ export function DiaryExportModal({
       <div className="flex justify-end">
         <PrimaryButton
           onClick={() => {
-            if (isTa) exportTaJournal(period, own, stations, currentUser);
-            else exportDiary(period, own, stations, currentUser);
-            onClose();
+            if (isTa) exportTaJournal(period, own, stations, currentUser, onClose);
+            else exportDiary(period, own, stations, currentUser, onClose);
           }}
         >
           {isTa ? "Generate TA Journal" : "Generate Diary"}

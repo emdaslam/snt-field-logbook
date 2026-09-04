@@ -72,7 +72,8 @@ export function exportTomorrowsWork(
   deficiencies: DeficiencyTask[],
   planned: PlannedWork[],
   stations: Station[],
-  note = ""
+  note = "",
+  onComplete?: () => void
 ) {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -117,7 +118,7 @@ export function exportTomorrowsWork(
     }
     body += `</ul>`;
   }
-  exportDocument(`Tomorrow's Work ${label}`, body, "tomorrow");
+  exportDocument(`Tomorrow's Work ${label}`, body, "tomorrow", undefined, { onComplete });
 }
 
 /**
@@ -130,9 +131,10 @@ export function exportPcdo(
   logs: DailyLog[],
   stations: Station[],
   stationFilter: number | "" = "",
-  selectedIds?: Set<number> | null
+  selectedIds?: Set<number> | null,
+  onComplete?: () => void
 ) {
-  exportDocument(`PCDO ${period.label}`, pcdoReportBody(period, logs, stations, stationFilter, selectedIds), "pcdo");
+  exportDocument(`PCDO ${period.label}`, pcdoReportBody(period, logs, stations, stationFilter, selectedIds), "pcdo", undefined, { onComplete });
 }
 
 /** The PCDO special-works report body, grouped station-wise with department
@@ -782,7 +784,7 @@ export function exportDiary(
   logs: DailyLog[],
   stations: Station[],
   me: Staff | undefined,
-  out: (title: string, body: string, type: string, sheet?: XlsxSheet, opts?: { onePage?: boolean; twoPageBody?: string; style?: ExportStyle; cellPad?: number }) => void = exportDocument
+  onComplete?: () => void
 ) {
   const hq = stations.find((s) => s.id === me?.headquartersStationId);
   const hqCode = hqLabel(hq);
@@ -971,11 +973,12 @@ export function exportDiary(
     colWidths: [10.3, 6, 6, 6, 6, 6, 63],
   };
 
-  out(`Diary ${period.label}`, upperText(body), "diary", upperSheet(sheet), {
+  exportDocument(`Diary ${period.label}`, upperText(body), "diary", upperSheet(sheet), {
     onePage: true,
     twoPageBody: upperText(twoPageBody),
     style: "plain",
     cellPad: 2,
+    onComplete,
   });
 }
 
@@ -996,7 +999,7 @@ export function exportTaJournal(
   logs: DailyLog[],
   stations: Station[],
   me: Staff | undefined,
-  out: (title: string, body: string, type: string, sheet?: XlsxSheet, opts?: { onePage?: boolean; twoPageBody?: string; style?: ExportStyle }) => void = exportDocument
+  onComplete?: () => void
 ) {
   const hq = stations.find((s) => s.id === me?.headquartersStationId);
   const hqCode = hqLabel(hq);
@@ -1359,10 +1362,11 @@ export function exportTaJournal(
     colWidths: [10.43, 8.14, 9.71, 9.29, 6.71, 8.43, 4.29, 9.71, 11.43, 51, 12.14, 9],
   };
 
-  out(`TA Journal ${period.label}`, upperText(body), "ta", upperSheet(sheet), {
+  exportDocument(`TA Journal ${period.label}`, upperText(body), "ta", upperSheet(sheet), {
     onePage: true,
     twoPageBody: upperText(twoPageBody),
     style: "plain",
+    onComplete,
   });
 }
 
@@ -1386,7 +1390,8 @@ export function exportInspections(
   logs: DailyLog[],
   stations: Station[],
   stationFilter: number | "" = "",
-  labelFor?: (k: InspKind) => string
+  labelFor?: (k: InspKind) => string,
+  onComplete?: () => void
 ) {
   const kindList = Array.isArray(kinds) ? kinds : [kinds];
   const nameOf = (id: number | null) =>
@@ -1477,7 +1482,7 @@ export function exportInspections(
     body += `</table>`;
   }
 
-  exportDocument(`${kindLabel} ${period.label}`, body, "inspection");
+  exportDocument(`${kindLabel} ${period.label}`, body, "inspection", undefined, { onComplete });
 }
 
 export type MonthlyFilters = {
@@ -1501,6 +1506,7 @@ export function exportMonthly(
   planned: PlannedWork[],
   stations: Station[],
   tags: Tag[],
+  onComplete?: () => void,
 ) {
   const stationName = (id: number | null) => stations.find((s) => s.id === id)?.name ?? "Unassigned";
   const inRange = (d: string | null) => {
@@ -1607,7 +1613,7 @@ export function exportMonthly(
     body += `<p class="empty">No sections selected for this report.</p>`;
   }
 
-  exportDocument("Monthly S&T Report", body, "monthly");
+  exportDocument("Monthly S&T Report", body, "monthly", undefined, { onComplete });
 }
 
 /** Format a quantity, dropping trailing zeros (50 → "50", 2.5 → "2.5"). */

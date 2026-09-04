@@ -279,9 +279,9 @@ export function InspectionExportModal({ open, onClose }: { open: boolean; onClos
               selected,
               stations,
               stationFilter,
-              (k) => INSPECTION_RULES[k as InspectionKind].label
+              (k) => INSPECTION_RULES[k as InspectionKind].label,
+              onClose
             );
-            onClose();
           }}
         >
           Generate PDF

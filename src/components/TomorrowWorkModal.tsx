@@ -100,10 +100,9 @@ export function TomorrowWorkModal({ open, onClose }: { open: boolean; onClose: (
       .filter((p) => selPlan.has(p.id))
       .map((p) => ({ ...p, selectedForTomorrow: true, plannedDate: p.plannedDate }));
 
-    exportTomorrowsWork(selectedDefs, selectedPlans, stations, note);
-    await refresh();
+    exportTomorrowsWork(selectedDefs, selectedPlans, stations, note, onClose);
+    void refresh();
     setSaving(false);
-    onClose();
   }
 
   const total = selDef.size + selPlan.size;
