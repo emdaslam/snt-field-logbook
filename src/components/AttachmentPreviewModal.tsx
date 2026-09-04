@@ -31,6 +31,30 @@ function openAttachmentWeb(name: string, dataUrl: string): boolean {
 const MAX_ZOOM = 6;
 
 /**
+ * Moves a vertical drag onto the scrollable ancestor (the modal card). The
+ * zoom stage blocks native touch scrolling while it owns the gesture, so at
+ * 100% a drag that the stage can't consume is forwarded upwards, exactly like
+ * native multi-level scrolling.
+ */
+function passScrollDelta(node: HTMLElement | null, dy: number) {
+  let n = node;
+  let rest = dy;
+  while (n && Math.abs(rest) > 0.5) {
+    const sc = n.scrollHeight - n.clientHeight;
+    if (
+      sc > 0 &&
+      /(auto|scroll)/.test(getComputedStyle(n).overflowY) &&
+      (rest > 0 ? n.scrollTop > 0 : n.scrollTop < sc)
+    ) {
+      const before = n.scrollTop;
+      n.scrollTop = Math.max(0, Math.min(sc, before - rest));
+      rest = rest - (before - n.scrollTop);
+    }
+    n = n.parentElement;
+  }
+}
+
+/**
  * Clamps the translate of a scaled image so its zoomed box stays anchored
  * inside the stage (centre-locked while smaller than the stage).
  */
@@ -57,7 +81,7 @@ function ZoomableImage({ src, alt }: { src: string; alt: string }) {
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const gest = useRef<{
     pinch: { d0: number; s0: number; lx: number; ly: number } | null;
-    pan: { cx0: number; cy0: number; tx: number; ty: number; moved: boolean } | null;
+    pan: { cx0: number; cy0: number; tx: number; ty: number; lastY: number; moved: boolean } | null;
     lastTap: { t: number; x: number; y: number } | null;
   }>({ pinch: null, pan: null, lastTap: null });
 
@@ -131,7 +155,7 @@ function ZoomableImage({ src, alt }: { src: string; alt: string }) {
       };
       g.pan = null;
     } else if (pointers.current.size === 1) {
-      g.pan = { cx0: e.clientX, cy0: e.clientY, tx: v.x, ty: v.y, moved: false };
+      g.pan = { cx0: e.clientX, cy0: e.clientY, tx: v.x, ty: v.y, lastY: e.clientY, moved: false };
     }
   };
 
@@ -148,11 +172,23 @@ function ZoomableImage({ src, alt }: { src: string; alt: string }) {
       const mx = (a.x + b.x) / 2;
       const my = (a.y + b.y) / 2;
       setView(apply(s, mx - img.offsetLeft - g.pinch.lx * s, my - img.offsetTop - g.pinch.ly * s));
-    } else if (g.pan && pointers.current.size === 1 && v.s > 1) {
+    } else if (g.pan && pointers.current.size === 1) {
       const dx = e.clientX - g.pan.cx0;
       const dy = e.clientY - g.pan.cy0;
       if (!g.pan.moved && Math.hypot(dx, dy) > 8) g.pan.moved = true;
-      if (g.pan.moved) setView(apply(v.s, g.pan.tx + dx, g.pan.ty + dy));
+      if (!g.pan.moved) {
+        g.pan.lastY = e.clientY;
+        return;
+      }
+      if (v.s > 1) {
+        setView(apply(v.s, g.pan.tx + dx, g.pan.ty + dy));
+      } else {
+        // Not zoomed: forward the vertical drag to the modal card so the
+        // buttons below the picture stay reachable (the stage blocks native
+        // touch scrolling while it owns the gesture).
+        passScrollDelta(stageRef.current, e.clientY - g.pan.lastY);
+      }
+      g.pan.lastY = e.clientY;
     }
   };
 

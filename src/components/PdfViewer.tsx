@@ -12,6 +12,29 @@ const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
 
 /**
+ * Moves a vertical drag onto the next scrollable ancestor (the modal card).
+ * The viewer owns the touch gesture (touch-action: none), so at 100% a drag
+ * the page list can't consume is forwarded upwards, like native scrolling.
+ */
+function passScrollDelta(node: HTMLElement | null, dy: number) {
+  let n = node;
+  let rest = dy;
+  while (n && Math.abs(rest) > 0.5) {
+    const sc = n.scrollHeight - n.clientHeight;
+    if (
+      sc > 0 &&
+      /(auto|scroll)/.test(getComputedStyle(n).overflowY) &&
+      (rest > 0 ? n.scrollTop > 0 : n.scrollTop < sc)
+    ) {
+      const before = n.scrollTop;
+      n.scrollTop = Math.max(0, Math.min(sc, before - rest));
+      rest = rest - (before - n.scrollTop);
+    }
+    n = n.parentElement;
+  }
+}
+
+/**
  * Render a PDF (as a data URL) into canvases inside the app itself. The Android
  * WebView cannot show PDFs in an iframe, so we draw every page with pdf.js —
  * this works identically in the web preview and in the APK. Pages are zoomable
@@ -107,7 +130,7 @@ export function PdfViewer({ dataUrl, name }: { dataUrl: string; name: string }) 
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const gest = useRef<{
     pinch: { d0: number; z0: number; u: number; v: number } | null;
-    pan: { px0: number; py0: number; sl0: number; st0: number; moved: boolean } | null;
+    pan: { px0: number; py0: number; sl0: number; st0: number; lastY: number; moved: boolean } | null;
     lastTap: { t: number; x: number; y: number } | null;
   }>({ pinch: null, pan: null, lastTap: null });
 
@@ -132,7 +155,7 @@ export function PdfViewer({ dataUrl, name }: { dataUrl: string; name: string }) 
       g.pinch = { d0: Math.hypot(a.x - b.x, a.y - b.y), z0, u: (el.scrollLeft + px) / z0, v: (el.scrollTop + py) / z0 };
       g.pan = null;
     } else if (pointers.current.size === 1) {
-      g.pan = { px0: e.clientX, py0: e.clientY, sl0: el.scrollLeft, st0: el.scrollTop, moved: false };
+      g.pan = { px0: e.clientX, py0: e.clientY, sl0: el.scrollLeft, st0: el.scrollTop, lastY: e.clientY, moved: false };
     }
   };
 
@@ -152,10 +175,19 @@ export function PdfViewer({ dataUrl, name }: { dataUrl: string; name: string }) 
       const dx = e.clientX - g.pan.px0;
       const dy = e.clientY - g.pan.py0;
       if (!g.pan.moved && Math.hypot(dx, dy) > 6) g.pan.moved = true;
-      if (g.pan.moved) {
+      if (!g.pan.moved) {
+        g.pan.lastY = e.clientY;
+        return;
+      }
+      if (zoomRef.current > MIN_ZOOM) {
         el.scrollLeft = g.pan.sl0 - dx;
         el.scrollTop = g.pan.st0 - dy;
+      } else {
+        // At 100%: forward the vertical drag so the page list (or, once it
+        // is fully scrolled, the modal card) moves with the finger.
+        passScrollDelta(el, e.clientY - g.pan.lastY);
       }
+      g.pan.lastY = e.clientY;
     }
   };
 
