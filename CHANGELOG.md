@@ -3,6 +3,16 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.45 — 2026-09-04
+
+**Minor: the Android back key now closes the export report sheet properly, and attachments can be zoomed**
+
+- In Reports (and the top-bar Export menu), after tapping **Generate PDF** the "Export Report" sheet (PDF / Word / Excel, Colour / Plain, page layout) now claims the Android **back** key: pressing back closes that sheet and you stay on the screen you were on (e.g. Reports) instead of the app silently jumping to the Home tab behind the still-open sheet. A further back press then closes the export options card as before, and **Cancel** (or tapping outside the sheet) likewise simply closes it — you end up back where you started, never on Home.
+- **Attachments can now be zoomed.** In every place you preview an attachment (log details, task rows, the Attachments tab):
+  - **Photos** — pinch with two fingers to zoom (up to 600%), double-tap to jump to 250% (double-tap again to go back), and drag to pan. A small "percentage · Reset" chip appears while zoomed. In the web preview the mouse wheel and double-click work the same way.
+  - **PDFs** — pinch, double-tap (to 200%) or drag to move, plus a small **− 100% +** toolbar with a **Fit** button (up to 400%).
+  - At 100% everything looks exactly as before.
+
 ## 1.7.7.44 — 2026-09-04
 
 **Minor: materials are searchable in Global Search, the Tasks sub-tabs can be swiped, and the calendar month swipe is more sensitive**

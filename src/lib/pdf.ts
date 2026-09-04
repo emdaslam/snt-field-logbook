@@ -7,6 +7,7 @@ import {
   type ExportStyle,
 } from "@/lib/types";
 import { registerPdfFonts } from "./pdfFonts";
+import { registerBackClose } from "./backButton";
 import type { XlsxSheet } from "./xlsx";
 
 const NAVY: [number, number, number] = [30, 58, 138];
@@ -1272,7 +1273,18 @@ export function exportDocument(
     '<p style="margin:0 0 12px;font-size:14px;font-weight:600;color:var(--b-900);text-align:center">Export Report</p>';
   const status = document.createElement("p");
   status.style.cssText = "margin:0 0 10px;font-size:12px;color:var(--n-500);text-align:center;min-height:16px";
-  const close = () => overlay.remove();
+  // The sheet is plain DOM, so while it is open it claims the Android back
+  // key (and Escape on the web) — otherwise back would fall through to tab
+  // navigation and strand the sheet over whichever tab is shown.
+  let unregisterBack = () => {};
+  const onEsc = (e: KeyboardEvent) => {
+    if (e.key === "Escape") close();
+  };
+  const close = () => {
+    unregisterBack();
+    window.removeEventListener("keydown", onEsc);
+    overlay.remove();
+  };
 
   // Format toggle — PDF, Word or Excel (Excel only when a grid was provided).
   type Format = "pdf" | "docx" | "xlsx";
@@ -1590,6 +1602,8 @@ export function exportDocument(
   overlay.appendChild(box);
   overlay.onclick = (e) => { if (e.target === overlay) close(); };
   document.body.appendChild(overlay);
+  unregisterBack = registerBackClose(close);
+  window.addEventListener("keydown", onEsc);
 }
 
 function base64ToBytes(base64: string): Uint8Array<ArrayBuffer> {

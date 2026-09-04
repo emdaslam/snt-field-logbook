@@ -27,6 +27,21 @@ export function useBackClose(active: boolean, close: () => void) {
   }, [active]);
 }
 
+/**
+ * Imperative version of {@link useBackClose} for overlays built outside
+ * React (the export bottom sheet assembles plain DOM). The most recently
+ * registered closer still runs first. Returns the function that unregisters
+ * the closer again.
+ */
+export function registerBackClose(close: () => void): () => void {
+  const entry: Closer = { id: nextId++, close };
+  closers.push(entry);
+  return () => {
+    const i = closers.indexOf(entry);
+    if (i >= 0) closers.splice(i, 1);
+  };
+}
+
 /** Invoke the topmost registered closer. Returns true when something closed. */
 export function tryCloseTop(): boolean {
   const top = closers[closers.length - 1];
