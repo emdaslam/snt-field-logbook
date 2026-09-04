@@ -19,9 +19,13 @@ import {
   tagReminderConfigs,
   normalizeFootplateReminder,
   DEFAULT_FOOTPLATE_REMINDER,
+  normalizeJointReminder,
+  DEFAULT_JOINT_REMINDER,
   sideAskingKinds,
   isGenericSideLabel,
+  cap,
   type FootplateReminderSettings,
+  type JointReminderSettings,
 } from "@/lib/inspections";
 import { FONT_SIZE_ROOT, type AppTheme, type FontSize } from "@/lib/types";
 import { isNative, scheduleDailyReminders } from "@/lib/native";
@@ -101,6 +105,9 @@ type Ctx = {
   // Footplate inspection reminder: periodicity + warn-before per monthly/quarterly
   footplateReminder: FootplateReminderSettings;
   setFootplateReminder: (v: FootplateReminderSettings) => void;
+  // Joint inspection reminder: periodicity + warn-before per half yearly/quarterly
+  jointReminder: JointReminderSettings;
+  setJointReminder: (v: JointReminderSettings) => void;
   // Automatic Drive sync
   autoDriveSync: boolean;
   setAutoDriveSync: (v: boolean) => void;
@@ -162,6 +169,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [reminderDays, setReminderDaysState] = useState(3);
   const [footplateReminder, setFootplateReminderState] =
     useState<FootplateReminderSettings>(DEFAULT_FOOTPLATE_REMINDER);
+  const [jointReminder, setJointReminderState] =
+    useState<JointReminderSettings>(DEFAULT_JOINT_REMINDER);
   const [contentScale, setContentScaleState] = useState(100);
 
   const applyFontSize = useCallback((v: FontSize) => {
@@ -266,6 +275,25 @@ export function DataProvider({ children }: { children: ReactNode }) {
     try {
       const raw = localStorage.getItem("snt.footplateReminder");
       if (raw) setFootplateReminderState(normalizeFootplateReminder(JSON.parse(raw)));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const setJointReminder = useCallback((v: JointReminderSettings) => {
+    const next = normalizeJointReminder(v);
+    setJointReminderState(next);
+    try {
+      localStorage.setItem("snt.jointReminder", JSON.stringify(next));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("snt.jointReminder");
+      if (raw) setJointReminderState(normalizeJointReminder(JSON.parse(raw)));
     } catch {
       /* ignore */
     }
@@ -571,7 +599,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       resolveInspStation,
       tagReminderConfigs(tags),
       footplateReminder,
-      sideAskingKinds(tags)
+      sideAskingKinds(tags),
+      jointReminder
     )) {
       const rule = INSPECTION_RULES[due.kind];
       // The "towards ... side" phrasing is only shown when the user explicitly
@@ -592,7 +621,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         title:
           `${rule.label} — ${due.station}` +
           (fpWhich ? ` (${fpWhich})` : "") +
-          (due.jointDept ? ` (with ${due.jointDept})` : ""),
+          (due.jointDept ? ` (with ${due.jointDept})` : "") +
+          (due.kind === "joint" && due.periodicity ? ` · ${cap(due.periodicity)}` : ""),
         detail:
           (due.overdue
             ? `Overdue by ${Math.abs(due.daysLeft)} day${Math.abs(due.daysLeft) !== 1 ? "s" : ""} (was due ${due.nextDue})`
@@ -641,7 +671,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
 
     setNotifications(notes);
-  }, [planned, deficiencies, logs, stations, tags, reminderDays, footplateReminder, materials, materialStations, materialReceipts, materialUsages, materialTransfers]);
+  }, [planned, deficiencies, logs, stations, tags, reminderDays, footplateReminder, jointReminder, materials, materialStations, materialReceipts, materialUsages, materialTransfers]);
 
   /** True when the current user already made a log entry for today. */
   const hasEntryToday = useMemo(() => {
@@ -745,6 +775,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         setReminderDays,
         footplateReminder,
         setFootplateReminder,
+        jointReminder,
+        setJointReminder,
         autoDriveSync,
         setAutoDriveSync,
         autoSync,

@@ -45,7 +45,7 @@ type GroupId = (typeof GROUPS)[number]["id"];
 const SWIPE_THRESHOLD = 48;
 
 export function Settings() {
-  const { stations, staff, tags, currentUser, refresh, fontSize, setFontSize, theme, setTheme, contentScale, setContentScale, reminderDays, setReminderDays, footplateReminder, setFootplateReminder } = useData();
+  const { stations, staff, tags, currentUser, refresh, fontSize, setFontSize, theme, setTheme, contentScale, setContentScale, reminderDays, setReminderDays, footplateReminder, setFootplateReminder, jointReminder, setJointReminder } = useData();
   const [group, setGroup] = useState<GroupId>("account");
   const [newStation, setNewStation] = useState<StationDraft>(EMPTY_STATION_DRAFT);
   const [editStation, setEditStation] = useState<Station | null>(null);
@@ -124,6 +124,51 @@ export function Settings() {
       },
     });
     setEditingFpReminder(false);
+  };
+
+  // Joint inspection reminder draft edit
+  const [editingJointReminder, setEditingJointReminder] = useState(false);
+  const [jrDraft, setJrDraft] = useState({
+    halfYearlyEnabled: true,
+    halfYearlyDays: "",
+    halfYearlyWarn: "",
+    quarterlyEnabled: true,
+    quarterlyDays: "",
+    quarterlyWarn: "",
+  });
+  const startJointReminderEdit = () => {
+    setJrDraft({
+      halfYearlyEnabled: jointReminder["half yearly"].enabled,
+      halfYearlyDays: jointReminder["half yearly"].periodicityDays != null ? String(jointReminder["half yearly"].periodicityDays) : "",
+      halfYearlyWarn: jointReminder["half yearly"].warnDays != null ? String(jointReminder["half yearly"].warnDays) : "",
+      quarterlyEnabled: jointReminder.quarterly.enabled,
+      quarterlyDays: jointReminder.quarterly.periodicityDays != null ? String(jointReminder.quarterly.periodicityDays) : "",
+      quarterlyWarn: jointReminder.quarterly.warnDays != null ? String(jointReminder.quarterly.warnDays) : "",
+    });
+    setEditingJointReminder(true);
+  };
+  const saveJointReminder = () => {
+    const days = (s: string): number | null => {
+      const v = Math.round(Number(s));
+      return s.trim() !== "" && Number.isFinite(v) && v >= 1 ? v : null;
+    };
+    const warn = (s: string): number | null => {
+      const v = Math.round(Number(s));
+      return s.trim() !== "" && Number.isFinite(v) && v >= 0 ? v : null;
+    };
+    setJointReminder({
+      "half yearly": {
+        enabled: jrDraft.halfYearlyEnabled,
+        periodicityDays: days(jrDraft.halfYearlyDays),
+        warnDays: warn(jrDraft.halfYearlyWarn),
+      },
+      quarterly: {
+        enabled: jrDraft.quarterlyEnabled,
+        periodicityDays: days(jrDraft.quarterlyDays),
+        warnDays: warn(jrDraft.quarterlyWarn),
+      },
+    });
+    setEditingJointReminder(false);
   };
 
   // Keep the active tab chip visible/centred in the heading row.
@@ -563,6 +608,122 @@ export function Settings() {
           Blank fields keep the defaults: monthly every 30 days, warned 5 days
           before due; quarterly every 90 days, warned 5 days before due.
           Overdue footplate inspections always warn regardless.
+        </p>
+        <div className="mt-3 rounded-lg border border-slate-200 p-3">
+          <p className="text-sm font-semibold text-slate-800">
+            Joint inspection reminder
+          </p>
+          <p className="mb-3 mt-1 text-xs text-slate-400">
+            Every joint inspection is tracked per station and per partner
+            department (Engg / OHE), each on its own half yearly or quarterly
+            cycle: after the periodicity passes from its last done date, a
+            reminder starts a set number of days before it is due.
+          </p>
+          {!editingJointReminder ? (
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-slate-700">
+                Half yearly {jointReminder["half yearly"].enabled ? "on" : "off"} ·
+                Quarterly {jointReminder.quarterly.enabled ? "on" : "off"}
+              </span>
+              <button
+                onClick={startJointReminderEdit}
+                className="rounded-lg border border-blue-800 px-4 py-2 text-sm font-semibold text-blue-800"
+              >
+                Edit
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {(["half yearly", "quarterly"] as const).map((per) => (
+                <div
+                  key={per}
+                  className="rounded-lg border border-slate-100 bg-slate-50 p-3"
+                >
+                  <label className="flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={
+                        per === "half yearly"
+                          ? jrDraft.halfYearlyEnabled
+                          : jrDraft.quarterlyEnabled
+                      }
+                      onChange={(e) =>
+                        setJrDraft((d) =>
+                          per === "half yearly"
+                            ? { ...d, halfYearlyEnabled: e.target.checked }
+                            : { ...d, quarterlyEnabled: e.target.checked }
+                        )
+                      }
+                      className="h-4 w-4 accent-blue-800"
+                    />
+                    Remind me before the {per} joint inspection is due
+                  </label>
+                  <div className="mt-2 flex flex-wrap gap-4">
+                    <label className="flex items-center gap-2 text-xs text-slate-600">
+                      Periodicity (days)
+                      <input
+                        type="number"
+                        min={1}
+                        disabled={
+                          per === "half yearly"
+                            ? !jrDraft.halfYearlyEnabled
+                            : !jrDraft.quarterlyEnabled
+                        }
+                        value={
+                          per === "half yearly" ? jrDraft.halfYearlyDays : jrDraft.quarterlyDays
+                        }
+                        onChange={(e) =>
+                          setJrDraft((d) =>
+                            per === "half yearly"
+                              ? { ...d, halfYearlyDays: e.target.value }
+                              : { ...d, quarterlyDays: e.target.value }
+                          )
+                        }
+                        className="w-16 rounded-lg border border-slate-300 px-2 py-1 text-center text-sm text-slate-800"
+                      />
+                    </label>
+                    <label className="flex items-center gap-2 text-xs text-slate-600">
+                      Warn (days before due)
+                      <input
+                        type="number"
+                        min={0}
+                        disabled={
+                          per === "half yearly"
+                            ? !jrDraft.halfYearlyEnabled
+                            : !jrDraft.quarterlyEnabled
+                        }
+                        value={
+                          per === "half yearly" ? jrDraft.halfYearlyWarn : jrDraft.quarterlyWarn
+                        }
+                        onChange={(e) =>
+                          setJrDraft((d) =>
+                            per === "half yearly"
+                              ? { ...d, halfYearlyWarn: e.target.value }
+                              : { ...d, quarterlyWarn: e.target.value }
+                          )
+                        }
+                        className="w-16 rounded-lg border border-slate-300 px-2 py-1 text-center text-sm text-slate-800"
+                      />
+                    </label>
+                  </div>
+                </div>
+              ))}
+              <div className="flex items-center gap-2">
+                <PrimaryButton onClick={saveJointReminder}>Save</PrimaryButton>
+                <button
+                  onClick={() => setEditingJointReminder(false)}
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+        <p className="mt-2 text-xs text-slate-400">
+          Blank fields keep the defaults: half yearly every 180 days, warned 5
+          days before due; quarterly every 90 days, warned 5 days before due.
+          Overdue joint inspections always warn regardless.
         </p>
       </Section>
         </>

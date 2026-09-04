@@ -8,8 +8,8 @@ import { PeriodPicker, monthPeriod, type Period } from "./PeriodPicker";
 import {
   INSPECTION_RULES,
   INSPECTION_KINDS,
-  PERIODIC_KINDS,
-  PERIODICITIES,
+  KIND_PERIODICITIES,
+  jointPeriodOf,
   expandInspectionRecords,
   formatInspectionDates,
   type InspectionKind,
@@ -56,12 +56,31 @@ export function InspectionExportModal({ open, onClose }: { open: boolean; onClos
           if (!matches) return false;
           if (l.logDate < period.from || l.logDate > period.to) return false;
           if (stationFilter && !logMatchesInspectionStation(l, stationFilter)) return false;
-          if (periodicity && l.inspectionPeriodicity !== periodicity) return false;
+          if (periodicity) {
+            // Legacy joint entries stored "monthly" — read as half yearly.
+            const eff =
+              l.inspectionKind === "joint"
+                ? jointPeriodOf(l.inspectionPeriodicity)
+                : (l.inspectionPeriodicity ?? "").toLowerCase();
+            if (eff !== periodicity) return false;
+          }
           return true;
         })
         .sort((a, b) => a.logDate.localeCompare(b.logDate)),
     [logs, kinds, period, stationFilter, periodicity]
   );
+
+  // The periodicity filter offers the cycles of the currently selected kinds
+  // (joint: half yearly / quarterly, footplate: monthly / quarterly), deduped.
+  const periodicityOptions = useMemo(() => {
+    const out: string[] = [];
+    for (const k of kinds) {
+      if (k === "joint" || k === "footplate") {
+        for (const pd of KIND_PERIODICITIES[k]) if (!out.includes(pd)) out.push(pd);
+      }
+    }
+    return out;
+  }, [kinds]);
 
   const selected = rows.filter((r) => !deselected.has(r.id));
 
@@ -136,7 +155,7 @@ export function InspectionExportModal({ open, onClose }: { open: boolean; onClos
         <PeriodPicker period={period} onChange={setPeriod} custom={custom} setCustom={setCustom} />
       </div>
 
-      {kinds.some((k) => PERIODIC_KINDS.includes(k)) && (
+      {periodicityOptions.length > 0 && (
         <div className="mb-3">
           <p className="mb-1 text-sm font-medium text-slate-700">Periodicity</p>
           <div className="flex gap-2">
@@ -148,7 +167,7 @@ export function InspectionExportModal({ open, onClose }: { open: boolean; onClos
             >
               Both
             </button>
-            {PERIODICITIES.map((pd) => (
+            {periodicityOptions.map((pd) => (
               <button
                 key={pd}
                 onClick={() => setPeriodicity(pd)}

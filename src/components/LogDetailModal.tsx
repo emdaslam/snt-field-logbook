@@ -7,7 +7,7 @@ import { Modal, Chip } from "./ui";
 import { api, fmtDate, dayName, formatFootplateSummary, footplateRidesOf, pcdoWorkEntries, counterResetsOf, counterResetTotal } from "@/lib/api";
 import { DEPARTMENT_COLORS } from "@/lib/types";
 import { isSharedLog } from "@/lib/backup";
-import { INSPECTION_RULES, addDays, type InspectionKind } from "@/lib/inspections";
+import { INSPECTION_RULES, addDays, intervalFor, jointPeriodOf, type InspectionKind } from "@/lib/inspections";
 import { AttachmentPreviewModal } from "./AttachmentPreviewModal";
 import type { DailyLog, Attachment, FootplateBlock, FootplateDetail, FootplateJourneyTrain, FootplateRide, JourneyLeg } from "@/db/schema";
 import { FootplateDetailRows } from "./FootplateRows";
@@ -106,7 +106,9 @@ export function LogDetailModal({
                     ? `, towards ${stationName(log.inspectionTowardsStationId)} side`
                     : ""}
                 {log.inspectionJointDept ? ` · jointly with ${log.inspectionJointDept}` : ""}
-                {log.inspectionPeriodicity ? ` · ${log.inspectionPeriodicity}` : ""}
+                {log.inspectionPeriodicity
+                  ? ` · ${log.inspectionKind === "joint" ? jointPeriodOf(log.inspectionPeriodicity) : log.inspectionPeriodicity}`
+                  : ""}
               </p>
               {log.footplateShift && (
                 <p className="mt-1 text-sm text-sky-950">
@@ -129,7 +131,9 @@ export function LogDetailModal({
                   log.logDate,
                   log.inspectionRemindDays && log.inspectionRemindDays > 0
                     ? log.inspectionRemindDays
-                    : INSPECTION_RULES[log.inspectionKind as InspectionKind]?.intervalDays ?? 30
+                    : log.inspectionKind
+                      ? intervalFor(log.inspectionKind as InspectionKind, log.inspectionPeriodicity)
+                      : 30
                 )}
               </p>
             </div>

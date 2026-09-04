@@ -115,7 +115,9 @@ export const dailyLogs = pgTable("daily_logs", {
   // For joint inspections: the department it was carried out with (Engg / OHE)
   inspectionJointDept: varchar("inspection_joint_dept", { length: 40 }),
   // Footplate inspection: day/night shift, direction, and per-direction train details
-  // Footplate & joint inspections run on either a monthly or quarterly cycle
+  // Footplate inspections run on a monthly or quarterly cycle; joint
+  // inspections run on a half yearly or quarterly cycle ("monthly" is a
+  // legacy spelling of the joint half yearly cycle)
   inspectionPeriodicity: varchar("inspection_periodicity", { length: 20 }),
   // Custom reminder cycle in days for point oiling / battery distilled water
   inspectionRemindDays: integer("inspection_remind_days"),

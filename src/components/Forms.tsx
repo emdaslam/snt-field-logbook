@@ -34,6 +34,8 @@ import {
   JOINT_DEPARTMENTS,
   PERIODICITIES,
   PERIODIC_KINDS,
+  KIND_PERIODICITIES,
+  jointPeriodOf,
   FOOTPLATE_DIRECTIONS,
   intervalFor,
   addDays,
@@ -1007,7 +1009,11 @@ export function DailyLogForm({
     return mv.id === existing.inspectionStationId ? null : existing.inspectionStationId;
   });
   const [jointDept, setJointDept] = useState(existing?.inspectionJointDept ?? "");
-  const [periodicity, setPeriodicity] = useState(existing?.inspectionPeriodicity ?? "monthly");
+  const [periodicity, setPeriodicity] = useState<string>(() =>
+    inspectionKind === "joint"
+      ? jointPeriodOf(existing?.inspectionPeriodicity)
+      : (existing?.inspectionPeriodicity ?? "monthly")
+  );
   const [fpDay, setFpDay] = useState(
     (existing?.footplateShift ?? "").split(",").map((s) => s.trim()).includes("Day")
   );
@@ -1249,6 +1255,8 @@ export function DailyLogForm({
   const pcdoDate = logDate;
   const needsSideTags = tags.filter((t) => t.needsSide && !kindFromTagName(t.name));
   const kindIntervalDays = (() => {
+    if (inspectionKind && PERIODIC_KINDS.includes(inspectionKind))
+      return intervalFor(inspectionKind, periodicity);
     for (const id of tagIds) {
       const t = tags.find((x) => x.id === id);
       if (t && t.remindEnabled && t.remindIntervalDays) return t.remindIntervalDays;
@@ -2723,7 +2731,7 @@ export function DailyLogForm({
             <label className="mt-2 block">
               <span className="mb-1 block text-xs font-medium text-slate-700">Periodicity</span>
               <div className="flex gap-2">
-                {PERIODICITIES.map((pd) => (
+                {KIND_PERIODICITIES[inspectionKind as "joint" | "footplate"].map((pd) => (
                   <button
                     key={pd}
                     type="button"

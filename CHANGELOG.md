@@ -3,6 +3,16 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.48 — 2026-09-04
+
+**Minor: joint inspections run on a half yearly cycle instead of monthly, with dedicated half yearly / quarterly reminder settings**
+
+- The joint inspection tag no longer offers a **monthly** cycle: in a log entry the joint inspection's periodicity is now **Half yearly** (180 days) or **Quarterly** (90 days). Joint entries previously recorded as monthly are read as half yearly everywhere (schedule, log details, inspections report).
+- New **Joint inspection reminder** in Settings → Notifications, under the footplate one: switch the **half yearly** and **quarterly** reminders on or off, and for each set the **periodicity** in days (blank = default 180 / 90) and the number of days **before due** to start warning (blank = 5) — both fields editable.
+- Joint reminders stay tracked **per station, per partner department** (Engg / OHE) and per cycle, exactly as before. Due-date notifications and Reports → Inspection Schedule now also show the cycle, e.g. "Joint Inspection — STN (with Engg) · Half yearly".
+- The inspections report's Periodicity filter now offers the cycles available for the selected types (half yearly / quarterly for joint, monthly / quarterly for footplate).
+- The "next due" line in a joint entry's details now follows the chosen cycle (180 / 90 days) instead of the fixed default.
+
 ## 1.7.7.47 — 2026-09-04
 
 **Major: tap a timeline date that has no daily log to add that day's log**

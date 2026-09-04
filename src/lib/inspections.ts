@@ -18,7 +18,7 @@ export const INSPECTION_RULES: Record<
   monthly: { label: "Monthly Inspection", intervalDays: 30, remindBefore: 5, color: "#2563eb" },
   maintenance: { label: "Maintenance", intervalDays: 14, remindBefore: 5, color: "#059669" },
   quarterly: { label: "Quarterly Inspection", intervalDays: 90, remindBefore: 5, color: "#7c3aed" },
-  // Joint inspection follows the quarterly cycle, carried out with another dept
+  // Joint inspection follows the half yearly or quarterly cycle (user's pick)
   joint: { label: "Joint Inspection", intervalDays: 90, remindBefore: 5, color: "#c026d3" },
   // Footplate follows whichever periodicity the user picks
   footplate: { label: "Footplate Inspection", intervalDays: 30, remindBefore: 5, color: "#0891b2" },
@@ -27,16 +27,35 @@ export const INSPECTION_RULES: Record<
   battery: { label: "Battery Distilled Water", intervalDays: 15, remindBefore: 5, color: "#0d9488" },
 };
 
-/** Joint & footplate inspections may run monthly or quarterly. */
+/** Cycle lengths in days. Footplate runs monthly or quarterly; joint runs
+ *  half yearly or quarterly (its former "monthly" entries read as half yearly). */
 export const PERIODICITIES = ["monthly", "quarterly"] as const;
-export type Periodicity = (typeof PERIODICITIES)[number];
-export const PERIODICITY_DAYS: Record<Periodicity, number> = { monthly: 30, quarterly: 90 };
+export type Periodicity = "monthly" | "quarterly" | "half yearly";
+export const PERIODICITY_DAYS: Record<Periodicity, number> = { monthly: 30, quarterly: 90, "half yearly": 180 };
+
+/** The cycle options each periodic kind offers in the entry form. */
+export const KIND_PERIODICITIES: Record<Extract<InspectionKind, "joint" | "footplate">, readonly string[]> = {
+  joint: ["half yearly", "quarterly"],
+  footplate: ["monthly", "quarterly"],
+};
 
 /** Kinds whose cycle length is chosen by the user. */
 export const PERIODIC_KINDS: InspectionKind[] = ["joint", "footplate"];
 
+/** A joint entry's effective cycle: legacy "monthly" (and blanks) read as
+ *  "half yearly", since monthly is no longer an option for joint. */
+export function jointPeriodOf(raw?: string | null): "half yearly" | "quarterly" {
+  return (raw ?? "").toLowerCase() === "quarterly" ? "quarterly" : "half yearly";
+}
+
+/** First letter uppercased: "half yearly" → "Half yearly". */
+export function cap(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 export function intervalFor(kind: InspectionKind, periodicity?: string | null) {
-  if (PERIODIC_KINDS.includes(kind) && periodicity && periodicity in PERIODICITY_DAYS) {
+  if (kind === "joint") return PERIODICITY_DAYS[jointPeriodOf(periodicity)];
+  if (kind === "footplate" && periodicity && periodicity in PERIODICITY_DAYS) {
     return PERIODICITY_DAYS[periodicity as Periodicity];
   }
   return INSPECTION_RULES[kind].intervalDays;
@@ -88,6 +107,53 @@ export function normalizeFootplateReminder(v: unknown): FootplateReminderSetting
   return {
     monthly: period(o.monthly, DEFAULT_FOOTPLATE_REMINDER.monthly),
     quarterly: period(o.quarterly, DEFAULT_FOOTPLATE_REMINDER.quarterly),
+  };
+}
+
+/**
+ * Dedicated joint inspection reminder settings (Settings → Notifications →
+ * Joint inspection reminder). Each cycle gets its own cycle length and its own
+ * "warn N days before due" window; a null cycle day-count keeps the built-in
+ * default (180 for half yearly, 90 for quarterly) and a null warn count means
+ * 5. Joint schedules stay tracked per station AND per partner department.
+ */
+export type JointPeriodSetting = {
+  enabled: boolean;
+  periodicityDays: number | null;
+  warnDays: number | null;
+};
+export type JointReminderSettings = {
+  "half yearly": JointPeriodSetting;
+  quarterly: JointPeriodSetting;
+};
+export const DEFAULT_JOINT_REMINDER: JointReminderSettings = {
+  "half yearly": { enabled: true, periodicityDays: null, warnDays: null },
+  quarterly: { enabled: true, periodicityDays: null, warnDays: null },
+};
+
+/** Parse the persisted JSON (localStorage) into a full joint settings object. */
+export function normalizeJointReminder(v: unknown): JointReminderSettings {
+  const num = (x: unknown): number | null =>
+    typeof x === "number" && Number.isFinite(x) && x > 0 ? Math.round(x) : null;
+  const period = (x: unknown, def: JointPeriodSetting): JointPeriodSetting => {
+    if (!x || typeof x !== "object") return def;
+    const o = x as Record<string, unknown>;
+    return {
+      enabled: o.enabled === undefined ? def.enabled : o.enabled === true,
+      periodicityDays: num(o.periodicityDays) ?? null,
+      warnDays:
+        o.warnDays === undefined || o.warnDays === null
+          ? null
+          : typeof o.warnDays === "number" && Number.isFinite(o.warnDays)
+            ? Math.max(0, Math.round(o.warnDays))
+            : null,
+    };
+  };
+  if (!v || typeof v !== "object") return DEFAULT_JOINT_REMINDER;
+  const o = v as Record<string, unknown>;
+  return {
+    "half yearly": period(o["half yearly"], DEFAULT_JOINT_REMINDER["half yearly"]),
+    quarterly: period(o.quarterly, DEFAULT_JOINT_REMINDER.quarterly),
   };
 }
 
@@ -225,7 +291,8 @@ export type InspectionDue = {
   towardsId: number | null;
   /** For joint inspections: the partnering department */
   jointDept?: string | null;
-  /** For joint/footplate: the chosen monthly or quarterly cycle */
+  /** For joint/footplate: the chosen cycle (joint: half yearly / quarterly,
+   *  footplate: monthly / quarterly) */
   periodicity?: string | null;
   /** Footplate only: which shift (Day / Night) and direction (Up / Down) this schedule tracks */
   fpShift?: string | null;
@@ -363,7 +430,10 @@ function collectLatest(
     if (kind === "footplate") continue;
     const st = resolve(r);
     const dept = kind === "joint" ? (r.inspectionJointDept || "").toLowerCase() : "";
-    const per = PERIODIC_KINDS.includes(kind) ? (r.inspectionPeriodicity || "").toLowerCase() : "";
+    const per =
+      kind === "joint"
+        ? jointPeriodOf(r.inspectionPeriodicity)
+        : (r.inspectionPeriodicity || "").toLowerCase();
     // A station's schedule is keyed by its resolved name (normalised). The same
     // station can be recorded once with a station id and once as free text
     // (or under a slightly different spelling); keying by name keeps both on
@@ -409,7 +479,7 @@ function collectLatest(
             date: r.logDate,
             id: r.id,
             jointDept: r.inspectionJointDept ?? null,
-            periodicity: r.inspectionPeriodicity ?? null,
+            periodicity: kind === "joint" ? jointPeriodOf(r.inspectionPeriodicity) : r.inspectionPeriodicity ?? null,
             intervalDays: r.inspectionRemindDays ?? null,
           });
       }
@@ -430,7 +500,7 @@ function collectLatest(
         date: r.logDate,
         id: r.id,
         jointDept: r.inspectionJointDept ?? null,
-        periodicity: r.inspectionPeriodicity ?? null,
+        periodicity: kind === "joint" ? jointPeriodOf(r.inspectionPeriodicity) : r.inspectionPeriodicity ?? null,
         intervalDays: r.inspectionRemindDays ?? null,
       });
   }
@@ -542,6 +612,61 @@ function footplateSchedules(
 }
 
 /**
+ * One schedule per (station, partner department, cycle) that the user has ever
+ * entered. Each is due `interval` days after its own last done date (the cycle
+ * set on that entry — half yearly / quarterly, with the dedicated settings
+ * overriding the lengths), warned from `warnDays` before due and tracked once
+ * overdue. `all` (Reports) lists every tracked schedule; otherwise only the
+ * ones inside their warning window or overdue — and the reminder is suppressed
+ * when the joint tag's "Remind me" is off or that cycle is switched off in the
+ * joint reminder settings.
+ */
+function jointSchedules(
+  records: InspectionRecord[],
+  today: string,
+  resolve: StationResolver,
+  tagConfig?: TagReminderConfigMap,
+  jointSettings?: JointReminderSettings,
+  sideKinds?: Set<InspectionKind>,
+  all = false
+): InspectionDue[] {
+  const latest = collectLatest(records, resolve, sideKinds);
+  const out: InspectionDue[] = [];
+  for (const [key, v] of latest) {
+    if (v.kind !== "joint") continue;
+    const perKey = jointPeriodOf(v.periodicity);
+    const js = jointSettings?.[perKey] ?? DEFAULT_JOINT_REMINDER[perKey];
+    if (!all && tagConfig?.joint?.enabled === false) continue;
+    if (!all && !js.enabled) continue;
+    const interval =
+      js.periodicityDays && js.periodicityDays > 0 ? js.periodicityDays : PERIODICITY_DAYS[perKey];
+    const warn =
+      js.warnDays !== null && js.warnDays !== undefined && js.warnDays >= 0
+        ? js.warnDays
+        : INSPECTION_RULES.joint.remindBefore;
+    const nextDue = addDays(v.date, interval);
+    const daysLeft = daysBetween(today, nextDue);
+    if (!all && daysLeft > warn) continue;
+    out.push({
+      key,
+      kind: "joint",
+      station: v.station,
+      stationId: v.stationId,
+      towards: v.towards,
+      towardsId: v.towardsId,
+      jointDept: v.jointDept,
+      periodicity: perKey,
+      lastDone: v.date,
+      nextDue,
+      daysLeft,
+      overdue: daysLeft < 0,
+      sourceLogId: v.id,
+    });
+  }
+  return out.sort((a, b) => a.daysLeft - b.daysLeft);
+}
+
+/**
  * One log can record two inspection facts: the tagged periodic inspection kept
  * in the log's own columns (e.g. a monthly inspection at a station) and a
  * footplate ride inside the day's movement chain, whose data lives in the
@@ -603,12 +728,16 @@ export function computeInspectionDues(
   resolveStation: StationResolver = defaultResolver,
   tagConfig?: TagReminderConfigMap,
   footplateSettings?: FootplateReminderSettings,
-  sideKinds?: Set<InspectionKind>
+  sideKinds?: Set<InspectionKind>,
+  jointSettings?: JointReminderSettings
 ): InspectionDue[] {
   const latest = collectLatest(records, resolveStation, sideKinds);
 
   const out: InspectionDue[] = [];
   for (const [key, v] of latest) {
+    // Joint is scheduled by jointSchedules (its own per-cycle settings)
+    // exactly like footplate, so the generic loop skips it.
+    if (v.kind === "joint") continue;
     const rule = INSPECTION_RULES[v.kind];
     const cfg = tagConfig?.[v.kind];
     if (cfg && !cfg.enabled) continue; // reminder switched off for this tag
@@ -634,6 +763,9 @@ export function computeInspectionDues(
       });
     }
   }
+  out.push(
+    ...jointSchedules(records, today, resolveStation, tagConfig, jointSettings, sideKinds)
+  );
   out.push(...footplateSchedules(records, today, resolveStation, tagConfig, footplateSettings));
   return out.sort((a, b) => a.daysLeft - b.daysLeft);
 }
@@ -645,15 +777,21 @@ export function computeAllSchedules(
   resolveStation: StationResolver = defaultResolver,
   tagConfig?: TagReminderConfigMap,
   footplateSettings?: FootplateReminderSettings,
-  sideKinds?: Set<InspectionKind>
+  sideKinds?: Set<InspectionKind>,
+  jointSettings?: JointReminderSettings
 ): InspectionDue[] {
   const latest = collectLatest(records, resolveStation, sideKinds);
-  const out: InspectionDue[] = [...latest.entries()].map(([key, v]) => {
+  const out: InspectionDue[] = [...latest.entries()]
+    .filter(([, v]) => v.kind !== "joint") // joint is listed by jointSchedules
+    .map(([key, v]) => {
       const cfg = tagConfig?.[v.kind];
       const nextDue = addDays(v.date, intervalForSchedule(v, cfg));
       const daysLeft = daysBetween(today, nextDue);
       return { key, kind: v.kind, station: v.station, stationId: v.stationId, towards: v.towards, towardsId: v.towardsId, jointDept: v.jointDept, periodicity: v.periodicity, lastDone: v.date, nextDue, daysLeft, overdue: daysLeft < 0, sourceLogId: v.id };
     });
+  out.push(
+    ...jointSchedules(records, today, resolveStation, tagConfig, jointSettings, sideKinds, true)
+  );
   out.push(...footplateSchedules(records, today, resolveStation, tagConfig, footplateSettings, true));
   return out.sort((a, b) => a.daysLeft - b.daysLeft);
 }

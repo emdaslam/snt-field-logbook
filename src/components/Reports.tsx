@@ -12,7 +12,7 @@ import { useBackClose } from "@/lib/backButton";
 import { fmtDate, pcdoWorkEntries, counterResetsOf, counterResetTotal, isTaClaimable } from "@/lib/api";
 import { PrimaryButton } from "./ui";
 import { StatDetailModal, type StatRow } from "./StatDetailModal";
-import { computeAllSchedules, expandInspectionRecords, INSPECTION_RULES, isGenericSideLabel, sideAskingKinds, tagReminderConfigs } from "@/lib/inspections";
+import { computeAllSchedules, expandInspectionRecords, INSPECTION_RULES, isGenericSideLabel, sideAskingKinds, tagReminderConfigs, cap } from "@/lib/inspections";
 import type { DailyLog, DeficiencyTask, PlannedWork } from "@/db/schema";
 
 export function Reports({
@@ -30,7 +30,7 @@ export function Reports({
   onDrillChange?: (open: boolean) => void;
   drillCloseRef?: MutableRefObject<() => void>;
 }) {
-  const { logs, deficiencies, planned, stations, stationName, tags, currentUser, footplateReminder } = useData();
+  const { logs, deficiencies, planned, stations, stationName, tags, currentUser, footplateReminder, jointReminder } = useData();
   const [tomorrowOpen, setTomorrowOpen] = useState(false);
   const [pcdoOpen, setPcdoOpen] = useState(false);
   const [diaryOpen, setDiaryOpen] = useState(false);
@@ -146,8 +146,8 @@ export function Reports({
               ? "Both sides"
               : tw?.name ?? "Unspecified side",
         };
-      }, tagReminderConfigs(tags), footplateReminder, sideAskingKinds(tags)),
-    [logs, stations, tags, footplateReminder]
+      }, tagReminderConfigs(tags), footplateReminder, sideAskingKinds(tags), jointReminder),
+    [logs, stations, tags, footplateReminder, jointReminder]
   );
 
   return (
@@ -478,6 +478,7 @@ export function Reports({
                           ? d.towards.toLowerCase()
                           : `towards ${d.towards}${d.towards === "Both sides" ? "" : " side"}`}`}
                       {d.jointDept ? ` (with ${d.jointDept})` : ""}
+                      {d.kind === "joint" && d.periodicity ? ` · ${cap(d.periodicity)} cycle` : ""}
                     </p>
                     <p className="text-xs text-slate-400">
                       Last {d.lastDone} → next {d.nextDue}
