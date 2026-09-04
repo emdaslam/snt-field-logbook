@@ -1,26 +1,51 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useData } from "./DataProvider";
 import { Chip, Highlight } from "./ui";
-import { fmtDate } from "@/lib/api";
+import { api, fmtDate } from "@/lib/api";
 import { DEPARTMENTS, PRIORITIES, STATUSES, DEPARTMENT_COLORS, PRIORITY_COLORS } from "@/lib/types";
-import type { DailyLog, DeficiencyTask, PlannedWork, Note } from "@/db/schema";
+import type { DailyLog, DeficiencyTask, PlannedWork, Note, Material, MaterialReceipt, MaterialUsage, MaterialTransfer, MaterialStation } from "@/db/schema";
 
-type ResultType = "Log" | "Deficiency" | "Planned Work" | "Note";
+type ResultType = "Log" | "Deficiency" | "Planned Work" | "Note" | "Material";
 
 export function SearchView({
   onOpenLog,
   onOpenDef,
   onOpenPlan,
   onOpenNote,
+  onOpenMaterial,
 }: {
   onOpenLog: (l: DailyLog) => void;
   onOpenDef: (d: DeficiencyTask) => void;
   onOpenPlan: (p: PlannedWork) => void;
   onOpenNote: (n: Note) => void;
+  onOpenMaterial: (id: number) => void;
 }) {
   const { logs, deficiencies, planned, notes, noteCategories, tags, stations, staff, stationName } = useData();
+  // Materials live in the local DB (not in the shared context) — load them for
+  // searching, like the Materials screen itself does.
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [matReceipts, setMatReceipts] = useState<MaterialReceipt[]>([]);
+  const [matUsages, setMatUsages] = useState<MaterialUsage[]>([]);
+  const [matTransfers, setMatTransfers] = useState<MaterialTransfer[]>([]);
+  const [matStations, setMatStations] = useState<MaterialStation[]>([]);
+  useEffect(() => {
+    void (async () => {
+      const [m, r, u, t, ms] = await Promise.all([
+        api.materials.list(),
+        api.materialReceipts.list(),
+        api.materialUsages.list(),
+        api.materialTransfers.list(),
+        api.materialStations.list(),
+      ]);
+      setMaterials(m);
+      setMatReceipts(r);
+      setMatUsages(u);
+      setMatTransfers(t);
+      setMatStations(ms);
+    })();
+  }, []);
   const [q, setQ] = useState("");
   const [typeF, setTypeF] = useState<ResultType | "">("");
   const [stationF, setStationF] = useState<number | "">("");
@@ -142,8 +167,49 @@ export function SearchView({
         });
       }
     }
+    // Materials: matched by name or equipment. A material only appears for a
+    // station filter when it actually has presence there (a requirement, a
+    // receipt, a usage, or a transfer) — the same rule the Materials screen
+    // uses to build each station's list.
+    if (!typeF || typeF === "Material") {
+      for (const m of materials) {
+        if (deptF || prioF || tagF || statusF || staffF || attachF) continue;
+        if (stationF) {
+          const present =
+            matStations.some((s) => s.materialId === m.id && s.stationId === stationF) ||
+            matReceipts.some((r) => r.materialId === m.id && r.stationId === stationF) ||
+            matUsages.some((u) => u.materialId === m.id && u.stationId === stationF) ||
+            matTransfers.some(
+              (t) => t.materialId === m.id && (t.fromStationId === stationF || t.toStationId === stationF)
+            );
+          if (!present) continue;
+        }
+        const equipment = (m.equipment || "general").trim() || "general";
+        const text = `${m.name} ${equipment}`.toLowerCase();
+        if (ql && !text.includes(ql)) continue;
+        const received = matReceipts.filter((r) => r.materialId === m.id).reduce((n, r) => n + r.qty, 0);
+        const used = matUsages.filter((u) => u.materialId === m.id).reduce((n, u) => n + u.qty, 0);
+        const inHand = received - used;
+        out.push({
+          key: "m" + m.id,
+          type: "Material",
+          id: m.id,
+          title: m.name,
+          sub: equipment === "general" ? (m.unit ? `Unit: ${m.unit}` : "") : `Equipment: ${equipment}`,
+          chips: [
+            { label: `Required: ${m.requiredQty}${m.unit ? " " + m.unit : ""}`, color: "#2563eb" },
+            { label: `In hand: ${inHand}`, color: inHand < 0 ? "#dc2626" : "#059669" },
+          ],
+          date: "",
+        });
+      }
+    }
     return out;
-  }, [q, typeF, stationF, deptF, prioF, tagF, statusF, staffF, attachF, logs, deficiencies, planned, notes, noteCategories, tags, stationName]);
+  }, [
+    q, typeF, stationF, deptF, prioF, tagF, statusF, staffF, attachF,
+    logs, deficiencies, planned, notes, noteCategories, tags, stationName,
+    materials, matReceipts, matUsages, matTransfers, matStations,
+  ]);
 
   const selCls = "w-full min-w-0 rounded-full border border-slate-300 bg-surface px-2.5 py-1 text-xs text-slate-700";
 
@@ -153,7 +219,7 @@ export function SearchView({
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search logs, tasks, notes & planned works…"
+          placeholder="Search logs, tasks, notes, materials & planned works…"
           className="w-full rounded-full border border-slate-300 bg-surface px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
         />
         <div className="grid grid-cols-3 gap-2">
@@ -163,6 +229,7 @@ export function SearchView({
             <option>Deficiency</option>
             <option>Planned Work</option>
             <option>Note</option>
+            <option>Material</option>
           </select>
           <select className={selCls} value={stationF} onChange={(e) => setStationF(e.target.value ? Number(e.target.value) : "")}>
             <option value="">All Stations</option>
@@ -212,6 +279,9 @@ export function SearchView({
               } else if (r.type === "Deficiency") {
                 const d = deficiencies.find((x) => x.id === r.id);
                 if (d) onOpenDef(d);
+              } else if (r.type === "Material") {
+                const m = materials.find((x) => x.id === r.id);
+                if (m) onOpenMaterial(m.id);
               } else if (r.type === "Note") {
                 const n = notes.find((x) => x.id === r.id);
                 if (n) onOpenNote(n);

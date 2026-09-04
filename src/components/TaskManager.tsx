@@ -12,6 +12,11 @@ import type { Attachment, DeficiencyTask, PlannedWork } from "@/db/schema";
 
 type Tab = "deficiencies" | "planned" | "archive";
 
+const TAB_LIST: Tab[] = ["deficiencies", "planned", "archive"];
+
+/** Minimum horizontal drag distance (px) that commits a sub-tab swipe. */
+const SWIPE_THRESHOLD = 48;
+
 export function TaskManager({
   tab: tabProp,
   setTab: setTabProp,
@@ -48,6 +53,36 @@ export function TaskManager({
   const [planDept, setPlanDept] = useState("");
   const [planStation, setPlanStation] = useState("");
   const [previewAtt, setPreviewAtt] = useState<Attachment | null>(null);
+  // Horizontal swipe between the sub-tabs (Deficiencies / Planned / Archive):
+  // the content slides in (see .tab-enter-* in globals.css). touchAction
+  // "pan-y" keeps vertical scrolling native while horizontal moves reach us.
+  const [lastDir, setLastDir] = useState<1 | -1>(1);
+  const swipeStart = useRef<{ x: number; y: number } | null>(null);
+  const swipeBlocked = !!(editDef || editPlan || convertDef || previewAtt);
+  const selectTab = (t: Tab) => {
+    setLastDir(TAB_LIST.indexOf(t) >= TAB_LIST.indexOf(tab) ? 1 : -1);
+    setTab(t);
+  };
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (swipeBlocked) return;
+    const t = e.touches[0];
+    swipeStart.current = { x: t.clientX, y: t.clientY };
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    const s = swipeStart.current;
+    if (!s) return;
+    const t = e.touches[0];
+    const dx = t.clientX - s.x;
+    const dy = t.clientY - s.y;
+    // Only clearly-horizontal gestures switch sub-tabs; vertical pans scroll.
+    if (Math.abs(dx) <= Math.abs(dy) || Math.abs(dx) < SWIPE_THRESHOLD) return;
+    swipeStart.current = null;
+    const next = TAB_LIST[TAB_LIST.indexOf(tab) + (dx < 0 ? 1 : -1)];
+    if (next) selectTab(next);
+  };
+  const onTouchEnd = () => {
+    swipeStart.current = null;
+  };
   // The native back key closes the open attachment preview / convert form first
   useBackClose(previewAtt !== null || convertDef !== null, () => {
     if (previewAtt) setPreviewAtt(null);
@@ -122,12 +157,19 @@ export function TaskManager({
   });
 
   return (
-    <div className="pb-24">
+    <div
+      className="pb-24"
+      style={{ touchAction: "pan-y" }}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      onTouchCancel={onTouchEnd}
+    >
       <div className="sticky top-0 z-10 flex border-b border-slate-200 bg-surface">
-        {(["deficiencies", "planned", "archive"] as Tab[]).map((t) => (
+        {TAB_LIST.map((t) => (
           <button
             key={t}
-            onClick={() => setTab(t)}
+            onClick={() => selectTab(t)}
             className={`flex-1 py-3 text-sm font-medium capitalize ${
               tab === t ? "border-b-2 border-blue-800 text-blue-800" : "text-slate-500"
             }`}
@@ -137,6 +179,7 @@ export function TaskManager({
         ))}
       </div>
 
+      <div key={tab} className={lastDir === 1 ? "tab-enter-right" : "tab-enter-left"}>
       {myStationsOnly && (
         <div className="border-b border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] text-emerald-800">
           Showing only your mapped stations:{" "}
@@ -334,10 +377,11 @@ export function TaskManager({
                 >
                   Mark Incomplete
                 </button>
-              </div>
+               </div>
             ))}
           </>
         )}
+      </div>
       </div>
 
       {editDef && <DeficiencyForm open onClose={() => setEditDef(null)} existing={editDef} />}

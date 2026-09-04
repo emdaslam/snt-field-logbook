@@ -3,6 +3,14 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.44 — 2026-09-04
+
+**Minor: materials are searchable in Global Search, the Tasks sub-tabs can be swiped, and the calendar month swipe is more sensitive**
+
+- Global Search now also searches **materials**: type a material name (or the equipment it is filed under) and a "Material" result appears with its required and in-hand quantities. The type filter gains a "Material" option, and the station filter works for materials too (it only lists a material when it actually has a requirement, stock or a transfer at that station). Tapping a result opens the Materials screen with the relevant station group expanded, scrolls to the material and highlights it briefly.
+- The **Tasks** tab now responds to a horizontal swipe: swiping left / right moves between its sub-tabs (Deficiencies / Planned / Archive) with the same slide-in animation the Settings groups use. Tapping the tab labels still works, and swiping is ignored while a task form or an attachment preview is open.
+- The Home **calendar**'s sideways month swipe is more sensitive — a noticeably shorter drag now flips to the previous / next month. Vertical scrolling of the calendar is unchanged.
+
 ## 1.7.7.43 — 2026-09-03
 
 **Major: reminders for tags that ask for the station side are now tracked per side, and the side picker remembers each station's sides**

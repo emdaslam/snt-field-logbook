@@ -132,6 +132,8 @@ export function AppShell() {
   const [searchPlan, setSearchPlan] = useState<PlannedWork | null>(null);
   // A note picked in Global Search — the Notes screen opens it expanded.
   const [searchNote, setSearchNote] = useState<Note | null>(null);
+  // A material picked in Global Search — the Materials screen opens it expanded.
+  const [searchMaterial, setSearchMaterial] = useState<number | null>(null);
   const [taskTab, setTaskTab] = useState<"deficiencies" | "planned" | "archive">("deficiencies");
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [reportsDrill, setReportsDrill] = useState(false);
@@ -646,6 +648,7 @@ export function AppShell() {
                 onOpenDef={(d) => setSearchDef(d)}
                 onOpenPlan={(p) => setSearchPlan(p)}
                 onOpenNote={(n) => { go("notes"); setSearchNote(n); }}
+                onOpenMaterial={(id) => { go("materials"); setSearchMaterial(id); }}
               />
             )}
             {view === "reports" && (
@@ -660,7 +663,7 @@ export function AppShell() {
             )}
             {view === "notes" && <Notes focusNote={searchNote} />}
             {view === "attachments" && <AttachmentsView onSelect={setSelAttachment} />}
-            {view === "materials" && <Materials />}
+            {view === "materials" && <Materials focusMaterialId={searchMaterial} />}
             {view === "settings" && <Settings />}
           </div>
         )}
@@ -721,7 +724,7 @@ export function AppShell() {
             {(["home", "notes", "attachments", "materials", "settings"] as View[]).map((v) => (
               <button
                 key={v}
-                onClick={() => { go(v); if (v === "notes") setSearchNote(null); setDrawer(false); }}
+                onClick={() => { go(v); if (v === "notes") setSearchNote(null); if (v === "materials") setSearchMaterial(null); setDrawer(false); }}
                 className={`mb-1 block w-full rounded-lg px-3 py-2.5 text-left text-sm capitalize ${
                   view === v ? "bg-emerald-500 font-semibold" : "hover:bg-blue-800"
                 }`}

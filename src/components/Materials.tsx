@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useData } from "./DataProvider";
 import { useBackClose } from "@/lib/backButton";
 import { Modal, Field, inputClass, PrimaryButton } from "./ui";
@@ -106,8 +106,10 @@ function groupRowsByEquipment<T extends { material: Material }>(rows: T[]): { eq
 
 /** Hamburger "Materials" tab — the required list grouped station-wise, with
  *  each station's own requirement and minimum spare, and its received / used /
- *  in-hand quantities for every material. */
-export function Materials() {
+ *  in-hand quantities for every material. `focusMaterialId` (set when a
+ *  material is opened from Global Search) expands the stations that carry it,
+ *  scrolls the row into view and flashes it briefly. */
+export function Materials({ focusMaterialId }: { focusMaterialId?: number | null } = {}) {
   const { stations, stationName, refresh } = useData();
   const [materials, setMaterials] = useState<Material[]>([]);
   const [receipts, setReceipts] = useState<MaterialReceipt[]>([]);
@@ -133,6 +135,10 @@ export function Materials() {
   const [equipmentForm, setEquipmentForm] = useState(false);
   const [exportMenu, setExportMenu] = useState(false);
   const [busy, setBusy] = useState(false);
+  // From Global Search: which row to expand, scroll to and flash.
+  const [focusDetailKey, setFocusDetailKey] = useState<string | null>(null);
+  const [focusFlash, setFocusFlash] = useState(false);
+  const focusRowRef = useRef<HTMLDivElement | null>(null);
 
   // The native back key closes the open Materials modal / menus first
   useBackClose(
@@ -281,6 +287,52 @@ export function Materials() {
     [materials, materialStations, receipts, usages, transfers, stationName]
   );
 
+  // A material opened from Global Search: expand the first station group that
+  // carries it (and its detail row). Render-phase adjustment keyed by
+  // (material, group) — replays only when the focused material changes, so a
+  // data mutation while we are here re-expands without re-triggering the
+  // scroll/flash below.
+  const [focusSig, setFocusSig] = useState<string | null>(null);
+  if (focusMaterialId != null && materials.length > 0) {
+    let targetKey: string | null = null;
+    let targetStation: number | null = null;
+    for (const g of stationGroups) {
+      if (g.rows.some((r) => r.material.id === focusMaterialId)) {
+        targetKey = `${g.stationId ?? "none"}:${focusMaterialId}`;
+        targetStation = g.stationId;
+        break;
+      }
+    }
+    const sig = targetKey ? `${focusMaterialId}:${targetKey}` : null;
+    if (sig && targetKey && sig !== focusSig) {
+      setFocusSig(sig);
+      setFocusDetailKey(targetKey);
+      setExpandedStation((prev) => {
+        const next = new Set(prev);
+        next.add(targetStation);
+        return next;
+      });
+      setExpandedDetail((prev) => {
+        const next = new Set(prev);
+        next.add(targetKey);
+        return next;
+      });
+    }
+  } else if (focusMaterialId == null && focusSig !== null) {
+    setFocusSig(null);
+  }
+
+  // Once the focused row has rendered, scroll it into view and flash it.
+  useEffect(() => {
+    if (!focusSig) return;
+    const t = setTimeout(() => {
+      focusRowRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      setFocusFlash(true);
+      setTimeout(() => setFocusFlash(false), 1800);
+    }, 80);
+    return () => clearTimeout(t);
+  }, [focusSig]);
+
   const toggleStation = (id: number | null) => {
     setExpandedStation((prev) => {
       const next = new Set(prev);
@@ -359,8 +411,15 @@ export function Materials() {
     const stationId = row.stationId;
     const detailKey = `${stationId ?? "none"}:${m.id}`;
     const open = expandedDetail.has(detailKey);
+    const isFocus = detailKey === focusDetailKey;
     return (
-      <div key={m.id} className="px-3 py-3">
+      <div
+        key={m.id}
+        ref={isFocus ? (el) => { focusRowRef.current = el; } : undefined}
+        className={`px-3 py-3 ${
+          isFocus && focusFlash ? "-m-1 rounded-lg bg-amber-50 ring-2 ring-amber-400" : ""
+        }`}
+      >
         <div className="min-w-0">
           <p className="text-sm font-semibold text-slate-800">{m.name}</p>
           <div className="mt-1 flex flex-wrap items-center gap-1.5">

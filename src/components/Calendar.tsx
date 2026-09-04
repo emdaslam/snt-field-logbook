@@ -222,7 +222,8 @@ export function Calendar({
     touchStart.current = null;
     if (!s || dragX === 0) return;
     const W = slideRef.current?.offsetWidth ?? 320;
-    const threshold = Math.max(32, W * 0.12);
+    // Kept deliberately short so a light, quick swipe flips the month.
+    const threshold = Math.max(18, W * 0.06);
     if (Math.abs(dragX) >= threshold) {
       goMonth(dragX < 0 ? 1 : -1, true);
     } else {

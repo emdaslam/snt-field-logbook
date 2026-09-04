@@ -69,7 +69,7 @@ export function Settings() {
   const [taGen, setTaGen] = useState<TaGenConfig>(() => loadTaGenConfig());
 
   // Horizontal swipe between the tab groups: the content slides in smoothly
-  // (see .settings-tab-enter-* in globals.css) and the heading row scrolls the
+  // (see .tab-enter-* in globals.css) and the heading row scrolls the
   // active tab chip into view. touchAction: "pan-y" on the root keeps vertical
   // scrolling native while horizontal moves reach us (even on blank areas).
   const [lastDir, setLastDir] = useState<1 | -1>(1);
@@ -196,7 +196,7 @@ export function Settings() {
 
       <div
         key={group}
-        className={`space-y-4 ${lastDir === 1 ? "settings-tab-enter-right" : "settings-tab-enter-left"}`}
+        className={`space-y-4 ${lastDir === 1 ? "tab-enter-right" : "tab-enter-left"}`}
       >
       {group === "account" && (
         <>
