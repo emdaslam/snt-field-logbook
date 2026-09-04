@@ -3,6 +3,15 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.47 — 2026-09-04
+
+**Major: tap a timeline date that has no daily log to add that day's log**
+
+- On Home, a date card in the bottom timeline that has **no daily log** is now tappable: an empty date shows a blue "No entry — tap to add" line, and tapping the card opens the **Add Daily Log** form with that date already filled in. Saving files the entry on the tapped date, exactly like adding from the + button.
+- The tap also works on dates that only show "Deficiency due" or "Planned" lines — those dates still have no daily log, so a small "+ Add daily log for this date" hint appears under the task lines and tapping opens the same form for that date.
+- Dates that already have a log are unchanged: tapping an entry still opens its details.
+- Implemented in `.
+
 ## 1.7.7.46 — 2026-09-04
 
 **Minor: zoomed photos no longer clip, and BACK on the export sheet returns to the Generate modal**

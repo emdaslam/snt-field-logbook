@@ -45,6 +45,7 @@ export function Timeline({
   selectedDate,
   goToSignal = 0,
   onOpen,
+  onAddEntry,
   onVisibleDateChange,
 }: {
   selectedDate: string | null;
@@ -52,6 +53,8 @@ export function Timeline({
    *  the list re-scrolls even if selectedDate itself did not change. */
   goToSignal?: number;
   onOpen: (log: DailyLog) => void;
+  /** Tapping a date row that has no daily log opens the add form for that date. */
+  onAddEntry?: (iso: string) => void;
   onVisibleDateChange?: (iso: string) => void;
 }) {
   const {
@@ -197,6 +200,10 @@ export function Timeline({
           const isToday = iso === todayIso;
           const isSelected = iso === selectedDate;
           const empty = dayLogs.length === 0 && dayDefs.length === 0 && dayPlans.length === 0;
+          // A date without any daily log is tappable: it opens the add form
+          // for that date (true even when the day only shows deficiency /
+          // planned-work lines).
+          const addable = dayLogs.length === 0 && !!onAddEntry;
           const d = new Date(iso + "T00:00:00");
 
           return (
@@ -205,13 +212,14 @@ export function Timeline({
               ref={(el) => {
                 rowRefs.current[iso] = el;
               }}
+              onClick={addable ? () => onAddEntry(iso) : undefined}
               className={`flex gap-3 rounded-xl border bg-surface p-3 shadow-sm transition ${
                 isSelected
                   ? "border-emerald-400 ring-2 ring-emerald-200"
                   : isToday
                     ? "border-blue-300"
                     : "border-slate-200"
-              }`}
+              } ${addable ? "cursor-pointer active:bg-blue-50" : ""}`}
             >
               {/* Left column: Day / Date / Time */}
               <div className="flex w-16 flex-shrink-0 flex-col items-center border-r border-slate-100 pr-2 text-center">
@@ -239,7 +247,11 @@ export function Timeline({
 
               {/* Main content */}
               <div className="min-w-0 flex-1">
-                {empty && <p className="py-3 text-sm italic text-slate-400">No entry</p>}
+                {empty && (
+                  <p className={addable ? "py-3 text-sm font-medium text-blue-700" : "py-3 text-sm italic text-slate-400"}>
+                    {addable ? "No entry — tap to add" : "No entry"}
+                  </p>
+                )}
 
                 {dayLogs.map((log) => {
                   const discTotal =
@@ -387,6 +399,12 @@ export function Timeline({
                       </p>
                     ))}
                   </div>
+                )}
+
+                {addable && !empty && (
+                  <p className="mt-1.5 border-t border-slate-100 pt-1.5 text-xs font-semibold text-blue-700">
+                    + Add daily log for this date
+                  </p>
                 )}
               </div>
             </div>

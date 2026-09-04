@@ -625,6 +625,11 @@ export function AppShell() {
                 selectedDate={selectedDate}
                 goToSignal={goToSignal}
                 onOpen={(l) => { setDetailLog(l); }}
+                onAddEntry={(iso) => {
+                  setSelectedDate(iso);
+                  setFocusedDate(iso);
+                  setLogForm(true);
+                }}
                 onVisibleDateChange={(iso) => {
                   setFocusedDate(iso);
                   const y = Number(iso.slice(0, 4));

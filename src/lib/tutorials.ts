@@ -562,6 +562,29 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.7.47",
+    tag: "Tap a date to add its log",
+    subtitle:
+      "Dates in the Home timeline that have no daily log can now be tapped to open the Add Daily Log form for that date.",
+    slides: [
+      {
+        glyph: "▣",
+        title: "Empty dates can be tapped",
+        body: "On Home, a timeline date card with no daily log shows a blue “No entry — tap to add” line. Tap the card and the Add Daily Log form opens with that date already filled in — just enter the day's work as usual.",
+      },
+      {
+        glyph: "◈",
+        title: "Also works on dates with tasks",
+        body: "A date that only shows “Deficiency due” or “Planned” lines still has no daily log, so it can be tapped too — a small “+ Add daily log for this date” hint sits under the task lines. Tapping opens the same form for that date.",
+      },
+      {
+        glyph: "☰",
+        title: "Saving lands on that date",
+        body: "When you save, the entry is filed on the tapped date and appears in the timeline exactly like one made from the + button. Dates that already have a log are unchanged: tapping the entry still opens its details.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {
