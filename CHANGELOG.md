@@ -12,6 +12,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 - Joint reminders stay tracked **per station, per partner department** (Engg / OHE) and per cycle, exactly as before. Due-date notifications and Reports → Inspection Schedule now also show the cycle, e.g. "Joint Inspection — STN (with Engg) · Half yearly".
 - The inspections report's Periodicity filter now offers the cycles available for the selected types (half yearly / quarterly for joint, monthly / quarterly for footplate).
 - The "next due" line in a joint entry's details now follows the chosen cycle (180 / 90 days) instead of the fixed default.
+- Implemented in `f5a4d33`.
 
 ## 1.7.7.47 — 2026-09-04
 
