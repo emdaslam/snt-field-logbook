@@ -332,7 +332,7 @@ async function filesToAttachments(files: FileList | null): Promise<Attachment[]>
 }
 
 /** File picker + thumbnail grid used by any form that stores attachments. */
-function AttachmentField({
+export function AttachmentField({
   value,
   onChange,
 }: {

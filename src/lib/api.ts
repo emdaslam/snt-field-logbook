@@ -313,6 +313,7 @@ export const api = {
         stationId: b.stationId ?? null,
         refDate: b.refDate || null,
         pinned: Boolean(b.pinned),
+        attachments: Array.isArray(b.attachments) ? b.attachments : [],
         ownerStaffId: b.ownerStaffId ?? null,
         updatedAt: new Date().toISOString(),
       }) as unknown as Promise<Note>;
@@ -320,7 +321,7 @@ export const api = {
     update: (b: Partial<Note>) => {
       markDataDirty();
       const patch: Record<string, unknown> = { updatedAt: new Date().toISOString() };
-      for (const k of ["title", "body", "category", "stationId", "pinned"] as const) {
+      for (const k of ["title", "body", "category", "stationId", "pinned", "attachments"] as const) {
         if (b[k] !== undefined) patch[k] = b[k];
       }
       if (b.refDate !== undefined) patch.refDate = b.refDate || null;

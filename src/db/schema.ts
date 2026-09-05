@@ -224,6 +224,7 @@ export const notes = pgTable("notes", {
   stationId: integer("station_id"),
   refDate: date("ref_date"),
   pinned: boolean("pinned").default(false).notNull(),
+  attachments: jsonb("attachments").$type<Attachment[]>().default([]).notNull(),
   ownerStaffId: integer("owner_staff_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

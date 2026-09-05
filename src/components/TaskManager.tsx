@@ -99,6 +99,7 @@ export function TaskManager({
 
   const [archiveFrom, setArchiveFrom] = useState("");
   const [archiveTo, setArchiveTo] = useState("");
+  const [archiveStation, setArchiveStation] = useState("");
 
   const pendingDef = deficiencies.filter(
     (d) =>
@@ -144,11 +145,12 @@ export function TaskManager({
   const completed = [
     ...deficiencies
       .filter((d) => d.status === "Completed")
-      .map((d) => ({ kind: "Deficiency" as const, rawKind: "def" as const, rawId: d.id, title: d.title, when: d.completedAt, station: stationName(d.stationId), id: "d" + d.id })),
+      .map((d) => ({ kind: "Deficiency" as const, rawKind: "def" as const, rawId: d.id, title: d.title, when: d.completedAt, station: stationName(d.stationId), stationId: d.stationId, id: "d" + d.id })),
     ...planned
       .filter((p) => p.status === "Completed")
-      .map((p) => ({ kind: "Planned Work" as const, rawKind: "plan" as const, rawId: p.id, title: p.title, when: p.completedAt, station: stationName(p.stationId), id: "p" + p.id })),
+      .map((p) => ({ kind: "Planned Work" as const, rawKind: "plan" as const, rawId: p.id, title: p.title, when: p.completedAt, station: stationName(p.stationId), stationId: p.stationId, id: "p" + p.id })),
   ].filter((c) => {
+    if (archiveStation && String(c.stationId ?? "") !== archiveStation) return false;
     if (!c.when) return true;
     const w = new Date(c.when);
     if (archiveFrom && w < new Date(archiveFrom + "T00:00:00")) return false;
@@ -347,6 +349,23 @@ export function TaskManager({
           <>
             <div className="flex flex-wrap items-end gap-2 rounded-xl border border-slate-200 bg-surface p-3">
               <label className="text-xs text-slate-600">
+                Station
+                <select
+                  value={archiveStation}
+                  onChange={(e) => setArchiveStation(e.target.value)}
+                  className="mt-1 block rounded-md border border-slate-300 bg-surface px-2 py-1 text-sm text-slate-700"
+                >
+                  <option value="">All stations</option>
+                  {[...stations]
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                </select>
+              </label>
+              <label className="text-xs text-slate-600">
                 From
                 <input type="date" value={archiveFrom} onChange={(e) => setArchiveFrom(e.target.value)} className="mt-1 block rounded-md border border-slate-300 px-2 py-1 text-sm" />
               </label>
@@ -354,13 +373,13 @@ export function TaskManager({
                 To
                 <input type="date" value={archiveTo} onChange={(e) => setArchiveTo(e.target.value)} className="mt-1 block rounded-md border border-slate-300 px-2 py-1 text-sm" />
               </label>
-              {(archiveFrom || archiveTo) && (
-                <button onClick={() => { setArchiveFrom(""); setArchiveTo(""); }} className="text-xs text-blue-600 underline">
+              {(archiveFrom || archiveTo || archiveStation) && (
+                <button onClick={() => { setArchiveFrom(""); setArchiveTo(""); setArchiveStation(""); }} className="text-xs text-blue-600 underline">
                   Clear
                 </button>
               )}
             </div>
-            {completed.length === 0 && <Empty text="No completed items in range" />}
+            {completed.length === 0 && <Empty text="No completed items match" />}
             {completed.map((c) => (
               <div key={c.id} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-surface p-3 shadow-sm">
                 <span className="text-emerald-600">✓</span>
@@ -394,7 +413,7 @@ export function TaskManager({
   );
 }
 
-function AttachmentsRow({
+export function AttachmentsRow({
   attachments,
   onOpen,
 }: {

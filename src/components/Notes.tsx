@@ -5,7 +5,10 @@ import { useData } from "./DataProvider";
 import { useBackClose } from "@/lib/backButton";
 import { Modal, Field, inputClass, PrimaryButton, Chip, Highlight } from "./ui";
 import { api, fmtDate } from "@/lib/api";
-import type { Note } from "@/db/schema";
+import { AttachmentField } from "./Forms";
+import { AttachmentsRow } from "./TaskManager";
+import { AttachmentPreviewModal } from "./AttachmentPreviewModal";
+import type { Attachment, Note } from "@/db/schema";
 
 export function Notes({ focusNote }: { focusNote?: Note | null }) {
   const { notes, noteCategories, stationName, refresh, autoSync } = useData();
@@ -16,12 +19,14 @@ export function Notes({ focusNote }: { focusNote?: Note | null }) {
   const [editing, setEditing] = useState<Note | null>(null);
   const [adding, setAdding] = useState(false);
   const [managing, setManaging] = useState(false);
+  const [previewAtt, setPreviewAtt] = useState<Attachment | null>(null);
   // The native back key closes the open note form / category manager first
   useBackClose(adding || editing !== null || managing, () => {
     if (managing) setManaging(false);
     else if (adding) setAdding(false);
     else setEditing(null);
   });
+  useBackClose(previewAtt !== null, () => setPreviewAtt(null));
   // The note opened from Global Search: clear the search/filters so it is
   // visible and expand that one card. Adjusted during render (React's
   // recommended pattern for deriving state from a prop), like PcdoExportModal.
@@ -102,14 +107,14 @@ export function Notes({ focusNote }: { focusNote?: Note | null }) {
           <p className="px-1 text-xs font-bold uppercase tracking-wide text-amber-700">📌 Pinned</p>
         )}
         {pinned.map((n) => (
-          <NoteCard key={n.id} note={n} onEdit={setEditing} onPin={togglePin} stationName={stationName} refresh={refresh} colorOf={colorOf} query={q} initiallyExpanded={focusId === n.id} />
+          <NoteCard key={n.id} note={n} onEdit={setEditing} onPin={togglePin} onOpen={setPreviewAtt} stationName={stationName} refresh={refresh} colorOf={colorOf} query={q} initiallyExpanded={focusId === n.id} />
         ))}
 
         {pinned.length > 0 && rest.length > 0 && (
           <p className="px-1 pt-1 text-xs font-bold uppercase tracking-wide text-slate-400">Other notes</p>
         )}
         {rest.map((n) => (
-          <NoteCard key={n.id} note={n} onEdit={setEditing} onPin={togglePin} stationName={stationName} refresh={refresh} colorOf={colorOf} query={q} initiallyExpanded={focusId === n.id} />
+          <NoteCard key={n.id} note={n} onEdit={setEditing} onPin={togglePin} onOpen={setPreviewAtt} stationName={stationName} refresh={refresh} colorOf={colorOf} query={q} initiallyExpanded={focusId === n.id} />
         ))}
       </div>
 
@@ -117,6 +122,7 @@ export function Notes({ focusNote }: { focusNote?: Note | null }) {
         <NoteForm existing={editing} onClose={() => { setAdding(false); setEditing(null); }} />
       )}
       {managing && <CategoryManager onClose={() => setManaging(false)} />}
+      {previewAtt && <AttachmentPreviewModal attachment={previewAtt} onClose={() => setPreviewAtt(null)} />}
     </div>
   );
 }
@@ -125,6 +131,7 @@ function NoteCard({
   note,
   onEdit,
   onPin,
+  onOpen,
   stationName,
   refresh,
   colorOf,
@@ -134,6 +141,7 @@ function NoteCard({
   note: Note;
   onEdit: (n: Note) => void;
   onPin: (n: Note) => void;
+  onOpen: (a: Attachment) => void;
   stationName: (id: number | null) => string;
   refresh: () => Promise<void>;
   colorOf: (name: string) => string;
@@ -193,6 +201,8 @@ function NoteCard({
         {note.refDate && <Chip label={fmtDate(note.refDate)} color="#7c3aed" />}
       </div>
 
+      <AttachmentsRow attachments={note.attachments ?? []} onOpen={onOpen} />
+
       <div className="mt-2 flex gap-2 border-t border-slate-100 pt-2">
         <button
           onClick={() => onEdit(note)}
@@ -226,6 +236,7 @@ function NoteForm({ existing, onClose }: { existing: Note | null; onClose: () =>
   const [stationId, setStationId] = useState<number | null>(existing?.stationId ?? null);
   const [refDate, setRefDate] = useState(existing?.refDate ?? "");
   const [pinned, setPinned] = useState(existing?.pinned ?? false);
+  const [attachments, setAttachments] = useState<Attachment[]>(existing?.attachments ?? []);
   const [saving, setSaving] = useState(false);
 
   async function save() {
@@ -239,6 +250,7 @@ function NoteForm({ existing, onClose }: { existing: Note | null; onClose: () =>
       stationId,
       refDate: refDate || null,
       pinned,
+      attachments,
       ownerStaffId: existing?.ownerStaffId ?? currentUser?.id ?? null,
     };
     if (existing) await api.notes.update(payload);
@@ -308,6 +320,7 @@ function NoteForm({ existing, onClose }: { existing: Note | null; onClose: () =>
         />
         📌 Pin to top
       </label>
+      <AttachmentField value={attachments} onChange={setAttachments} />
       <div className="mt-4 flex justify-end">
         <PrimaryButton onClick={save}>{saving ? "Saving…" : "Save Note"}</PrimaryButton>
       </div>
