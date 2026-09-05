@@ -9,6 +9,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 - Tasks → **Archive** tab gains a **Station** dropdown (alongside the From / To dates) to show only the completed deficiency tasks and planned works finished at one station. The Clear button now also resets the station.
 - **Important Notes** can now carry **photos and PDF files**, using the same attachment picker and thumbnail row as the task forms. Thumbnails sit under each note's chips and open in the same full-screen preview; the Add / Edit Note form gains an attachments field with per-file remove buttons. Existing notes without attachments are unaffected.
+- Implemented in `bf7954c`.
 
 ## 1.7.7.48 — 2026-09-04
 
