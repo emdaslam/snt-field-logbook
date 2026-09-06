@@ -3,6 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.50 — 2026-09-05
+
+**Minor: a stray tap in the "Edit the rows" panel no longer deletes export rows**
+
+- With an entry's **Diary / TA export rows** open for editing (a single-station entry after tapping "Edit the rows", or a multi-stop entry where the rows are on automatically), tapping the panel's **blank areas** — the description text, the gaps between row cards, a card's border — was forwarded by the browser to the first row's **Remove** button, so every stray tap silently deleted one export row. It affected single and multi-stop entries alike, including entries carrying a Footplate ride.
+- The rows panel and the form's other many-control sections (Station / Movement, Timings, Travel Details, the KMs-marker question, Tags, Attachments) — plus the staff form's Assigned Stations picker — no longer wrap everything in one HTML `<label>`, so a tap on a blank area can no longer fire one of them; every control now reacts only to a tap on itself.
+
 ## 1.7.7.49 — 2026-09-05
 
 **Minor: station filter for the completed-task archive, and photo / file attachments on important notes**

@@ -340,7 +340,7 @@ export function AttachmentField({
   onChange: (v: Attachment[]) => void;
 }) {
   return (
-    <Field label="Attachments (photos/files)">
+    <Field label="Attachments (photos/files)" as="div">
       <input
         type="file"
         multiple
@@ -1646,7 +1646,7 @@ export function DailyLogForm({
       <Field label="Date">
         <input type="date" className={inputClass} value={logDate} onChange={(e) => setLogDate(e.target.value)} />
       </Field>
-      <Field label="Station / Movement">
+      <Field label="Station / Movement" as="div">
         <div className="flex gap-2">
           <select
             className={inputClass}
@@ -1855,7 +1855,7 @@ export function DailyLogForm({
       )}
       {!isSpecial && !isHeadquarters && movementKind === "footplate" && !editExportRows && (
         <>
-          <Field label="Timings">
+          <Field label="Timings" as="div">
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
               {AUTO_TIMINGS && (
                 <p className="mb-2 text-xs text-slate-500">
@@ -1923,7 +1923,7 @@ export function DailyLogForm({
               </button>
             </div>
           </Field>
-          <Field label="Travel Details">
+          <Field label="Travel Details" as="div">
             <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
               <TravelLeg
                 title="On-board journey (HQ → boarding station)"
@@ -1950,7 +1950,7 @@ export function DailyLogForm({
       {!isSpecial && !isHeadquarters && (movementKind === "station" || editExportRows) && (
         <>
           {editExportRows ? (
-            <Field label="Diary / TA export rows">
+            <Field label="Diary / TA export rows" as="div">
               <div className="space-y-3">
                 <p className="text-xs text-slate-500">
                   These rows come from the movements you picked above — the chain is HQ →
@@ -2013,7 +2013,7 @@ export function DailyLogForm({
               </div>
             </Field>
           ) : (
-            <Field label="Timings">
+            <Field label="Timings" as="div">
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                 {AUTO_TIMINGS && (
                   <p className="mb-2 text-xs text-slate-500">
@@ -2083,7 +2083,7 @@ export function DailyLogForm({
             </Field>
           )}
           {!editExportRows && (
-            <Field label="Travel Details">
+            <Field label="Travel Details" as="div">
               <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
                 <TravelLeg
                   title="On-board journey (HQ → station)"
@@ -2109,7 +2109,7 @@ export function DailyLogForm({
         </>
       )}
       {isVariableSplit && (
-        <Field label={variableKm != null ? `Worked at ${variableKm} KMs?` : "Worked at the station's KMs marker?"}>
+        <Field label={variableKm != null ? `Worked at ${variableKm} KMs?` : "Worked at the station's KMs marker?"} as="div">
           <div className="flex gap-2">
             <button
               type="button"
@@ -2620,7 +2620,7 @@ export function DailyLogForm({
         )}
       </div>
 
-      <Field label="Tags">
+      <Field label="Tags" as="div">
         <div className="flex flex-wrap gap-2">
           {tags.map((t) => (
             <Chip

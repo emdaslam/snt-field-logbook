@@ -93,10 +93,29 @@ export function Modal({
   );
 }
 
-export function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="mb-3 block">
-      <span className="mb-1 block text-sm font-medium text-slate-700">{label}</span>
+export function Field({
+  label,
+  children,
+  as = "label",
+}: {
+  label: string;
+  children: ReactNode;
+  /** A `<label>` forwards any click in its blank area to its first form control.
+   *  For a section that wraps several controls (e.g. the export-rows editor,
+   *  whose first control is a leg's "Remove" button) use `as="div"` so stray
+   *  clicks can't be re-targeted onto one of them. */
+  as?: "label" | "div";
+}) {
+  const cls = "mb-3 block";
+  const heading = <span className="mb-1 block text-sm font-medium text-slate-700">{label}</span>;
+  return as === "div" ? (
+    <div className={cls}>
+      {heading}
+      {children}
+    </div>
+  ) : (
+    <label className={cls}>
+      {heading}
       {children}
     </label>
   );

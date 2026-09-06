@@ -1007,7 +1007,7 @@ function StaffEditor({ existing, onClose }: { existing: Staff | null; onClose: (
         </span>
       </Field>
 
-      <Field label="Assigned Stations (select multiple)">
+      <Field label="Assigned Stations (select multiple)" as="div">
         <div className="flex flex-wrap gap-2">
           {stations.length === 0 && <p className="text-xs text-slate-400">Add stations first.</p>}
           {stations.map((s) => (
