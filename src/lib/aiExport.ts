@@ -255,6 +255,108 @@ function tableSpec(tbl: Element): AiTableSpec | null {
 /* Model call + validation                                             */
 /* ------------------------------------------------------------------ */
 
+const CHAT_PATH = "/chat/completions";
+const MODELS_PATH = "/models";
+
+/** True when running inside the Capacitor Android shell (native bridge available). */
+function isCapNative(): boolean {
+  if (typeof window === "undefined") return false;
+  const w = window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } };
+  return Boolean(w.Capacitor?.isNativePlatform?.());
+}
+
+/** Rejects the promise after `ms` while the underlying call keeps going. */
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new DOMException("Timed out", "TimeoutError")), ms);
+    p.then(
+      (v) => { clearTimeout(t); resolve(v); },
+      (e) => { clearTimeout(t); reject(e); }
+    );
+  });
+}
+
+interface AiHttpResponse { status: number; bodyText: string }
+
+/**
+ * Where to send an AI request for a given endpoint path.
+ *
+ * On the Android shell we call `${baseUrl}${path}` directly through the native
+ * HTTP bridge. In a regular web preview the upstream router does not return
+ * Access-Control-Allow-Origin headers, so for the built-in default endpoint we
+ * route through the in-app proxy (/api/ai, /api/ai/models) served by the dev
+ * server; anything else goes direct.
+ */
+function endpointFor(cfg: AiConfig, path: string): string {
+  if (!isCapNative() && cfg.baseUrl === ENV_BASE_URL) {
+    if (path === CHAT_PATH) return "/api/ai";
+    if (path === MODELS_PATH) return "/api/ai/models";
+  }
+  return `${cfg.baseUrl}${path}`;
+}
+
+function httpBody(data: unknown): string {
+  if (data == null) return "";
+  return typeof data === "string" ? data : JSON.stringify(data);
+}
+
+/** POST a JSON payload to the AI endpoint (native bridge on device, fetch in web). */
+async function aiPost(cfg: AiConfig, path: string, payload: unknown, timeoutMs: number): Promise<AiHttpResponse> {
+  if (isCapNative()) {
+    const { CapacitorHttp } = await import("@capacitor/core");
+    const result = await withTimeout(
+      CapacitorHttp.request({
+        method: "POST",
+        url: `${cfg.baseUrl}${path}`,
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${cfg.apiKey}` },
+        data: JSON.stringify(payload),
+        responseType: "text",
+      }),
+      timeoutMs
+    );
+    return { status: result.status, bodyText: httpBody(result.data) };
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(endpointFor(cfg, path), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${cfg.apiKey}` },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    return { status: res.status, bodyText: await res.text() };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** GET from the AI endpoint (model listing). */
+async function aiGet(cfg: AiConfig, path: string, timeoutMs: number): Promise<AiHttpResponse> {
+  if (isCapNative()) {
+    const { CapacitorHttp } = await import("@capacitor/core");
+    const result = await withTimeout(
+      CapacitorHttp.get({
+        url: `${cfg.baseUrl}${path}`,
+        headers: { Authorization: `Bearer ${cfg.apiKey}` },
+      }),
+      timeoutMs
+    );
+    return { status: result.status, bodyText: httpBody(result.data) };
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(endpointFor(cfg, path), {
+      headers: { Authorization: `Bearer ${cfg.apiKey}` },
+      signal: controller.signal,
+    });
+    return { status: res.status, bodyText: await res.text() };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 const SYSTEM_PROMPT =
   "You are the layout designer for railway maintenance reports rendered as strict grid tables in PDF and Word.\n" +
   "You receive a JSON spec of one report (headers, row count, each column's relative content width, and whether the export is colour or plain).\n" +
@@ -274,13 +376,11 @@ export async function requestAiPolish(
   timeoutMs = 20000
 ): Promise<{ polish: ExportPolish | null; error?: string }> {
   if (!cfg.hasCredential) return { polish: null, error: "No AI endpoint configured — standard look." };
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(`${cfg.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${cfg.apiKey}` },
-      body: JSON.stringify({
+    const { status, bodyText } = await aiPost(
+      cfg,
+      CHAT_PATH,
+      {
         model: cfg.model,
         temperature: 0,
         max_tokens: 300,
@@ -289,60 +389,56 @@ export async function requestAiPolish(
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: JSON.stringify(spec) },
         ],
-      }),
-      signal: controller.signal,
-    });
-    if (!res.ok) {
-      let msg = `AI error ${res.status}`;
+      },
+      timeoutMs
+    );
+    if (status < 200 || status >= 300) {
+      let msg = `AI error ${status}`;
       try {
-        const j = await res.json();
+        const j = JSON.parse(bodyText) as { error?: { message?: unknown } };
         if (j?.error?.message) msg = String(j.error.message);
       } catch {
         /* non-JSON error body */
       }
       return { polish: null, error: `${msg.slice(0, 160)} — standard look.` };
     }
-    const j = await res.json();
-    const content: string = j?.choices?.[0]?.message?.content ?? "";
+    const j = JSON.parse(bodyText) as { choices?: { message?: { content?: unknown } }[] };
+    const content: string = typeof j?.choices?.[0]?.message?.content === "string" ? j.choices[0].message.content : "";
     const colCount = spec.tables[0]?.headers.length || 0;
     const polish = parsePolishResponse(content, colCount);
     return polish
       ? { polish }
       : { polish: null, error: "AI returned an unusable layout — standard look." };
   } catch (e) {
-    const aborted = e instanceof DOMException && e.name === "AbortError";
+    const aborted = e instanceof DOMException && (e.name === "AbortError" || e.name === "TimeoutError");
     return {
       polish: null,
       error: aborted
         ? "The AI took too long — standard look."
         : "AI unreachable — standard look.",
     };
-  } finally {
-    clearTimeout(timer);
   }
 }
 
 /** Quick probe used by the Settings "Test connection" button. */
 export async function testAiConnection(cfg: AiConfig): Promise<{ ok: boolean; message: string }> {
   if (!cfg.hasCredential) return { ok: false, message: "Set the base URL, key and model first." };
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 15000);
   try {
-    const res = await fetch(`${cfg.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${cfg.apiKey}` },
-      body: JSON.stringify({
+    const { status, bodyText } = await aiPost(
+      cfg,
+      CHAT_PATH,
+      {
         model: cfg.model,
         temperature: 0,
         max_tokens: 8,
         messages: [{ role: "user", content: "Reply with the single word: ok" }],
-      }),
-      signal: controller.signal,
-    });
-    if (!res.ok) {
-      let msg = `AI error ${res.status}`;
+      },
+      15000
+    );
+    if (status < 200 || status >= 300) {
+      let msg = `AI error ${status}`;
       try {
-        const j = await res.json();
+        const j = JSON.parse(bodyText) as { error?: { message?: unknown } };
         if (j?.error?.message) msg = String(j.error.message);
       } catch {
         /* non-JSON error body */
@@ -351,13 +447,11 @@ export async function testAiConnection(cfg: AiConfig): Promise<{ ok: boolean; me
     }
     return { ok: true, message: `Connected — ${cfg.model} answered.` };
   } catch (e) {
-    const aborted = e instanceof DOMException && e.name === "AbortError";
+    const aborted = e instanceof DOMException && (e.name === "AbortError" || e.name === "TimeoutError");
     return {
       ok: false,
       message: aborted ? "The AI took too long to answer." : "The AI endpoint could not be reached.",
     };
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -416,42 +510,23 @@ const KNOWN_MODELS: AiModelInfo[] = [
   { id: "stepfun-3.7-flash" },
 ];
 
-/** Fetches the list of available model IDs from the upstream router.
- *  Tries the in-app proxy route first (dev/preview); falls back to the
- *  built-in known-models list when running inside the offline APK. */
+/** Fetches the live list of available model IDs from the upstream router.
+ *  On device the request goes through the native HTTP bridge; in a web
+ *  preview it uses the in-app proxy. Falls back to the built-in
+ *  known-models list when the endpoint can't be reached. */
 export async function listAiModels(cfg: AiConfig): Promise<{ models: AiModelInfo[]; error?: string }> {
   if (!cfg.hasCredential) return { models: KNOWN_MODELS, error: undefined };
-  // Try the in-app proxy route (works in dev / preview server builds).
   try {
-    const res = await fetch("/api/ai/models", {
-      headers: { Authorization: `Bearer ${cfg.apiKey}` },
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (res.ok) {
-      const j = await res.json() as { data?: { id: string }[] };
+    const { status, bodyText } = await aiGet(cfg, MODELS_PATH, 10_000);
+    if (status >= 200 && status < 300) {
+      const j = JSON.parse(bodyText) as { data?: { id: string }[] };
       const models: AiModelInfo[] = (j.data ?? [])
         .map((m) => ({ id: String(m.id) }))
         .filter((m) => m.id.length > 0);
       if (models.length > 0) return { models };
     }
   } catch {
-    /* proxy unavailable — fall through to known list */
-  }
-  // Direct fetch as a second attempt (may work if WebView CORS is relaxed).
-  try {
-    const res = await fetch(`${cfg.baseUrl}/v1/models`, {
-      headers: { Authorization: `Bearer ${cfg.apiKey}` },
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (res.ok) {
-      const j = await res.json() as { data?: { id: string }[] };
-      const models: AiModelInfo[] = (j.data ?? [])
-        .map((m) => ({ id: String(m.id) }))
-        .filter((m) => m.id.length > 0);
-      if (models.length > 0) return { models };
-    }
-  } catch {
-    /* direct fetch failed — fall through to known list */
+    /* endpoint unreachable — fall through to known list */
   }
   return { models: KNOWN_MODELS };
 }

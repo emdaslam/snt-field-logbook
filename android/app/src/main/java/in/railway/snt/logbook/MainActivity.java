@@ -42,10 +42,6 @@ public class MainActivity extends BridgeActivity {
         // Attachments are read from the device as data URLs
         settings.setAllowFileAccess(true);
 
-        // Allow cross-origin requests from the file:// app origin so the
-        // optional AI export call to router.bynara.id works without CORS.
-        settings.setAllowUniversalAccessFromFileURLs(true);
-
         settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(true);
 

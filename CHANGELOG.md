@@ -3,6 +3,15 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.55 — 2026-09-08
+
+**Minor: AI export calls now go through the device's own network stack (fixes "The AI endpoint could not be reached")**
+
+- The Capacitor WebView serves the app from its internal `capacitor://` scheme — not `file://` — so the `setAllowUniversalAccessFromFileURLs` flag added in 1.7.7.54 never applied, and every JavaScript `fetch` to `router.bynara.id` was still rejected by the WebView's CORS check (the router sends no `Access-Control-Allow-Origin` header).
+- All AI calls — the export polish request, the Settings "Test connection" probe and the "Load models" listing — now run through Capacitor's built-in native HTTP bridge on the Android shell. The request is made by the device's own network stack (no WebView involved, so no CORS applies), with a 20 s timeout; in a regular web preview the same calls keep using the `/api/ai` proxy routes.
+- Web-preview fallbacks are unchanged: a bad model reply still degrades to the standard look, and the model dropdown still falls back to the built-in list when the endpoint can't be reached.
+- Removed the ineffective `WebView` flag from `MainActivity` (it only applies to `file://` origins, which this app does not use).
+
 ## 1.7.7.54 — 2026-09-08
 
 **Minor: AI export now works on-device, plain exports get layout polish too, and Settings gains a model dropdown**
