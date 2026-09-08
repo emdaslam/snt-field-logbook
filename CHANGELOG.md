@@ -10,7 +10,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 - New **AI Export** tab in Settings (personal / auto-timings build only). Switching it on asks for a password; switching it off does not. Base URL, API key and model are configurable; this build ships with the owner's defaults. The key stays on the device and is included in Settings backup.
 - When enabled, a **Colour** PDF or Word export sends the report's structure (headers, row count, relative column widths — not the cell values) to an OpenAI-compatible model. The model returns a JSON layout: a curated palette (navy / indigo / forest / teal / burgundy / slate / charcoal / classic), column widths, cell padding, zebra rows, Total-row tint and border style. The answer is strictly validated and clamped, so a bad reply cannot break the export.
 - If the AI is unreachable, times out (~20 s) or returns something unusable, the export proceeds with the standard 1.7.7.50 look. **Plain (no colour)** reference forms and Excel never go through the AI.
-- Implemented in `<this commit>`.
+- Implemented in `a002641`.
 
 ## 1.7.7.50 — 2026-09-05
 
