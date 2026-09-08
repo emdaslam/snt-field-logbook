@@ -12,6 +12,10 @@ const SETTINGS_KEYS = [
   "snt.myStationsOnly",
   "snt.autoDriveSync",
   "snt.exportFormat",
+  "snt.aiExport.enabled",
+  "snt.aiExport.baseUrl",
+  "snt.aiExport.apiKey",
+  "snt.aiExport.model",
 ] as const;
 
 const CONTENT_FONT_PREFIX = "snt.contentFontSize.";

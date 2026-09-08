@@ -13,6 +13,14 @@ import { RestoreModal } from "./RestoreModal";
 import { FONT_SIZES, FONT_SIZE_LABEL, THEMES, THEME_LABEL, APP_VERSION } from "@/lib/types";
 import { AUTO_TIMINGS } from "@/lib/timingsMode";
 import {
+  loadAiConfig,
+  aiDefaults,
+  testAiConnection,
+  AI_EXPORT_PASSWORD,
+  AI_KEYS,
+  type AiConfig,
+} from "@/lib/aiExport";
+import {
   TA_RATE_KEYS,
   TA_RATE_LABEL,
   loadTaGenConfig,
@@ -37,6 +45,7 @@ const GROUPS = [
   { id: "tags", label: "Tags & Notifications" },
   { id: "backup", label: "Backup & Drive" },
   { id: "appearance", label: "Appearance & Font Size" },
+  { id: "ai", label: "AI Export" },
   { id: "about", label: "About" },
 ] as const;
 type GroupId = (typeof GROUPS)[number]["id"];
@@ -67,6 +76,21 @@ export function Settings() {
     quarterlyWarn: "",
   });
   const [taGen, setTaGen] = useState<TaGenConfig>(() => loadTaGenConfig());
+  const [aiCfg, setAiCfg] = useState<AiConfig>(() => loadAiConfig());
+  const [aiBaseUrl, setAiBaseUrl] = useState(() => {
+    try { return localStorage.getItem(AI_KEYS.baseUrl) ?? ""; } catch { return ""; }
+  });
+  const [aiApiKey, setAiApiKey] = useState(() => {
+    try { return localStorage.getItem(AI_KEYS.apiKey) ?? ""; } catch { return ""; }
+  });
+  const [aiModel, setAiModel] = useState(() => {
+    try { return localStorage.getItem(AI_KEYS.model) ?? ""; } catch { return ""; }
+  });
+  const [aiTesting, setAiTesting] = useState(false);
+  const [aiTestMsg, setAiTestMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [aiEnableOpen, setAiEnableOpen] = useState(false);
+  const [aiPw, setAiPw] = useState("");
+  const [aiPwErr, setAiPwErr] = useState(false);
 
   // Horizontal swipe between the tab groups: the content slides in smoothly
   // (see .tab-enter-* in globals.css) and the heading row scrolls the
@@ -76,8 +100,9 @@ export function Settings() {
   const chipsRef = useRef<HTMLDivElement>(null);
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
 
-  const groupIndex = GROUPS.findIndex((g) => g.id === group);
-  const modalOpen = !!(editStaff || addStaff || editStation || editingTag || backupOpen || restoreOpen);
+  const visibleGroups = AUTO_TIMINGS ? GROUPS : GROUPS.filter((g) => g.id !== "ai");
+  const groupIndex = visibleGroups.findIndex((g) => g.id === group);
+  const modalOpen = !!(editStaff || addStaff || editStation || editingTag || backupOpen || restoreOpen || aiEnableOpen);
 
   // The native back key closes the open settings modal first
   useBackClose(modalOpen || tutorialOpen, () => {
@@ -87,6 +112,7 @@ export function Settings() {
     else if (editingTag) setEditingTag(null);
     else if (backupOpen) setBackupOpen(false);
     else if (restoreOpen) setRestoreOpen(false);
+    else if (aiEnableOpen) setAiEnableOpen(false);
     else setTutorialOpen(false);
   });
 
@@ -178,9 +204,21 @@ export function Settings() {
   }, [group]);
 
   const selectGroup = (g: GroupId) => {
-    const i = GROUPS.findIndex((x) => x.id === g);
+    const i = visibleGroups.findIndex((x) => x.id === g);
     setLastDir(i >= groupIndex ? 1 : -1);
     setGroup(g);
+  };
+
+  const persistAi = (patch: { enabled?: boolean; baseUrl?: string; apiKey?: string; model?: string }) => {
+    try {
+      if (patch.enabled !== undefined) localStorage.setItem(AI_KEYS.enabled, patch.enabled ? "1" : "0");
+      if (patch.baseUrl !== undefined) localStorage.setItem(AI_KEYS.baseUrl, patch.baseUrl);
+      if (patch.apiKey !== undefined) localStorage.setItem(AI_KEYS.apiKey, patch.apiKey);
+      if (patch.model !== undefined) localStorage.setItem(AI_KEYS.model, patch.model);
+    } catch {
+      /* storage unavailable */
+    }
+    setAiCfg(loadAiConfig());
   };
 
   const onTouchStart = (e: React.TouchEvent) => {
@@ -197,7 +235,7 @@ export function Settings() {
     // Only clearly-horizontal gestures switch tabs; vertical pans scroll.
     if (Math.abs(dx) <= Math.abs(dy) || Math.abs(dx) < SWIPE_THRESHOLD) return;
     swipeStart.current = null;
-    const next = GROUPS[groupIndex + (dx < 0 ? 1 : -1)];
+    const next = visibleGroups[groupIndex + (dx < 0 ? 1 : -1)];
     if (next) selectGroup(next.id);
   };
   const onTouchEnd = () => {
@@ -221,7 +259,7 @@ export function Settings() {
       {/* Horizontal group selector */}
       <div className="sticky top-0 z-10 -mx-4 bg-slate-100 px-4 pb-2 pt-1">
         <div ref={chipsRef} className="flex gap-2 overflow-x-auto">
-          {GROUPS.map((g) => (
+          {visibleGroups.map((g) => (
             <button
               key={g.id}
               type="button"
@@ -827,6 +865,70 @@ export function Settings() {
         </>
       )}
 
+      {group === "ai" && AUTO_TIMINGS && (
+        <Section title="AI Export Polish">
+          <p className="mb-3 text-sm text-slate-600">
+            When enabled, Colour PDF and Word exports ask your AI model for a layout polish — palette, column widths, cell padding, zebra rows and Total-row tint — then apply it in a few seconds. If the AI is unreachable the export keeps the standard look. Plain (no colour) forms and Excel never go through the AI.
+          </p>
+          <button
+            onClick={() => (aiCfg.enabled ? persistAi({ enabled: false }) : setAiEnableOpen(true))}
+            className={`w-full rounded-lg border px-3 py-2 text-sm font-medium ${
+              aiCfg.enabled
+                ? "border-emerald-600 bg-emerald-50 text-emerald-800"
+                : "border-slate-300 text-slate-600"
+            }`}
+          >
+            {aiCfg.enabled ? "Enabled" : "Disabled"}
+          </button>
+          <p className="mt-2 mb-4 text-xs text-slate-400">
+            Switching on asks for a password; switching off does not. The key stays on this device (and in Settings backup).
+          </p>
+          <Field label="Base URL">
+            <input
+              className={inputClass}
+              value={aiBaseUrl}
+              placeholder={aiDefaults().baseUrl || "https://api.openai.com/v1"}
+              onChange={(e) => { setAiBaseUrl(e.target.value); persistAi({ baseUrl: e.target.value }); }}
+            />
+          </Field>
+          <Field label="API key">
+            <input
+              type="password"
+              className={inputClass}
+              value={aiApiKey}
+              placeholder={aiCfg.hasCredential && !aiApiKey ? "Using the build default" : "sk-…"}
+              onChange={(e) => { setAiApiKey(e.target.value); persistAi({ apiKey: e.target.value }); }}
+            />
+          </Field>
+          <Field label="Model">
+            <input
+              className={inputClass}
+              value={aiModel}
+              placeholder={aiDefaults().model || "gpt-4o-mini"}
+              onChange={(e) => { setAiModel(e.target.value); persistAi({ model: e.target.value }); }}
+            />
+          </Field>
+          <button
+            disabled={aiTesting}
+            onClick={async () => {
+              setAiTesting(true);
+              setAiTestMsg(null);
+              const r = await testAiConnection(loadAiConfig());
+              setAiTestMsg({ ok: r.ok, text: r.message });
+              setAiTesting(false);
+            }}
+            className="mt-2 rounded-lg border border-blue-800 px-4 py-2 text-sm font-semibold text-blue-800 disabled:opacity-50"
+          >
+            {aiTesting ? "Testing…" : "Test connection"}
+          </button>
+          {aiTestMsg && (
+            <p className={`mt-2 text-sm ${aiTestMsg.ok ? "text-emerald-700" : "text-red-600"}`}>
+              {aiTestMsg.text}
+            </p>
+          )}
+        </Section>
+      )}
+
       {group === "about" && (
       <Section title="About">
         <div className="flex items-center gap-4">
@@ -883,6 +985,45 @@ export function Settings() {
       )}
       <BackupModal open={backupOpen} onClose={() => setBackupOpen(false)} />
       <RestoreModal open={restoreOpen} onClose={() => setRestoreOpen(false)} />
+      <Modal
+        open={aiEnableOpen}
+        onClose={() => { setAiEnableOpen(false); setAiPw(""); setAiPwErr(false); }}
+        title="Enable AI Export Polish"
+      >
+        <p className="mb-3 text-sm text-slate-600">
+          Entering the password switches on AI polish for Colour PDF and Word exports. It can be switched back off any time from here (no password needed).
+        </p>
+        <input
+          type="password"
+          value={aiPw}
+          onChange={(e) => { setAiPw(e.target.value); setAiPwErr(false); }}
+          className={inputClass}
+          placeholder="Password"
+          autoFocus
+        />
+        {aiPwErr && <p className="mt-2 text-sm text-red-600">Incorrect password — try again.</p>}
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={() => {
+              if (aiPw === AI_EXPORT_PASSWORD) {
+                persistAi({ enabled: true });
+                setAiEnableOpen(false);
+                setAiPw("");
+                setAiPwErr(false);
+              } else setAiPwErr(true);
+            }}
+            className="flex-1 rounded-lg bg-blue-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-900"
+          >
+            Enable
+          </button>
+          <button
+            onClick={() => { setAiEnableOpen(false); setAiPw(""); setAiPwErr(false); }}
+            className="flex-1 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600"
+          >
+            Cancel
+          </button>
+        </div>
+      </Modal>
       {tutorialOpen && <FeatureTutorials replay onClose={() => setTutorialOpen(false)} />}
     </div>
   );

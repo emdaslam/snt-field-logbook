@@ -9,6 +9,13 @@ import {
 import { registerPdfFonts } from "./pdfFonts";
 import { registerBackClose } from "./backButton";
 import type { XlsxSheet } from "./xlsx";
+import {
+  loadAiConfig,
+  requestAiPolish,
+  buildReportSpec,
+  paletteOf,
+  type ExportPolish,
+} from "./aiExport";
 
 const NAVY: [number, number, number] = [30, 58, 138];
 const GREEN: [number, number, number] = [5, 95, 70];
@@ -488,7 +495,7 @@ export function buildPdf(
   title: string,
   bodyHtml: string,
   contentSize: number,
-  opts: { margin?: number; footer?: boolean; style?: ExportStyle; cellPad?: number; fixedHeader?: boolean; contentWidths?: Record<number, number>; fitMode?: boolean } = {}
+  opts: { margin?: number; footer?: boolean; style?: ExportStyle; cellPad?: number; fixedHeader?: boolean; contentWidths?: Record<number, number>; fitMode?: boolean; polish?: ExportPolish | null } = {}
 ): jsPDF {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   registerPdfFonts(doc);
@@ -511,9 +518,15 @@ export function buildPdf(
   // black-and-white layout (no navy/green headings, no shaded header, no
   // alternating rows); "colour" keeps the branded look.
   const plain = opts.style === "plain";
-  const INK: [number, number, number] = plain ? [0, 0, 0] : NAVY;
-  const HEAD_FILL: [number, number, number] = plain ? [255, 255, 255] : [219, 234, 254];
-  const cellPad = opts.cellPad ?? 4;
+  // AI polish (Colour exports only): a curated palette + layout tweaks chosen
+  // in real time by the owner's AI model — see aiExport.ts. Never applied to
+  // the plain reference layout.
+  const pal = !plain && opts.polish ? paletteOf(opts.polish.palette) : null;
+  const INK: [number, number, number] = plain ? [0, 0, 0] : (pal ? pal.ink : NAVY);
+  const ACCENT: [number, number, number] = plain ? [0, 0, 0] : (pal ? pal.accent : GREEN);
+  const HEAD_FILL: [number, number, number] = plain ? [255, 255, 255] : (pal ? pal.head : [219, 234, 254]);
+  const HEAD_TXT: [number, number, number] = plain ? [0, 0, 0] : (pal ? pal.headText : NAVY);
+  const cellPad = pal ? (opts.polish?.cellPadding ?? opts.cellPad ?? 4) : (opts.cellPad ?? 4);
   const pageW = doc.internal.pageSize.getWidth();
 
   const parsed = new DOMParser().parseFromString(`<div>${bodyHtml}</div>`, "text/html");
@@ -543,9 +556,11 @@ export function buildPdf(
   // following signature-labels paragraph can centre each label over the line
   // drawn just above it.
   let lastColsSegs: { x: number; w: number }[] | null = null;
-  // Scale the most recent cols block settled on in fit mode, so a following
+  // Scale the most recent cols block settled in fit mode, so a following
   // signature-labels paragraph draws its labels at the same size as the lines.
   let lastColsK: number | null = null;
+  // AI column widths apply to the main (first) table only.
+  let aiWidthsUsed = false;
 
   const pageBreak = (needed: number) => {
     if (y + needed > doc.internal.pageSize.getHeight() - margin) {
@@ -624,7 +639,7 @@ export function buildPdf(
       y += 14;
     } else if (tag === "h2") {
       pageBreak(30 * headFs);
-      doc.setFont("helvetica", "bold").setFontSize(11 * headFs).setTextColor(...INK);
+      doc.setFont("helvetica", "bold").setFontSize(11 * headFs).setTextColor(...ACCENT);
       const lines = doc.splitTextToSize(text, maxW) as string[];
       const centered = el.className.includes("centered");
       doc.text(lines, centered ? pageW / 2 : margin, y, centered ? { align: "center" } : undefined);
@@ -1011,6 +1026,23 @@ export function buildPdf(
         }
       }
 
+      // AI polish (main table only): the model's column percentages become
+      // point widths, floored by the column's content and widest header word
+      // — dates / times / train numbers / stations stay on a single line.
+      if (pal && opts.polish?.columnWidths && !aiWidthsUsed) {
+        aiWidthsUsed = true;
+        const avail = pageW - 2 * margin;
+        opts.polish.columnWidths.forEach((pct, colIdx) => {
+          if (colIdx < 0 || colIdx > 15) return;
+          const pctW = (pct / 100) * avail;
+          const floor = Math.max(fit[colIdx]?.full ?? 0, hf[colIdx]?.word ?? 0);
+          columnStyles[colIdx] = {
+            ...(columnStyles[colIdx] ?? {}),
+            cellWidth: Math.max(pctW, floor),
+          };
+        });
+      }
+
       const head: { content: string; rowSpan?: number; colSpan?: number; styles?: ColStyle }[][] | undefined =
         hasHead
           ? headCells.map((row) =>
@@ -1028,6 +1060,18 @@ export function buildPdf(
             )
           : undefined;
       const { body, notes } = parseTableBody(bodyRows);
+      // AI polish: closing Total / Grand Total rows (the first non-empty cell
+      // carries the word "total") get a tinted wash.
+      let totalRows: number[] = [];
+      if (pal && opts.polish?.highlightTotals) {
+        totalRows = body
+          .map((row, i) => {
+            const first = row.find((c) => (typeof c === "string" ? c : c.content).trim());
+            if (!first) return -1;
+            return /\btotal\b/i.test(typeof first === "string" ? first : first.content) ? i : -1;
+          })
+          .filter((i) => i >= 0);
+      }
       // Capture the drawn geometry of every vtext column cell so the vertical
       // note can be drawn over it after the table (see drawVtextNotes).
       const vtextCols = new Set(notes.map((n) => n.colIndex));
@@ -1065,16 +1109,29 @@ export function buildPdf(
           cellPadding: cellPad,
           overflow: "linebreak",
           textColor: [15, 23, 42],
-          ...(plain ? { lineColor: INK } : {}),
+          ...(plain ? { lineColor: INK } : pal ? { lineColor: pal.line } : {}),
         },
         headStyles: {
           fillColor: HEAD_FILL,
-          textColor: INK,
+          textColor: HEAD_TXT,
           fontStyle: "bold",
           ...(plain ? { lineWidth: 0.1, lineColor: INK } : {}),
         },
-        ...(plain ? {} : { alternateRowStyles: { fillColor: [248, 250, 252] } }),
-        theme: "grid",
+        ...(plain || (opts.polish && !opts.polish.zebra)
+          ? {}
+          : { alternateRowStyles: { fillColor: pal ? pal.zebra : [248, 250, 252] } }),
+        // AI "none" borders drop the internal grid and keep the header fill
+        // (autoTable "plain" theme); every other case keeps the full grid.
+        theme: pal && opts.polish?.borders === "none" ? "plain" : "grid",
+        ...(pal && totalRows.length
+          ? {
+              didParseCell: (data: { section: string; row: { index: number }; cell: { styles: { fillColor?: unknown } } }) => {
+                if (data.section === "body" && totalRows.includes(data.row.index)) {
+                  data.cell.styles.fillColor = pal.total;
+                }
+              },
+            }
+          : {}),
         // Never split a row across pages: a day's movements (or the TOTAL row)
         // moves whole to the next page instead of leaving a fragment behind.
         rowPageBreak: "avoid",
@@ -1087,7 +1144,7 @@ export function buildPdf(
       // Close the KMS column and repeat its note per page (see drawVtextNotes).
       // The closing line matches the table's grid: grey in the colour export,
       // black ink in the plain export.
-      drawVtextNotes(doc, notes, vtextCells, 8 * fs, plain ? INK : [200, 200, 200], GRID_LINE_WIDTH);
+      drawVtextNotes(doc, notes, vtextCells, 8 * fs, plain ? INK : pal ? pal.line : [200, 200, 200], GRID_LINE_WIDTH);
       if (process.env.DEBUG_VTEXT) {
         const dbg = vtextCells.map((c) => `page${c.page} col${c.col} top${c.top.toFixed(1)} bot${c.bottom.toFixed(1)} x${c.x.toFixed(1)} w${c.width.toFixed(1)}`);
         const spans: string[] = [];
@@ -1144,7 +1201,8 @@ export function buildFitOnePagePdf(
   startSize: number,
   style: ExportStyle = "colour",
   cellPad?: number,
-  fixedHeader = false
+  fixedHeader = false,
+  polish?: ExportPolish | null
 ): jsPDF {
   const FIT_MARGIN = 24;
   const FIT_FONT_MIN = 6;
@@ -1167,8 +1225,8 @@ export function buildFitOnePagePdf(
     initBodyFit.set(tbl, measureBodyColumns(tbl, initDoc, initFs, fitPad));
     initHeadFit.set(tbl, measureHeadColumns(tbl, initDoc, initFs, fitPad));
   }
-  let size = startSize;
-  let doc = buildPdf(title, bodyHtml, size, { margin: FIT_MARGIN, footer: false, style, fixedHeader, cellPad: fitPad, fitMode: true });
+  let size = Math.max(FIT_FONT_MIN, Math.min(CONTENT_FONT_MAX, startSize + (polish?.fitFontNudge ?? 0)));
+  let doc = buildPdf(title, bodyHtml, size, { margin: FIT_MARGIN, footer: false, style, fixedHeader, cellPad: fitPad, fitMode: true, polish });
   while (doc.getNumberOfPages() > 1 && size > FIT_FONT_MIN) {
     size -= 1;
     const fs = size / 9;
@@ -1198,7 +1256,7 @@ export function buildFitOnePagePdf(
       }
     }
     doc = buildPdf(title, bodyHtml, size, {
-      margin: FIT_MARGIN, footer: false, style, fixedHeader, cellPad: fitPad, fitMode: true,
+      margin: FIT_MARGIN, footer: false, style, fixedHeader, cellPad: fitPad, fitMode: true, polish,
       ...(Object.keys(contentWidths).length ? { contentWidths } : {}),
     });
   }
@@ -1218,7 +1276,8 @@ export function buildFitTwoPagePdf(
   bodyHtml: string,
   style: ExportStyle = "colour",
   cellPad?: number,
-  fixedHeader = false
+  fixedHeader = false,
+  polish?: ExportPolish | null
 ): jsPDF {
   const TWO_PAGE_FONT_MIN = 6;
   const TWO_PAGE_FONT_MAX = 30;
@@ -1226,13 +1285,14 @@ export function buildFitTwoPagePdf(
     buildPdf(title, bodyHtml, size, {
       style,
       fixedHeader,
+      polish,
       ...(cellPad != null ? { cellPad } : {}),
     });
   // Even the smallest size may still exceed two pages for a very dense month —
   // fall back to it (best effort) when the search finds no fitting size.
   let best = render(TWO_PAGE_FONT_MIN);
   let lo = TWO_PAGE_FONT_MIN;
-  let hi = TWO_PAGE_FONT_MAX;
+  let hi = TWO_PAGE_FONT_MAX + (polish?.fitFontNudge ?? 0);
   while (lo <= hi) {
     const mid = Math.floor((lo + hi) / 2);
     const doc = render(mid);
@@ -1553,13 +1613,25 @@ export function exportDocument(
     b.onclick = async () => {
       status.textContent = "Working…";
       try {
+        let polish: ExportPolish | null = null;
+        const html = pageMode === "two" && twoBody ? twoBody : bodyHtml;
+        if ((format === "pdf" || format === "docx") && style === "colour") {
+          const ai = loadAiConfig();
+          if (ai.enabled && ai.hasCredential) {
+            status.textContent = "Asking the AI to polish this report…";
+            const layout = pageMode === "fit" ? "one-page" : pageMode === "two" ? "two-page" : "standard";
+            const r = await requestAiPolish(buildReportSpec(title, type, layout, format, html), ai);
+            polish = r.polish;
+            if (r.error) status.textContent = r.error;
+          }
+        }
         let artifact: ExportArtifact;
         if (format === "docx") {
           const { buildDocx, docxToBase64 } = await import("./docx");
           artifact = {
             filename: `${slug(title)}.docx`,
             mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            base64: docxToBase64(buildDocx(title, pageMode === "two" && twoBody ? twoBody : bodyHtml, style)),
+            base64: docxToBase64(buildDocx(title, html, style, polish)),
           };
         } else if (format === "xlsx") {
           const { buildXlsx, xlsxToBase64 } = await import("./xlsx");
@@ -1576,15 +1648,15 @@ export function exportDocument(
           const fixedHeader = type === "ta";
           let doc: jsPDF;
           if (pageMode === "fit") {
-            doc = buildFitOnePagePdf(title, bodyHtml, chosenSize(), style, cellPad, fixedHeader);
+            doc = buildFitOnePagePdf(title, bodyHtml, chosenSize(), style, cellPad, fixedHeader, polish);
           } else if (pageMode === "two" && twoBody) {
             // The two-page layout has no manual size — the largest size that
             // keeps the split on exactly two pages fills page 1 and applies
             // the same size to page 2.
-            doc = buildFitTwoPagePdf(title, twoBody, style, cellPad, fixedHeader);
+            doc = buildFitTwoPagePdf(title, twoBody, style, cellPad, fixedHeader, polish);
           } else {
             const size = chosenSize();
-            doc = buildPdf(title, bodyHtml, size, { style, fixedHeader, ...(cellPad != null ? { cellPad } : {}) });
+            doc = buildPdf(title, bodyHtml, size, { style, fixedHeader, polish, ...(cellPad != null ? { cellPad } : {}) });
             persistContentFontSize(type, size);
           }
           artifact = {

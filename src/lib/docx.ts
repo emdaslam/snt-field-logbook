@@ -8,6 +8,7 @@
  */
 
 import type { ExportStyle } from "./types";
+import { paletteOf, type ExportPolish, type PaletteColors } from "./aiExport";
 
 const XML_NS =
   'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
@@ -164,9 +165,15 @@ function tableCell(
   colSpan: number,
   centered = false,
   vAlignMiddle = false,
-  plain = false
+  plain = false,
+  pal: PaletteColors | null = null,
+  fillOverride?: string
 ): string {
-  const fill = isHead ? (plain ? "FFFFFF" : "DBEAFE") : "FFFFFF";
+  const fill = fillOverride
+    ? fillOverride
+    : isHead
+      ? (plain ? "FFFFFF" : pal ? pal.headHex : "DBEAFE")
+      : "FFFFFF";
   const valign = isHead || vAlignMiddle ? '<w:vAlign w:val="center"/>' : "";
   const tcPr =
     `<w:tcPr>` +
@@ -179,7 +186,7 @@ function tableCell(
     `</w:tcPr>` +
     para(text, {
       bold: isHead,
-      color: isHead && !plain ? "1E3A8A" : undefined,
+      color: isHead && !plain ? (pal ? pal.headTextHex : "1E3A8A") : undefined,
       sz: isHead ? 16 : 18,
       after: 60,
       before: 40,
@@ -188,7 +195,7 @@ function tableCell(
   return `<w:tc>${tcPr}</w:tc>`;
 }
 
-function buildTable(html: string, plain = false): string {
+function buildTable(html: string, plain = false, pal: PaletteColors | null = null, polish: ExportPolish | null = null): string {
   const parsed = new DOMParser().parseFromString(`<div>${html}</div>`, "text/html");
   const trs = Array.from(parsed.body.firstElementChild?.querySelectorAll("tr") ?? []);
   if (trs.length === 0) return "";
@@ -243,17 +250,30 @@ function buildTable(html: string, plain = false): string {
   const active = new Map<number, number>();
   const rowsHtml: string[] = [];
   let colCount = 0;
+  let bodyRow = 0;
   for (const r of trs) {
     const els = Array.from(r.querySelectorAll("td, th"));
     if (els.length === 0) continue;
     const cellsHtml: string[] = [];
     let col = 0;
+    const isHeadRow = Boolean(r.querySelector("th"));
+    const firstBodyText = !isHeadRow
+      ? tidy((els[0]?.textContent ?? ""))
+      : "";
+    const isTotal = Boolean(pal && polish?.highlightTotals && /\btotal\b/i.test(firstBodyText));
+    const zebraFill = pal && polish?.zebra && !isHeadRow && bodyRow % 2 === 1 ? pal.zebraHex : undefined;
+    const rowFill = isTotal ? pal?.totalHex : zebraFill;
+    if (!isHeadRow) bodyRow++;
     const contCell = () => {
       const w = colWidth(col);
+      const fill = isHeadRow && pal
+        ? pal.headHex
+        : rowFill;
       cellsHtml.push(
         `<w:tc><w:tcPr>` +
           (w ? `<w:tcW w:w="${w}" w:type="dxa"/>` : "") +
           `<w:vMerge/><w:tcMar><w:left w:w="80" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tcMar>` +
+          (fill ? `<w:shd w:val="clear" w:color="auto" w:fill="${fill}"/>` : "") +
           `</w:tcPr><w:p/></w:tc>`
       );
       col++;
@@ -281,7 +301,7 @@ function buildTable(html: string, plain = false): string {
       const centered = isV || el.getAttribute("data-align") === "center";
       const vAlignMiddle = centered || el.getAttribute("data-valign") === "middle";
       cellsHtml.push(
-        tableCell(text, isHead, width, rowSpan, colSpan, centered, vAlignMiddle, plain)
+        tableCell(text, isHead, width, rowSpan, colSpan, centered, vAlignMiddle, plain, pal, isHead ? undefined : rowFill)
       );
       if (rowSpan > 1) active.set(col, rowSpan - 1);
       col += colSpan;
@@ -301,8 +321,12 @@ function buildTable(html: string, plain = false): string {
     (_, i) => (colWidth(i) ? `<w:gridCol w:w="${colWidth(i)}"/>` : "<w:gridCol/>")
   ).join("");
 
-  const borders = ["top", "left", "bottom", "right", "insideH", "insideV"]
-    .map((b) => `<w:${b} w:val="single" w:sz="4" w:space="0" w:color="${plain ? "000000" : "CBD5E1"}"/>`)
+  const borderColor = plain ? "000000" : pal ? pal.lineHex : "CBD5E1";
+  const borderSides = pal && polish?.borders === "none"
+    ? ["top", "left", "bottom", "right"]
+    : ["top", "left", "bottom", "right", "insideH", "insideV"];
+  const borders = borderSides
+    .map((b) => `<w:${b} w:val="single" w:sz="4" w:space="0" w:color="${borderColor}"/>`)
     .join("");
   return (
     `<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/>` +
@@ -317,8 +341,9 @@ function buildTable(html: string, plain = false): string {
  * Convert the HTML produced by the export builders into a standalone Word
  * document. Returns the raw .docx bytes (a STORE-method ZIP).
  */
-export function buildDocx(title: string, bodyHtml: string, style: ExportStyle = "colour"): Uint8Array {
+export function buildDocx(title: string, bodyHtml: string, style: ExportStyle = "colour", polish: ExportPolish | null = null): Uint8Array {
   const plain = style === "plain";
+  const pal = !plain && polish ? paletteOf(polish.palette) : null;
   const parsed = new DOMParser().parseFromString(`<div>${bodyHtml}</div>`, "text/html");
   const root = parsed.body.firstElementChild;
   const parts: string[] = [];
@@ -343,7 +368,7 @@ export function buildDocx(title: string, bodyHtml: string, style: ExportStyle = 
       if (rightNote) {
         parts.push(
           `<w:p><w:pPr><w:tabs><w:tab w:val="right" w:pos="9360"/></w:tabs><w:spacing w:before="0" w:after="280"/><w:keepNext/><w:jc w:val="center"/></w:pPr>` +
-            `<w:r>${runProps({ bold: true, color: plain ? "000000" : "1E3A8A", sz: 30 })}<w:t xml:space="preserve">${esc(text)}</w:t></w:r>` +
+            `<w:r>${runProps({ bold: true, color: plain ? "000000" : (pal ? pal.inkHex : "1E3A8A"), sz: 30 })}<w:t xml:space="preserve">${esc(text)}</w:t></w:r>` +
             `<w:r>${runProps({ color: "1E293B", sz: 16 })}<w:tab/><w:t xml:space="preserve">${esc(rightNote)}</w:t></w:r>` +
             `</w:p>`
         );
@@ -351,11 +376,11 @@ export function buildDocx(title: string, bodyHtml: string, style: ExportStyle = 
         parts.push(
           para(text, {
             bold: true,
-            color: plain ? "000000" : "1E3A8A",
+            color: plain ? "000000" : (pal ? pal.inkHex : "1E3A8A"),
             sz: headingSizeFor(text, 30),
             after: 280,
             keepNext: true,
-            borderBottom: plain ? "000000" : "1E3A8A",
+            borderBottom: plain ? "000000" : (pal ? pal.inkHex : "1E3A8A"),
             centered: el.className.includes("centered"),
           })
         );
@@ -365,7 +390,7 @@ export function buildDocx(title: string, bodyHtml: string, style: ExportStyle = 
       parts.push(
         para(text, {
           bold: true,
-          color: plain ? "000000" : "056346",
+          color: plain ? "000000" : (pal ? pal.accentHex : "056346"),
           sz: 22,
           after: nextIsTable ? 80 : 200,
           keepNext: true,
@@ -377,7 +402,7 @@ export function buildDocx(title: string, bodyHtml: string, style: ExportStyle = 
       parts.push(
         para(text, {
           bold: true,
-          color: plain ? "000000" : "1E3A8A",
+          color: plain ? "000000" : (pal ? pal.inkHex : "1E3A8A"),
           sz: 19,
           after: nextIsTable ? 80 : 180,
           keepNext: true,
@@ -444,7 +469,7 @@ export function buildDocx(title: string, bodyHtml: string, style: ExportStyle = 
         }
       }
     } else if (tag === "table") {
-      const tbl = buildTable(el.outerHTML, plain);
+      const tbl = buildTable(el.outerHTML, plain, pal, polish);
       if (tbl) {
         parts.push(tbl);
         // Spacer so content after the table isn't glued to its border.

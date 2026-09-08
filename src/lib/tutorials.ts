@@ -585,6 +585,24 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.7.51",
+    tag: "AI Export Polish",
+    subtitle:
+      "Colour PDF and Word reports can ask your AI model for a live layout polish — with the standard look as fallback.",
+    slides: [
+      {
+        glyph: "▣",
+        title: "A live layout pass",
+        body: "In Settings → AI Export (personal build) a password-gated switch sends the report's structure to your AI model at export time. The model picks a palette, column widths, cell padding, zebra rows and a Total-row tint. Plain (no colour) forms and Excel never go through the AI.",
+      },
+      {
+        glyph: "◈",
+        title: "Safe fallback",
+        body: "If the AI is unreachable, times out or returns something unusable, the export keeps the standard look and proceeds. You can switch the polish off any time from Settings — no password needed.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {

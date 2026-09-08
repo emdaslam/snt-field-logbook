@@ -15,3 +15,7 @@ tsconfig.tsbuildinfo
 
 # Dependencies
 node_modules/
+
+# Local secrets (AI export polish credentials) — never commit the real key
+.env
+
