@@ -15,7 +15,8 @@ import in.railway.snt.logbook.save.DocumentSavePlugin;
  * The entire web app is bundled inside the APK (assets/public) and all records
  * are stored in the device's own IndexedDB. The app is fully usable without
  * a network; the only network access is the optional Google Drive sync
- * (INTERNET permission) that pushes/pulls the backup file on request.
+ * (INTERNET permission) that pushes/pulls the backup file on request, and the
+ * optional AI export polish call to router.bynara.id.
  *
  * PDF reports and JSON backups are written to the device with the Capacitor
  * Filesystem plugin and handed to Android's share sheet via the Share plugin,
@@ -40,6 +41,10 @@ public class MainActivity extends BridgeActivity {
 
         // Attachments are read from the device as data URLs
         settings.setAllowFileAccess(true);
+
+        // Allow cross-origin requests from the file:// app origin so the
+        // optional AI export call to router.bynara.id works without CORS.
+        settings.setAllowUniversalAccessFromFileURLs(true);
 
         settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(true);

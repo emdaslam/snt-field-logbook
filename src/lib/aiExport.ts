@@ -1,16 +1,16 @@
 /**
  * AI export polish.
  *
- * When enabled (personal builds only, owner-gated), a Colour PDF or Word
- * export asks an OpenAI-compatible LLM to pick a polished layout for the
- * report: a curated palette, column widths, cell padding, zebra shading,
- * total-row highlight and border style. The model's answer arrives as a
- * small JSON object that is strictly validated and clamped here — an
- * unreachable model, a timeout, or an unusable answer simply leaves the
- * standard look in place, so the AI can never break or empty an export.
+ * When enabled (personal builds only, owner-gated), PDF and Word exports ask
+ * an OpenAI-compatible LLM to pick a polished layout for the report. For
+ * Colour exports the model also picks a curated palette; for Plain exports
+ * the palette is ignored and only font sizing, column widths, cell padding,
+ * zebra shading, Total-row tint and border style are applied. The model's
+ * answer arrives as a small JSON object that is strictly validated and clamped
+ * here — an unreachable model, a timeout, or an unusable answer simply leaves
+ * the standard look in place, so the AI can never break or empty an export.
  *
- * Plain (no colour) reference forms and Excel exports never pass through the
- * AI: the reference layout is untouched and Excel carries no fills.
+ * Excel exports never pass through the AI.
  *
  * Credentials come from the Settings screen (stored on this device) and, when
  * those fields are left blank, from build-time defaults in .env
@@ -151,7 +151,8 @@ export function paletteOf(name: PaletteName): PaletteColors {
 /* ------------------------------------------------------------------ */
 
 export interface ExportPolish {
-  palette: PaletteName;
+  /** Palette name; null means "don't colour" (plain exports). */
+  palette: PaletteName | null;
   zebra: boolean;
   highlightTotals: boolean;
   borders: "grid" | "none";
@@ -179,6 +180,8 @@ export interface ReportSpec {
   kind: string;
   layout: "one-page" | "two-page" | "standard";
   format: "pdf" | "docx";
+  /** true = plain (no colour) export; false = colour export. */
+  isPlain: boolean;
   tables: AiTableSpec[];
 }
 
@@ -191,7 +194,8 @@ export function buildReportSpec(
   kind: string,
   layout: ReportSpec["layout"],
   format: ReportSpec["format"],
-  bodyHtml: string
+  bodyHtml: string,
+  style: "plain" | "colour" = "colour"
 ): ReportSpec {
   const parsed = new DOMParser().parseFromString(`<div>${bodyHtml}</div>`, "text/html");
   const root = parsed.body.firstElementChild;
@@ -202,7 +206,7 @@ export function buildReportSpec(
       if (spec) tables.push(spec);
     }
   }
-  return { title, kind, layout, format, tables };
+  return { title, kind, layout, format, isPlain: style === "plain", tables };
 }
 
 function tableSpec(tbl: Element): AiTableSpec | null {
@@ -253,12 +257,12 @@ function tableSpec(tbl: Element): AiTableSpec | null {
 
 const SYSTEM_PROMPT =
   "You are the layout designer for railway maintenance reports rendered as strict grid tables in PDF and Word.\n" +
-  "You receive a JSON spec of one report (headers, row count, and each column's relative content width).\n" +
+  "You receive a JSON spec of one report (headers, row count, each column's relative content width, and whether the export is colour or plain).\n" +
   "Choose a polished, professional look and return ONLY a JSON object with exactly these keys:\n" +
-  '- "palette": one of "classic","navy","indigo","forest","teal","burgundy","slate","charcoal" (fixes the table header fill, heading and line colours).\n' +
+  '- "palette": one of "classic","navy","indigo","forest","teal","burgundy","slate","charcoal" for colour exports; omit or set to null for plain (no-colour) exports — the app ignores the palette in that case but still applies the other layout settings.\n' +
   '- "cellPadding": integer 2..6, points of cell padding suited to the row count density.\n' +
   '- "columnWidths": array of integers, percent of the page width, each 4..60, one entry per column of the FIRST table in "headers" order — wider for long text (nature of work, stations, remarks), narrow for codes and times.\n' +
-  '- "zebra": boolean, shade alternate body rows for readability.\n' +
+  '- "zebra": boolean, shade alternate body rows for readability (always true for colour exports).\n' +
   '- "highlightTotals": boolean, tint closing Total / Grand Total rows.\n' +
   '- "borders": "grid" or "none" for the internal table rules.\n' +
   '- "fitFontNudge": integer -2..2, how many points to nudge the text size in the auto page-fit layouts.\n' +
@@ -357,6 +361,101 @@ export async function testAiConnection(cfg: AiConfig): Promise<{ ok: boolean; me
   }
 }
 
+export interface AiModelInfo {
+  id: string;
+}
+
+/** Hardcoded fallback list — kept in sync with what router.bynara.id currently offers. */
+const KNOWN_MODELS: AiModelInfo[] = [
+  { id: "agnes-2.5-flash" },
+  { id: "agnes-video-v2.0" },
+  { id: "claude-fable-5" },
+  { id: "claude-fable-5.1" },
+  { id: "claude-opus-4.7" },
+  { id: "claude-opus-4.8" },
+  { id: "claude-opus-5" },
+  { id: "claude-sonnet-5" },
+  { id: "deepseek-v4-flash" },
+  { id: "deepseek-v4-flash-alibaba" },
+  { id: "deepseek-v4-flash-vision-exp" },
+  { id: "deepseek-v4-pro" },
+  { id: "deepseek-v4-pro-0813-bynara" },
+  { id: "deepseek-v4-pro-alibaba" },
+  { id: "gemini-3.8-flash-high" },
+  { id: "glm-5.2" },
+  { id: "glm-5.3" },
+  { id: "glm-5.3-flash" },
+  { id: "glm-5.3-free" },
+  { id: "gpt-5.4" },
+  { id: "gpt-5.5" },
+  { id: "gpt-5.6-luna" },
+  { id: "gpt-5.6-sol" },
+  { id: "gpt-5.6-terra" },
+  { id: "gpt-6-astra" },
+  { id: "grok-4.6" },
+  { id: "kimi-k2.7-code" },
+  { id: "kimi-k3" },
+  { id: "kimi-k3-promo" },
+  { id: "laguna-s-2.1" },
+  { id: "longcat-2.0-free" },
+  { id: "mimo-v2.5" },
+  { id: "mimo-v2.5-free" },
+  { id: "mimo-v2.5-pro" },
+  { id: "minimax-m3" },
+  { id: "muse-spark-1.2" },
+  { id: "muse-spark-1.2-contributor" },
+  { id: "muse-spark-1.2-contributor-free" },
+  { id: "muse-spark-1.3" },
+  { id: "muse-spark-1.3-contributor" },
+  { id: "muse-spark-1.3-contributor-free" },
+  { id: "qwen3.7-flash" },
+  { id: "qwen3.8-27b" },
+  { id: "qwen3.8-flash" },
+  { id: "qwen3.8-max" },
+  { id: "qwen3.8-max-alibaba" },
+  { id: "stepfun-3.7-flash" },
+];
+
+/** Fetches the list of available model IDs from the upstream router.
+ *  Tries the in-app proxy route first (dev/preview); falls back to the
+ *  built-in known-models list when running inside the offline APK. */
+export async function listAiModels(cfg: AiConfig): Promise<{ models: AiModelInfo[]; error?: string }> {
+  if (!cfg.hasCredential) return { models: KNOWN_MODELS, error: undefined };
+  // Try the in-app proxy route (works in dev / preview server builds).
+  try {
+    const res = await fetch("/api/ai/models", {
+      headers: { Authorization: `Bearer ${cfg.apiKey}` },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (res.ok) {
+      const j = await res.json() as { data?: { id: string }[] };
+      const models: AiModelInfo[] = (j.data ?? [])
+        .map((m) => ({ id: String(m.id) }))
+        .filter((m) => m.id.length > 0);
+      if (models.length > 0) return { models };
+    }
+  } catch {
+    /* proxy unavailable — fall through to known list */
+  }
+  // Direct fetch as a second attempt (may work if WebView CORS is relaxed).
+  try {
+    const res = await fetch(`${cfg.baseUrl}/v1/models`, {
+      headers: { Authorization: `Bearer ${cfg.apiKey}` },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (res.ok) {
+      const j = await res.json() as { data?: { id: string }[] };
+      const models: AiModelInfo[] = (j.data ?? [])
+        .map((m) => ({ id: String(m.id) }))
+        .filter((m) => m.id.length > 0);
+      if (models.length > 0) return { models };
+    }
+  } catch {
+    /* direct fetch failed — fall through to known list */
+  }
+  return { models: KNOWN_MODELS };
+}
+
 /**
  * Strict gate on the model's reply: the palette name must be one of the
  * curated set and every number is clamped (or dropped). Anything malformed
@@ -371,11 +470,10 @@ export function parsePolishResponse(content: string, colCount: number): ExportPo
     const end = s.lastIndexOf("}");
     if (start < 0 || end <= start) return null;
     const raw = JSON.parse(s.slice(start, end + 1)) as Record<string, unknown>;
-    const palette =
-      typeof raw.palette === "string" && (PALETTE_NAMES as string[]).includes(raw.palette)
-        ? (raw.palette as PaletteName)
-        : null;
-    if (!palette) return null;
+    let palette: PaletteName | null = null;
+    if (typeof raw.palette === "string" && (PALETTE_NAMES as string[]).includes(raw.palette)) {
+      palette = raw.palette as PaletteName;
+    }
     const out: ExportPolish = {
       palette,
       zebra: raw.zebra !== false,

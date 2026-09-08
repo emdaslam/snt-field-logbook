@@ -16,6 +16,7 @@ import {
   loadAiConfig,
   aiDefaults,
   testAiConnection,
+  listAiModels,
   AI_EXPORT_PASSWORD,
   AI_KEYS,
   type AiConfig,
@@ -86,6 +87,11 @@ export function Settings() {
   const [aiModel, setAiModel] = useState(() => {
     try { return localStorage.getItem(AI_KEYS.model) ?? ""; } catch { return ""; }
   });
+  const [aiModels, setAiModels] = useState<{ id: string }[]>([]);
+  const [aiModelsLoading, setAiModelsLoading] = useState(false);
+  const [aiModelsErr, setAiModelsErr] = useState<string | null>(null);
+  const [aiSaving, setAiSaving] = useState(false);
+  const [aiSaveOk, setAiSaveOk] = useState(false);
   const [aiTesting, setAiTesting] = useState(false);
   const [aiTestMsg, setAiTestMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [aiEnableOpen, setAiEnableOpen] = useState(false);
@@ -868,7 +874,7 @@ export function Settings() {
       {group === "ai" && AUTO_TIMINGS && (
         <Section title="AI Export Polish">
           <p className="mb-3 text-sm text-slate-600">
-            When enabled, Colour PDF and Word exports ask your AI model for a layout polish — palette, column widths, cell padding, zebra rows and Total-row tint — then apply it in a few seconds. If the AI is unreachable the export keeps the standard look. Plain (no colour) forms and Excel never go through the AI.
+            When enabled, Colour and plain PDF / Word exports ask your AI model for layout polish — palette, column widths, cell padding, zebra rows and Total-row tint — then apply it. If the AI is unreachable the export keeps the standard look. Excel never goes through the AI.
           </p>
           <button
             onClick={() => (aiCfg.enabled ? persistAi({ enabled: false }) : setAiEnableOpen(true))}
@@ -888,7 +894,7 @@ export function Settings() {
               className={inputClass}
               value={aiBaseUrl}
               placeholder={aiDefaults().baseUrl || "https://api.openai.com/v1"}
-              onChange={(e) => { setAiBaseUrl(e.target.value); persistAi({ baseUrl: e.target.value }); }}
+              onChange={(e) => setAiBaseUrl(e.target.value)}
             />
           </Field>
           <Field label="API key">
@@ -896,18 +902,56 @@ export function Settings() {
               type="password"
               className={inputClass}
               value={aiApiKey}
-              placeholder={aiCfg.hasCredential && !aiApiKey ? "Using the build default" : "sk-…"}
-              onChange={(e) => { setAiApiKey(e.target.value); persistAi({ apiKey: e.target.value }); }}
+              placeholder={aiCfg.hasCredential && !aiApiKey ? "Using the build default" : "sk-..."}
+              onChange={(e) => setAiApiKey(e.target.value)}
             />
           </Field>
           <Field label="Model">
-            <input
-              className={inputClass}
-              value={aiModel}
-              placeholder={aiDefaults().model || "gpt-4o-mini"}
-              onChange={(e) => { setAiModel(e.target.value); persistAi({ model: e.target.value }); }}
-            />
+            <div className="flex gap-2">
+              <select
+                className={`${inputClass} flex-1`}
+                value={aiModel}
+                onChange={(e) => setAiModel(e.target.value)}
+              >
+                <option value="">— select or type below —</option>
+                {aiModels.map((m) => (
+                  <option key={m.id} value={m.id}>{m.id}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                disabled={aiModelsLoading}
+                onClick={async () => {
+                  setAiModelsLoading(true);
+                  setAiModelsErr(null);
+                  const r = await listAiModels(loadAiConfig());
+                  if (r.models.length > 0) {
+                    setAiModels(r.models);
+                    setAiModel(r.models.find((m) => m.id === aiModel)?.id ?? r.models[0].id ?? "");
+                  } else {
+                    setAiModelsErr(r.error ?? "No models returned.");
+                  }
+                  setAiModelsLoading(false);
+                }}
+                className="rounded-lg border border-slate-300 px-3 text-sm font-medium text-slate-600 disabled:opacity-50 whitespace-nowrap"
+              >
+                {aiModelsLoading ? "…" : "Load models"}
+              </button>
+            </div>
+            {aiModelsErr && <p className="mt-1 text-xs text-red-600">{aiModelsErr}</p>}
           </Field>
+          <button
+            disabled={aiSaving}
+            onClick={() => {
+              setAiSaving(true);
+              setAiSaveOk(false);
+              persistAi({ baseUrl: aiBaseUrl, apiKey: aiApiKey, model: aiModel });
+              setTimeout(() => { setAiSaveOk(true); setAiSaving(false); }, 400);
+            }}
+            className="mt-3 w-full rounded-lg bg-blue-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {aiSaving ? "Saving…" : aiSaveOk ? "Saved" : "Save settings"}
+          </button>
           <button
             disabled={aiTesting}
             onClick={async () => {

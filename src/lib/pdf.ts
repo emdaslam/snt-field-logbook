@@ -518,15 +518,15 @@ export function buildPdf(
   // black-and-white layout (no navy/green headings, no shaded header, no
   // alternating rows); "colour" keeps the branded look.
   const plain = opts.style === "plain";
-  // AI polish (Colour exports only): a curated palette + layout tweaks chosen
-  // in real time by the owner's AI model — see aiExport.ts. Never applied to
-  // the plain reference layout.
-  const pal = !plain && opts.polish ? paletteOf(opts.polish.palette) : null;
+  // AI polish: layout tweaks chosen in real time by the owner's model — see aiExport.ts.
+  // Palette is only used for colour exports; plain exports still get padding, column widths,
+  // zebra rows, Total-row tint and border style from the same response.
+  const pal = !plain && opts.polish?.palette ? paletteOf(opts.polish.palette) : null;
   const INK: [number, number, number] = plain ? [0, 0, 0] : (pal ? pal.ink : NAVY);
   const ACCENT: [number, number, number] = plain ? [0, 0, 0] : (pal ? pal.accent : GREEN);
   const HEAD_FILL: [number, number, number] = plain ? [255, 255, 255] : (pal ? pal.head : [219, 234, 254]);
   const HEAD_TXT: [number, number, number] = plain ? [0, 0, 0] : (pal ? pal.headText : NAVY);
-  const cellPad = pal ? (opts.polish?.cellPadding ?? opts.cellPad ?? 4) : (opts.cellPad ?? 4);
+  const cellPad = opts.polish?.cellPadding ?? opts.cellPad ?? 4;
   const pageW = doc.internal.pageSize.getWidth();
 
   const parsed = new DOMParser().parseFromString(`<div>${bodyHtml}</div>`, "text/html");
@@ -1029,7 +1029,7 @@ export function buildPdf(
       // AI polish (main table only): the model's column percentages become
       // point widths, floored by the column's content and widest header word
       // — dates / times / train numbers / stations stay on a single line.
-      if (pal && opts.polish?.columnWidths && !aiWidthsUsed) {
+      if (opts.polish?.columnWidths && !aiWidthsUsed) {
         aiWidthsUsed = true;
         const avail = pageW - 2 * margin;
         opts.polish.columnWidths.forEach((pct, colIdx) => {
@@ -1063,7 +1063,7 @@ export function buildPdf(
       // AI polish: closing Total / Grand Total rows (the first non-empty cell
       // carries the word "total") get a tinted wash.
       let totalRows: number[] = [];
-      if (pal && opts.polish?.highlightTotals) {
+      if (opts.polish?.highlightTotals) {
         totalRows = body
           .map((row, i) => {
             const first = row.find((c) => (typeof c === "string" ? c : c.content).trim());
@@ -1117,17 +1117,18 @@ export function buildPdf(
           fontStyle: "bold",
           ...(plain ? { lineWidth: 0.1, lineColor: INK } : {}),
         },
-        ...(plain || (opts.polish && !opts.polish.zebra)
-          ? {}
-          : { alternateRowStyles: { fillColor: pal ? pal.zebra : [248, 250, 252] } }),
+        ...(plain && !opts.polish ? {}
+          : opts.polish && !opts.polish.zebra
+            ? {}
+            : { alternateRowStyles: { fillColor: pal ? pal.zebra : [248, 250, 252] } }),
         // AI "none" borders drop the internal grid and keep the header fill
         // (autoTable "plain" theme); every other case keeps the full grid.
-        theme: pal && opts.polish?.borders === "none" ? "plain" : "grid",
-        ...(pal && totalRows.length
+        theme: opts.polish && opts.polish.borders === "none" ? "plain" : "grid",
+        ...(totalRows.length
           ? {
               didParseCell: (data: { section: string; row: { index: number }; cell: { styles: { fillColor?: unknown } } }) => {
                 if (data.section === "body" && totalRows.includes(data.row.index)) {
-                  data.cell.styles.fillColor = pal.total;
+                  data.cell.styles.fillColor = pal ? pal.total : [248, 250, 252];
                 }
               },
             }
@@ -1615,12 +1616,12 @@ export function exportDocument(
       try {
         let polish: ExportPolish | null = null;
         const html = pageMode === "two" && twoBody ? twoBody : bodyHtml;
-        if ((format === "pdf" || format === "docx") && style === "colour") {
+        if (format === "pdf" || format === "docx") {
           const ai = loadAiConfig();
           if (ai.enabled && ai.hasCredential) {
             status.textContent = "Asking the AI to polish this report…";
             const layout = pageMode === "fit" ? "one-page" : pageMode === "two" ? "two-page" : "standard";
-            const r = await requestAiPolish(buildReportSpec(title, type, layout, format, html), ai);
+            const r = await requestAiPolish(buildReportSpec(title, type, layout, format, html, style), ai);
             polish = r.polish;
             if (r.error) status.textContent = r.error;
           }

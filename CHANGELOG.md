@@ -3,6 +3,23 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.54 — 2026-09-08
+
+**Minor: AI export now works on-device, plain exports get layout polish too, and Settings gains a model dropdown**
+
+- Fixed an in-app proxy route (`src/app/api/ai/route.ts` and `/api/ai/models`) so the app can call the owner's `router.bynara.id` endpoint from the Capacitor WebView without hitting CORS blocks — the server forwards requests and adds the required `Access-Control-Allow-Origin` header.
+- Plain (no colour) PDF and Word exports now also receive AI layout polish: column widths, cell padding, zebra rows, Total-row tint and border style. The palette is ignored for plain exports; only the layout settings are applied. Excel exports remain untouched.
+- Settings → AI Export: the free-text model field is replaced by a `<select>` dropdown populated from the upstream `/v1/models` endpoint ("Load models" button). Base URL, API key and model are no longer auto-saved on every keystroke — they are committed with an explicit **Save settings** button. A "Test connection" button remains below.
+- The default model is `agnes-2.5-flash` (the build-time `.env` default); the router also lists `qwen3.8-27b` as temporarily unavailable, so it stays in the dropdown but won't work until the upstream recovers.
+- Implemented in this commit.
+
+## 1.7.7.53 — 2026-09-08
+
+**Minor: AI export now works on-device via an in-app proxy route (fixes CORS block)**
+
+- The upstream AI router (`router.bynara.id`) does not return `Access-Control-Allow-Origin` headers, so the Capacitor WebView on the phone blocked every AI call outright — even though the same endpoint works fine from a normal browser or curl. Added `src/app/api/ai/route.ts` as an origin-side proxy: the app calls `/api/ai/chat/completions`, the server forwards it to the router with the device's stored API key, and returns the response with correct CORS headers. No user-visible change; the Settings UI already had a model field you can edit at any time.
+- Implemented in `e6df5f1`.
+
 ## 1.7.7.52 — 2026-09-08
 
 **Minor: the AI export default model now matches the router.bynara.id endpoint**

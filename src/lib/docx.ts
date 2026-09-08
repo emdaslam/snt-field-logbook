@@ -343,7 +343,7 @@ function buildTable(html: string, plain = false, pal: PaletteColors | null = nul
  */
 export function buildDocx(title: string, bodyHtml: string, style: ExportStyle = "colour", polish: ExportPolish | null = null): Uint8Array {
   const plain = style === "plain";
-  const pal = !plain && polish ? paletteOf(polish.palette) : null;
+  const pal = !plain && polish?.palette ? paletteOf(polish.palette) : null;
   const parsed = new DOMParser().parseFromString(`<div>${bodyHtml}</div>`, "text/html");
   const root = parsed.body.firstElementChild;
   const parts: string[] = [];
