@@ -3,6 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.52 — 2026-09-08
+
+**Minor: the AI export default model now matches the router.bynara.id endpoint**
+
+- The build-time default model was `qwen3.8-27b`, which the owner's `router.bynara.id` endpoint does not recognise, so Colour PDF / Word exports fell back to the standard look even when AI Export was enabled. Changed to `agnes-2.5-flash`. The model field in Settings → AI Export remains editable for users who want a different model.
+- Implemented in `ee9c378`.
+
 ## 1.7.7.51 — 2026-09-08
 
 **Major (p-build only): AI export polish — Colour PDF and Word reports get a live layout pass from your AI model, with the standard look as fallback**
