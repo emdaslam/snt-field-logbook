@@ -10,7 +10,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 - Fixed a layout overflow in AI-polished PDFs: the model's column percentages were floored by each column's full single-line width, so a long work-description cell (e.g. "CARRIED OUT REPLACEMENT OF 18A POINT ROLLERS..." at a large text size) inflated its column to several times the printable width and pushed the table off the right edge of the page. The model's percentages now only distribute the *slack* left over after every fixed column is guaranteed its one-line width and the long free-text column its widest word plus a readable minimum — the final column widths always sum exactly to the printable width, so no model reply can overflow the page. As a last resort (text size so large that even the one-line minimums exceed the page) fixed columns yield back toward their widest word before the row is scaled to fit.
 - Fit-on-one-page (and fit-on-two-pages) now pick the largest text size that satisfies **both** constraints: the report stays on one (or two) pages *and* the required table width — fixed columns on one line plus a readable free-text column — still fits inside the page at the tightest margins. Before, a size that fit vertically but overflowed horizontally was accepted.
 - The model prompt now states explicitly that the column percentages must add up to 100 and that the longest free-text column gets the largest share (the previous reply gave it 4 of 100, which the floor then magnified into the overflow).
-- Implemented in this commit.
+- Implemented in `ffac9e6`.
 
 ## 1.7.7.55 — 2026-09-08
 
@@ -30,7 +30,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 - Plain (no colour) PDF and Word exports now also receive AI layout polish: column widths, cell padding, zebra rows, Total-row tint and border style. The palette is ignored for plain exports; only the layout settings are applied. Excel exports remain untouched.
 - Settings → AI Export: the free-text model field is replaced by a `<select>` dropdown populated from the upstream `/v1/models` endpoint ("Load models" button). Base URL, API key and model are no longer auto-saved on every keystroke — they are committed with an explicit **Save settings** button. A "Test connection" button remains below.
 - The default model is `agnes-2.5-flash` (the build-time `.env` default); the router also lists `qwen3.8-27b` as temporarily unavailable, so it stays in the dropdown but won't work until the upstream recovers.
-- Implemented in this commit.
+- Implemented in `ffac9e6`.
 
 ## 1.7.7.53 — 2026-09-08
 
