@@ -3,6 +3,15 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.56 — 2026-09-09
+
+**Minor: AI-polished exports can no longer run past the page edge, and fit layouts use the largest font that truly fits**
+
+- Fixed a layout overflow in AI-polished PDFs: the model's column percentages were floored by each column's full single-line width, so a long work-description cell (e.g. "CARRIED OUT REPLACEMENT OF 18A POINT ROLLERS..." at a large text size) inflated its column to several times the printable width and pushed the table off the right edge of the page. The model's percentages now only distribute the *slack* left over after every fixed column is guaranteed its one-line width and the long free-text column its widest word plus a readable minimum — the final column widths always sum exactly to the printable width, so no model reply can overflow the page. As a last resort (text size so large that even the one-line minimums exceed the page) fixed columns yield back toward their widest word before the row is scaled to fit.
+- Fit-on-one-page (and fit-on-two-pages) now pick the largest text size that satisfies **both** constraints: the report stays on one (or two) pages *and* the required table width — fixed columns on one line plus a readable free-text column — still fits inside the page at the tightest margins. Before, a size that fit vertically but overflowed horizontally was accepted.
+- The model prompt now states explicitly that the column percentages must add up to 100 and that the longest free-text column gets the largest share (the previous reply gave it 4 of 100, which the floor then magnified into the overflow).
+- Implemented in this commit.
+
 ## 1.7.7.55 — 2026-09-08
 
 **Minor: AI export calls now go through the device's own network stack (fixes "The AI endpoint could not be reached")**
@@ -11,6 +20,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 - All AI calls — the export polish request, the Settings "Test connection" probe and the "Load models" listing — now run through Capacitor's built-in native HTTP bridge on the Android shell. The request is made by the device's own network stack (no WebView involved, so no CORS applies), with a 20 s timeout; in a regular web preview the same calls keep using the `/api/ai` proxy routes.
 - Web-preview fallbacks are unchanged: a bad model reply still degrades to the standard look, and the model dropdown still falls back to the built-in list when the endpoint can't be reached.
 - Removed the ineffective `WebView` flag from `MainActivity` (it only applies to `file://` origins, which this app does not use).
+- Implemented in `d9e91ff`.
 
 ## 1.7.7.54 — 2026-09-08
 

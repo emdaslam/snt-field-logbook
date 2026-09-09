@@ -363,7 +363,7 @@ const SYSTEM_PROMPT =
   "Choose a polished, professional look and return ONLY a JSON object with exactly these keys:\n" +
   '- "palette": one of "classic","navy","indigo","forest","teal","burgundy","slate","charcoal" for colour exports; omit or set to null for plain (no-colour) exports — the app ignores the palette in that case but still applies the other layout settings.\n' +
   '- "cellPadding": integer 2..6, points of cell padding suited to the row count density.\n' +
-  '- "columnWidths": array of integers, percent of the page width, each 4..60, one entry per column of the FIRST table in "headers" order — wider for long text (nature of work, stations, remarks), narrow for codes and times.\n' +
+  '- "columnWidths": array of numbers that add up to exactly 100, one entry per column of the FIRST table in "headers" order (each 4..60). They share the printable table width: the column holding the longest free text (nature of work / remarks — see "headers" and the widest entries of "relWidths") gets the single largest share (at least 30), station columns a moderate share (10..20), and date / time / train-number columns the smallest (4..12).\n' +
   '- "zebra": boolean, shade alternate body rows for readability (always true for colour exports).\n' +
   '- "highlightTotals": boolean, tint closing Total / Grand Total rows.\n' +
   '- "borders": "grid" or "none" for the internal table rules.\n' +

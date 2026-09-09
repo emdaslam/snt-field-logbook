@@ -440,20 +440,19 @@ function headerBaseWidths(trs: Element[], headCount: number): (number | undefine
 }
 
 /**
- * Side margin that fits the widest fixed-column table on the page. A column
- * with a reference width keeps at least that width but grows to hold its body
- * content on one line (`full`); a column without one reserves at least its
- * widest word (`word`). When the required table width exceeds what the default
- * margins leave, the side margins shrink to fit — but never below MIN_MARGIN.
- * Tables with no fixed-width columns are skipped (autoTable already fits those
- * by wrapping content).
+ * Widest table, in points, at the current font size: a column with a
+ * reference width keeps at least that width but grows to hold its body
+ * content on one line (`full`); a column without one (the long free-text
+ * column, e.g. NATURE OF WORK) reserves its widest word plus MIN_NATURE_COL —
+ * the smallest width at which it is still readable. When content-width
+ * overrides are provided (fit-on-one-page mode) they replace the reference
+ * width so the requirement shrinks with the font. Tables with no fixed-width
+ * columns report 0 (autoTable already fits those by wrapping content).
  */
-function effectiveMargin(
+function requiredTableWidth(
   root: Element,
   bodyFit: Map<Element, Record<number, ColFit>>,
   headFit: Map<Element, Record<number, ColFit>>,
-  pageW: number,
-  baseMargin: number,
   headWidths?: Record<number, number>
 ): number {
   let widest = 0;
@@ -467,18 +466,38 @@ function effectiveMargin(
     if (!base.some((w) => w != null)) continue;
     const fit = bodyFit.get(tbl) ?? {};
     const hf = headFit.get(tbl) ?? {};
+    let wrapCols = 0;
+    base.forEach((w) => {
+      if (w == null) wrapCols++;
+    });
     let total = 0;
     base.forEach((w, col) => {
       const f = fit[col];
       const word = Math.max(f?.word ?? 0, hf[col]?.word ?? 0);
-      // When content-width overrides are provided (fit-on-one-page mode), use
-      // those instead of the fixed data-width, so columns shrink with the font
-      // and cells don't end up with excess empty space.
       const bw = headWidths ? headWidths[col] : undefined;
-      total += w != null ? Math.max(bw ?? w, f?.full ?? 0, hf[col]?.word ?? 0) : word;
+      total += w != null
+        ? Math.max(bw ?? w, f?.full ?? 0, hf[col]?.word ?? 0)
+        : word + (wrapCols === 1 ? MIN_NATURE_COL : 0);
     });
     if (total > widest) widest = total;
   }
+  return widest;
+}
+
+/**
+ * Side margin that fits the widest table on the page. When the required table
+ * width exceeds what the default margins leave, the side margins shrink to
+ * fit — but never below MIN_MARGIN.
+ */
+function effectiveMargin(
+  root: Element,
+  bodyFit: Map<Element, Record<number, ColFit>>,
+  headFit: Map<Element, Record<number, ColFit>>,
+  pageW: number,
+  baseMargin: number,
+  headWidths?: Record<number, number>
+): number {
+  const widest = requiredTableWidth(root, bodyFit, headFit, headWidths);
   if (widest <= 0) return baseMargin;
   const fitted = (pageW - widest) / 2;
   return Math.max(MIN_MARGIN, Math.min(baseMargin, fitted));
@@ -983,18 +1002,20 @@ export function buildPdf(
         };
       }
 
-      // Fit-on-one-page mode: size the NATURE OF WORK column (index 9, the only
-      // column without a data-width) from its own content — the widest single
-      // line of work text at the current font size — instead of handing it the
-      // whole leftover row. The column is never wider than its content (no long
-      // empty strip inside the cell), never wider than the room the fixed
-      // columns leave (no page overflow, the failure the old rigid data-width
-      // attempt caused), and never below MIN_NATURE_COL. When the content
-      // leaves room to spare, that leftover is spread over the fixed columns in
-      // proportion, so the table still fills the printable width and those
-      // cells get roomier — and the fit loop can land on a larger font size,
-      // because a wider column no longer costs a wrapped work-text line.
-      if (opts.fitMode) {
+      // Fit-on-one-page mode without AI widths: size the NATURE OF WORK column
+      // (index 9, the only column without a data-width) from its own content —
+      // the widest single line of work text at the current font size — instead
+      // of handing it the whole leftover row. The column is never wider than its
+      // content (no long empty strip inside the cell), never wider than the room
+      // the fixed columns leave (no page overflow, the failure the old rigid
+      // data-width attempt caused), and never below MIN_NATURE_COL. When the
+      // content leaves room to spare, that leftover is spread over the fixed
+      // columns in proportion, so the table still fills the printable width and
+      // those cells get roomier — and the fit loop can land on a larger font
+      // size, because a wider column no longer costs a wrapped work-text line.
+      // (When AI column widths are active the block below owns the whole
+      // budget, including this column, so this one stays out of the way.)
+      if (opts.fitMode && !opts.polish?.columnWidths) {
         const avail = pageW - 2 * margin;
         let used = 0;
         const fixedCols: number[] = [];
@@ -1026,21 +1047,56 @@ export function buildPdf(
         }
       }
 
-      // AI polish (main table only): the model's column percentages become
-      // point widths, floored by the column's content and widest header word
-      // — dates / times / train numbers / stations stay on a single line.
+      // AI polish (main table only): the model's column percentages decide how
+      // the printable width is shared. Each fixed column keeps at least the
+      // width that holds its content on one line (dates / times / train
+      // numbers / stations never wrap), and the single reference-less column
+      // (the long free text, e.g. NATURE OF WORK) keeps at least its widest
+      // word and MIN_NATURE_COL. Whatever slack is left is distributed exactly
+      // in the model's proportions. The final widths always sum to the
+      // available width, so no model reply can run the table past the page
+      // edge; only as a last resort (font so large that even the one-line
+      // minimums exceed the page) do fixed columns yield back toward their
+      // widest word before the whole row is scaled to fit.
       if (opts.polish?.columnWidths && !aiWidthsUsed) {
         aiWidthsUsed = true;
+        const pcts = opts.polish.columnWidths;
         const avail = pageW - 2 * margin;
-        opts.polish.columnWidths.forEach((pct, colIdx) => {
-          if (colIdx < 0 || colIdx > 15) return;
-          const pctW = (pct / 100) * avail;
-          const floor = Math.max(fit[colIdx]?.full ?? 0, hf[colIdx]?.word ?? 0);
-          columnStyles[colIdx] = {
-            ...(columnStyles[colIdx] ?? {}),
-            cellWidth: Math.max(pctW, floor),
-          };
-        });
+        const wordMin: number[] = [];
+        const bases: number[] = [];
+        let wrapCol = -1;
+        for (let i = 0; i < pcts.length; i++) {
+          const word = Math.max(fit[i]?.word ?? 0, hf[i]?.word ?? 0);
+          wordMin[i] = word;
+          const cw = typeof columnStyles[i]?.cellWidth === "number" ? columnStyles[i]!.cellWidth : undefined;
+          if (cw === undefined) wrapCol = i;
+          bases[i] = Math.max(cw ?? word, word);
+        }
+        if (wrapCol >= 0) bases[wrapCol] = Math.max(bases[wrapCol], MIN_NATURE_COL);
+        let widthSum = bases.reduce((a, b) => a + b, 0);
+        let pass = 0;
+        while (widthSum > avail && pass < 4) {
+          pass++;
+          const flexSum = bases.reduce((a, b, i) => a + Math.max(0, b - wordMin[i]), 0);
+          if (flexSum <= 0) break;
+          const take = Math.min(widthSum - avail, flexSum);
+          for (let i = 0; i < bases.length; i++) {
+            const over = bases[i] - wordMin[i];
+            if (over > 0) bases[i] -= (take * over) / flexSum;
+          }
+          widthSum = bases.reduce((a, b) => a + b, 0);
+        }
+        if (widthSum > avail) {
+          const k = avail / widthSum;
+          for (let i = 0; i < bases.length; i++) bases[i] *= k;
+          widthSum = avail;
+        }
+        const slack = avail - widthSum;
+        for (let i = 0; i < pcts.length; i++) {
+          const entry: ColStyle = { ...(columnStyles[i] ?? {}) };
+          entry.cellWidth = bases[i] + (pcts[i] / 100) * slack;
+          columnStyles[i] = entry;
+        }
       }
 
       const head: { content: string; rowSpan?: number; colSpan?: number; styles?: ColStyle }[][] | undefined =
@@ -1217,45 +1273,51 @@ export function buildFitOnePagePdf(
   // reference to scale against as the size shrinks.
   const initDoc = new jsPDF({ unit: "pt", format: "a4" });
   registerPdfFonts(initDoc);
-  const initFs = startSize / 9;
-  const initBodyFit = new Map<Element, Record<number, ColFit>>();
-  const initHeadFit = new Map<Element, Record<number, ColFit>>();
+  const pageW = initDoc.internal.pageSize.getWidth();
   const parsed = new DOMParser().parseFromString(`<div>${bodyHtml}</div>`, "text/html");
   const root = parsed.body.firstElementChild!;
-  for (const tbl of Array.from(root.querySelectorAll("table"))) {
-    initBodyFit.set(tbl, measureBodyColumns(tbl, initDoc, initFs, fitPad));
-    initHeadFit.set(tbl, measureHeadColumns(tbl, initDoc, initFs, fitPad));
-  }
+  const measureAt = (fs: number) => {
+    const bf = new Map<Element, Record<number, ColFit>>();
+    const hf = new Map<Element, Record<number, ColFit>>();
+    const pad = polish?.cellPadding ?? fitPad;
+    for (const tbl of Array.from(root.querySelectorAll("table"))) {
+      bf.set(tbl, measureBodyColumns(tbl, initDoc, fs, pad));
+      hf.set(tbl, measureHeadColumns(tbl, initDoc, fs, pad));
+    }
+    return { bf, hf };
+  };
+  const initMeasure = measureAt(startSize / 9);
   let size = Math.max(FIT_FONT_MIN, Math.min(CONTENT_FONT_MAX, startSize + (polish?.fitFontNudge ?? 0)));
+  let contentWidths: Record<number, number> = {};
+  let curMeasure = measureAt(size / 9);
   let doc = buildPdf(title, bodyHtml, size, { margin: FIT_MARGIN, footer: false, style, fixedHeader, cellPad: fitPad, fitMode: true, polish });
-  while (doc.getNumberOfPages() > 1 && size > FIT_FONT_MIN) {
+  let required = requiredTableWidth(root, curMeasure.bf, curMeasure.hf);
+  // The size must keep the report on one page AND leave the required table
+  // width (fixed columns on one line + a readable free-text column) inside
+  // the page even at the tightest margins — otherwise the largest usable
+  // size would let the table run past the right edge.
+  while ((doc.getNumberOfPages() > 1 || required + 2 * MIN_MARGIN > pageW) && size > FIT_FONT_MIN) {
     size -= 1;
     const fs = size / 9;
-    // Re-measure body and header content at the current font size so we can
-    // derive per-column widths that shrink proportionally with the text.
-    const curBodyFit = new Map<Element, Record<number, ColFit>>();
-    const curHeadFit = new Map<Element, Record<number, ColFit>>();
-    for (const tbl of Array.from(root.querySelectorAll("table"))) {
-      curBodyFit.set(tbl, measureBodyColumns(tbl, initDoc, fs, fitPad));
-      curHeadFit.set(tbl, measureHeadColumns(tbl, initDoc, fs, fitPad));
-    }
-    const contentWidths: Record<number, number> = {};
+    curMeasure = measureAt(fs);
+    contentWidths = {};
     for (const tbl of Array.from(root.querySelectorAll("table"))) {
       const trs = Array.from(tbl.querySelectorAll("tr"));
       let headCount = 0;
       while (headCount < trs.length && trs[headCount].querySelector("th")) headCount++;
       if (!headCount) continue;
       const base = headerBaseWidths(trs, headCount);
-      const initFit = initBodyFit.get(tbl) ?? {};
-      const curFit = curBodyFit.get(tbl) ?? {};
-      const initHf = initHeadFit.get(tbl) ?? {};
+      const initFit = initMeasure.bf.get(tbl) ?? {};
+      const curFit = curMeasure.bf.get(tbl) ?? {};
+      const initHf = initMeasure.hf.get(tbl) ?? {};
       for (const [col, w] of base.entries()) {
         if (w == null) continue;
         const initFull = Math.max(initFit[col]?.full ?? 0, initHf[col]?.word ?? 0);
-        const curFull = Math.max(curFit[col]?.full ?? 0, curHeadFit.get(tbl)![col]?.word ?? 0);
+        const curFull = Math.max(curFit[col]?.full ?? 0, curMeasure.hf.get(tbl)![col]?.word ?? 0);
         if (initFull > 0) contentWidths[col] = w * (curFull / initFull);
       }
     }
+    required = requiredTableWidth(root, curMeasure.bf, curMeasure.hf, contentWidths);
     doc = buildPdf(title, bodyHtml, size, {
       margin: FIT_MARGIN, footer: false, style, fixedHeader, cellPad: fitPad, fitMode: true, polish,
       ...(Object.keys(contentWidths).length ? { contentWidths } : {}),
@@ -1282,6 +1344,10 @@ export function buildFitTwoPagePdf(
 ): jsPDF {
   const TWO_PAGE_FONT_MIN = 6;
   const TWO_PAGE_FONT_MAX = 30;
+  const probe = new jsPDF({ unit: "pt", format: "a4" });
+  registerPdfFonts(probe);
+  const pageW = probe.internal.pageSize.getWidth();
+  const root = new DOMParser().parseFromString(`<div>${bodyHtml}</div>`, "text/html").body.firstElementChild!;
   const render = (size: number) =>
     buildPdf(title, bodyHtml, size, {
       style,
@@ -1289,6 +1355,21 @@ export function buildFitTwoPagePdf(
       polish,
       ...(cellPad != null ? { cellPad } : {}),
     });
+  // A size fits when the split stays on two pages AND the required table
+  // width (fixed columns on one line + a readable free-text column) stays
+  // inside the page even at the tightest margins.
+  const fits = (size: number): boolean => {
+    const m = {
+      bf: new Map<Element, Record<number, ColFit>>(),
+      hf: new Map<Element, Record<number, ColFit>>(),
+    };
+    const pad = polish?.cellPadding ?? cellPad ?? 4;
+    for (const tbl of Array.from(root.querySelectorAll("table"))) {
+      m.bf.set(tbl, measureBodyColumns(tbl, probe, size / 9, pad));
+      m.hf.set(tbl, measureHeadColumns(tbl, probe, size / 9, pad));
+    }
+    return requiredTableWidth(root, m.bf, m.hf) + 2 * MIN_MARGIN <= pageW;
+  };
   // Even the smallest size may still exceed two pages for a very dense month —
   // fall back to it (best effort) when the search finds no fitting size.
   let best = render(TWO_PAGE_FONT_MIN);
@@ -1297,7 +1378,7 @@ export function buildFitTwoPagePdf(
   while (lo <= hi) {
     const mid = Math.floor((lo + hi) / 2);
     const doc = render(mid);
-    if (doc.getNumberOfPages() <= 2) {
+    if (doc.getNumberOfPages() <= 2 && fits(mid)) {
       best = doc;
       lo = mid + 1;
     } else {
