@@ -9,7 +9,7 @@ import { InspectionExportModal } from "./InspectionExportModal";
 import { PeriodPicker, monthPeriod, type Period } from "./PeriodPicker";
 import { getPcdoPeriod } from "@/lib/pcdo";
 import { useBackClose } from "@/lib/backButton";
-import { fmtDate, pcdoWorkEntries, counterResetsOf, counterResetTotal, isTaClaimable } from "@/lib/api";
+import { fmtDate, pcdoWorkEntries, counterResetsOf, counterResetTotal, isTaClaimable, logStationNames } from "@/lib/api";
 import { PrimaryButton } from "./ui";
 import { StatDetailModal, type StatRow } from "./StatDetailModal";
 import { computeAllSchedules, expandInspectionRecords, INSPECTION_RULES, isGenericSideLabel, sideAskingKinds, tagReminderConfigs, cap } from "@/lib/inspections";
@@ -99,16 +99,13 @@ export function Reports({
 
     const counter = pLogs.reduce((n, l) => n + counterResetTotal(l), 0);
 
-    // Station-wise breakdown of logs in the period
+    // Station-wise breakdown of logs in the period — a multi-movement day
+    // counts under every stop (primary + extraStops), not only the first.
     const byStation = new Map<string, number>();
     for (const l of pLogs) {
-      const m = stations.find(
-        (s) =>
-          l.stationMovement === s.name ||
-          (l.stationMovement && l.stationMovement.toLowerCase().includes(s.name.toLowerCase()))
-      );
-      const k = m ? m.name : l.stationMovement || "Unspecified";
-      byStation.set(k, (byStation.get(k) ?? 0) + 1);
+      for (const k of logStationNames(l, stations)) {
+        byStation.set(k, (byStation.get(k) ?? 0) + 1);
+      }
     }
 
     return {
@@ -430,15 +427,7 @@ export function Reports({
                     setDrill({
                       title: `Logs — ${name}`,
                       rows: stats.pLogs
-                        .filter((l) => {
-                          const m = stations.find(
-                            (st) =>
-                              l.stationMovement === st.name ||
-                              (l.stationMovement &&
-                                l.stationMovement.toLowerCase().includes(st.name.toLowerCase()))
-                          );
-                          return (m ? m.name : l.stationMovement || "Unspecified") === name;
-                        })
+                        .filter((l) => logStationNames(l, stations).includes(name))
                         .map((l) => ({
                           key: "s" + l.id,
                           date: l.logDate,

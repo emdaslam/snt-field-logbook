@@ -155,7 +155,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [syncError, setSyncError] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [myStationsOnly, setMyStationsOnlyState] = useState(false);
-  const [fontSize, setFontSizeState] = useState<FontSize>("large");
+  const [fontSize, setFontSizeState] = useState<FontSize>("medium");
   const [theme, setThemeState] = useState<AppTheme>(() => {
     if (typeof window === "undefined") return "light";
     try {
@@ -209,7 +209,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     } catch {
       /* ignore */
     }
-    applyFontSize("large");
+    applyFontSize("medium");
   }, [applyFontSize]);
 
   const setFontSize = useCallback(

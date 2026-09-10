@@ -3,6 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.58 — 2026-09-10
+
+**Minor: Logs by Station counts every stop on a multi-movement day, and Medium is the default font size**
+
+- Reports → Logs by Station used only the first station of a daily log, so a chain HQ → A → B → C was listed under A alone. Second and third (and further) extra stops now each get the log: the count goes up for every stop, and tapping a station opens every log that visited it, including temporary typed names.
+- Settings → Appearance font size now defaults to Medium (was Large). An already-saved Small / Medium / Large choice is unchanged.
+
 ## 1.7.7.57 — 2026-09-10
 
 **Major: a daily-log movement can use a temporary station without adding it to the stations list**

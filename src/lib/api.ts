@@ -726,6 +726,73 @@ export function pcdoWorkEntries(
   return legacy ? [{ department: "", work: legacy }] : [];
 }
 
+const FOOTPLATE_STOP = "__footplate__";
+const TEMP_STATION_STOP = "__temp__";
+const NON_STATION_MOVEMENTS = new Set(["rest", "leave", "cr", "nh", "footplate"]);
+
+/**
+ * Station names a daily log belongs to for Reports → Logs by Station.
+ * The primary movement plus every extra stop on a multi-movement chain;
+ * Footplate slots and Rest / Leave / CR / NH labels are skipped. Temporary
+ * typed names (not on the stations list) are kept as entered.
+ */
+export function logStationNames(
+  l: {
+    stationMovement?: string | null;
+    extraStops?: string[] | null;
+    movementKind?: string | null;
+    journeyLegs?: { from?: string | null; to?: string | null }[] | null;
+  },
+  stations: { name: string; code?: string | null }[]
+): string[] {
+  const resolve = (raw: string): string | null => {
+    const t = raw.trim();
+    if (!t || t === FOOTPLATE_STOP || t === TEMP_STATION_STOP) return null;
+    if (NON_STATION_MOVEMENTS.has(t.toLowerCase())) return null;
+    const exact = stations.find((s) => s.name === t);
+    if (exact) return exact.name;
+    const byCode = stations.find(
+      (s) => s.code != null && s.code.trim() !== "" && s.code === t
+    );
+    if (byCode) return byCode.name;
+    const lower = t.toLowerCase();
+    const loose = stations.find(
+      (s) =>
+        s.name.toLowerCase() === lower ||
+        lower.includes(s.name.toLowerCase())
+    );
+    return loose ? loose.name : t;
+  };
+
+  const names: string[] = [];
+  const add = (raw: string | null | undefined) => {
+    if (!raw) return;
+    const k = resolve(raw);
+    if (k && !names.includes(k)) names.push(k);
+  };
+
+  add(l.stationMovement);
+  if (Array.isArray(l.extraStops)) {
+    for (const s of l.extraStops) add(s);
+  }
+  // Older multi-movement logs stored the chain only as journeyLegs
+  // (HQ → A → B → HQ). Intermediate `to` values are the 2nd/3rd stations.
+  if (
+    !(Array.isArray(l.extraStops) && l.extraStops.length > 0) &&
+    Array.isArray(l.journeyLegs) &&
+    l.journeyLegs.length > 1
+  ) {
+    for (let i = 0; i < l.journeyLegs.length - 1; i++) {
+      add(l.journeyLegs[i].to);
+    }
+  }
+  if (names.length === 0) {
+    const t = (l.stationMovement ?? "").trim();
+    return [t || "Unspecified"];
+  }
+  return names;
+}
+
 /** True when a daily log is a claimable TA day: a movement away from HQ to a
  *  station fixed above 8 km, or to a variable station where the log confirms
  *  the work was done at/after its KMs marker — at a claimable TA percent.
