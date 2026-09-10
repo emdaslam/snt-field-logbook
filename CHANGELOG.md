@@ -3,6 +3,15 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.57 — 2026-09-10
+
+**Major: a daily-log movement can use a temporary station without adding it to the stations list**
+
+- Station / Movement now has **Temporary station…** under the saved stations. Type a name for a one-day (or few-day) stop; it is stored only on that log and extra stops — **Save station** / Settings → Stations is unchanged.
+- Reopening the log still shows the typed name. Extra stops in a multi-movement chain can be temporary too.
+- Home, Reports → Logs by Station, Diary / TA print, search and log detail use the typed name like any other movement. TA Journal still needs a saved station with distance from HQ; auto-timings stay blank until times are entered by hand.
+- With “my stations only” on, a temporary name still appears on Home (Rest / Leave / CR / NH / Footplate do not).
+
 ## 1.7.7.56 — 2026-09-09
 
 **Minor: AI-polished exports can no longer run past the page edge, and fit layouts use the largest font that truly fits**

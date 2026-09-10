@@ -728,9 +728,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (myStationNames.length === 0) return true;
       if (!movement) return false;
       const m = movement.toLowerCase();
-      return myStationNames.some((n) => m.includes(n.toLowerCase()));
+      if (myStationNames.some((n) => m.includes(n.toLowerCase()))) return true;
+      if (/^(rest|leave|cr|nh)(\b|$)|footplate/i.test(m)) return false;
+      const known = stations.some(
+        (s) =>
+          s.name.toLowerCase() === m ||
+          (s.code != null && s.code.trim() !== "" && s.code.toLowerCase() === m)
+      );
+      return !known;
     },
-    [myStationsOnly, myStationNames]
+    [myStationsOnly, myStationNames, stations]
   );
 
   return (

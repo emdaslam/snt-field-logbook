@@ -57,6 +57,17 @@ import type {
  *  boarding station + train legs) anywhere among the station stops. */
 const FOOTPLATE_SLOT = "__footplate__";
 
+/** Sentinel for the Station / Movement picker: type a one-off name that is
+ *  stored only on this log (and extra stops), never written to the stations
+ *  profile. */
+const TEMP_STATION = "__temp__";
+
+function isTempStationName(name: string, list: Array<{ name: string }>) {
+  const n = name.trim();
+  if (!n || n === TEMP_STATION || n === FOOTPLATE_SLOT) return false;
+  return !list.some((s) => s.name === n);
+}
+
 type ChainTravelSnap = {
   hqName: string;
   timeDep: string;
@@ -915,7 +926,7 @@ export function DailyLogForm({
     setJourneyLegs((cur) => buildChainLegs(filled, cur, snap.travel, snap.fp, snap.label));
   };
   const syncLegs = (chain: string[]) => {
-    const filled = chain.filter((m) => m.trim());
+    const filled = chain.filter((m) => m.trim() && m !== TEMP_STATION);
     if (filled.length >= 2) {
       singleRowEditRef.current = true;
       setEditExportRows(true);
@@ -978,6 +989,12 @@ export function DailyLogForm({
   const [saving, setSaving] = useState(false);
   const [addingStation, setAddingStation] = useState(false);
   const [newStationDraft, setNewStationDraft] = useState<StationDraft>(EMPTY_STATION_DRAFT);
+  const [tempPrimary, setTempPrimary] = useState(() => {
+    const mv = existing?.stationMovement ?? "";
+    const k = existing?.movementKind;
+    if (k === "rest" || k === "leave" || k === "cr" || k === "nh" || k === "footplate") return false;
+    return isTempStationName(mv, stations);
+  });
   const [pcdoOpen, setPcdoOpen] = useState(pcdoWorkEntries(existing).length > 0);
   const [pcdoWorks, setPcdoWorks] = useState<PcdoWork[]>(pcdoWorkEntries(existing));
   const togglePcdoDept = (dept: string) => {
@@ -1069,12 +1086,14 @@ export function DailyLogForm({
       if (movementKind !== "footplate") {
         setFpRides((prev) => [emptyFpRide(), ...prev]);
       }
+      setTempPrimary(false);
       setMovementKind("footplate");
       setMovement("Footplate");
       syncLegs([FOOTPLATE_SLOT, ...extraMovements]);
       return;
     }
     if (v === "rest" || v === "leave" || v === "cr" || v === "nh") {
+      setTempPrimary(false);
       setMovementKind(v);
       setLeaveKind("");
       setCrFrom("");
@@ -1091,6 +1110,15 @@ export function DailyLogForm({
     if (movementKind === "footplate") {
       setFpRides((prev) => prev.slice(1));
     }
+    if (v === TEMP_STATION) {
+      setMovementKind("station");
+      setMovement("");
+      setTempPrimary(true);
+      setTaAtVariableKm(null);
+      syncLegs(["", ...extraMovements]);
+      return;
+    }
+    setTempPrimary(false);
     setMovementKind("station");
     setMovement(v);
     setTaAtVariableKm(null);
@@ -1198,7 +1226,7 @@ export function DailyLogForm({
     syncLegs([primarySlot, ...next]);
   };
   const startSingleRowEdit = () => {
-    const filled = [primarySlot, ...extraMovements].filter((m) => m.trim());
+    const filled = [primarySlot, ...extraMovements].filter((m) => m.trim() && m !== TEMP_STATION);
     if (filled.length === 0) return;
     singleRowEditRef.current = true;
     setEditRowsTapped(true);
@@ -1208,7 +1236,7 @@ export function DailyLogForm({
   const cancelRowEdit = () => {
     setEditRowsTapped(false);
     const init = initialRowsRef.current;
-    const filled = [primarySlot, ...extraMovements].filter((m) => m.trim());
+    const filled = [primarySlot, ...extraMovements].filter((m) => m.trim() && m !== TEMP_STATION);
     // The row editor is structural for entries with two or more movements (and
     // for single custom entries that saved legs) — only a plain single entry
     // reverts to the Timings block.
@@ -1234,9 +1262,9 @@ export function DailyLogForm({
   const pcdoStationId = pcdoStationOverride ?? resolvedStation?.id ?? null;
   const chainStations = (() => {
     const names: string[] = [];
-    if (movementKind === "station" && movement.trim()) names.push(movement);
+    if (movementKind === "station" && movement.trim() && movement !== TEMP_STATION) names.push(movement);
     for (const m of extraMovements) {
-      if (m && m !== FOOTPLATE_SLOT && !names.includes(m)) names.push(m);
+      if (m && m !== FOOTPLATE_SLOT && m !== TEMP_STATION && !names.includes(m)) names.push(m);
     }
     return names
       .map((n) => stations.find((s) => s.name === n))
@@ -1376,6 +1404,10 @@ export function DailyLogForm({
 
   async function save() {
     setError("");
+    if (movementKind === "station" && !movement.trim()) {
+      setError("Enter the station name, or pick a saved station.");
+      return;
+    }
     if (pcdoOpen && !pcdoStationId) {
       setError("PCDO station not yet selected. Select a station in Station/Movement or pick the PCDO station.");
       return;
@@ -1540,7 +1572,7 @@ export function DailyLogForm({
       inspectionPeriodicity:
         fpInChain || (inspectionKind && PERIODIC_KINDS.includes(inspectionKind)) ? periodicity : null,
       inspectionRemindDays: null,
-      extraStops: extraMovements.filter((m) => m.trim()),
+      extraStops: extraMovements.filter((m) => m.trim() && m !== TEMP_STATION),
       footplateJourneys: fpInChain ? ridesPayload : [],
       footplateShift: fpInChain
         ? fpShift
@@ -1652,9 +1684,11 @@ export function DailyLogForm({
             className={inputClass}
             value={
               movementKind === "station"
-                ? stations.some((s) => s.name === movement)
-                  ? movement
-                  : ""
+                ? tempPrimary || isTempStationName(movement, stations)
+                  ? TEMP_STATION
+                  : stations.some((s) => s.name === movement)
+                    ? movement
+                    : ""
                 : movementKind
             }
             onChange={(e) => selectMovement(e.target.value)}
@@ -1668,6 +1702,7 @@ export function DailyLogForm({
                 {s.name}
               </option>
             ))}
+            <option value={TEMP_STATION}>Temporary station…</option>
             <option value="" disabled>
               — Movements —
             </option>
@@ -1685,6 +1720,32 @@ export function DailyLogForm({
             {addingStation ? "Cancel" : "+ Add"}
           </button>
         </div>
+        {movementKind === "station" && (tempPrimary || isTempStationName(movement, stations)) && (
+          <div className="mt-2">
+            <input
+              type="text"
+              className={inputClass}
+              value={movement}
+              placeholder="Type the station name — not saved to the stations list"
+              autoFocus={!movement.trim()}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (stations.some((s) => s.name === v)) {
+                  selectMovement(v);
+                  return;
+                }
+                setTempPrimary(true);
+                setMovementKind("station");
+                setMovement(v);
+                setTaAtVariableKm(null);
+                syncLegs([v, ...extraMovements]);
+              }}
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              Used on this log only. It will not be added to Settings → Stations.
+            </p>
+          </div>
+        )}
         {addingStation && (
           <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50/40 p-2.5">
             <p className="mb-1.5 text-xs font-medium text-emerald-800">
@@ -1763,29 +1824,47 @@ export function DailyLogForm({
           !isHeadquarters && (
           <div className="mt-2 space-y-2">
             {extraMovements.map((m, i) => (
-              <div key={i} className="flex gap-2">
-                <select
-                  className={inputClass}
-                  value={m}
-                  onChange={(e) => changeExtraMovement(i, e.target.value)}
-                >
-                  <option value="">— Select another stop —</option>
-                  {stations
-                    .filter((s) => s.id !== currentUser?.headquartersStationId)
-                    .map((s) => (
-                      <option key={s.id} value={s.name}>
-                        {s.name}
-                      </option>
-                    ))}
-                  <option value={FOOTPLATE_SLOT}>Footplate</option>
-                </select>
-                <button
-                  type="button"
-                  onClick={() => removeExtraMovement(i)}
-                  className="flex-shrink-0 rounded-lg border border-red-200 px-3 text-sm font-semibold text-red-600 hover:bg-red-50"
-                >
-                  Remove
-                </button>
+              <div key={i} className="space-y-1">
+                <div className="flex gap-2">
+                  <select
+                    className={inputClass}
+                    value={
+                      m === FOOTPLATE_SLOT
+                        ? FOOTPLATE_SLOT
+                        : m === TEMP_STATION || isTempStationName(m, stations)
+                          ? TEMP_STATION
+                          : m
+                    }
+                    onChange={(e) => changeExtraMovement(i, e.target.value)}
+                  >
+                    <option value="">— Select another stop —</option>
+                    {stations
+                      .filter((s) => s.id !== currentUser?.headquartersStationId)
+                      .map((s) => (
+                        <option key={s.id} value={s.name}>
+                          {s.name}
+                        </option>
+                      ))}
+                    <option value={TEMP_STATION}>Temporary station…</option>
+                    <option value={FOOTPLATE_SLOT}>Footplate</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => removeExtraMovement(i)}
+                    className="flex-shrink-0 rounded-lg border border-red-200 px-3 text-sm font-semibold text-red-600 hover:bg-red-50"
+                  >
+                    Remove
+                  </button>
+                </div>
+                {(m === TEMP_STATION || isTempStationName(m, stations)) && (
+                  <input
+                    type="text"
+                    className={inputClass}
+                    value={m === TEMP_STATION ? "" : m}
+                    placeholder="Type the station name — not saved to the stations list"
+                    onChange={(e) => changeExtraMovement(i, e.target.value)}
+                  />
+                )}
               </div>
             ))}
             <button
@@ -1799,8 +1878,9 @@ export function DailyLogForm({
               <p className="text-xs text-slate-500">
                 With two or more movements the entry prints as one row per leg —
                 HQ → stop → … → stop → HQ — in the Diary and TA Journal
-                exports. Each extra stop can be a station or Footplate; each
-                Footplate asks for its own boarding, trains and times.
+                exports. Each extra stop can be a saved station, a temporary
+                station (this log only) or Footplate; each Footplate asks for
+                its own boarding, trains and times.
               </p>
             )}
           </div>

@@ -603,6 +603,29 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.7.57",
+    tag: "Temporary station",
+    subtitle:
+      "Type a one-off station on a daily log without adding it to the stations list.",
+    slides: [
+      {
+        glyph: "▣",
+        title: "Temporary station…",
+        body: "On Add / Edit Daily Log, Station / Movement now ends the stations list with Temporary station…. Pick it and type the name of a stop you only need for a day or a few days — it is stored on that log only.",
+      },
+      {
+        glyph: "☰",
+        title: "Not added to the stations list",
+        body: "The typed name never goes into Settings → Stations. Extra stops on a multi-movement chain can be temporary too. Use + Add / Save station only when you want a permanent station with distance and travel time.",
+      },
+      {
+        glyph: "▤",
+        title: "Shows everywhere the movement does",
+        body: "Home, Reports → Logs by Station, Diary and TA print, search and the log detail all show the typed name like any other station movement. TA Journal still needs a saved station with distance from HQ.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {
