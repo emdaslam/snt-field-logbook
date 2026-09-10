@@ -11,6 +11,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 - Reopening the log still shows the typed name. Extra stops in a multi-movement chain can be temporary too.
 - Home, Reports → Logs by Station, Diary / TA print, search and log detail use the typed name like any other movement. TA Journal still needs a saved station with distance from HQ; auto-timings stay blank until times are entered by hand.
 - With “my stations only” on, a temporary name still appears on Home (Rest / Leave / CR / NH / Footplate do not).
+- Implemented in `e363baa`.
 
 ## 1.7.7.56 — 2026-09-09
 
