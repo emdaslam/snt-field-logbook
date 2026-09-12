@@ -9,6 +9,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 - A typed temporary station (not on Settings → Stations) now counts as farther than 8 km from HQ, so the day’s 100 / 70 / 30 % pick is included in Total TA, the Diary TA list and the TA Journal — the same as a saved “above 8 km” station.
 - On Edit the rows, ticking --- on both Time dept and Time arr of a leg selects By Train and sets Train No to --- for that leg only. By Road stays the default until both dashes are ticked.
+- Implemented in `34c0781`.
 
 ## 1.7.7.59 — 2026-09-12
 
