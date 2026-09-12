@@ -3,6 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.60 — 2026-09-12
+
+**Minor: TA for temporary stations, and By Train when both times are ---**
+
+- A typed temporary station (not on Settings → Stations) now counts as farther than 8 km from HQ, so the day’s 100 / 70 / 30 % pick is included in Total TA, the Diary TA list and the TA Journal — the same as a saved “above 8 km” station.
+- On Edit the rows, ticking --- on both Time dept and Time arr of a leg selects By Train and sets Train No to --- for that leg only. By Road stays the default until both dashes are ticked.
+
 ## 1.7.7.59 — 2026-09-12
 
 **Major: copy one daily log onto several other dates**

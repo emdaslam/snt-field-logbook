@@ -622,7 +622,7 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       {
         glyph: "▤",
         title: "Shows everywhere the movement does",
-        body: "Home, Reports → Logs by Station, Diary and TA print, search and the log detail all show the typed name like any other station movement. TA Journal still needs a saved station with distance from HQ.",
+        body: "Home, Reports → Logs by Station, Diary and TA print, search and the log detail all show the typed name like any other station movement. A temporary station is counted as farther than 8 km from HQ for TA.",
       },
     ],
   },

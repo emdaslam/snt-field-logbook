@@ -68,6 +68,18 @@ function trainNoLabel(mode: string | null | undefined, trainNo: string | null | 
   return mode === "train" ? (trainNo?.trim() || "TRAIN") : "ROAD";
 }
 
+/** TRAIN column for an edited Diary / TA leg. When both Time dept and Time arr
+ *  are --- the leg is treated as By Train with train no ---. */
+function journeyLegTrainNo(leg: {
+  mode?: string | null;
+  trainNo?: string | null;
+  timeDep?: string | null;
+  timeArr?: string | null;
+}): string {
+  if (leg.timeDep === "---" && leg.timeArr === "---") return "---";
+  return trainNoLabel(leg.mode, leg.trainNo || undefined);
+}
+
 export function exportTomorrowsWork(
   deficiencies: DeficiencyTask[],
   planned: PlannedWork[],
@@ -570,7 +582,7 @@ function customJourneyRows(
   if (!legs.length) return [];
   const st = movementStation(l, stations);
   return legs.map((leg, i) => ({
-    trainNo: trainNoLabel(leg.mode, leg.trainNo || undefined),
+    trainNo: journeyLegTrainNo(leg),
     dep:
       leg.timeDep === "---"
         ? "---"
@@ -986,8 +998,9 @@ export function exportDiary(
 /**
  * TA Journal export — the reference TA.xlsx layout. Includes only days where
  * TA is actually claimed: a station movement **farther than 8 km from the
- * headquarters** (stations.distanceFromHq === "above8") with a 100 / 70 / 30
- * rate. Each qualifying day is shown as a vertical two-leg row pair, the dates
+ * headquarters** (stations.distanceFromHq === "above8", or a typed temporary
+ * station treated as above 8 km) with a 100 / 70 / 30 rate. Each qualifying
+ * day is shown as a vertical two-leg row pair, the dates
  * / timings / from / to / KMS columns are centred on both axes, the work text
  * wraps, and the SOUTH COAST RAILWAY header is centred. In the normal build
  * the timings are the user-entered clock fields; in the personal build they
@@ -1009,8 +1022,8 @@ export function exportTaJournal(
 
   // One entry per TA day. A date with two movements (two daily logs) counts as
   // a single TA day: the TA movement drives the route, and the nature of work
-  // merges both logs with " and ". Only stations recorded as above 8 km from
-  // the headquarters qualify.
+  // merges both logs with " and ". Stations recorded as above 8 km from the
+  // headquarters, and typed temporary stations, qualify.
   const days = new Map<string, DailyLog[]>();
   for (const l of logs) {
     if (l.logDate < period.from || l.logDate > period.to) continue;
@@ -1032,9 +1045,15 @@ export function exportTaJournal(
     const st = movementStation(primary, stations);
     if (!st || (hq && st.match?.id === hq.id)) continue;
     const dist = st.match?.distanceFromHq;
-    // A station fixed at "above8" always qualifies. A "variable" station
-    // qualifies only when the log says the work was done at/after its KMs
-    // marker (the > 8 km side), and the work text then carries that marker.
+    // A station fixed at "above8" always qualifies. A typed temporary
+    // station (no saved profile) is treated the same way. A "variable"
+    // station qualifies only when the log says the work was done at/after
+    // its KMs marker (the > 8 km side), and the work text then carries that
+    // marker.
+    if (!st.match) {
+      taDays.push({ log: primary, work: mergeWork(dayLogs) || "-" });
+      continue;
+    }
     if (dist === "variable") {
       if (primary.taAtVariableKm !== true) continue;
       const km = variableKmText(st.match?.variableKm);

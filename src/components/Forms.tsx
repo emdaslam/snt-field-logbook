@@ -444,6 +444,13 @@ function TravelLeg({
   );
 }
 
+/** When both Time dept and Time arr are ---, default the leg to By Train with
+ *  train no ---. */
+function withTrainIfBothTimesDashed(leg: JourneyLeg): JourneyLeg {
+  if (leg.timeDep !== "---" || leg.timeArr !== "---") return leg;
+  return { ...leg, mode: "train", trainNo: "---" };
+}
+
 /** One editable journey leg in the custom-export-rows editor. */
 function JourneyLegRow({
   leg,
@@ -579,7 +586,14 @@ function JourneyLegRow({
               <input
                 type="checkbox"
                 checked={leg.timeDep === "---"}
-                onChange={(e) => onChange({ ...leg, timeDep: e.target.checked ? "---" : null })}
+                onChange={(e) =>
+                  onChange(
+                    withTrainIfBothTimesDashed({
+                      ...leg,
+                      timeDep: e.target.checked ? "---" : null,
+                    })
+                  )
+                }
               />
               ---
             </label>
@@ -599,7 +613,14 @@ function JourneyLegRow({
               <input
                 type="checkbox"
                 checked={leg.timeArr === "---"}
-                onChange={(e) => onChange({ ...leg, timeArr: e.target.checked ? "---" : null })}
+                onChange={(e) =>
+                  onChange(
+                    withTrainIfBothTimesDashed({
+                      ...leg,
+                      timeArr: e.target.checked ? "---" : null,
+                    })
+                  )
+                }
               />
               ---
             </label>
@@ -609,10 +630,22 @@ function JourneyLegRow({
       <div className="mt-2">
         <TravelLeg
           title=""
-          mode={leg.mode}
-          setMode={(m) => onChange({ ...leg, mode: m })}
-          trainNo={leg.trainNo}
-          setTrainNo={(v) => onChange({ ...leg, trainNo: v })}
+          mode={leg.timeDep === "---" && leg.timeArr === "---" ? "train" : leg.mode}
+          setMode={(m) =>
+            onChange(
+              leg.timeDep === "---" && leg.timeArr === "---"
+                ? { ...leg, mode: "train", trainNo: "---" }
+                : { ...leg, mode: m }
+            )
+          }
+          trainNo={leg.timeDep === "---" && leg.timeArr === "---" ? "---" : leg.trainNo}
+          setTrainNo={(v) =>
+            onChange(
+              leg.timeDep === "---" && leg.timeArr === "---"
+                ? { ...leg, mode: "train", trainNo: "---" }
+                : { ...leg, trainNo: v }
+            )
+          }
         />
       </div>
     </div>
@@ -803,7 +836,7 @@ export function DailyLogForm({
   );
   const [journeyLegs, setJourneyLegs] = useState<JourneyLeg[]>(() => {
     if (Array.isArray(existing?.journeyLegs) && existing.journeyLegs.length > 0) {
-      return existing.journeyLegs as JourneyLeg[];
+      return (existing.journeyLegs as JourneyLeg[]).map(withTrainIfBothTimesDashed);
     }
     return [];
   });
@@ -1477,6 +1510,10 @@ export function DailyLogForm({
       night: fpBlock(d.fpNight, d.fpNightDir, d.fpNightUp, d.fpNightDn),
     }));
     const firstRidePayload = ridesPayload[0];
+    const savedLegs =
+      editExportRows && journeyLegs.length > 0
+        ? journeyLegs.map(withTrainIfBothTimesDashed)
+        : [];
     const payload = {
       id: existing?.id,
       logDate,
@@ -1490,56 +1527,51 @@ export function DailyLogForm({
       // have something to show.
       timeDep:
         (movementKind === "station" || isFp) && !isHeadquarters ?
-          (editExportRows && journeyLegs.length > 0
-            ? (journeyLegs[0].timeDep && journeyLegs[0].timeDep !== "---" ? journeyLegs[0].timeDep : null)
+          (savedLegs.length > 0
+            ? (savedLegs[0].timeDep && savedLegs[0].timeDep !== "---" ? savedLegs[0].timeDep : null)
             : timeDep || null)
           : null,
       timeArr:
         (movementKind === "station" || isFp) && !isHeadquarters ?
-          (editExportRows && journeyLegs.length > 0
-            ? (journeyLegs[0].timeArr && journeyLegs[0].timeArr !== "---" ? journeyLegs[0].timeArr : null)
+          (savedLegs.length > 0
+            ? (savedLegs[0].timeArr && savedLegs[0].timeArr !== "---" ? savedLegs[0].timeArr : null)
             : timeArr || null)
           : null,
       returnTimeDep:
         (movementKind === "station" || isFp) && !isHeadquarters ?
-          (editExportRows && journeyLegs.length > 0
-            ? (journeyLegs[journeyLegs.length - 1].timeDep && journeyLegs[journeyLegs.length - 1].timeDep !== "---"
-                ? journeyLegs[journeyLegs.length - 1].timeDep
+          (savedLegs.length > 0
+            ? (savedLegs[savedLegs.length - 1].timeDep && savedLegs[savedLegs.length - 1].timeDep !== "---"
+                ? savedLegs[savedLegs.length - 1].timeDep
                 : null)
             : returnTimeDep || null)
           : null,
       returnTimeArr:
         (movementKind === "station" || isFp) && !isHeadquarters ?
-          (editExportRows && journeyLegs.length > 0
-            ? (journeyLegs[journeyLegs.length - 1].timeArr && journeyLegs[journeyLegs.length - 1].timeArr !== "---"
-                ? journeyLegs[journeyLegs.length - 1].timeArr
+          (savedLegs.length > 0
+            ? (savedLegs[savedLegs.length - 1].timeArr && savedLegs[savedLegs.length - 1].timeArr !== "---"
+                ? savedLegs[savedLegs.length - 1].timeArr
                 : null)
             : returnTimeArr || null)
           : null,
-      // Travel mode for the HQ → station journey and (when by train) its number
       travelMode:
         (movementKind === "station" || isFp) && !isHeadquarters ?
-          (editExportRows && journeyLegs.length > 0 ? journeyLegs[0].mode : travelMode)
+          (savedLegs.length > 0 ? savedLegs[0].mode : travelMode)
           : null,
       travelTrainNo:
         (movementKind === "station" || isFp) && !isHeadquarters &&
-        (editExportRows && journeyLegs.length > 0 ? journeyLegs[0].mode : travelMode) === "train"
-          ? (editExportRows && journeyLegs.length > 0 ? (journeyLegs[0].trainNo.trim() || null) : (travelTrainNo.trim() || null))
+        (savedLegs.length > 0 ? savedLegs[0].mode : travelMode) === "train"
+          ? (savedLegs.length > 0 ? (savedLegs[0].trainNo.trim() || null) : (travelTrainNo.trim() || null))
           : null,
-      // Travel mode for the station → HQ return journey and (when by train) its number
       returnMode:
         (movementKind === "station" || isFp) && !isHeadquarters ?
-          (editExportRows && journeyLegs.length > 0 ? journeyLegs[journeyLegs.length - 1].mode : returnMode)
+          (savedLegs.length > 0 ? savedLegs[savedLegs.length - 1].mode : returnMode)
           : null,
-       returnTrainNo:
-         (movementKind === "station" || isFp) && !isHeadquarters &&
-         (editExportRows && journeyLegs.length > 0 ? journeyLegs[journeyLegs.length - 1].mode : returnMode) === "train"
-           ? (editExportRows && journeyLegs.length > 0 ? (journeyLegs[journeyLegs.length - 1].trainNo.trim() || null) : (returnTrainNo.trim() || null))
-           : null,
-      // Custom export rows — each leg becomes its own row in the Diary and TA
-      // Journal exports when non-empty. An empty array means "use the default
-      // two-leg layout driven by the Timings + Travel fields below".
-      journeyLegs: editExportRows && journeyLegs.length > 0 ? journeyLegs : [],
+      returnTrainNo:
+        (movementKind === "station" || isFp) && !isHeadquarters &&
+        (savedLegs.length > 0 ? savedLegs[savedLegs.length - 1].mode : returnMode) === "train"
+          ? (savedLegs.length > 0 ? (savedLegs[savedLegs.length - 1].trainNo.trim() || null) : (returnTrainNo.trim() || null))
+          : null,
+      journeyLegs: savedLegs,
       movementKind: movementKind !== "station" ? movementKind : null,
       leaveKind: movementKind === "leave" ? leaveKind || null : null,
       crFrom: movementKind === "cr" ? crFrom || null : null,

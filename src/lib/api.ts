@@ -824,8 +824,9 @@ export function logStationNames(
 }
 
 /** True when a daily log is a claimable TA day: a movement away from HQ to a
- *  station fixed above 8 km, or to a variable station where the log confirms
- *  the work was done at/after its KMs marker — at a claimable TA percent.
+ *  station fixed above 8 km, a typed temporary station (treated as above 8 km),
+ *  or a variable station where the log confirms the work was done at/after its
+ *  KMs marker — at a claimable TA percent.
  *  A Footplate day is a working tour away from HQ (departure → return), so it
  *  always qualifies for TA — the rate stays the manual 100/70/30 pick. */
 export function isTaClaimable(
@@ -847,7 +848,9 @@ export function isTaClaimable(
   const st = stations.find(
     (s) => s.name.toLowerCase() === t || (s.code && s.code.toLowerCase() === t)
   );
-  if (!st) return false;
+  // A typed temporary station (not on the stations list) is treated as
+  // farther than 8 km from HQ, same as a saved "above8" station.
+  if (!st) return true;
   if (st.distanceFromHq === "variable") {
     if (l.taAtVariableKm !== true) return false;
   } else if (st.distanceFromHq !== "above8") {
