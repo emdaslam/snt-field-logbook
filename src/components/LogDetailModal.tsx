@@ -9,6 +9,7 @@ import { DEPARTMENT_COLORS } from "@/lib/types";
 import { isSharedLog } from "@/lib/backup";
 import { INSPECTION_RULES, addDays, intervalFor, jointPeriodOf, type InspectionKind } from "@/lib/inspections";
 import { AttachmentPreviewModal } from "./AttachmentPreviewModal";
+import { CopyLogToDatesModal } from "./CopyLogToDatesModal";
 import type { DailyLog, Attachment, FootplateBlock, FootplateDetail, FootplateJourneyTrain, FootplateRide, JourneyLeg } from "@/db/schema";
 import { FootplateDetailRows } from "./FootplateRows";
 
@@ -23,6 +24,7 @@ export function LogDetailModal({
 }) {
   const { tags, stations, stationName, refresh } = useData();
   const [preview, setPreview] = useState<Attachment | null>(null);
+  const [copyOpen, setCopyOpen] = useState(false);
   useBackClose(preview !== null, () => setPreview(null));
   if (!log) return null;
 
@@ -31,6 +33,7 @@ export function LogDetailModal({
   const shared = isSharedLog(log);
 
   return (
+    <>
     <Modal open onClose={onClose} title={`${dayName(log.logDate)}, ${fmtDate(log.logDate)}`} wide>
       {shared ? (
         <div className="mb-3 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2">
@@ -253,7 +256,7 @@ export function LogDetailModal({
 
       <AttachmentPreviewModal attachment={preview} onClose={() => setPreview(null)} />
 
-      <div className={`mt-4 flex justify-end gap-2 border-t border-slate-200 pt-3 ${shared ? "hidden" : ""}`}>
+      <div className={`mt-4 flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-3 ${shared ? "hidden" : ""}`}>
         <button
           onClick={async () => {
             if (confirm("Delete this log?")) {
@@ -267,6 +270,12 @@ export function LogDetailModal({
           Delete
         </button>
         <button
+          onClick={() => setCopyOpen(true)}
+          className="rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-900 hover:bg-blue-100"
+        >
+          Copy to dates
+        </button>
+        <button
           onClick={() => { onClose(); onEdit(log); }}
           className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-semibold text-white"
         >
@@ -274,6 +283,17 @@ export function LogDetailModal({
         </button>
       </div>
     </Modal>
+    {copyOpen && (
+      <CopyLogToDatesModal
+        log={log}
+        onClose={() => setCopyOpen(false)}
+        onCopied={() => {
+          setCopyOpen(false);
+          onClose();
+        }}
+      />
+    )}
+    </>
   );
 }
 

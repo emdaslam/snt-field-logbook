@@ -626,6 +626,28 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.7.59",
+    tag: "Copy a log to dates",
+    subtitle: "Copy one daily log onto several other dates without retyping it.",
+    slides: [
+      {
+        glyph: "▣",
+        title: "Copy to dates",
+        body: "Open a daily log and tap Copy to dates. The month grid lets you pick every date that should get the same entry — movement, work, timings, tags and attachments are copied as new logs. The original is not changed.",
+      },
+      {
+        glyph: "☰",
+        title: "Pick several dates",
+        body: "Tap days on the calendar or use Add a date. The entry’s own date is greyed out. A green dot means that day already has a log — you can still copy onto it (you will be asked), and a new entry is added rather than replacing the existing one.",
+      },
+      {
+        glyph: "▤",
+        title: "Each copy is its own log",
+        body: "After copying, each date has a separate daily log you can edit or delete on its own. PCDO special-work date follows the copy; a CR’s rest-day-earned-on stays on the original rest day.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {

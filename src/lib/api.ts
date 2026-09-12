@@ -708,6 +708,36 @@ function normaliseLog(b: Partial<DailyLog>) {
   };
 }
 
+function cloneJson<T>(v: T): T {
+  return v == null ? v : (JSON.parse(JSON.stringify(v)) as T);
+}
+
+/**
+ * A new daily-log payload that copies every field of `log` onto `date`.
+ * Nested arrays/objects are cloned so the copy can be edited independently.
+ * PCDO date (which mirrors the parent entry) shifts by the same day delta;
+ * CR-from stays on the rest day that earned the CR.
+ */
+export function cloneLogForDate(log: DailyLog, date: string): Partial<DailyLog> {
+  const src = normaliseLog(log);
+  const deltaDays = Math.round(
+    (new Date(date + "T00:00:00").getTime() - new Date(log.logDate + "T00:00:00").getTime()) /
+      86400000
+  );
+  const shift = (iso: string | null | undefined) => {
+    if (!iso) return null;
+    const d = new Date(iso + "T00:00:00");
+    d.setDate(d.getDate() + deltaDays);
+    return toISODate(d);
+  };
+  const cloned = cloneJson(src);
+  return {
+    ...cloned,
+    logDate: date,
+    pcdoDate: shift(src.pcdoDate),
+  };
+}
+
 /**
  * The PCDO special works of a log entry. New entries store a department-wise
  * list (`pcdoWorks`); older entries kept a single free-text `pcdoWork` with no
