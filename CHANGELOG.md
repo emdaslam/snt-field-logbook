@@ -10,6 +10,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 - Open any daily log and tap **Copy to dates**. Pick one or more dates on the month grid (or type a date) and the same movement, work, timings, tags and attachments are saved as new entries on each date. The original is unchanged; each copy can be edited on its own.
 - The entry’s own date cannot be picked. Dates that already have a log are marked with a green dot; copying onto them adds another entry rather than replacing what is there (you are asked first).
 - PCDO special-work date follows the copy; a CR’s “rest day earned on” stays on the original rest day.
+- Implemented in `0c6ec79`.
 
 ## 1.7.7.58 — 2026-09-10
 
