@@ -72,12 +72,12 @@ For **every** code change, the following release steps are mandatory:
    (owner personal build)") — with the matching APK attached and the notes
    taken from that version's `CHANGELOG.md` entry. The newest `p` release is
    marked Latest.
-7. **Signing verification is a one-time check in the whole build history.**
-   It was performed once, on the first build ever made in this repo, and
-   confirmed the debug keystore SHA-1
-   `7B:C9:5F:C1:7F:0F:E4:93:52:1B:48:09:54:46:13:48:4E:73:B7:81` (recorded
-   again at v1.7.7.61). Every later build — new agent or new session — skips
-   the `apksigner` verification entirely; do not re-check per session.
+7. **Signing verification is required only on the agent's first build ever.**
+   On that first build, verify with `apksigner` (debug keystore SHA-1
+   `7B:C9:5F:C1:7F:0F:E4:93:52:1B:48:09:54:46:13:48:4E:73:B7:81`). Every later
+   build by the same agent skips the check entirely. It is not a
+   version-specific or session-specific check — a new agent verifies once on
+   its own first build (this agent's was v1.7.7.61, which passed).
 
 ## 3. Changes must always be committed and pushed
 
