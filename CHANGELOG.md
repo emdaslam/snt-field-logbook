@@ -8,6 +8,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 **Minor: a leg added in the Diary / TA export rows editor opens with the From / To dropdowns**
 
 - In “Edit the rows”, a leg added via **+ Add leg** showed From / To as free text: an empty value looked like a typed station name that is not on the list, so the new leg opened in “— Other —” mode. A new leg now opens with the station dropdowns (showing “— Select —”), and free text stays reachable through — Other —. Existing legs with typed or temporary names still open as free text.
+- Implemented in `a235260`.
 
 ## 1.7.7.60 — 2026-09-12
 
