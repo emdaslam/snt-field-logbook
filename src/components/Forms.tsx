@@ -468,10 +468,14 @@ function JourneyLegRow({
   canRemove: boolean;
 }) {
   const [showOtherFrom, setShowOtherFrom] = useState(
-    !stationsList.some((s) => s.name === leg.from || s.code === leg.from) && leg.from !== hqName
+    leg.from !== "" &&
+      !stationsList.some((s) => s.name === leg.from || s.code === leg.from) &&
+      leg.from !== hqName
   );
   const [showOtherTo, setShowOtherTo] = useState(
-    !stationsList.some((s) => s.name === leg.to || s.code === leg.to) && leg.to !== hqName
+    leg.to !== "" &&
+      !stationsList.some((s) => s.name === leg.to || s.code === leg.to) &&
+      leg.to !== hqName
   );
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-3">
@@ -502,7 +506,8 @@ function JourneyLegRow({
                 onChange({ ...leg, from: e.target.value });
               }}
             >
-              <option value={hqName}>HQ ({hqName})</option>
+                <option value="">— Select —</option>
+                <option value={hqName}>HQ ({hqName})</option>
               {stationsList.map((s) => (
                 <option key={s.id ?? s.name} value={s.code?.trim() ? s.code : s.name}>
                   {s.name}

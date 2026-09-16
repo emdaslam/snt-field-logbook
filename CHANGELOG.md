@@ -3,6 +3,12 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.61 — 2026-09-16
+
+**Minor: a leg added in the Diary / TA export rows editor opens with the From / To dropdowns**
+
+- In “Edit the rows”, a leg added via **+ Add leg** showed From / To as free text: an empty value looked like a typed station name that is not on the list, so the new leg opened in “— Other —” mode. A new leg now opens with the station dropdowns (showing “— Select —”), and free text stays reachable through — Other —. Existing legs with typed or temporary names still open as free text.
+
 ## 1.7.7.60 — 2026-09-12
 
 **Minor: TA for temporary stations, and By Train when both times are ---**
