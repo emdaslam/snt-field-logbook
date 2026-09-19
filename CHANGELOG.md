@@ -9,6 +9,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 - Settings → Backup & Drive now shows how much backup data is stored on Google Drive (size and file count), plus the size of the last upload. The figure is the whole sharded backup, not only the files sent in the latest sync.
 - Opening the page while signed in refreshes the total from Drive. Sign-out clears it.
+- Implemented in `7f68667`.
 
 ## 1.7.7.62 — 2026-09-19
 
