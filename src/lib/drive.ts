@@ -19,6 +19,8 @@ import {
   groupLogsByDate,
   fingerprintPayload,
   payloadsMatch,
+  totalListedBytes,
+  applyListedSizes,
   type BackupFingerprint,
 } from "./drivebackup";
 
@@ -58,6 +60,7 @@ const AUTH_KEY = "snt.drive.auth";
 const VERSION_KEY = "snt.drive.version";
 const EMAIL_KEY = "snt.drive.email";
 const LAST_SYNC_KEY = "snt.drive.lastSync";
+const TOTAL_KEY = "snt.drive.totalOnDrive";
 
 export type DriveAuth = { accessToken: string; email: string; displayName: string };
 
@@ -92,8 +95,12 @@ export type LastSyncInfo = {
   ok: boolean;
   message: string;
   days?: number;
+  /** Bytes uploaded in this sync (changed files only). */
   bytes?: number;
   records?: number;
+  /** Whole backup currently stored on Drive (all day + data + index files). */
+  totalBytes?: number;
+  files?: number;
 };
 
 export type DriveStatus = {
@@ -101,6 +108,8 @@ export type DriveStatus = {
   email: string | null;
   lastSynced: string | null;
   lastSync: LastSyncInfo | null;
+  /** Last known size of the whole Drive backup (all files). */
+  totalOnDrive: { bytes: number; files: number } | null;
 };
 
 type GoogleDriveNative = {
@@ -138,6 +147,7 @@ function clearStoredAuth() {
   try {
     localStorage.removeItem(AUTH_KEY);
     localStorage.removeItem(EMAIL_KEY);
+    localStorage.removeItem(TOTAL_KEY);
   } catch {
     /* storage unavailable */
   }
@@ -222,6 +232,27 @@ function getLastSync(): LastSyncInfo | null {
   }
 }
 
+function getTotalOnDrive(): { bytes: number; files: number } | null {
+  try {
+    const raw = localStorage.getItem(TOTAL_KEY);
+    if (!raw) return null;
+    const rec = JSON.parse(raw) as { bytes?: number; files?: number };
+    return typeof rec?.bytes === "number" && rec.bytes >= 0
+      ? { bytes: rec.bytes, files: typeof rec.files === "number" ? rec.files : 0 }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function storeTotalOnDrive(bytes: number, files: number) {
+  try {
+    localStorage.setItem(TOTAL_KEY, JSON.stringify({ bytes, files }));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
 /** Persist the outcome of the most recent Drive sync so the result of an
  * automatic sync (which the user never sees) is still visible in Settings. */
 function recordSync(info: {
@@ -230,6 +261,8 @@ function recordSync(info: {
   days?: number;
   bytes?: number;
   records?: number;
+  totalBytes?: number;
+  files?: number;
 }) {
   try {
     const rec: LastSyncInfo = { at: new Date().toISOString(), ...info };
@@ -256,12 +289,31 @@ export async function driveIsConfigured(): Promise<boolean> {
 }
 
 export function driveStatus(): DriveStatus {
+  const lastSync = getLastSync();
   return {
     available: isNative(),
     email: getStoredEmail(),
     lastSynced: getVersion(),
-    lastSync: getLastSync(),
+    lastSync,
+    totalOnDrive:
+      getTotalOnDrive() ??
+      (typeof lastSync?.totalBytes === "number"
+        ? { bytes: lastSync.totalBytes, files: lastSync.files ?? 0 }
+        : null),
   };
+}
+
+/** Re-list the app-data folder so Settings can show the current backup size. */
+export async function refreshDriveTotal(interactive = false): Promise<{ bytes: number; files: number } | null> {
+  if (!isNative()) return getTotalOnDrive();
+  try {
+    const auth = await currentAuth(interactive);
+    if (!auth) return getTotalOnDrive();
+    const files = await listAppDataFiles(interactive);
+    return { bytes: totalListedBytes(files), files: files.length };
+  } catch {
+    return getTotalOnDrive();
+  }
 }
 
 function getStoredEmail(): string | null {
@@ -350,13 +402,13 @@ async function authorizedFetch(
   return res;
 }
 
-type DriveFile = { id: string; name: string };
+type DriveFile = { id: string; name: string; size?: string };
 
 async function listAppDataFiles(interactive: boolean): Promise<DriveFile[]> {
   const out: DriveFile[] = [];
   let pageToken: string | undefined;
   do {
-    const fields = encodeURIComponent("nextPageToken, files(id,name)");
+    const fields = encodeURIComponent("nextPageToken, files(id,name,size)");
     const url =
       `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=${fields}&pageSize=1000` +
       (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "");
@@ -366,6 +418,7 @@ async function listAppDataFiles(interactive: boolean): Promise<DriveFile[]> {
     out.push(...(data.files ?? []));
     pageToken = data.nextPageToken;
   } while (pageToken);
+  storeTotalOnDrive(totalListedBytes(out), out.length);
   return out;
 }
 
@@ -460,8 +513,10 @@ export async function pushToDrive(interactive = true, onProgress?: DriveProgress
         return d !== null && !groups.has(d);
       });
       if (allPresent && !orphanDay && byName.has(DATA_NAME) && byName.has(INDEX_NAME)) {
+        const onDrive = applyListedSizes(files);
+        storeTotalOnDrive(onDrive.bytes, onDrive.files);
         const message = `Already up to date (${localDates.length} days backed up).`;
-        recordSync({ ok: true, message });
+        recordSync({ ok: true, message, totalBytes: onDrive.bytes, files: onDrive.files });
         return { ok: true, message };
       }
     }
@@ -469,6 +524,8 @@ export async function pushToDrive(interactive = true, onProgress?: DriveProgress
     const exportedAt = payload.exportedAt ?? new Date().toISOString();
     let uploadedBytes = 0;
     let changed = false;
+    const sizeUpdates: { name: string; bytes: number }[] = [];
+    const sizeDeletes: string[] = [];
 
     // Count the work ahead of time so progress can be reported as a
     // percentage of the whole backup: touched/missing day uploads, orphan
@@ -492,13 +549,16 @@ export async function pushToDrive(interactive = true, onProgress?: DriveProgress
     // Upload every touched or missing day; drop day files whose date is gone.
     for (const [date, dayLogs] of dayUploads) {
       const body = JSON.stringify({ date, exportedAt, logs: dayLogs });
-      await uploadFile(byName.get(dayFileName(date)) ?? null, dayFileName(date), body, interactive);
+      const name = dayFileName(date);
+      await uploadFile(byName.get(name) ?? null, name, body, interactive);
       uploadedBytes += body.length;
+      sizeUpdates.push({ name, bytes: body.length });
       changed = true;
       tick();
     }
     for (const f of orphanDeletes) {
       await deleteFile(f.id, interactive);
+      sizeDeletes.push(f.name);
       changed = true;
       tick();
     }
@@ -508,14 +568,17 @@ export async function pushToDrive(interactive = true, onProgress?: DriveProgress
     if (dataUpload) {
       await uploadFile(byName.get(DATA_NAME) ?? null, DATA_NAME, dataBody, interactive);
       uploadedBytes += dataBody.length;
+      sizeUpdates.push({ name: DATA_NAME, bytes: dataBody.length });
       changed = true;
       tick();
     }
 
     if (!changed) {
       clearDirty();
+      const onDrive = applyListedSizes(files);
+      storeTotalOnDrive(onDrive.bytes, onDrive.files);
       const message = `Already up to date (${localDates.length} days backed up).`;
-      recordSync({ ok: true, message });
+      recordSync({ ok: true, message, totalBytes: onDrive.bytes, files: onDrive.files });
       return { ok: true, message };
     }
 
@@ -523,21 +586,32 @@ export async function pushToDrive(interactive = true, onProgress?: DriveProgress
     // advances (this is what last-write-wins compares against).
     const indexBody = JSON.stringify({ version: 2, exportedAt, days: localDates });
     await uploadFile(byName.get(INDEX_NAME) ?? null, INDEX_NAME, indexBody, interactive);
+    sizeUpdates.push({ name: INDEX_NAME, bytes: indexBody.length });
     tick();
 
     // The old single-file backup is superseded once the sharded copy is safe.
     const legacyId = byName.get(LEGACY_NAME);
     if (legacyId) {
       await deleteFile(legacyId, interactive);
+      sizeDeletes.push(LEGACY_NAME);
       tick();
     }
 
     setVersion(exportedAt, auth.email);
     markShardedSeeded();
     clearDirty();
+    const onDrive = applyListedSizes(files, sizeUpdates, sizeDeletes);
+    storeTotalOnDrive(onDrive.bytes, onDrive.files);
     const dayLabel = groups.size === 1 ? "1 day" : `${groups.size} days`;
     const message = `Synced to Drive (${dayLabel}, ${formatBytes(uploadedBytes)}).`;
-    recordSync({ ok: true, message, days: groups.size, bytes: uploadedBytes });
+    recordSync({
+      ok: true,
+      message,
+      days: groups.size,
+      bytes: uploadedBytes,
+      totalBytes: onDrive.bytes,
+      files: onDrive.files,
+    });
     return { ok: true, message };
   } catch (e) {
     const message = errorMessage(e);

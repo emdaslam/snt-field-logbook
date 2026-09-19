@@ -36,9 +36,11 @@ import {
   signInToDrive,
   signOutFromDrive,
   pullFromDrive,
+  refreshDriveTotal,
   type DriveResult,
   type DriveProgress,
 } from "@/lib/drive";
+import { formatBytes } from "@/lib/backup";
 import type { Staff, Station, Tag } from "@/db/schema";
 
 const GROUPS = [
@@ -1536,10 +1538,21 @@ function DriveSyncSection() {
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [lastSynced, setLastSynced] = useState<string | null>(null);
+  const [totalOnDrive, setTotalOnDrive] = useState<{ bytes: number; files: number } | null>(null);
+  const [lastUploadBytes, setLastUploadBytes] = useState<number | null>(null);
   const [busy, setBusy] = useState<"signin" | "signout" | "sync" | "import" | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [importProgress, setImportProgress] = useState<DriveProgress | null>(null);
+
+  function applyStatus() {
+    const st = driveStatus();
+    setEmail(st.email);
+    setLastSynced(st.lastSynced);
+    setTotalOnDrive(st.totalOnDrive);
+    setLastUploadBytes(typeof st.lastSync?.bytes === "number" ? st.lastSync.bytes : null);
+    return st;
+  }
 
   useEffect(() => {
     let live = true;
@@ -1547,10 +1560,12 @@ function DriveSyncSection() {
       const c = await driveIsConfigured();
       if (!live) return;
       setConfigured(c);
-      const st = driveStatus();
-      setEmail(st.email);
-      setLastSynced(st.lastSynced);
+      const st = applyStatus();
       if (st.lastSync) setMsg({ ok: st.lastSync.ok, text: st.lastSync.message });
+      if (st.email) {
+        const total = await refreshDriveTotal();
+        if (live && total) setTotalOnDrive(total);
+      }
     })();
     return () => {
       live = false;
@@ -1559,8 +1574,7 @@ function DriveSyncSection() {
 
   function report(r: DriveResult) {
     setMsg({ ok: r.ok, text: r.message });
-    setEmail(driveStatus().email);
-    setLastSynced(driveStatus().lastSynced);
+    applyStatus();
   }
 
   async function doSignIn() {
@@ -1570,6 +1584,8 @@ function DriveSyncSection() {
       const auth = await signInToDrive();
       setMsg({ ok: true, text: `Signed in as ${auth.email}.` });
       setEmail(auth.email);
+      const total = await refreshDriveTotal();
+      if (total) setTotalOnDrive(total);
     } catch (e) {
       setMsg({ ok: false, text: e instanceof Error ? e.message : "Sign-in failed" });
     }
@@ -1624,6 +1640,20 @@ function DriveSyncSection() {
             {email ? `Signed in as ${email}` : "Not signed in yet"}
             {lastSynced && ` · Last sync ${new Date(lastSynced).toLocaleString()}`}
           </p>
+          {email && (
+            <p className="text-sm text-slate-700">
+              {totalOnDrive
+                ? `Backup on Drive: ${formatBytes(totalOnDrive.bytes)}${
+                    totalOnDrive.files > 0
+                      ? ` · ${totalOnDrive.files} file${totalOnDrive.files !== 1 ? "s" : ""}`
+                      : ""
+                  }`
+                : "Backup on Drive: sync once to see the total"}
+              {lastUploadBytes != null && lastUploadBytes > 0
+                ? ` · last upload ${formatBytes(lastUploadBytes)}`
+                : ""}
+            </p>
+          )}
           <div className="flex flex-wrap gap-2">
             {!email ? (
               <PrimaryButton onClick={doSignIn} disabled={busy !== null}>

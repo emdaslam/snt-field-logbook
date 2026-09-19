@@ -24,6 +24,34 @@ export const INDEX_NAME = "snt-index.json";
 export const DATA_NAME = "snt-data.json";
 export const LEGACY_NAME = "snt-logbook-backup.json";
 
+/** Sum Drive `size` fields (string int64). Missing/invalid sizes count as 0. */
+export function totalListedBytes(files: { size?: string | number }[]): number {
+  let n = 0;
+  for (const f of files) {
+    const s = Number(f.size);
+    if (Number.isFinite(s) && s > 0) n += s;
+  }
+  return n;
+}
+
+/** Listed sizes, with uploads overlayed and deletions removed. */
+export function applyListedSizes(
+  files: { name: string; size?: string | number }[],
+  updates: { name: string; bytes: number }[] = [],
+  deleted: string[] = [],
+): { bytes: number; files: number } {
+  const sizes = new Map<string, number>();
+  for (const f of files) {
+    const s = Number(f.size);
+    if (Number.isFinite(s) && s > 0) sizes.set(f.name, s);
+  }
+  for (const n of deleted) sizes.delete(n);
+  for (const u of updates) sizes.set(u.name, u.bytes);
+  let bytes = 0;
+  for (const s of sizes.values()) bytes += s;
+  return { bytes, files: sizes.size };
+}
+
 const SEEDED_KEY = "snt.drive.shardedSeeded";
 const DIRTY_DAYS_KEY = "snt.drive.dirtyDays";
 const DIRTY_DATA_KEY = "snt.drive.dirtyData";
