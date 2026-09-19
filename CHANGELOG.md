@@ -9,7 +9,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 - A daily log can now file more than one PCDO card. Each card is a station and asks for that station’s special work (by department), disconnection counts and counter resets.
 - Tick PCDO, fill the first station, then **+ Add station** for the next. The PCDO export, Reports and log detail group each card under its own station. An older single-station log still opens as one card.
-- Implemented in `PENDING`.
+- Implemented in `a5e7dcb`.
 
 ## 1.7.7.61 — 2026-09-16
 
