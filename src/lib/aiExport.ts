@@ -160,7 +160,7 @@ export interface ExportPolish {
   cellPadding?: number;
   /** Percent of printable width per column of the main table (sums to 100). */
   columnWidths?: number[];
-  /** -2..+2 pt hint for the auto page-fit layouts. */
+  /** 0..+2 pt hint for the auto page-fit layouts (never shrinks the font). */
   fitFontNudge?: number;
 }
 
@@ -367,7 +367,7 @@ const SYSTEM_PROMPT =
   '- "zebra": boolean, shade alternate body rows for readability (always true for colour exports).\n' +
   '- "highlightTotals": boolean, tint closing Total / Grand Total rows.\n' +
   '- "borders": "grid" or "none" for the internal table rules.\n' +
-  '- "fitFontNudge": integer -2..2, how many points to nudge the text size in the auto page-fit layouts.\n' +
+  '- "fitFontNudge": integer 0..2, how many points to grow the text size in the auto page-fit layouts (never shrink it — the app keeps the largest size that actually fits).\n' +
   "Never change wording or data. Reply with the JSON object only, no prose.";
 
 export async function requestAiPolish(
@@ -559,7 +559,7 @@ export function parsePolishResponse(content: string, colCount: number): ExportPo
       out.cellPadding = raw.cellPadding;
     }
     if (typeof raw.fitFontNudge === "number" && Number.isFinite(raw.fitFontNudge)) {
-      out.fitFontNudge = Math.max(-2, Math.min(2, Math.round(raw.fitFontNudge)));
+      out.fitFontNudge = Math.max(0, Math.min(2, Math.round(raw.fitFontNudge)));
     }
     if (
       Array.isArray(raw.columnWidths) &&

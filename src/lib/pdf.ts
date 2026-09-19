@@ -1269,6 +1269,15 @@ export function buildFitOnePagePdf(
   // month). Only this one-page build is affected — the two-page and manual-
   // size exports keep the default padding.
   const fitPad = cellPad ?? 3;
+  // The AI's column percentages fight the tuned fit layout on a dense month:
+  // forcing a narrow NATURE OF WORK column wraps the long work text so much it
+  // overflows the printable width (and the right edge goes blank / the report
+  // spills to a second page), and the fit loop can no longer land on the max
+  // font. The fit algorithm already sizes every column to fill the full width
+  // with no overflow, so the AI's column widths are dropped here — the rest of
+  // the polish (palette, padding, zebra, borders, Total tint, font nudge) still
+  // applies. Standard (non-fit) PDFs and Word keep the AI column widths.
+  const widthless = polish ? { ...polish, columnWidths: undefined } : polish;
   // Measure column content widths at the starting font size so we have a
   // reference to scale against as the size shrinks.
   const initDoc = new jsPDF({ unit: "pt", format: "a4" });
@@ -1290,7 +1299,7 @@ export function buildFitOnePagePdf(
   let size = Math.max(FIT_FONT_MIN, Math.min(CONTENT_FONT_MAX, startSize + (polish?.fitFontNudge ?? 0)));
   let contentWidths: Record<number, number> = {};
   let curMeasure = measureAt(size / 9);
-  let doc = buildPdf(title, bodyHtml, size, { margin: FIT_MARGIN, footer: false, style, fixedHeader, cellPad: fitPad, fitMode: true, polish });
+  let doc = buildPdf(title, bodyHtml, size, { margin: FIT_MARGIN, footer: false, style, fixedHeader, cellPad: fitPad, fitMode: true, polish: widthless });
   let required = requiredTableWidth(root, curMeasure.bf, curMeasure.hf);
   // The size must keep the report on one page AND leave the required table
   // width (fixed columns on one line + a readable free-text column) inside
@@ -1319,7 +1328,7 @@ export function buildFitOnePagePdf(
     }
     required = requiredTableWidth(root, curMeasure.bf, curMeasure.hf, contentWidths);
     doc = buildPdf(title, bodyHtml, size, {
-      margin: FIT_MARGIN, footer: false, style, fixedHeader, cellPad: fitPad, fitMode: true, polish,
+      margin: FIT_MARGIN, footer: false, style, fixedHeader, cellPad: fitPad, fitMode: true, polish: widthless,
       ...(Object.keys(contentWidths).length ? { contentWidths } : {}),
     });
   }
@@ -1344,6 +1353,10 @@ export function buildFitTwoPagePdf(
 ): jsPDF {
   const TWO_PAGE_FONT_MIN = 6;
   const TWO_PAGE_FONT_MAX = 30;
+  // See buildFitOnePagePdf: the AI's column percentages can overflow a dense
+  // diary, so the fitted layouts own the column widths and only keep the rest
+  // of the AI polish. Standard (non-fit) PDFs and Word still apply AI widths.
+  const widthless = polish ? { ...polish, columnWidths: undefined } : polish;
   const probe = new jsPDF({ unit: "pt", format: "a4" });
   registerPdfFonts(probe);
   const pageW = probe.internal.pageSize.getWidth();
@@ -1352,7 +1365,7 @@ export function buildFitTwoPagePdf(
     buildPdf(title, bodyHtml, size, {
       style,
       fixedHeader,
-      polish,
+      polish: widthless,
       ...(cellPad != null ? { cellPad } : {}),
     });
   // A size fits when the split stays on two pages AND the required table

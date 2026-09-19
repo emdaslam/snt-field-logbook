@@ -3,6 +3,15 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.64 — 2026-09-19
+
+**Minor: AI-polished diary / fit-on-one-page PDFs keep the tuned layout and max font — no overflow**
+
+- With AI Export enabled, the model's chosen column widths could break a dense diary's "Fit on one page" render: giving the long NATURE OF WORK column a narrow share wrapped the work text so much that the table overflowed the printable width (the right edge went blank) and spilled onto a second page, and the fit loop could no longer land on the largest font. The fitted one-page and two-page layouts now own the column widths (the same tuned algorithm that makes the normal export look right); the AI polish still supplies the palette, padding, zebra rows, Total tint and border style.
+- The AI can no longer shrink the export's font: its font-size hint is clamped to 0..+2 pt, so the fitted layouts keep the largest size that truly fits.
+- Normal exports, standard-size PDFs and Word exports are unchanged — they keep the AI column widths as before.
+- Implemented in `<hash>`.
+
 ## 1.7.7.63 — 2026-09-19
 
 **Minor: Backup & Drive settings show the total backup on Drive**
