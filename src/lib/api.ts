@@ -26,7 +26,7 @@ import type {
   MaterialStation,
   EquipmentType,
 } from "@/db/schema";
-import { isSpecialMovement, type PcdoWork, type CounterReset } from "@/lib/types";
+import { isSpecialMovement, type PcdoWork, type PcdoEntry, type CounterReset } from "@/lib/types";
 
 const asc = <T extends Record<string, unknown>>(rows: T[], key: keyof T) =>
   [...rows].sort((a, b) => String(a[key] ?? "").localeCompare(String(b[key] ?? "")));
@@ -167,15 +167,20 @@ export const api = {
       void _staffId;
       const rows = await ldb.readTable<DailyLog>("dailyLogs");
       return desc(
-        rows.map((r) => ({
-          ...r,
-          hasDisconnections: Boolean(r.hasDisconnections),
-          discSpecialWork: num(r.discSpecialWork),
-          discFailure: num(r.discFailure),
-          discMaintenance: num(r.discMaintenance),
-          discNotPermitted: num(r.discNotPermitted),
-          counterResets: counterResetsOf(r),
-        })),
+        rows.map((r) => {
+          const entries = pcdoEntriesOf(r);
+          const disc = pcdoDiscTotals(r);
+          return {
+            ...r,
+            pcdoEntries: entries,
+            hasDisconnections: Boolean(r.hasDisconnections) || disc.sw + disc.fa + disc.mt + disc.np > 0,
+            discSpecialWork: disc.sw,
+            discFailure: disc.fa,
+            discMaintenance: disc.mt,
+            discNotPermitted: disc.np,
+            counterResets: counterResetsOf(r),
+          };
+        }),
         "logDate"
       );
     },
@@ -678,6 +683,7 @@ function normaliseLog(b: Partial<DailyLog>) {
     ownerStaffId: b.ownerStaffId ?? null,
     pcdoWork: b.pcdoWork ?? null,
     pcdoWorks: Array.isArray(b.pcdoWorks) ? b.pcdoWorks : [],
+    pcdoEntries: pcdoEntriesOf(b),
     pcdoStationId: b.pcdoStationId ?? null,
     pcdoDate: b.pcdoDate || null,
     hasDisconnections: Boolean(b.hasDisconnections),
@@ -738,22 +744,127 @@ export function cloneLogForDate(log: DailyLog, date: string): Partial<DailyLog> 
   };
 }
 
-/**
- * The PCDO special works of a log entry. New entries store a department-wise
- * list (`pcdoWorks`); older entries kept a single free-text `pcdoWork` with no
- * department — those are returned as one legacy entry under the "" department.
- */
-export function pcdoWorkEntries(
-  l:
-    | { pcdoWorks?: PcdoWork[] | null; pcdoWork?: string | null }
-    | null
-    | undefined
-): PcdoWork[] {
-  if (!l) return [];
+type PcdoLogShape = {
+  pcdoEntries?: PcdoEntry[] | null;
+  pcdoWorks?: PcdoWork[] | null;
+  pcdoWork?: string | null;
+  pcdoStationId?: number | null;
+  hasDisconnections?: boolean;
+  discSpecialWork?: number;
+  discFailure?: number;
+  discMaintenance?: number;
+  discNotPermitted?: number;
+  counterResets?: CounterReset[] | null;
+};
+
+function legacyPcdoWorks(l: PcdoLogShape): PcdoWork[] {
   const list = Array.isArray(l.pcdoWorks) && l.pcdoWorks.length > 0 ? l.pcdoWorks : null;
   if (list) return list;
   const legacy = (l.pcdoWork ?? "").trim();
   return legacy ? [{ department: "", work: legacy }] : [];
+}
+
+function sanitiseCounterResets(list: CounterReset[] | null | undefined): CounterReset[] {
+  if (!Array.isArray(list)) return [];
+  return list
+    .filter((r) => r && typeof r === "object")
+    .map((r) => ({
+      equipment:
+        r.equipment === "MSDAC" || r.equipment === "UFSBI Block Instrument" || r.equipment === "BPAC"
+          ? r.equipment
+          : "MSDAC",
+      stationId: r.stationId ?? null,
+      nextStationId: r.nextStationId ?? null,
+      failures: num(r.failures),
+      testing: num(r.testing),
+    }))
+    .filter((r) => r.failures > 0 || r.testing > 0);
+}
+
+function sanitisePcdoEntry(e: PcdoEntry): PcdoEntry {
+  const works = Array.isArray(e.works)
+    ? e.works
+        .filter((w) => w && typeof w === "object")
+        .map((w) => ({ department: w.department ?? "", work: (w.work ?? "").trim() }))
+        .filter((w) => w.work)
+    : [];
+  return {
+    stationId: e.stationId ?? null,
+    works,
+    discSpecialWork: num(e.discSpecialWork),
+    discFailure: num(e.discFailure),
+    discMaintenance: num(e.discMaintenance),
+    discNotPermitted: num(e.discNotPermitted),
+    counterResets: sanitiseCounterResets(e.counterResets).map((r) => ({
+      ...r,
+      stationId: r.stationId ?? e.stationId ?? null,
+    })),
+  };
+}
+
+function pcdoEntryHasContent(e: PcdoEntry): boolean {
+  return (
+    e.works.length > 0 ||
+    e.discSpecialWork + e.discFailure + e.discMaintenance + e.discNotPermitted > 0 ||
+    e.counterResets.length > 0
+  );
+}
+
+/**
+ * Per-station PCDO bundles on a log. New rows store `pcdoEntries`; older rows
+ * wrap the single-station pcdoWorks / disc* / counterResets columns as one
+ * bundle so every consumer can iterate stations the same way.
+ */
+export function pcdoEntriesOf(l: PcdoLogShape | null | undefined): PcdoEntry[] {
+  if (!l) return [];
+  if (Array.isArray(l.pcdoEntries) && l.pcdoEntries.length > 0) {
+    return l.pcdoEntries.map(sanitisePcdoEntry).filter(pcdoEntryHasContent);
+  }
+  const works = legacyPcdoWorks(l);
+  const discs = {
+    discSpecialWork: num(l.discSpecialWork),
+    discFailure: num(l.discFailure),
+    discMaintenance: num(l.discMaintenance),
+    discNotPermitted: num(l.discNotPermitted),
+  };
+  const resets = sanitiseCounterResets(l.counterResets).map((r) => ({
+    ...r,
+    stationId: r.stationId ?? l.pcdoStationId ?? null,
+  }));
+  const wrapped: PcdoEntry = {
+    stationId: l.pcdoStationId ?? null,
+    works,
+    ...discs,
+    counterResets: resets,
+  };
+  return pcdoEntryHasContent(wrapped) ? [wrapped] : [];
+}
+
+/** Flattened disconnection totals across every PCDO station on a log. */
+export function pcdoDiscTotals(l: PcdoLogShape | null | undefined) {
+  return pcdoEntriesOf(l).reduce(
+    (a, e) => ({
+      sw: a.sw + e.discSpecialWork,
+      fa: a.fa + e.discFailure,
+      mt: a.mt + e.discMaintenance,
+      np: a.np + e.discNotPermitted,
+    }),
+    { sw: 0, fa: 0, mt: 0, np: 0 }
+  );
+}
+
+/**
+ * The PCDO special works of a log entry. New entries store a department-wise
+ * list (`pcdoWorks`); older entries kept a single free-text `pcdoWork` with no
+ * department — those are returned as one legacy entry under the "" department.
+ * When `pcdoEntries` is present, works from every station bundle are flattened.
+ */
+export function pcdoWorkEntries(l: PcdoLogShape | null | undefined): PcdoWork[] {
+  if (!l) return [];
+  if (Array.isArray(l.pcdoEntries) && l.pcdoEntries.length > 0) {
+    return pcdoEntriesOf(l).flatMap((e) => e.works);
+  }
+  return legacyPcdoWorks(l);
 }
 
 const FOOTPLATE_STOP = "__footplate__";
@@ -860,25 +971,14 @@ export function isTaClaimable(
 }
 
 /** The counter resets recorded on a log entry, sanitised (an old entry that
- *  predates counter resets simply has none). */
-export function counterResetsOf(
-  l: { counterResets?: CounterReset[] | null } | null | undefined
-): CounterReset[] {
+ *  predates counter resets simply has none). When `pcdoEntries` is present,
+ *  resets from every station bundle are flattened. */
+export function counterResetsOf(l: PcdoLogShape | null | undefined): CounterReset[] {
   if (!l) return [];
-  if (!Array.isArray(l.counterResets)) return [];
-  return l.counterResets
-    .filter((r) => r && typeof r === "object")
-    .map((r) => ({
-      equipment:
-        r.equipment === "MSDAC" || r.equipment === "UFSBI Block Instrument" || r.equipment === "BPAC"
-          ? r.equipment
-          : "MSDAC",
-      stationId: r.stationId ?? null,
-      nextStationId: r.nextStationId ?? null,
-      failures: num(r.failures),
-      testing: num(r.testing),
-    }))
-    .filter((r) => r.failures > 0 || r.testing > 0);
+  if (Array.isArray(l.pcdoEntries) && l.pcdoEntries.length > 0) {
+    return pcdoEntriesOf(l).flatMap((e) => e.counterResets);
+  }
+  return sanitiseCounterResets(l.counterResets);
 }
 
 /** Total counter resets (failure + testing) recorded on a log entry. */

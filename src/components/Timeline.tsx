@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useData } from "./DataProvider";
 import { Chip } from "./ui";
-import { dayName, toISODate, formatFootplateSummary, pcdoWorkEntries, counterResetTotal } from "@/lib/api";
+import { dayName, toISODate, formatFootplateSummary, pcdoEntriesOf, pcdoWorkEntries, counterResetTotal } from "@/lib/api";
 import { DEPARTMENT_COLORS } from "@/lib/types";
 import { isSharedLog } from "@/lib/backup";
 import type { DailyLog } from "@/db/schema";
@@ -254,13 +254,16 @@ export function Timeline({
                 )}
 
                 {dayLogs.map((log) => {
-                  const discTotal =
-                    log.discSpecialWork + log.discFailure + log.discMaintenance + log.discNotPermitted;
-                  const hasDisc = log.hasDisconnections && discTotal > 0;
+                  const bundles = pcdoEntriesOf(log);
+                  const discTotal = bundles.reduce(
+                    (n, b) => n + b.discSpecialWork + b.discFailure + b.discMaintenance + b.discNotPermitted,
+                    0
+                  );
+                  const hasDisc = discTotal > 0;
                   const counterTotal = counterResetTotal(log);
                   const hasCounter = counterTotal > 0;
                   const pcdoWorks = pcdoWorkEntries(log);
-                  const hasPcdo = pcdoWorks.length > 0;
+                  const hasPcdo = bundles.length > 0;
                   const shared = isSharedLog(log);
                   const summary = shared
                     ? pcdoWorks
@@ -280,7 +283,7 @@ export function Timeline({
                       {shared ? (
                         <p className="truncate text-xs font-medium text-teal-700">
                           🔗 Shared ·{" "}
-                          {stationName(log.pcdoStationId ?? log.inspectionStationId)}
+                          {stationName(bundles[0]?.stationId ?? log.pcdoStationId ?? log.inspectionStationId)}
                         </p>
                       ) : (
                         log.stationMovement && (

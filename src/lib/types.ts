@@ -15,6 +15,31 @@ export type PcdoWork = {
   work: string;
 };
 
+/** One PCDO report on a daily log: special works, disconnection counts and
+ *  counter resets for a single station. A log may carry several of these so
+ *  a multi-station day can file each station separately. */
+export type PcdoEntry = {
+  stationId: number | null;
+  works: PcdoWork[];
+  discSpecialWork: number;
+  discFailure: number;
+  discMaintenance: number;
+  discNotPermitted: number;
+  counterResets: CounterReset[];
+};
+
+export function emptyPcdoEntry(stationId: number | null = null): PcdoEntry {
+  return {
+    stationId,
+    works: [],
+    discSpecialWork: 0,
+    discFailure: 0,
+    discMaintenance: 0,
+    discNotPermitted: 0,
+    counterResets: [],
+  };
+}
+
 /** The equipment that carries a counter (register) whose resets are reported
  *  in the monthly PCDO return. MSDAC counters belong to a single station;
  *  UFSBI Block Instrument and BPAC counters belong to the section between two
@@ -202,5 +227,5 @@ export function variableKmText(km: number | string | null | undefined): string |
 }
 
 /** App version shown in Settings → About. Bump alongside android/app/build.gradle. */
-export const APP_VERSION_BASE = "1.7.7.61";
+export const APP_VERSION_BASE = "1.7.7.62";
 export const APP_VERSION = `${APP_VERSION_BASE}${AUTO_TIMINGS ? "p" : ""}`;

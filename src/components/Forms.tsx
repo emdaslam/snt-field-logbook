@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useData } from "./DataProvider";
 import { useBackClose } from "@/lib/backButton";
 import { Modal, Field, inputClass, Chip, PrimaryButton } from "./ui";
-import { api, toISODate, fmtDate, pcdoWorkEntries } from "@/lib/api";
+import { api, toISODate, fmtDate, pcdoEntriesOf } from "@/lib/api";
 import {
   DEPARTMENTS,
   PRIORITIES,
@@ -14,7 +14,8 @@ import {
   DEPARTMENT_COLORS,
   COUNTER_EQUIPMENT,
   variableKmText,
-  type PcdoWork,
+  emptyPcdoEntry,
+  type PcdoEntry,
   type CounterReset,
 } from "@/lib/types";
 import { AUTO_TIMINGS } from "@/lib/timingsMode";
@@ -1033,27 +1034,61 @@ export function DailyLogForm({
     if (k === "rest" || k === "leave" || k === "cr" || k === "nh" || k === "footplate") return false;
     return isTempStationName(mv, stations);
   });
-  const [pcdoOpen, setPcdoOpen] = useState(pcdoWorkEntries(existing).length > 0);
-  const [pcdoWorks, setPcdoWorks] = useState<PcdoWork[]>(pcdoWorkEntries(existing));
-  const togglePcdoDept = (dept: string) => {
-    setPcdoWorks((prev) =>
-      prev.some((w) => w.department === dept)
-        ? prev.filter((w) => w.department !== dept)
-        : [...prev, { department: dept, work: "" }]
+  const [pcdoOpen, setPcdoOpen] = useState(pcdoEntriesOf(existing).length > 0);
+  const [pcdoCards, setPcdoCards] = useState<PcdoEntry[]>(() => pcdoEntriesOf(existing));
+  const emptyCounter: CounterReset = {
+    equipment: "MSDAC",
+    stationId: null,
+    nextStationId: null,
+    failures: 0,
+    testing: 0,
+  };
+  const patchPcdoCard = (i: number, patch: Partial<PcdoEntry>) =>
+    setPcdoCards((prev) => prev.map((c, x) => (x === i ? { ...c, ...patch } : c)));
+  const addPcdoCard = (stationId: number | null = null) =>
+    setPcdoCards((prev) => [...prev, emptyPcdoEntry(stationId)]);
+  const removePcdoCard = (i: number) => setPcdoCards((prev) => prev.filter((_, x) => x !== i));
+  const toggleCardDept = (i: number, dept: string) =>
+    setPcdoCards((prev) =>
+      prev.map((c, x) => {
+        if (x !== i) return c;
+        return c.works.some((w) => w.department === dept)
+          ? { ...c, works: c.works.filter((w) => w.department !== dept) }
+          : { ...c, works: [...c.works, { department: dept, work: "" }] };
+      })
     );
-  };
-  const setPcdoWork = (dept: string, work: string) => {
-    setPcdoWorks((prev) => prev.map((w) => (w.department === dept ? { ...w, work } : w)));
-  };
-  // PCDO, disconnections and counters share one station — the movement station
-  // by default, overridable to any other station. This holds the manual pick so
-  // it survives a movement switch and non-station (Rest/Leave/CR/NH) entries.
-  const [pcdoStationOverride, setPcdoStationOverride] = useState<number | null>(() => {
-    if (!existing?.pcdoStationId) return null;
-    const mv = stations.find((s) => s.name === existing.stationMovement);
-    if (!mv) return existing.pcdoStationId;
-    return mv.id === existing.pcdoStationId ? null : existing.pcdoStationId;
-  });
+  const setCardWork = (i: number, dept: string, work: string) =>
+    setPcdoCards((prev) =>
+      prev.map((c, x) =>
+        x === i ? { ...c, works: c.works.map((w) => (w.department === dept ? { ...w, work } : w)) } : c
+      )
+    );
+  const addCardCounter = (i: number) =>
+    setPcdoCards((prev) =>
+      prev.map((c, x) => (x === i ? { ...c, counterResets: [...c.counterResets, { ...emptyCounter }] } : c))
+    );
+  const patchCardCounter = (i: number, ci: number, patch: Partial<CounterReset>) =>
+    setPcdoCards((prev) =>
+      prev.map((c, x) =>
+        x === i
+          ? { ...c, counterResets: c.counterResets.map((r, ri) => (ri === ci ? { ...r, ...patch } : r)) }
+          : c
+      )
+    );
+  const removeCardCounter = (i: number, ci: number) =>
+    setPcdoCards((prev) =>
+      prev.map((c, x) =>
+        x === i ? { ...c, counterResets: c.counterResets.filter((_, ri) => ri !== ci) } : c
+      )
+    );
+  const pcdoCardHasContent = (c: PcdoEntry) =>
+    c.works.some((w) => w.work.trim()) ||
+    (Number(c.discSpecialWork) || 0) +
+      (Number(c.discFailure) || 0) +
+      (Number(c.discMaintenance) || 0) +
+      (Number(c.discNotPermitted) || 0) >
+      0 ||
+    c.counterResets.some((r) => (Number(r.failures) || 0) + (Number(r.testing) || 0) > 0);
   const [inspectionTowardsId, setInspectionTowardsId] = useState<number | null>(
     existing?.inspectionTowardsStationId ?? null
   );
@@ -1098,20 +1133,6 @@ export function DailyLogForm({
   const [fpNightDir, setFpNightDir] = useState(nightBlock.direction);
   const [fpNightUp, setFpNightUp] = useState<FootplateJourneyTrain>(nightBlock.up);
   const [fpNightDn, setFpNightDn] = useState<FootplateJourneyTrain>(nightBlock.down);
-  const [discOpen, setDiscOpen] = useState(Boolean(existing?.hasDisconnections));
-  const [discSpecialWork, setDiscSpecialWork] = useState(String(existing?.discSpecialWork ?? 0));
-  const [discFailure, setDiscFailure] = useState(String(existing?.discFailure ?? 0));
-  const [discMaintenance, setDiscMaintenance] = useState(String(existing?.discMaintenance ?? 0));
-  const [discNotPermitted, setDiscNotPermitted] = useState(String(existing?.discNotPermitted ?? 0));
-  const [countersOpen, setCountersOpen] = useState((existing?.counterResets?.length ?? 0) > 0);
-  const [counterRows, setCounterRows] = useState<CounterReset[]>(
-    existing?.counterResets?.length ? existing.counterResets : []
-  );
-  const emptyCounter: CounterReset = { equipment: "MSDAC", stationId: null, nextStationId: null, failures: 0, testing: 0 };
-  const addCounterRow = () => setCounterRows((prev) => [...prev, { ...emptyCounter }]);
-  const updateCounterRow = (i: number, patch: Partial<CounterReset>) =>
-    setCounterRows((prev) => prev.map((r, x) => (x === i ? { ...r, ...patch } : r)));
-  const removeCounterRow = (i: number) => setCounterRows((prev) => prev.filter((_, x) => x !== i));
   // Side (towards station id) recorded for tags marked "asks for side"
   const [tagSides, setTagSides] = useState<Record<number, number>>(existing?.tagSides ?? {});
   const [error, setError] = useState("");
@@ -1297,7 +1318,6 @@ export function DailyLogForm({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     syncLegs([primarySlot, ...extraMovements]);
   }, [fpRides]); // eslint-disable-line react-hooks/exhaustive-deps
-  const pcdoStationId = pcdoStationOverride ?? resolvedStation?.id ?? null;
   const chainStations = (() => {
     const names: string[] = [];
     if (movementKind === "station" && movement.trim() && movement !== TEMP_STATION) names.push(movement);
@@ -1329,15 +1349,6 @@ export function DailyLogForm({
     }
     return INSPECTION_RULES[inspectionKind ?? "monthly"].intervalDays;
   })();
-  const discTotal =
-    (Number(discSpecialWork) || 0) +
-    (Number(discFailure) || 0) +
-    (Number(discMaintenance) || 0) +
-    (Number(discNotPermitted) || 0);
-  const counterTotal = counterRows.reduce(
-    (n, r) => n + (Number(r.failures) || 0) + (Number(r.testing) || 0),
-    0
-  );
 
   // Auto-timings build — the four tour times (and the footplate train-leg
   // times) are pre-filled from the TA rate's window and the station's travel
@@ -1446,30 +1457,29 @@ export function DailyLogForm({
       setError("Enter the station name, or pick a saved station.");
       return;
     }
-    if (pcdoOpen && !pcdoStationId) {
-      setError("PCDO station not yet selected. Select a station in Station/Movement or pick the PCDO station.");
-      return;
-    }
-    if (pcdoOpen && !pcdoWorks.some((w) => w.work.trim())) {
-      setError("Enter the PCDO special work for at least one department.");
-      return;
-    }
-    if (countersOpen) {
-      for (const r of counterRows) {
-        const hasCount = (Number(r.failures) || 0) + (Number(r.testing) || 0) > 0;
-        if (r.equipment !== "MSDAC" && hasCount) {
-          if (movementKind !== "station") {
-            if (!r.stationId || !r.nextStationId) {
+    if (pcdoOpen) {
+      const filled = pcdoCards.filter(pcdoCardHasContent);
+      if (filled.length === 0) {
+        setError("Enter PCDO special work, disconnections or counters for at least one station.");
+        return;
+      }
+      for (const [i, c] of filled.entries()) {
+        if (!c.stationId) {
+          setError(`Pick the station for PCDO entry ${i + 1}.`);
+          return;
+        }
+        for (const r of c.counterResets) {
+          const hasCount = (Number(r.failures) || 0) + (Number(r.testing) || 0) > 0;
+          if (r.equipment !== "MSDAC" && hasCount) {
+            const fromId = r.stationId ?? c.stationId;
+            if (!fromId || !r.nextStationId) {
               setError(`Select both stations for the ${r.equipment} counter reset.`);
               return;
             }
-            if (r.stationId === r.nextStationId) {
+            if (fromId === r.nextStationId) {
               setError(`The two stations for the ${r.equipment} counter reset must be different.`);
               return;
             }
-          } else if (!r.nextStationId) {
-            setError(`Select the next station for the ${r.equipment} counter reset.`);
-            return;
           }
         }
       }
@@ -1515,6 +1525,44 @@ export function DailyLogForm({
       night: fpBlock(d.fpNight, d.fpNightDir, d.fpNightUp, d.fpNightDn),
     }));
     const firstRidePayload = ridesPayload[0];
+    const savedPcdo = pcdoOpen
+      ? pcdoCards
+          .map((c) => ({
+            stationId: c.stationId,
+            works: c.works
+              .map((w) => ({ department: w.department, work: w.work.trim() }))
+              .filter((w) => w.work),
+            discSpecialWork: Number(c.discSpecialWork) || 0,
+            discFailure: Number(c.discFailure) || 0,
+            discMaintenance: Number(c.discMaintenance) || 0,
+            discNotPermitted: Number(c.discNotPermitted) || 0,
+            counterResets: c.counterResets
+              .map((r) => ({
+                equipment: r.equipment,
+                stationId: r.equipment === "MSDAC" ? null : (r.stationId ?? c.stationId),
+                nextStationId: r.equipment === "MSDAC" ? null : r.nextStationId,
+                failures: Number(r.failures) || 0,
+                testing: Number(r.testing) || 0,
+              }))
+              .filter((r) => r.failures > 0 || r.testing > 0),
+          }))
+          .filter(
+            (c) =>
+              c.works.length > 0 ||
+              c.discSpecialWork + c.discFailure + c.discMaintenance + c.discNotPermitted > 0 ||
+              c.counterResets.length > 0
+          )
+      : [];
+    const firstPcdo = savedPcdo[0];
+    const discSum = savedPcdo.reduce(
+      (a, c) => ({
+        sw: a.sw + c.discSpecialWork,
+        fa: a.fa + c.discFailure,
+        mt: a.mt + c.discMaintenance,
+        np: a.np + c.discNotPermitted,
+      }),
+      { sw: 0, fa: 0, mt: 0, np: 0 }
+    );
     const savedLegs =
       editExportRows && journeyLegs.length > 0
         ? journeyLegs.map(withTrainIfBothTimesDashed)
@@ -1662,38 +1710,22 @@ export function DailyLogForm({
           }
         : null,
       ownerStaffId: existing?.ownerStaffId ?? currentUser?.id ?? null,
-      pcdoWorks: pcdoOpen
-        ? pcdoWorks
-            .map((w) => ({ department: w.department, work: w.work.trim() }))
-            .filter((w) => w.work)
-        : [],
-      // Legacy single-text field: joined work texts so older app versions (and
-      // any other consumer) still see something; the UI reads pcdoWorks first.
-      pcdoWork: pcdoOpen
-        ? pcdoWorks
-            .map((w) => w.work.trim())
-            .filter(Boolean)
-            .join("\n")
-        : null,
-      // PCDO station & date always mirror the log entry
-      pcdoStationId: pcdoOpen ? pcdoStationId : null,
-      pcdoDate: pcdoOpen ? pcdoDate : null,
-      hasDisconnections: discOpen,
-      discSpecialWork: discOpen ? Number(discSpecialWork) || 0 : 0,
-      discFailure: discOpen ? Number(discFailure) || 0 : 0,
-      discMaintenance: discOpen ? Number(discMaintenance) || 0 : 0,
-      discNotPermitted: discOpen ? Number(discNotPermitted) || 0 : 0,
-      counterResets: countersOpen
-        ? counterRows
-            .map((r) => ({
-              equipment: r.equipment,
-              stationId: r.equipment === "MSDAC" || movementKind === "station" ? null : r.stationId,
-              nextStationId: r.equipment === "MSDAC" ? null : r.nextStationId,
-              failures: Number(r.failures) || 0,
-              testing: Number(r.testing) || 0,
-            }))
-            .filter((r) => r.failures > 0 || r.testing > 0)
-        : [],
+      pcdoEntries: savedPcdo,
+      pcdoWorks: firstPcdo?.works ?? [],
+      pcdoWork: savedPcdo.flatMap((c) => c.works.map((w) => w.work)).join("\n") || null,
+      pcdoStationId: firstPcdo?.stationId ?? null,
+      pcdoDate: savedPcdo.length > 0 ? pcdoDate : null,
+      hasDisconnections: discSum.sw + discSum.fa + discSum.mt + discSum.np > 0,
+      discSpecialWork: discSum.sw,
+      discFailure: discSum.fa,
+      discMaintenance: discSum.mt,
+      discNotPermitted: discSum.np,
+      counterResets: savedPcdo.flatMap((c) =>
+        c.counterResets.map((r) => ({
+          ...r,
+          stationId: r.stationId ?? c.stationId,
+        }))
+      ),
       tagIds,
       tagSides,
       attachments,
@@ -2297,445 +2329,285 @@ export function DailyLogForm({
       </Field>
       )}
 
-      {/* PCDO — special works */}
+      {/* PCDO — one card per station (works, disconnections, counters) */}
       <div className="mb-3 rounded-lg border border-indigo-200 bg-indigo-50/60 p-3">
         <label className="flex cursor-pointer items-center gap-2">
           <input
             type="checkbox"
             checked={pcdoOpen}
-            onChange={(e) => setPcdoOpen(e.target.checked)}
+            onChange={(e) => {
+              const on = e.target.checked;
+              setPcdoOpen(on);
+              if (on && pcdoCards.length === 0) addPcdoCard(resolvedStation?.id ?? null);
+            }}
             className="h-4 w-4 accent-indigo-600"
           />
-          <span className="text-sm font-semibold text-indigo-900">PCDO — Special Work</span>
+          <span className="text-sm font-semibold text-indigo-900">PCDO</span>
         </label>
         <p className="mt-1 text-xs text-indigo-700/80">
-          Tick to report this as a special work in the PCDO return (26th of last month → 25th of this month).
+          Tick to report special work, disconnections and counter resets in the PCDO return
+          (26th of last month → 25th of this month). Add one card per station.
         </p>
 
         {pcdoOpen && (
-          <div className="mt-3 space-y-2">
-            <div>
-              <span className="mb-1 block text-xs font-medium text-slate-700">Department</span>
-              <div className="flex flex-wrap gap-1.5">
-                {DEPARTMENTS.map((d) => {
-                  const on = pcdoWorks.some((w) => w.department === d);
-                  return (
-                    <button
-                      key={d}
-                      type="button"
-                      onClick={() => togglePcdoDept(d)}
-                      className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
-                        on ? "bg-indigo-600 text-white" : "bg-surface text-slate-600 ring-1 ring-slate-300"
-                      }`}
-                    >
-                      {d}
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="mt-1 text-xs text-slate-500">
-                Pick one or more departments and describe the special work done for each.
-              </p>
-            </div>
-
-            {pcdoWorks.map((w) => (
-              <label key={w.department || "__legacy"} className="block">
-                <span className="mb-1 block text-xs font-medium text-slate-700">
-                  {w.department ? (
-                    <>
-                      <span
-                        className="mr-1.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold text-white"
-                        style={{ backgroundColor: DEPARTMENT_COLORS[w.department] }}
-                      >
-                        {w.department}
-                      </span>
-                      Special Work Details
-                    </>
-                  ) : (
-                    "Special Work Details"
-                  )}
-                </span>
-                <textarea
-                  className={inputClass}
-                  rows={3}
-                  value={w.work}
-                  placeholder={`Describe the ${w.department ? w.department.toLowerCase() : "special"} work carried out…`}
-                  onChange={(e) => setPcdoWork(w.department, e.target.value)}
-                />
-              </label>
-            ))}
-            <div className="rounded-md border border-indigo-200 bg-surface px-2.5 py-2 text-xs">
-              <p className="mb-1 font-semibold text-indigo-800">Taken from this log entry</p>
-              <div className="flex flex-wrap gap-x-5 gap-y-1 text-slate-700">
-                <span>
-                  Station:{" "}
-                  <strong className={pcdoStationId ? "text-slate-900" : "text-amber-600"}>
-                    {pcdoStationId
-                      ? stations.find((x) => x.id === pcdoStationId)?.name
-                      : movement || "not selected above"}
-                  </strong>
-                </span>
-                <span>
-                  Date: <strong className="text-slate-900">{logDate}</strong>
-                </span>
-              </div>
-              <label className="mt-2 block">
-                <span className="mb-1 block text-xs font-medium text-slate-700">
-                  PCDO station{" "}
-                  <span className="font-normal text-slate-400">
-                    (defaults to the station of the movement above — change it if the work was at
-                    another station)
-                  </span>
-                </span>
-                <select
-                  className={inputClass}
-                  value={pcdoStationId ?? ""}
-                  onChange={(e) => setPcdoStationOverride(e.target.value ? Number(e.target.value) : null)}
-                >
-                  <option value="">— Select station —</option>
-                  {stations.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {!pcdoStationId && (
-                <p className="mt-1 text-amber-600">
-                  Select a station in “Station / Movement” above (or pick the PCDO station) so this work is
-                  grouped correctly.
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Disconnections */}
-      <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3">
-        <label className="flex cursor-pointer items-center gap-2">
-          <input
-            type="checkbox"
-            checked={discOpen}
-            onChange={(e) => setDiscOpen(e.target.checked)}
-            className="h-4 w-4 accent-amber-600"
-          />
-          <span className="text-sm font-semibold text-amber-900">Disconnections Given</span>
-        </label>
-        <p className="mt-1 text-xs text-amber-800/80">
-          Tick to record how many disconnections were given, split by purpose. Included in the PCDO export.
-        </p>
-
-        {discOpen && (
-          <>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-slate-700">Special Work</span>
-                <input
-                  type="number"
-                  min="0"
-                  className={inputClass}
-                  value={discSpecialWork}
-                  onChange={(e) => setDiscSpecialWork(e.target.value)}
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-slate-700">Failure</span>
-                <input
-                  type="number"
-                  min="0"
-                  className={inputClass}
-                  value={discFailure}
-                  onChange={(e) => setDiscFailure(e.target.value)}
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-slate-700">Maintenance</span>
-                <input
-                  type="number"
-                  min="0"
-                  className={inputClass}
-                  value={discMaintenance}
-                  onChange={(e) => setDiscMaintenance(e.target.value)}
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-slate-700">Not Permitted</span>
-                <input
-                  type="number"
-                  min="0"
-                  className={inputClass}
-                  value={discNotPermitted}
-                  onChange={(e) => setDiscNotPermitted(e.target.value)}
-                />
-              </label>
-            </div>
-            <p className="mt-2 text-xs font-semibold text-amber-900">
-              Total disconnections: {discTotal}
-            </p>
-            <label className="mt-2 block">
-              <span className="mb-1 block text-xs font-medium text-slate-700">
-                Disconnection station{" "}
-                <span className="font-normal text-slate-500">(shared with the PCDO station above)</span>
-              </span>
-              <select
-                className={inputClass}
-                value={pcdoStationId ?? ""}
-                onChange={(e) => setPcdoStationOverride(e.target.value ? Number(e.target.value) : null)}
-              >
-                <option value="">— Select station —</option>
-                {stations.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-              {!pcdoStationId && (
-                <span className="mt-1 block text-xs text-amber-600">
-                  Pick a station so these disconnections are grouped correctly in the PCDO export.
-                </span>
-              )}
-            </label>
-        </>
-      )}
-      </div>
-
-      {/* Counter Resets */}
-      <div className="mb-3 rounded-lg border border-teal-200 bg-teal-50/60 p-3">
-        <label className="flex cursor-pointer items-center gap-2">
-          <input
-            type="checkbox"
-            checked={countersOpen}
-            onChange={(e) => setCountersOpen(e.target.checked)}
-            className="h-4 w-4 accent-teal-600"
-          />
-          <span className="text-sm font-semibold text-teal-900">Counter Resets</span>
-        </label>
-        <p className="mt-1 text-xs text-teal-800/80">
-          Tick to record counter resets on equipment with registers — MSDAC at this station, or UFSBI
-          Block Instrument / BPAC between this station and the next station. Resets are counted by
-          cause (failure or testing). Included in the PCDO export.
-        </p>
-
-        {countersOpen && (
           <div className="mt-3 space-y-3">
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-slate-700">
-                Counter station{" "}
-                <span className="font-normal text-slate-500">
-                  (shared with the PCDO station above — defaults to the movement station)
-                </span>
-              </span>
-              <select
-                className={inputClass}
-                value={pcdoStationId ?? ""}
-                onChange={(e) => setPcdoStationOverride(e.target.value ? Number(e.target.value) : null)}
-              >
-                <option value="">— Select station —</option>
-                {stations.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-              {!pcdoStationId && (
-                <span className="mt-1 block text-xs text-amber-600">
-                  Pick a station so these counter resets are grouped correctly in the PCDO export.
-                </span>
-              )}
-            </label>
-            {counterRows.map((r, i) => {
-              const isSection = r.equipment !== "MSDAC";
+            {pcdoCards.map((card, i) => {
+              const discTotal =
+                (Number(card.discSpecialWork) || 0) +
+                (Number(card.discFailure) || 0) +
+                (Number(card.discMaintenance) || 0) +
+                (Number(card.discNotPermitted) || 0);
+              const counterTotal = card.counterResets.reduce(
+                (n, r) => n + (Number(r.failures) || 0) + (Number(r.testing) || 0),
+                0
+              );
+              const stationLabel = card.stationId
+                ? stations.find((x) => x.id === card.stationId)?.name
+                : null;
               return (
-                <div key={i} className="rounded-lg border border-teal-200 bg-surface p-2.5">
-                  <div className="flex flex-wrap items-end gap-2">
-                    <label className="block min-w-[11rem] flex-1">
-                      <span className="mb-1 block text-xs font-medium text-slate-700">Equipment</span>
+                <div key={i} className="rounded-lg border border-indigo-200 bg-surface p-2.5">
+                  <div className="mb-2 flex items-end gap-2">
+                    <label className="block min-w-0 flex-1">
+                      <span className="mb-1 block text-xs font-medium text-slate-700">
+                        Station{" "}
+                        <span className="font-normal text-slate-400">
+                          {pcdoCards.length > 1 ? `(entry ${i + 1})` : "(defaults to the movement station)"}
+                        </span>
+                      </span>
                       <select
                         className={inputClass}
-                        value={r.equipment}
+                        value={card.stationId ?? ""}
                         onChange={(e) =>
-                          updateCounterRow(i, {
-                            equipment: e.target.value as CounterReset["equipment"],
-                            stationId: e.target.value === "MSDAC" ? null : r.stationId,
-                            nextStationId:
-                              e.target.value === "MSDAC" ? null : r.nextStationId,
-                          })
+                          patchPcdoCard(i, { stationId: e.target.value ? Number(e.target.value) : null })
                         }
                       >
-                        {COUNTER_EQUIPMENT.map((eq) => (
-                          <option key={eq} value={eq}>
-                            {eq}
+                        <option value="">— Select station —</option>
+                        {stations.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name}
                           </option>
                         ))}
                       </select>
                     </label>
-                    <label className="block w-24">
-                      <span className="mb-1 block text-xs font-medium text-slate-700">
-                        Failures
-                      </span>
-                      <input
-                        type="number"
-                        min="0"
-                        className={inputClass}
-                        value={r.failures}
-                        onChange={(e) => updateCounterRow(i, { failures: Number(e.target.value) || 0 })}
-                      />
-                    </label>
-                    <label className="block w-24">
-                      <span className="mb-1 block text-xs font-medium text-slate-700">
-                        Testing
-                      </span>
-                      <input
-                        type="number"
-                        min="0"
-                        className={inputClass}
-                        value={r.testing}
-                        onChange={(e) => updateCounterRow(i, { testing: Number(e.target.value) || 0 })}
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => removeCounterRow(i)}
-                      className="mb-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-red-200 text-sm font-semibold text-red-600 hover:bg-red-50"
-                    >
-                      ×
-                    </button>
-                  </div>
-                  <p className="mt-1.5 text-xs text-slate-600">
-                    {isSection ? (
-                      movementKind !== "station" ? (
-                        <>Section between two stations:</>
-                      ) : (
-                        <>
-                          Between{" "}
-                          <strong className="text-slate-800">
-                            {pcdoStationId
-                              ? stations.find((x) => x.id === pcdoStationId)?.name
-                              : movement || "this station"}
-                          </strong>{" "}
-                          and the next station:
-                        </>
-                      )
-                    ) : (
-                      <>
-                        Counter at{" "}
-                        <strong className="text-slate-800">
-                          {pcdoStationId
-                            ? stations.find((x) => x.id === pcdoStationId)?.name
-                            : movement || "this station"}
-                        </strong>
-                      </>
+                    {pcdoCards.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removePcdoCard(i)}
+                        className="mb-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-red-200 text-sm font-semibold text-red-600 hover:bg-red-50"
+                      >
+                        ×
+                      </button>
                     )}
-                  </p>
-                  {isSection ? (
-                    movementKind !== "station" ? (
-                      <>
-                        <div className="mt-1.5 flex flex-wrap items-end gap-2">
-                          <label className="block min-w-[10rem] flex-1">
-                            <span className="mb-1 block text-xs font-medium text-slate-700">
-                              From station
+                  </div>
+                  {!card.stationId && (
+                    <p className="mb-2 text-xs text-amber-600">
+                      Pick a station so this entry is grouped correctly in the PCDO export.
+                    </p>
+                  )}
+
+                  <span className="mb-1 block text-xs font-medium text-slate-700">Special work</span>
+                  <div className="mb-2 flex flex-wrap gap-1.5">
+                    {DEPARTMENTS.map((d) => {
+                      const on = card.works.some((w) => w.department === d);
+                      return (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => toggleCardDept(i, d)}
+                          className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+                            on ? "bg-indigo-600 text-white" : "bg-surface text-slate-600 ring-1 ring-slate-300"
+                          }`}
+                        >
+                          {d}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {card.works.map((w) => (
+                    <label key={w.department || "__legacy"} className="mb-2 block">
+                      <span className="mb-1 block text-xs font-medium text-slate-700">
+                        {w.department ? (
+                          <>
+                            <span
+                              className="mr-1.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold text-white"
+                              style={{ backgroundColor: DEPARTMENT_COLORS[w.department] }}
+                            >
+                              {w.department}
                             </span>
+                            Special Work Details
+                          </>
+                        ) : (
+                          "Special Work Details"
+                        )}
+                      </span>
+                      <textarea
+                        className={inputClass}
+                        rows={3}
+                        value={w.work}
+                        placeholder={`Describe the ${w.department ? w.department.toLowerCase() : "special"} work carried out…`}
+                        onChange={(e) => setCardWork(i, w.department, e.target.value)}
+                      />
+                    </label>
+                  ))}
+
+                  <span className="mb-1 block text-xs font-medium text-amber-900">Disconnections given</span>
+                  <div className="mb-1 grid grid-cols-2 gap-2">
+                    {(
+                      [
+                        ["discSpecialWork", "Special Work"],
+                        ["discFailure", "Failure"],
+                        ["discMaintenance", "Maintenance"],
+                        ["discNotPermitted", "Not Permitted"],
+                      ] as const
+                    ).map(([key, label]) => (
+                      <label key={key} className="block">
+                        <span className="mb-1 block text-xs font-medium text-slate-700">{label}</span>
+                        <input
+                          type="number"
+                          min="0"
+                          className={inputClass}
+                          value={card[key]}
+                          onChange={(e) => patchPcdoCard(i, { [key]: Number(e.target.value) || 0 })}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                  <p className="mb-2 text-xs font-semibold text-amber-900">
+                    Total disconnections: {discTotal}
+                  </p>
+
+                  <span className="mb-1 block text-xs font-medium text-teal-900">Counter resets</span>
+                  {card.counterResets.map((r, ci) => {
+                    const isSection = r.equipment !== "MSDAC";
+                    const fromId = r.stationId ?? card.stationId;
+                    return (
+                      <div key={ci} className="mb-2 rounded-lg border border-teal-200 bg-teal-50/40 p-2.5">
+                        <div className="flex flex-wrap items-end gap-2">
+                          <label className="block min-w-[11rem] flex-1">
+                            <span className="mb-1 block text-xs font-medium text-slate-700">Equipment</span>
                             <select
                               className={inputClass}
-                              value={r.stationId ?? ""}
+                              value={r.equipment}
                               onChange={(e) =>
-                                updateCounterRow(i, {
-                                  stationId: e.target.value ? Number(e.target.value) : null,
+                                patchCardCounter(i, ci, {
+                                  equipment: e.target.value as CounterReset["equipment"],
+                                  stationId: e.target.value === "MSDAC" ? null : r.stationId,
+                                  nextStationId: e.target.value === "MSDAC" ? null : r.nextStationId,
                                 })
                               }
                             >
-                              <option value="">— Select station —</option>
-                              {stations
-                                .filter((s) => s.id !== r.nextStationId)
-                                .map((s) => (
-                                  <option key={s.id} value={s.id}>
-                                    {s.name}
-                                  </option>
-                                ))}
+                              {COUNTER_EQUIPMENT.map((eq) => (
+                                <option key={eq} value={eq}>
+                                  {eq}
+                                </option>
+                              ))}
                             </select>
                           </label>
-                          <label className="block min-w-[10rem] flex-1">
+                          <label className="block w-24">
+                            <span className="mb-1 block text-xs font-medium text-slate-700">Failures</span>
+                            <input
+                              type="number"
+                              min="0"
+                              className={inputClass}
+                              value={r.failures}
+                              onChange={(e) =>
+                                patchCardCounter(i, ci, { failures: Number(e.target.value) || 0 })
+                              }
+                            />
+                          </label>
+                          <label className="block w-24">
+                            <span className="mb-1 block text-xs font-medium text-slate-700">Testing</span>
+                            <input
+                              type="number"
+                              min="0"
+                              className={inputClass}
+                              value={r.testing}
+                              onChange={(e) =>
+                                patchCardCounter(i, ci, { testing: Number(e.target.value) || 0 })
+                              }
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => removeCardCounter(i, ci)}
+                            className="mb-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-red-200 text-sm font-semibold text-red-600 hover:bg-red-50"
+                          >
+                            ×
+                          </button>
+                        </div>
+                        <p className="mt-1.5 text-xs text-slate-600">
+                          {isSection ? (
+                            <>
+                              Between{" "}
+                              <strong className="text-slate-800">{stationLabel || "this station"}</strong>{" "}
+                              and the next station:
+                            </>
+                          ) : (
+                            <>
+                              Counter at{" "}
+                              <strong className="text-slate-800">{stationLabel || "this station"}</strong>
+                            </>
+                          )}
+                        </p>
+                        {isSection && (
+                          <label className="mt-1.5 block">
                             <span className="mb-1 block text-xs font-medium text-slate-700">
-                              Next station
+                              Next station{" "}
+                              <span className="font-normal text-slate-400">(far end of the section)</span>
                             </span>
                             <select
                               className={inputClass}
                               value={r.nextStationId ?? ""}
                               onChange={(e) =>
-                                updateCounterRow(i, {
+                                patchCardCounter(i, ci, {
                                   nextStationId: e.target.value ? Number(e.target.value) : null,
                                 })
                               }
                             >
-                              <option value="">— Select station —</option>
+                              <option value="">— Select next station —</option>
                               {stations
-                                .filter((s) => s.id !== r.stationId)
+                                .filter((s) => s.id !== fromId)
                                 .map((s) => (
                                   <option key={s.id} value={s.id}>
                                     {s.name}
                                   </option>
                                 ))}
                             </select>
+                            {!r.nextStationId && (
+                              <span className="mt-1 block text-xs text-amber-600">
+                                Select the next station so this counter reset is grouped correctly in the
+                                PCDO export.
+                              </span>
+                            )}
                           </label>
-                        </div>
-                        {(!r.stationId || !r.nextStationId) && (
-                          <span className="mt-1 block text-xs text-amber-600">
-                            Select both stations so this counter reset is grouped correctly in the
-                            PCDO export.
-                          </span>
                         )}
-                      </>
-                    ) : (
-                      <label className="mt-1.5 block">
-                        <span className="mb-1 block text-xs font-medium text-slate-700">
-                          Next station{" "}
-                          <span className="font-normal text-slate-400">(far end of the section)</span>
-                        </span>
-                        <select
-                          className={inputClass}
-                          value={r.nextStationId ?? ""}
-                          onChange={(e) =>
-                            updateCounterRow(i, { nextStationId: e.target.value ? Number(e.target.value) : null })
-                          }
-                        >
-                          <option value="">— Select next station —</option>
-                          {stations
-                            .filter((s) => s.id !== resolvedStation?.id)
-                            .map((s) => (
-                              <option key={s.id} value={s.id}>
-                                {s.name}
-                              </option>
-                            ))}
-                        </select>
-                        {!r.nextStationId && (
-                          <span className="mt-1 block text-xs text-amber-600">
-                            Select the next station so this counter reset is grouped correctly in the
-                            PCDO export.
-                          </span>
-                        )}
-                      </label>
-                    )
-                  ) : null
-                }
+                      </div>
+                    );
+                  })}
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => addCardCounter(i)}
+                      className="rounded-lg border border-teal-600 px-3 py-1.5 text-sm font-semibold text-teal-700 hover:bg-teal-50"
+                    >
+                      + Add counter reset
+                    </button>
+                    <p className="text-xs font-semibold text-teal-900">Total resets: {counterTotal}</p>
+                  </div>
                 </div>
               );
             })}
-            <div className="flex items-center justify-between gap-2">
-              <button
-                type="button"
-                onClick={addCounterRow}
-                className="rounded-lg border border-teal-600 px-3 py-1.5 text-sm font-semibold text-teal-700 hover:bg-teal-50"
-              >
-                + Add counter reset
-              </button>
-              <p className="text-xs font-semibold text-teal-900">
-                Total resets: {counterTotal}
-              </p>
-            </div>
+            <button
+              type="button"
+              onClick={() => addPcdoCard(null)}
+              className="rounded-lg border border-indigo-600 px-3 py-1.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-50"
+            >
+              + Add station
+            </button>
           </div>
         )}
       </div>
+
 
       <Field label="Tags" as="div">
         <div className="flex flex-wrap gap-2">

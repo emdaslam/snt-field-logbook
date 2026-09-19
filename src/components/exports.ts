@@ -1,5 +1,5 @@
 import { exportDocument } from "@/lib/pdf";
-import { fmtDate, toISODate, formatFootplateShifts, footplateTrainList, footplateRidesOf, footplateTrainListFromRide, logMatchesInspectionStation, pcdoWorkEntries, counterResetsOf, formatRupee } from "@/lib/api";
+import { fmtDate, toISODate, formatFootplateShifts, footplateTrainList, footplateRidesOf, footplateTrainListFromRide, logMatchesInspectionStation, pcdoEntriesOf, formatRupee } from "@/lib/api";
 import { formatInspectionDates } from "@/lib/inspections";
 import { isSpecialMovement, EQUIPMENT_DEFAULTS, variableKmText, type ExportStyle } from "@/lib/types";
 import { AUTO_TIMINGS } from "@/lib/timingsMode";
@@ -181,37 +181,57 @@ export function pcdoReportBody(
     return match ? match.id : null;
   };
 
+  const logInPeriod = (l: DailyLog) => {
+    const d = l.pcdoDate || l.logDate;
+    return d >= period.from && d <= period.to;
+  };
   const entries = logs
     .filter((l) => {
-      if (pcdoWorkEntries(l).length === 0) return false;
-      const d = l.pcdoDate || l.logDate;
-      if (d < period.from || d > period.to) return false;
-      if (stationFilter && l.pcdoStationId !== stationFilter) return false;
+      const bundles = pcdoEntriesOf(l);
+      if (bundles.every((b) => b.works.length === 0)) return false;
+      if (!logInPeriod(l)) return false;
+      if (stationFilter && !bundles.some((b) => b.stationId === stationFilter)) return false;
       if (selectedIds && !selectedIds.has(l.id)) return false;
       return true;
     })
     .sort((a, b) => (a.pcdoDate || a.logDate).localeCompare(b.pcdoDate || b.logDate));
 
-  // Disconnections recorded anywhere in the same PCDO period
-  const discEntries = logs
-    .filter((l) => {
-      if (!l.hasDisconnections) return false;
-      if (l.discSpecialWork + l.discFailure + l.discMaintenance + l.discNotPermitted <= 0) return false;
-      const d = l.pcdoDate || l.logDate;
-      if (d < period.from || d > period.to) return false;
-      if (stationFilter && logStationId(l) !== stationFilter) return false;
-      return true;
-    })
-    .sort((a, b) => (a.pcdoDate || a.logDate).localeCompare(b.pcdoDate || b.logDate));
+  type DiscRow = {
+    station: string;
+    sw: number;
+    fa: number;
+    mt: number;
+    np: number;
+  };
+  const discRows: DiscRow[] = [];
+  for (const l of logs) {
+    if (!logInPeriod(l)) continue;
+    for (const b of pcdoEntriesOf(l)) {
+      const total = b.discSpecialWork + b.discFailure + b.discMaintenance + b.discNotPermitted;
+      if (total <= 0) continue;
+      if (stationFilter && b.stationId !== stationFilter && logStationId(l) !== stationFilter) continue;
+      discRows.push({
+        station: b.stationId ? stationName(b.stationId) : logStationName(l),
+        sw: b.discSpecialWork,
+        fa: b.discFailure,
+        mt: b.discMaintenance,
+        np: b.discNotPermitted,
+      });
+    }
+  }
 
-  // One row per (log entry × department): a single entry can report special
-  // works for several departments, so it contributes one row per department.
+  // One row per (log × station × department): a multi-station day contributes
+  // a row for each station's special works.
   type WorkRow = { station: string; date: string; department: string; work: string };
   const workRows: WorkRow[] = [];
   for (const e of entries) {
-    const k = stationName(e.pcdoStationId);
-    for (const w of pcdoWorkEntries(e)) {
-      workRows.push({ station: k, date: e.pcdoDate || e.logDate, department: w.department, work: w.work });
+    const date = e.pcdoDate || e.logDate;
+    for (const b of pcdoEntriesOf(e)) {
+      if (stationFilter && b.stationId !== stationFilter) continue;
+      const k = b.stationId ? stationName(b.stationId) : logStationName(e);
+      for (const w of b.works) {
+        workRows.push({ station: k, date, department: w.department, work: w.work });
+      }
     }
   }
 
@@ -251,24 +271,23 @@ export function pcdoReportBody(
   }
 
   /* ---------- Disconnections ---------- */
-  const discGroups = new Map<string, DailyLog[]>();
-  for (const e of discEntries) {
-    const k = logStationName(e);
-    if (!discGroups.has(k)) discGroups.set(k, []);
-    discGroups.get(k)!.push(e);
+  const discGroups = new Map<string, DiscRow[]>();
+  for (const r of discRows) {
+    if (!discGroups.has(r.station)) discGroups.set(r.station, []);
+    discGroups.get(r.station)!.push(r);
   }
   const sortedDisc = [...discGroups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
 
-  const sum = (rows: DailyLog[]) => ({
-    sw: rows.reduce((n, r) => n + r.discSpecialWork, 0),
-    fa: rows.reduce((n, r) => n + r.discFailure, 0),
-    mt: rows.reduce((n, r) => n + r.discMaintenance, 0),
-    np: rows.reduce((n, r) => n + r.discNotPermitted, 0),
+  const sum = (rows: DiscRow[]) => ({
+    sw: rows.reduce((n, r) => n + r.sw, 0),
+    fa: rows.reduce((n, r) => n + r.fa, 0),
+    mt: rows.reduce((n, r) => n + r.mt, 0),
+    np: rows.reduce((n, r) => n + r.np, 0),
     get total() {
       return this.sw + this.fa + this.mt + this.np;
     },
   });
-  const grand = sum(discEntries);
+  const grand = sum(discRows);
 
   body += `<h1 class="centered" style="margin-top:34px">Disconnections (${esc(period.label)})</h1>`;
   body += `<p class="meta">PCDO period: ${fmtDate(period.from)} to ${fmtDate(period.to)} · ${grand.total} disconnection${grand.total !== 1 ? "s" : ""} given</p>`;
@@ -294,27 +313,31 @@ export function pcdoReportBody(
   // and UFSBI / BPAC locations also name the far ("next") station.
   const resetAgg = new Map<string, ResetRow>();
   for (const e of logs) {
-    const list = counterResetsOf(e);
-    if (list.length === 0) continue;
-    const d = e.pcdoDate || e.logDate;
-    if (d < period.from || d > period.to) continue;
-    if (
-      stationFilter &&
-      logStationId(e) !== stationFilter &&
-      !list.some((r) => r.stationId === stationFilter)
-    )
-      continue;
-    for (const r of list) {
-      const from = r.stationId ? stationName(r.stationId) : logStationName(e);
-      const location =
-        r.equipment === "MSDAC" ? from : `${from} - ${stationName(r.nextStationId)}`;
-      const key = `${location}|${r.equipment}`;
-      const prev = resetAgg.get(key);
-      if (prev) {
-        prev.failures += r.failures;
-        prev.testing += r.testing;
-      } else {
-        resetAgg.set(key, { location, equipment: r.equipment, failures: r.failures, testing: r.testing });
+    if (!logInPeriod(e)) continue;
+    for (const b of pcdoEntriesOf(e)) {
+      if (b.counterResets.length === 0) continue;
+      if (
+        stationFilter &&
+        b.stationId !== stationFilter &&
+        !b.counterResets.some((r) => r.stationId === stationFilter)
+      )
+        continue;
+      for (const r of b.counterResets) {
+        const from = r.stationId
+          ? stationName(r.stationId)
+          : b.stationId
+            ? stationName(b.stationId)
+            : logStationName(e);
+        const location =
+          r.equipment === "MSDAC" ? from : `${from} - ${stationName(r.nextStationId)}`;
+        const key = `${location}|${r.equipment}`;
+        const prev = resetAgg.get(key);
+        if (prev) {
+          prev.failures += r.failures;
+          prev.testing += r.testing;
+        } else {
+          resetAgg.set(key, { location, equipment: r.equipment, failures: r.failures, testing: r.testing });
+        }
       }
     }
   }

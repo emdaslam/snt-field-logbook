@@ -9,7 +9,7 @@ import { InspectionExportModal } from "./InspectionExportModal";
 import { PeriodPicker, monthPeriod, type Period } from "./PeriodPicker";
 import { getPcdoPeriod } from "@/lib/pcdo";
 import { useBackClose } from "@/lib/backButton";
-import { fmtDate, pcdoWorkEntries, counterResetsOf, counterResetTotal, isTaClaimable, logStationNames } from "@/lib/api";
+import { fmtDate, pcdoEntriesOf, pcdoWorkEntries, counterResetsOf, counterResetTotal, isTaClaimable, logStationNames } from "@/lib/api";
 import { PrimaryButton } from "./ui";
 import { StatDetailModal, type StatRow } from "./StatDetailModal";
 import { computeAllSchedules, expandInspectionRecords, INSPECTION_RULES, isGenericSideLabel, sideAskingKinds, tagReminderConfigs, cap } from "@/lib/inspections";
@@ -88,12 +88,15 @@ export function Reports({
     const pPlans = planned.filter((p) => inRange(p.plannedDate));
 
     const disc = pLogs.reduce(
-      (a, l) => ({
-        sw: a.sw + (l.hasDisconnections ? l.discSpecialWork : 0),
-        fa: a.fa + (l.hasDisconnections ? l.discFailure : 0),
-        mt: a.mt + (l.hasDisconnections ? l.discMaintenance : 0),
-        np: a.np + (l.hasDisconnections ? l.discNotPermitted : 0),
-      }),
+      (a, l) => {
+        for (const b of pcdoEntriesOf(l)) {
+          a.sw += b.discSpecialWork;
+          a.fa += b.discFailure;
+          a.mt += b.discMaintenance;
+          a.np += b.discNotPermitted;
+        }
+        return a;
+      },
       { sw: 0, fa: 0, mt: 0, np: 0 }
     );
 
@@ -201,17 +204,19 @@ export function Reports({
             setDrill({
               title: "PCDO Special Works",
               rows: stats.pLogs.flatMap((l) =>
-                pcdoWorkEntries(l).map((w) => ({
-                  key: "p" + l.id + w.department,
-                  date: l.pcdoDate || l.logDate,
-                  title: w.work,
-                  sub: w.department
-                    ? `${w.department} · ${l.pcdoStationId ? stationName(l.pcdoStationId) : "no station"}`
-                    : l.pcdoStationId
-                      ? stationName(l.pcdoStationId)
-                      : undefined,
-                  logId: l.id,
-                }))
+                pcdoEntriesOf(l).flatMap((b, bi) =>
+                  b.works.map((w) => ({
+                    key: "p" + l.id + "-" + bi + w.department,
+                    date: l.pcdoDate || l.logDate,
+                    title: w.work,
+                    sub: w.department
+                      ? `${w.department} · ${b.stationId ? stationName(b.stationId) : "no station"}`
+                      : b.stationId
+                        ? stationName(b.stationId)
+                        : undefined,
+                    logId: l.id,
+                  }))
+                )
               ),
             })
           }
@@ -223,20 +228,21 @@ export function Reports({
           onClick={() =>
             setDrill({
               title: "Disconnections",
-              rows: stats.pLogs
-                .filter(
-                  (l) =>
-                    l.hasDisconnections &&
-                    l.discSpecialWork + l.discFailure + l.discMaintenance + l.discNotPermitted > 0
-                )
-                .map((l) => ({
-                  key: "d" + l.id,
-                  date: l.logDate,
-                  title: l.stationMovement?.trim() || "—",
-                  sub: `Special work ${l.discSpecialWork} · Failure ${l.discFailure} · Maintenance ${l.discMaintenance} · Not permitted ${l.discNotPermitted}`,
-                  badge: `${l.discSpecialWork + l.discFailure + l.discMaintenance + l.discNotPermitted}`,
-                  logId: l.id,
-                })),
+              rows: stats.pLogs.flatMap((l) =>
+                pcdoEntriesOf(l)
+                  .filter(
+                    (b) =>
+                      b.discSpecialWork + b.discFailure + b.discMaintenance + b.discNotPermitted > 0
+                  )
+                  .map((b, bi) => ({
+                    key: "d" + l.id + "-" + bi,
+                    date: l.logDate,
+                    title: b.stationId ? stationName(b.stationId) : l.stationMovement?.trim() || "—",
+                    sub: `Special work ${b.discSpecialWork} · Failure ${b.discFailure} · Maintenance ${b.discMaintenance} · Not permitted ${b.discNotPermitted}`,
+                    badge: `${b.discSpecialWork + b.discFailure + b.discMaintenance + b.discNotPermitted}`,
+                    logId: l.id,
+                  }))
+              ),
               footer: `Total: ${stats.discTotal} disconnections`,
             })
           }
@@ -248,22 +254,22 @@ export function Reports({
           onClick={() =>
             setDrill({
               title: "Counter Resets",
-              rows: stats.pLogs
-                .filter((l) => counterResetTotal(l) > 0)
-                .flatMap((l) =>
-                  counterResetsOf(l).map((r) => ({
-                    key: "cr" + l.id + r.equipment,
+              rows: stats.pLogs.flatMap((l) =>
+                pcdoEntriesOf(l).flatMap((b, bi) =>
+                  b.counterResets.map((r, ri) => ({
+                    key: "cr" + l.id + "-" + bi + "-" + ri,
                     date: l.logDate,
                     title: `${r.equipment} — ${
                       r.equipment === "MSDAC"
-                        ? stationName(l.pcdoStationId)
-                        : `${r.stationId ? stationName(r.stationId) : stationName(l.pcdoStationId)} - ${stationName(r.nextStationId)}`
+                        ? stationName(b.stationId)
+                        : `${r.stationId ? stationName(r.stationId) : stationName(b.stationId)} - ${stationName(r.nextStationId)}`
                     }`,
                     sub: `Failures ${r.failures} · Testing ${r.testing}`,
                     badge: `${r.failures + r.testing}`,
                     logId: l.id,
                   }))
-                ),
+                )
+              ),
               footer: `Total: ${stats.counter} counter resets`,
             })
           }

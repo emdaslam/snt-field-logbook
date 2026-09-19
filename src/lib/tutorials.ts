@@ -648,6 +648,28 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.7.62",
+    tag: "Several PCDO stations on one log",
+    subtitle: "File special work, disconnections and counters for more than one station on the same daily log.",
+    slides: [
+      {
+        glyph: "▤",
+        title: "One card per station",
+        body: "Tick PCDO on a daily log and you get a card for a station. Each card asks for that station’s special work (by department), disconnection counts and counter resets.",
+      },
+      {
+        glyph: "＋",
+        title: "Add another station",
+        body: "Tap + Add station to file another PCDO card on the same day — useful when the movement visited more than one station. Remove a card with ×.",
+      },
+      {
+        glyph: "▤",
+        title: "Export still groups by station",
+        body: "The PCDO export, Reports and log detail list each station on its own. An older single-station log still opens as one card.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {

@@ -181,6 +181,10 @@ export function AppShell() {
     for (const l of logs) {
       const m = stations.find((s) => l.stationMovement === s.name);
       if (m) return m.id;
+      const pcdoSt = Array.isArray(l.pcdoEntries)
+        ? l.pcdoEntries.find((e) => e.stationId != null)?.stationId
+        : null;
+      if (pcdoSt) return pcdoSt;
       if (l.pcdoStationId) return l.pcdoStationId;
     }
     return null;

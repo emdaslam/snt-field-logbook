@@ -3,6 +3,14 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.62 — 2026-09-19
+
+**Major: several PCDO station entries on one daily log**
+
+- A daily log can now file more than one PCDO card. Each card is a station and asks for that station’s special work (by department), disconnection counts and counter resets.
+- Tick PCDO, fill the first station, then **+ Add station** for the next. The PCDO export, Reports and log detail group each card under its own station. An older single-station log still opens as one card.
+- Implemented in `PENDING`.
+
 ## 1.7.7.61 — 2026-09-16
 
 **Minor: a leg added in the Diary / TA export rows editor opens with the From / To dropdowns**

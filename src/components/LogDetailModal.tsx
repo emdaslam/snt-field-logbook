@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import { useBackClose } from "@/lib/backButton";
 import { useData } from "./DataProvider";
 import { Modal, Chip } from "./ui";
-import { api, fmtDate, dayName, formatFootplateSummary, footplateRidesOf, pcdoWorkEntries, counterResetsOf, counterResetTotal } from "@/lib/api";
+import { api, fmtDate, dayName, formatFootplateSummary, footplateRidesOf, pcdoEntriesOf } from "@/lib/api";
 import { DEPARTMENT_COLORS } from "@/lib/types";
 import { isSharedLog } from "@/lib/backup";
 import { INSPECTION_RULES, addDays, intervalFor, jointPeriodOf, type InspectionKind } from "@/lib/inspections";
@@ -28,8 +28,7 @@ export function LogDetailModal({
   useBackClose(preview !== null, () => setPreview(null));
   if (!log) return null;
 
-  const discTotal =
-    log.discSpecialWork + log.discFailure + log.discMaintenance + log.discNotPermitted;
+  const pcdoBundles = pcdoEntriesOf(log);
   const shared = isSharedLog(log);
 
   return (
@@ -38,7 +37,7 @@ export function LogDetailModal({
       {shared ? (
         <div className="mb-3 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2">
           <p className="text-xs font-semibold text-teal-800">
-            🔗 Shared by a colleague at {stationName(log.pcdoStationId)}
+            🔗 Shared by a colleague at {stationName(pcdoBundles[0]?.stationId ?? log.pcdoStationId)}
           </p>
           <p className="mt-0.5 text-xs text-teal-700">
             Only PCDO special works, disconnection counts and counter resets are shared between
@@ -144,72 +143,73 @@ export function LogDetailModal({
         </>
       )}
 
-      {pcdoWorkEntries(log).length > 0 && (
-        <div className="mb-3 rounded-lg border border-indigo-200 bg-indigo-50 p-3">
-          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-indigo-700">
-            ⭐ PCDO Special Work
-          </p>
-          <div className="space-y-2">
-            {pcdoWorkEntries(log).map((w) => (
-              <div key={w.department || "__legacy"} className="rounded-md bg-surface/70 px-2.5 py-2">
-                {w.department && (
-                  <span
-                    className="mr-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold text-white"
-                    style={{ backgroundColor: DEPARTMENT_COLORS[w.department] }}
-                  >
-                    {w.department}
-                  </span>
-                )}
-                <p className="whitespace-pre-wrap text-sm text-indigo-950">{w.work}</p>
+      {pcdoBundles.map((b, i) => {
+        const bDisc = b.discSpecialWork + b.discFailure + b.discMaintenance + b.discNotPermitted;
+        const bResets = b.counterResets.reduce((n, r) => n + r.failures + r.testing, 0);
+        const st = b.stationId ? stationName(b.stationId) : "No station";
+        return (
+          <div key={i} className="mb-3 rounded-lg border border-indigo-200 bg-indigo-50 p-3">
+            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-indigo-700">
+              PCDO · {st} · {fmtDate(log.pcdoDate || log.logDate)}
+            </p>
+            {b.works.length > 0 && (
+              <div className="mb-2 space-y-2">
+                {b.works.map((w) => (
+                  <div key={w.department || "__legacy"} className="rounded-md bg-surface/70 px-2.5 py-2">
+                    {w.department && (
+                      <span
+                        className="mr-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold text-white"
+                        style={{ backgroundColor: DEPARTMENT_COLORS[w.department] }}
+                      >
+                        {w.department}
+                      </span>
+                    )}
+                    <p className="whitespace-pre-wrap text-sm text-indigo-950">{w.work}</p>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          <p className="mt-1.5 text-xs text-indigo-700">
-            {log.pcdoStationId ? stationName(log.pcdoStationId) : "No station"} ·{" "}
-            {fmtDate(log.pcdoDate || log.logDate)}
-          </p>
-        </div>
-      )}
-
-      {log.hasDisconnections && discTotal > 0 && (
-        <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
-          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-amber-700">
-            ⚡ Disconnections · {discTotal} total
-          </p>
-          <div className="grid grid-cols-2 gap-2 text-center">
-            <Metric label="Special Work" value={log.discSpecialWork} />
-            <Metric label="Failure" value={log.discFailure} />
-            <Metric label="Maintenance" value={log.discMaintenance} />
-            <Metric label="Not Permitted" value={log.discNotPermitted} />
-          </div>
-        </div>
-      )}
-
-      {counterResetTotal(log) > 0 && (
-        <div className="mb-3 rounded-lg border border-teal-200 bg-teal-50 p-3">
-          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-teal-700">
-            🔢 Counter Resets · {counterResetTotal(log)} total
-          </p>
-          <div className="space-y-1.5">
-            {counterResetsOf(log).map((r, i) => (
-              <div
-                key={i}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-surface/70 px-2.5 py-1.5 text-sm"
-              >
-                <span className="font-medium text-teal-950">
-                  {r.equipment}
-                  {r.equipment === "MSDAC"
-                    ? ` · ${stationName(log.pcdoStationId)}`
-                    : ` · ${r.stationId ? stationName(r.stationId) : stationName(log.pcdoStationId)} - ${stationName(r.nextStationId)}`}
-                </span>
-                <span className="text-xs text-teal-800">
-                  Failures {r.failures} · Testing {r.testing}
-                </span>
+            )}
+            {bDisc > 0 && (
+              <div className="mb-2 rounded-md border border-amber-200 bg-amber-50 p-2">
+                <p className="mb-1 text-xs font-bold uppercase tracking-wide text-amber-700">
+                  Disconnections · {bDisc} total
+                </p>
+                <div className="grid grid-cols-2 gap-2 text-center">
+                  <Metric label="Special Work" value={b.discSpecialWork} />
+                  <Metric label="Failure" value={b.discFailure} />
+                  <Metric label="Maintenance" value={b.discMaintenance} />
+                  <Metric label="Not Permitted" value={b.discNotPermitted} />
+                </div>
               </div>
-            ))}
+            )}
+            {bResets > 0 && (
+              <div className="rounded-md border border-teal-200 bg-teal-50 p-2">
+                <p className="mb-1 text-xs font-bold uppercase tracking-wide text-teal-700">
+                  Counter Resets · {bResets} total
+                </p>
+                <div className="space-y-1.5">
+                  {b.counterResets.map((r, ri) => (
+                    <div
+                      key={ri}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-surface/70 px-2.5 py-1.5 text-sm"
+                    >
+                      <span className="font-medium text-teal-950">
+                        {r.equipment}
+                        {r.equipment === "MSDAC"
+                          ? ` · ${st}`
+                          : ` · ${r.stationId ? stationName(r.stationId) : st} - ${stationName(r.nextStationId)}`}
+                      </span>
+                      <span className="text-xs text-teal-800">
+                        Failures {r.failures} · Testing {r.testing}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })}
 
       {log.tagIds.length > 0 && (
         <div className="mb-3">

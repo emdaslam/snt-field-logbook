@@ -10,7 +10,7 @@ import {
   jsonb,
   date,
 } from "drizzle-orm/pg-core";
-import type { PcdoWork, CounterReset } from "@/lib/types";
+import type { PcdoWork, PcdoEntry, CounterReset } from "@/lib/types";
 
 // Stations
 export const stations = pgTable("stations", {
@@ -149,6 +149,10 @@ export const dailyLogs = pgTable("daily_logs", {
   // Department-wise special works: one entry per department, each with its own
   // work text. Supersedes pcdoWork (kept for older app versions / legacy rows).
   pcdoWorks: jsonb("pcdo_works").$type<PcdoWork[]>().default([]).notNull(),
+  // Per-station PCDO bundles (works + disconnections + counters). Supersedes
+  // the single-station pcdoWorks / disc* / counterResets columns, which are
+  // kept as flattened mirrors so older app versions still read a value.
+  pcdoEntries: jsonb("pcdo_entries").$type<PcdoEntry[]>().default([]).notNull(),
   pcdoStationId: integer("pcdo_station_id"),
   pcdoDate: date("pcdo_date"),
   // Disconnections given, split by purpose

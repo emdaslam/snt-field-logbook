@@ -5,7 +5,7 @@ import { useData } from "./DataProvider";
 import { Modal, Field, inputClass, PrimaryButton } from "./ui";
 import { exportPcdo } from "./exports";
 import { getPcdoPeriod } from "@/lib/pcdo";
-import { fmtDate, pcdoWorkEntries, counterResetsOf } from "@/lib/api";
+import { fmtDate, pcdoEntriesOf } from "@/lib/api";
 import { COUNTER_EQUIPMENT } from "@/lib/types";
 
 /** Month/year label for a period, named after its closing (to) date. */
@@ -49,33 +49,41 @@ export function PcdoExportModal({ open, onClose }: { open: boolean; onClose: () 
   const mapped = myStationIds;
   const inMappedScope = (l: (typeof logs)[number]) => {
     if (mapped.length === 0) return true;
-    const sid = l.pcdoStationId ?? resolveStationId(l.stationMovement, l.pcdoStationId);
-    return sid != null && mapped.includes(sid);
+    const ids = pcdoEntriesOf(l).map((b) => b.stationId).filter((id): id is number => id != null);
+    if (ids.length === 0) {
+      const sid = l.pcdoStationId ?? resolveStationId(l.stationMovement, l.pcdoStationId);
+      return sid != null && mapped.includes(sid);
+    }
+    return ids.some((id) => mapped.includes(id));
   };
   const baseLogs = mapped.length ? logs.filter(inMappedScope) : logs;
 
   const entries = baseLogs.filter((l) => {
-    if (pcdoWorkEntries(l).length === 0) return false;
+    const bundles = pcdoEntriesOf(l);
+    if (bundles.every((b) => b.works.length === 0)) return false;
     const d = l.pcdoDate || l.logDate;
     if (d < period.from || d > period.to) return false;
-    if (stationFilter && l.pcdoStationId !== stationFilter) return false;
+    if (stationFilter && !bundles.some((b) => b.stationId === stationFilter)) return false;
     return true;
   });
 
-  // Preview rows: one per (log × department), so a multi-department entry
-  // shows each of its works under the right department.
+  // Preview rows: one per (log × station × department).
   type PreviewRow = { id: number; station: string; date: string; department: string; work: string };
   const previewRows: PreviewRow[] = [];
   for (const e of entries) {
-    const st = stationName(e.pcdoStationId);
-    for (const w of pcdoWorkEntries(e)) {
-      previewRows.push({
-        id: e.id,
-        station: st,
-        date: e.pcdoDate || e.logDate,
-        department: w.department || "General",
-        work: w.work,
-      });
+    const date = e.pcdoDate || e.logDate;
+    for (const b of pcdoEntriesOf(e)) {
+      if (stationFilter && b.stationId !== stationFilter) continue;
+      const st = b.stationId ? stationName(b.stationId) : stationName(e.pcdoStationId);
+      for (const w of b.works) {
+        previewRows.push({
+          id: e.id,
+          station: st,
+          date,
+          department: w.department || "General",
+          work: w.work,
+        });
+      }
     }
   }
 
@@ -86,40 +94,33 @@ export function PcdoExportModal({ open, onClose }: { open: boolean; onClose: () 
     grouped.get(r.station)!.push(r);
   }
 
-  const discEntries = baseLogs.filter((l) => {
-    if (!l.hasDisconnections) return false;
-    if (l.discSpecialWork + l.discFailure + l.discMaintenance + l.discNotPermitted <= 0) return false;
+  const discTotals = { sw: 0, fa: 0, mt: 0, np: 0 };
+  for (const l of baseLogs) {
     const d = l.pcdoDate || l.logDate;
-    if (d < period.from || d > period.to) return false;
-    if (stationFilter && resolveStationId(l.stationMovement, l.pcdoStationId) !== stationFilter) return false;
-    return true;
-  });
-  const discTotals = discEntries.reduce(
-    (a, r) => ({
-      sw: a.sw + r.discSpecialWork,
-      fa: a.fa + r.discFailure,
-      mt: a.mt + r.discMaintenance,
-      np: a.np + r.discNotPermitted,
-    }),
-    { sw: 0, fa: 0, mt: 0, np: 0 }
-  );
+    if (d < period.from || d > period.to) continue;
+    for (const b of pcdoEntriesOf(l)) {
+      if (stationFilter && b.stationId !== stationFilter) continue;
+      discTotals.sw += b.discSpecialWork;
+      discTotals.fa += b.discFailure;
+      discTotals.mt += b.discMaintenance;
+      discTotals.np += b.discNotPermitted;
+    }
+  }
   const discGrand = discTotals.sw + discTotals.fa + discTotals.mt + discTotals.np;
 
   // Counter resets in the same period, split per equipment type
-  const resetEntries = baseLogs.filter((l) => {
-    if (counterResetsOf(l).length === 0) return false;
-    const d = l.pcdoDate || l.logDate;
-    if (d < period.from || d > period.to) return false;
-    if (stationFilter && resolveStationId(l.stationMovement, l.pcdoStationId) !== stationFilter) return false;
-    return true;
-  });
   const resetByEquipment = new Map<string, { failures: number; testing: number }>();
-  for (const l of resetEntries) {
-    for (const r of counterResetsOf(l)) {
-      const prev = resetByEquipment.get(r.equipment) ?? { failures: 0, testing: 0 };
-      prev.failures += r.failures;
-      prev.testing += r.testing;
-      resetByEquipment.set(r.equipment, prev);
+  for (const l of baseLogs) {
+    const d = l.pcdoDate || l.logDate;
+    if (d < period.from || d > period.to) continue;
+    for (const b of pcdoEntriesOf(l)) {
+      if (stationFilter && b.stationId !== stationFilter) continue;
+      for (const r of b.counterResets) {
+        const prev = resetByEquipment.get(r.equipment) ?? { failures: 0, testing: 0 };
+        prev.failures += r.failures;
+        prev.testing += r.testing;
+        resetByEquipment.set(r.equipment, prev);
+      }
     }
   }
   const resetTotals = {
