@@ -10,7 +10,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 - Monthly, quarterly and maintenance tags now ask for a side by default. The daily log already showed “towards which side?” when those tags were picked; reminders now follow that choice, so doing NOSM only leaves the KLKA side on its own due date.
 - Existing monthly / quarterly / maintenance tags are flipped on at next app open. New installs seed them with the side flag already on.
 - Save as file for the JSON backup and for PDF/Word exports stages the file in app cache, then copies it through the system picker. A large backup no longer kills the app and leaves a 0-byte file.
-- Implemented in `PENDING`.
+- Implemented in `b65b62f`.
 
 ## 1.7.7.64 — 2026-09-19
 
