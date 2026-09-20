@@ -130,7 +130,11 @@ export const api = {
       const row: Record<string, unknown> = {
         name: b.name ?? "",
         color: b.color ?? "#2563eb",
-        needsSide: Boolean(b.needsSide),
+        needsSide:
+          b.needsSide != null
+            ? Boolean(b.needsSide)
+            : /monthly|quarterly/.test((b.name ?? "").toLowerCase()) ||
+              (b.name ?? "").toLowerCase().includes("maintenance"),
       };
       if (b.remindEnabled !== undefined && b.remindEnabled !== null) {
         row.remindEnabled = b.remindEnabled;

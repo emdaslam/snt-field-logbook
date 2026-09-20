@@ -16,6 +16,7 @@ import {
   expandInspectionRecords,
   INSPECTION_RULES,
   kindFromTagName,
+  defaultNeedsSide,
   tagReminderConfigs,
   normalizeFootplateReminder,
   DEFAULT_FOOTPLATE_REMINDER,
@@ -610,7 +611,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
         due.kind !== "footplate" &&
         due.towards &&
         due.towards !== "Unspecified side" &&
-        tags.some((t) => t.needsSide && kindFromTagName(t.name) === due.kind);
+        tags.some(
+          (t) =>
+            (t.needsSide || defaultNeedsSide(t.name)) &&
+            kindFromTagName(t.name) === due.kind
+        );
       // Footplate is tracked per shift + direction, so say which one is due.
       const fpWhich =
         due.kind === "footplate" && (due.fpShift || due.fpDir)

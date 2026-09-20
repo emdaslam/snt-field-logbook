@@ -30,6 +30,7 @@ import {
   type TaGenWindow,
   type TaRateKey,
 } from "@/lib/taGenConfig";
+import { defaultNeedsSide } from "@/lib/inspections";
 import {
   driveIsConfigured,
   driveStatus,
@@ -1424,7 +1425,9 @@ function TagEditor({ existing, onClose }: { existing: Tag | null; onClose: () =>
   const [form, setForm] = useState({
     name: existing?.name ?? "",
     color: existing?.color ?? "#2563eb",
-    needsSide: existing?.needsSide ?? false,
+    needsSide: existing
+      ? Boolean(existing.needsSide) || defaultNeedsSide(existing.name)
+      : false,
     // Reminders are on by default (the built-in rule applies until the user
     // sets an interval); unchecking switches this tag's reminders off.
     remindEnabled: existing?.remindEnabled ?? true,
@@ -1460,7 +1463,14 @@ function TagEditor({ existing, onClose }: { existing: Tag | null; onClose: () =>
           className={inputClass}
           value={form.name}
           placeholder="e.g. monthly inspection"
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
+          onChange={(e) => {
+            const name = e.target.value;
+            setForm((f) => ({
+              ...f,
+              name,
+              needsSide: defaultNeedsSide(name) ? true : f.needsSide,
+            }));
+          }}
         />
       </Field>
       <Field label="Colour">

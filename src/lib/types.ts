@@ -74,10 +74,10 @@ export const STATUSES = ["Pending", "Planned", "Completed"] as const;
 export type Status = (typeof STATUSES)[number];
 
 export const DEFAULT_TAGS = [
-  { name: "monthly inspection", color: "#2563eb" },
-  { name: "quarterly inspection", color: "#0e7490" },
+  { name: "monthly inspection", color: "#2563eb", needsSide: true },
+  { name: "quarterly inspection", color: "#0e7490", needsSide: true },
   { name: "joint inspection", color: "#059669" },
-  { name: "maintenance", color: "#0d9488" },
+  { name: "maintenance", color: "#0d9488", needsSide: true },
   { name: "failures", color: "#dc2626" },
   { name: "point oiling", color: "#ea580c" },
   { name: "battery distilled water", color: "#0d9488" },
@@ -227,5 +227,5 @@ export function variableKmText(km: number | string | null | undefined): string |
 }
 
 /** App version shown in Settings → About. Bump alongside android/app/build.gradle. */
-export const APP_VERSION_BASE = "1.7.7.64";
+export const APP_VERSION_BASE = "1.7.7.65";
 export const APP_VERSION = `${APP_VERSION_BASE}${AUTO_TIMINGS ? "p" : ""}`;

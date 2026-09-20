@@ -178,10 +178,10 @@ export async function clearAll(): Promise<void> {
 /* ------------------------------------------------------------------ */
 
 const DEFAULT_TAGS = [
-  { name: "monthly inspection", color: "#2563eb" },
-  { name: "quarterly inspection", color: "#0e7490" },
+  { name: "monthly inspection", color: "#2563eb", needsSide: true },
+  { name: "quarterly inspection", color: "#0e7490", needsSide: true },
   { name: "joint inspection", color: "#059669" },
-  { name: "maintenance", color: "#0d9488" },
+  { name: "maintenance", color: "#0d9488", needsSide: true },
   { name: "failures", color: "#dc2626" },
   { name: "point oiling", color: "#ea580c" },
   { name: "battery distilled water", color: "#0d9488" },
@@ -329,15 +329,23 @@ export async function seedIfEmpty(): Promise<void> {
   const missing = DEFAULT_TAGS.filter(
     (t) => !have.has(t.name.toLowerCase()) && !deletedTags.includes(t.name.toLowerCase())
   );
-  if (missing.length > 0) {
-    let auto = tagRows.reduce((m, r) => Math.max(m, Number(r.id) || 0), 0);
-    await writeTable("tags", [
-      ...tagRows,
-      ...missing.map((t) => ({
-        ...t,
-        id: ++auto,
-        createdAt: new Date().toISOString(),
-      })),
-    ]);
-  }
+  let auto = tagRows.reduce((m, r) => Math.max(m, Number(r.id) || 0), 0);
+  const next = [
+    ...tagRows.map((t) => {
+      const n = String(t.name ?? "").toLowerCase();
+      if (n.includes("monthly") || n.includes("quarterly") || n === "maintenance") {
+        return t.needsSide ? t : { ...t, needsSide: true };
+      }
+      return t;
+    }),
+    ...missing.map((t) => ({
+      ...t,
+      id: ++auto,
+      createdAt: new Date().toISOString(),
+    })),
+  ];
+  const changed =
+    missing.length > 0 ||
+    next.some((t, i) => t !== tagRows[i]);
+  if (changed) await writeTable("tags", next);
 }

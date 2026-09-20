@@ -3,6 +3,15 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.65 — 2026-09-20
+
+**Minor: monthly inspection reminders track each station side; JSON/PDF Save no longer writes a 0-byte file**
+
+- Monthly, quarterly and maintenance tags now ask for a side by default. The daily log already showed “towards which side?” when those tags were picked; reminders now follow that choice, so doing NOSM only leaves the KLKA side on its own due date.
+- Existing monthly / quarterly / maintenance tags are flipped on at next app open. New installs seed them with the side flag already on.
+- Save as file for the JSON backup and for PDF/Word exports stages the file in app cache, then copies it through the system picker. A large backup no longer kills the app and leaves a 0-byte file.
+- Implemented in `PENDING`.
+
 ## 1.7.7.64 — 2026-09-19
 
 **Minor: AI-polished diary / fit-on-one-page PDFs keep the tuned layout and max font — no overflow**

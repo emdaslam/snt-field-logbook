@@ -178,12 +178,20 @@ export function isGenericSideLabel(towards: string): boolean {
   return towards === GENERIC_SIDE_LABELS.both || towards === GENERIC_SIDE_LABELS.other;
 }
 
+/** Monthly / quarterly / maintenance always ask for a side on the log form,
+ *  so reminders track each side even when the tag’s “asks for side” flag was
+ *  never ticked (legacy rows stored needsSide as false). */
+export function defaultNeedsSide(name: string): boolean {
+  const k = kindFromTagName(name);
+  return k === "monthly" || k === "quarterly" || k === "maintenance";
+}
+
 /** Kinds whose tags ask for the station side the work was done towards. */
 export function sideAskingKinds(tags: { name: string; needsSide?: boolean | null }[]): Set<InspectionKind> {
   const out = new Set<InspectionKind>();
   for (const t of tags) {
     const k = kindFromTagName(t.name);
-    if (k && t.needsSide) out.add(k);
+    if (k && (t.needsSide || defaultNeedsSide(t.name))) out.add(k);
   }
   return out;
 }
