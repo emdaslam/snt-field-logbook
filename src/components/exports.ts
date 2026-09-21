@@ -2,6 +2,7 @@ import { exportDocument } from "@/lib/pdf";
 import { fmtDate, toISODate, formatFootplateShifts, footplateTrainList, footplateRidesOf, footplateTrainListFromRide, logMatchesInspectionStation, pcdoEntriesOf, formatRupee } from "@/lib/api";
 import { formatInspectionDates } from "@/lib/inspections";
 import { isSpecialMovement, EQUIPMENT_DEFAULTS, variableKmText, type ExportStyle } from "@/lib/types";
+import { railwayHeading } from "@/lib/railways";
 import { AUTO_TIMINGS } from "@/lib/timingsMode";
 import { tripTimes, journeyTrainTimes, type TripTimes } from "@/lib/travel";
 import { loadTaGenConfig, type TaGenWindow, type TaRateKey } from "@/lib/taGenConfig";
@@ -1025,7 +1026,7 @@ export function exportDiary(
  * station treated as above 8 km) with a 100 / 70 / 30 rate. Each qualifying
  * day is shown as a vertical two-leg row pair, the dates
  * / timings / from / to / KMS columns are centred on both axes, the work text
- * wraps, and the SOUTH COAST RAILWAY header is centred. In the normal build
+ * wraps, and the zone/division header is centred. In the normal build
  * the timings are the user-entered clock fields; in the personal build they
  * are generated (see src/lib/travel.ts). Ends with a month summary by rate
  * and the certification + signature block.
@@ -1274,6 +1275,7 @@ export function exportTaJournal(
   const bu = me?.buNo ? `B.U.No: ${me.buNo}` : "B.U.No: not updated in profile";
   const payMetric = me?.payMetric?.trim() ? `Pay Metric: ${me.payMetric.trim()}` : "";
   const pay = me?.pay?.trim() ? `Pay: ${me.pay.trim()}` : "";
+  const zoneLine = railwayHeading(me?.railwayZone, me?.railwayDivision);
 
   const cert =
     "I here certify that the above mentioned employee was absent on duty from his headquarters station during the period charged for in the bill on Railway Business.";
@@ -1305,7 +1307,7 @@ export function exportTaJournal(
     `<p class="cols" data-cols="0,190,390" data-space-top="24"><span>${"".padEnd(20, "_")}</span><span>${"".padEnd(19, "_")}</span><span>${"".padEnd(22, "_")}</span></p>` +
     `<p class="cols sigs" data-cols="0,190,390"><span>CONTROLLING OFFICER</span><span>HEAD OF OFFICE</span><span>SIGNATURE OF OFFICER/ CLAIMING TA</span></p>`;
 
-  let body = `<h1 class="centered tight" data-right-note="IN LIEU OF G.A.31">SOUTH COAST RAILWAY. GUNTAKAL DIVISION</h1>`;
+  let body = `<h1 class="centered tight" data-right-note="IN LIEU OF G.A.31">${esc(zoneLine)}</h1>`;
   body += `<h2 class="centered">TRAVELLING ALLOWANCE JOURNAL</h2>`;
   body += `<p class="cols" data-cols="0,150,300,450"><span>${esc(name)}</span><span>${esc(designation)}</span><span>${esc(pf)}</span><span>${esc(payMetric)}</span></p>`;
   body += `<p class="cols" data-cols="0,150,300,450"><span>${esc(`Headquarters: ${hqCode}`)}</span><span>${esc(`Month: ${month}`)}</span><span>${esc(bu)}</span><span>${esc(pay)}</span></p>`;
@@ -1324,7 +1326,7 @@ export function exportTaJournal(
   }
 
   const summaryRows: XlsxSheet["rows"] = [
-    [{ v: "SOUTH COAST RAILWAY. GUNTAKAL DIVISION", bold: true, center: true }],
+    [{ v: zoneLine, bold: true, center: true }],
     [{ v: "TRAVELLING ALLOWANCE JOURNAL", bold: true, center: true }],
     [name, "", "", designation, "", "", "", { v: pf, bold: false }, "", payMetric],
     [`Headquarters: ${hqCode}`, "", "", `Month: ${month}`, "", "", "", { v: bu, bold: false }, "", pay],

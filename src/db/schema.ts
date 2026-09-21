@@ -49,6 +49,10 @@ export const staff = pgTable("staff", {
   stationIds: jsonb("station_ids").$type<number[]>().default([]).notNull(),
   // Headquarters station — the "from" end of every movement in the diary
   headquartersStationId: integer("headquarters_station_id"),
+  // Railway zone and division printed on the TA Journal heading (and similar
+  // official forms). Empty values fall back to South Coast Railway / Guntakal.
+  railwayZone: varchar("railway_zone", { length: 80 }),
+  railwayDivision: varchar("railway_division", { length: 80 }),
   isCurrentUser: boolean("is_current_user").default(false).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });

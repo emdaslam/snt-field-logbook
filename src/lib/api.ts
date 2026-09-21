@@ -95,6 +95,8 @@ export const api = {
         taRate: b.taRate ?? null,
         stationIds: Array.isArray(b.stationIds) ? b.stationIds : [],
         headquartersStationId: b.headquartersStationId ?? null,
+        railwayZone: b.railwayZone ?? null,
+        railwayDivision: b.railwayDivision ?? null,
         isCurrentUser: b.isCurrentUser ?? false,
       }) as unknown as Promise<Staff>;
     },
@@ -113,6 +115,8 @@ export const api = {
         taRate: b.taRate ?? null,
         stationIds: Array.isArray(b.stationIds) ? b.stationIds : [],
         headquartersStationId: b.headquartersStationId ?? null,
+        railwayZone: b.railwayZone ?? null,
+        railwayDivision: b.railwayDivision ?? null,
         isCurrentUser: b.isCurrentUser ?? false,
       }) as unknown as Promise<Staff>;
     },

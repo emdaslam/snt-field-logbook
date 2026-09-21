@@ -3,6 +3,14 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.66 — 2026-09-21
+
+**Minor: profile zone and division fill the TA Journal heading**
+
+- Settings → My Profile (and first-run details) now have Railway Zone and Division dropdowns. The list is the 18 Indian Railways zones as on 1 June 2026, with each zone’s divisions; picking a zone refreshes the division list.
+- Nothing selected defaults to South Coast Railway and Guntakal Division. That pair is the TA Journal heading (and the Excel sheet title) unless you pick something else.
+- Implemented in pending.
+
 ## 1.7.7.65 — 2026-09-20
 
 **Minor: monthly inspection reminders track each station side; JSON/PDF Save no longer writes a 0-byte file**

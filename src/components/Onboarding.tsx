@@ -3,6 +3,7 @@
 import { type Dispatch, type SetStateAction, useState } from "react";
 import { api } from "@/lib/api";
 import { DEPARTMENTS } from "@/lib/types";
+import { RAILWAY_ZONES, DEFAULT_RAILWAY_ZONE, DEFAULT_RAILWAY_DIVISION, divisionsOf, defaultDivisionFor } from "@/lib/railways";
 import { Chip, inputClass, PrimaryButton } from "./ui";
 import { EMPTY_STATION_DRAFT, StationFields, stationPayload, type StationDraft } from "./StationForm";
 
@@ -137,6 +138,8 @@ function ProfileStep({ stations, onNext }: { stations: MyStation[]; onNext: () =
     phone: string;
     email: string;
     headquartersStationId: number | null;
+    railwayZone: string;
+    railwayDivision: string;
     assigned: number[];
   }>({
     name: "",
@@ -145,6 +148,8 @@ function ProfileStep({ stations, onNext }: { stations: MyStation[]; onNext: () =
     phone: "",
     email: "",
     headquartersStationId: stations.length ? stations[0].id : null,
+    railwayZone: DEFAULT_RAILWAY_ZONE,
+    railwayDivision: DEFAULT_RAILWAY_DIVISION,
     assigned: stations.map((s) => s.id),
   });
   const [saving, setSaving] = useState(false);
@@ -168,6 +173,8 @@ function ProfileStep({ stations, onNext }: { stations: MyStation[]; onNext: () =
         headquartersStationId: form.headquartersStationId
           ? realIds.get(form.headquartersStationId) ?? form.headquartersStationId
           : null,
+        railwayZone: form.railwayZone,
+        railwayDivision: form.railwayDivision,
         isCurrentUser: true,
       });
       await onNext();
@@ -235,6 +242,47 @@ function ProfileStep({ stations, onNext }: { stations: MyStation[]; onNext: () =
           />
         </label>
       </div>
+      <div className="grid grid-cols-2 gap-3">
+        <label className="mb-3 block">
+          <span className="mb-1 block text-sm font-medium text-slate-700">Railway zone</span>
+          <select
+            className={inputClass}
+            value={form.railwayZone}
+            onChange={(e) => {
+              const zone = e.target.value;
+              setForm({ ...form, railwayZone: zone, railwayDivision: defaultDivisionFor(zone) });
+            }}
+          >
+            {RAILWAY_ZONES.map((z) => (
+              <option key={z.code} value={z.name}>
+                {z.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="mb-3 block">
+          <span className="mb-1 block text-sm font-medium text-slate-700">Division</span>
+          <select
+            className={inputClass}
+            value={form.railwayDivision}
+            onChange={(e) => setForm({ ...form, railwayDivision: e.target.value })}
+            disabled={divisionsOf(form.railwayZone).length === 0}
+          >
+            {divisionsOf(form.railwayZone).length === 0 ? (
+              <option value="">— None —</option>
+            ) : (
+              divisionsOf(form.railwayZone).map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))
+            )}
+          </select>
+        </label>
+      </div>
+      <p className="mb-3 text-xs text-slate-400">
+        Printed on the TA Journal heading. Left as-is, South Coast Railway / Guntakal is used.
+      </p>
       <label className="mb-3 block">
         <span className="mb-1 block text-sm font-medium text-slate-700">Headquarters station</span>
         <select

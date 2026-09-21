@@ -6,6 +6,7 @@ import { useBackClose } from "@/lib/backButton";
 import { api } from "@/lib/api";
 import { inputClass, PrimaryButton, Chip, Modal, Field } from "./ui";
 import { DEPARTMENTS, STATION_DISTANCE_LABEL, STATION_DISTANCE_OPTIONS, variableKmText, type StationDistance } from "@/lib/types";
+import { RAILWAY_ZONES, DEFAULT_RAILWAY_ZONE, divisionsOf, defaultDivisionFor, railwayLabel } from "@/lib/railways";
 import { EMPTY_STATION_DRAFT, StationFields, stationPayload, type StationDraft } from "./StationForm";
 import { FeatureTutorials } from "./FeatureTutorials";
 import { BackupModal } from "./BackupModal";
@@ -300,6 +301,7 @@ export function Settings() {
               <span className="font-semibold">{currentUser.name}</span> · {currentUser.designation ?? "—"}
             </p>
             <p className="text-xs text-slate-500">{currentUser.department} · {stationLabel(currentUser.stationIds)}</p>
+            <p className="text-xs text-slate-500">{railwayLabel(currentUser.railwayZone, currentUser.railwayDivision)}</p>
             <button
               onClick={() => setEditStaff(currentUser)}
               className="mt-2 rounded-lg bg-blue-800 px-4 py-2 text-sm font-semibold text-white"
@@ -1091,6 +1093,10 @@ function StaffEditor({ existing, onClose }: { existing: Staff | null; onClose: (
     taRate: existing?.taRate != null && existing.taRate !== "" ? String(existing.taRate) : "",
     stationIds: existing?.stationIds ?? [],
     headquartersStationId: existing?.headquartersStationId ?? null,
+    railwayZone: existing?.railwayZone?.trim() || DEFAULT_RAILWAY_ZONE,
+    railwayDivision:
+      existing?.railwayDivision?.trim() ||
+      defaultDivisionFor(existing?.railwayZone?.trim() || DEFAULT_RAILWAY_ZONE),
     isCurrentUser: existing?.isCurrentUser ?? false,
   });
   const [saving, setSaving] = useState(false);
@@ -1175,6 +1181,45 @@ function StaffEditor({ existing, onClose }: { existing: Staff | null; onClose: (
           Used in the TA Journal AMOUNT column — days are multiplied by this rate. Leave blank to keep it unset.
         </span>
       </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Railway Zone">
+          <select
+            className={inputClass}
+            value={form.railwayZone}
+            onChange={(e) => {
+              const zone = e.target.value;
+              setForm({ ...form, railwayZone: zone, railwayDivision: defaultDivisionFor(zone) });
+            }}
+          >
+            {RAILWAY_ZONES.map((z) => (
+              <option key={z.code} value={z.name}>
+                {z.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Division">
+          <select
+            className={inputClass}
+            value={form.railwayDivision}
+            onChange={(e) => setForm({ ...form, railwayDivision: e.target.value })}
+            disabled={divisionsOf(form.railwayZone).length === 0}
+          >
+            {divisionsOf(form.railwayZone).length === 0 ? (
+              <option value="">— None —</option>
+            ) : (
+              divisionsOf(form.railwayZone).map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))
+            )}
+          </select>
+        </Field>
+      </div>
+      <span className="mb-3 block text-xs text-slate-500">
+        Printed on the TA Journal heading. Nothing picked falls back to South Coast Railway, Guntakal.
+      </span>
       <Field label="Headquarters Station">
         <select
           className={inputClass}
