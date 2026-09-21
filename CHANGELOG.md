@@ -9,7 +9,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 - Settings → My Profile (and first-run details) now have Railway Zone and Division dropdowns. The list is the 18 Indian Railways zones as on 1 June 2026, with each zone’s divisions; picking a zone refreshes the division list.
 - Nothing selected defaults to South Coast Railway and Guntakal Division. That pair is the TA Journal heading (and the Excel sheet title) unless you pick something else.
-- Implemented in pending.
+- Implemented in `fd36e12`.
 
 ## 1.7.7.65 — 2026-09-20
 
