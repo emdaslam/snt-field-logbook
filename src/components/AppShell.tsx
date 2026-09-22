@@ -416,7 +416,7 @@ export function AppShell() {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-100">
+      <div className="flex h-dvh items-center justify-center bg-slate-100">
         <div className="text-center">
           <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 border-blue-200 border-t-blue-800" />
           <p className="text-sm text-slate-500">Loading logbook…</p>
@@ -426,7 +426,7 @@ export function AppShell() {
   }
 
   return (
-    <div className="mx-auto flex h-screen max-w-md flex-col bg-slate-100 shadow-xl">
+    <div className="mx-auto flex h-dvh max-w-md flex-col bg-slate-100 shadow-xl">
       {/* Header */}
       <header className="relative z-20 flex items-center justify-between bg-blue-900 px-3 py-3 text-white shadow-md">
         <button onClick={() => setDrawer(true)} className="rounded-lg p-1.5 hover:bg-blue-800" aria-label="Menu">
