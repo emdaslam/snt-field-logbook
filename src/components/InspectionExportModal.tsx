@@ -97,6 +97,7 @@ export function InspectionExportModal({ open, onClose }: { open: boolean; onClos
     const r = rec.id != null ? (selected.find((x) => x.id === rec.id) ?? null) : null;
     if (!r) continue;
     const kd = rec.inspectionKind as InspectionKind;
+    if (!kd || !kinds.includes(kd) || !INSPECTION_RULES[kd]) continue;
     const prefix = kinds.length > 1 ? `${INSPECTION_RULES[kd].label.replace(" Inspection", "")} · ` : "";
     if (kd === "footplate") {
       const rides = footplateRidesOf(r);
@@ -239,9 +240,9 @@ export function InspectionExportModal({ open, onClose }: { open: boolean; onClos
               <span className="w-24 flex-shrink-0 text-xs text-slate-500">{fmtDate(r.logDate)}</span>
               <span className="min-w-0 flex-1 truncate text-sm text-slate-800">
                 {kinds.length > 1
-                  ? `[${INSPECTION_RULES[r.inspectionKind as InspectionKind].label.replace(" Inspection", "")}] `
+                  ? `[${(INSPECTION_RULES[r.inspectionKind as InspectionKind]?.label ?? INSPECTION_RULES.footplate.label).replace(" Inspection", "")}] `
                   : ""}
-                {r.inspectionKind === "footplate"
+                {r.inspectionKind === "footplate" || (!r.inspectionKind && footplateRidesOf(r).length > 0)
                   ? trainsOf(r) || "no train no."
                   : stationName(r.inspectionStationId)}
                 {r.inspectionKind !== "footplate" && r.inspectionSide === "Both"

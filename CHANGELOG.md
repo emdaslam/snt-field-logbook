@@ -3,6 +3,14 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.68 — 2026-09-22
+
+**Minor: Export Inspections no longer crashes when Footplate is ticked**
+
+- Opening Export Inspections with Monthly still selected (the default) and then ticking Footplate crashed the page (“this page couldn’t be loaded”). A log that has a footplate ride but no tagged inspection kind has a blank kind, and the combined-types label looked that up as a missing rule.
+- The date list and the preview now skip or fall back when the kind is blank, so Footplate (alone or with Monthly) opens as usual.
+- Implemented in `TBD`.
+
 ## 1.7.7.67 — 2026-09-22
 
 **Minor: split-screen / floating window shows the timeline, not only the calendar**
