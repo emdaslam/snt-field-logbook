@@ -3,6 +3,14 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.69 — 2026-09-22
+
+**Minor: text size shows again on PCDO / monthly exports after a diary or TA Journal PDF**
+
+- After exporting a Diary or TA Journal as Fit on one page or Two pages, the next PCDO, monthly, inspections or other PDF hid the text-size field. Those reports have no page-layout toggle, so a leftover Fit / Two choice was still applied and the size row stayed hidden.
+- Fit / Two pages now apply only to Diary and TA Journal. Other exports always show text size (10–96) for PDF.
+- Implemented in ``.
+
 ## 1.7.7.68 — 2026-09-22
 
 **Minor: Export Inspections no longer crashes when Footplate is ticked**

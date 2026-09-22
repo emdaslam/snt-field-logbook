@@ -9,6 +9,7 @@ import {
 import { registerPdfFonts } from "./pdfFonts";
 import { registerBackClose } from "./backButton";
 import type { XlsxSheet } from "./xlsx";
+import { resolveExportPageMode, type ExportPageMode } from "./exportPageMode";
 import {
   loadAiConfig,
   requestAiPolish,
@@ -1551,17 +1552,17 @@ export function exportDocument(
   // export builder as `twoPageBody`.
   const onePage = Boolean(opts?.onePage);
   const twoBody = opts?.twoPageBody;
-  type PageMode = "fit" | "two" | "earlier";
-  let pageMode: PageMode = "fit";
+  type PageMode = ExportPageMode;
+  let pageMode: PageMode = "earlier";
   try {
-    const saved = localStorage.getItem("snt.exportPageMode");
-    if (saved === "fit" || saved === "earlier" || (saved === "two" && twoBody)) pageMode = saved;
-    else {
-      const legacy = localStorage.getItem("snt.exportOnePage");
-      if (legacy != null) pageMode = legacy === "1" ? "fit" : "earlier";
-    }
+    pageMode = resolveExportPageMode(
+      onePage,
+      localStorage.getItem("snt.exportPageMode"),
+      localStorage.getItem("snt.exportOnePage"),
+      Boolean(twoBody)
+    );
   } catch {
-    /* ignore */
+    pageMode = resolveExportPageMode(onePage, null, null, Boolean(twoBody));
   }
   const fitNote = document.createElement("p");
   fitNote.style.cssText =
