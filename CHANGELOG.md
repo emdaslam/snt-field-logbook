@@ -9,7 +9,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 - After exporting a Diary or TA Journal as Fit on one page or Two pages, the next PCDO, monthly, inspections or other PDF hid the text-size field. Those reports have no page-layout toggle, so a leftover Fit / Two choice was still applied and the size row stayed hidden.
 - Fit / Two pages now apply only to Diary and TA Journal. Other exports always show text size (10–96) for PDF.
-- Implemented in ``.
+- Implemented in `797fc4f`.
 
 ## 1.7.7.68 — 2026-09-22
 
