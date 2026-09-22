@@ -3,6 +3,14 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.67 — 2026-09-22
+
+**Minor: split-screen / floating window shows the timeline, not only the calendar**
+
+- Android split-screen and floating windows now resize with the actual window. The home screen used `100vh` (full physical screen), so in a short split pane the calendar filled the window and the log list below it was off-screen and unscrollable.
+- The shell now uses dynamic viewport height (`dvh`), so header, calendar and timeline all fit the pane; the list under the calendar scrolls as usual. Horizontal month-swipe on the calendar is unchanged.
+- Implemented in `62b7a56`.
+
 ## 1.7.7.66 — 2026-09-21
 
 **Minor: profile zone and division fill the TA Journal heading**
