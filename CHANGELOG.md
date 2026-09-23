@@ -3,6 +3,14 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.72 — 2026-09-23
+
+**Minor: the app can no longer get stuck on “Loading logbook…”**
+
+- The app reads everything from the device’s own offline storage (IndexedDB). If the phone’s storage was busy in another window or the open request never answered, every read waited forever and the loading screen never cleared.
+- Opening storage now gives up with an error instead of hanging, discards the failed connection so the next attempt can retry, and a startup watchdog always reveals the app after a short wait even if storage is slow or wedged.
+- Implemented in `pending`.
+
 ## 1.7.7.71 — 2026-09-23
 
 **Minor: notifications and daily log entries look modern**

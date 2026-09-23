@@ -36,20 +36,47 @@ const STORE = "kv";
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
+/** If the WebView's storage never answers (blocked by a stale connection, or a
+ *  wedged IndexedDB), fail instead of leaving every read/write pending forever
+ *  — otherwise the app sits on "Loading logbook…" with no way out. */
+const DB_OPEN_TIMEOUT_MS = 10000;
+
 function openDb(): Promise<IDBDatabase> {
   if (dbPromise) return dbPromise;
   dbPromise = new Promise((resolve, reject) => {
     if (typeof indexedDB === "undefined") {
+      dbPromise = null;
       reject(new Error("This device has no offline storage available."));
       return;
     }
+    const fail = (err: unknown) => {
+      // Let the next call try again instead of reusing a rejected promise.
+      dbPromise = null;
+      reject(err instanceof Error ? err : new Error("Could not open offline storage"));
+    };
+    const timer = setTimeout(
+      () => fail(new Error("Opening offline storage timed out")),
+      DB_OPEN_TIMEOUT_MS
+    );
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
     };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error ?? new Error("Could not open offline storage"));
+    // Another connection holds the upgrade open (or a delete is pending):
+    // abandon this attempt rather than hang on "Loading logbook…".
+    req.onblocked = () => {
+      clearTimeout(timer);
+      fail(new Error("Offline storage is busy in another window"));
+    };
+    req.onsuccess = () => {
+      clearTimeout(timer);
+      resolve(req.result);
+    };
+    req.onerror = () => {
+      clearTimeout(timer);
+      fail(req.error);
+    };
   });
   return dbPromise;
 }

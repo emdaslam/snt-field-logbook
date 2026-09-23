@@ -132,6 +132,13 @@ export function useData() {
 
 export function DataProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
+  // Last-resort escape hatch: whatever the storage does, the "Loading logbook…"
+  // screen must never be permanent. If the first refresh hasn't finished in a
+  // reasonable time, reveal the shell (it fills in as soon as data arrives).
+  useEffect(() => {
+    const t = setTimeout(() => setLoading(false), 12000);
+    return () => clearTimeout(t);
+  }, []);
   const [stations, setStations] = useState<Station[]>([]);
   const [staff, setStaff] = useState<Staff[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
