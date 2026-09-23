@@ -8,7 +8,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 **Minor: weekday names on daily-log cards are easier to read**
 
 - Sat, Sun and weekday labels on the left of Home daily-log cards were pale grey. Weekdays are now ink, Saturday amber, Sunday rose, and today stays blue.
-- Implemented in `PLACEHOLDER`.
+- Implemented in `e60aa17`.
 
 ## 1.7.7.74 — 2026-09-23
 
