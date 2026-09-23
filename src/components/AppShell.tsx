@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useRef, useEffect } from "react";
-import { useData } from "./DataProvider";
+import { useData, type Notification } from "./DataProvider";
 import { Calendar } from "./Calendar";
 import { Timeline } from "./Timeline";
 import { TaskManager } from "./TaskManager";
@@ -450,22 +450,64 @@ export function AppShell() {
               )}
             </button>
             {notifOpen && (
-              <div className="absolute right-0 top-full mt-2 max-h-[70vh] w-[min(288px,calc(100vw-88px))] overflow-y-auto rounded-2xl border border-slate-200/70 bg-surface/95 p-2 text-slate-800 shadow-2xl shadow-slate-900/20 backdrop-blur">
-                <p className="px-2 py-1 text-xs font-bold uppercase text-blue-900">Alerts</p>
-                {notifications.length === 0 && <p className="px-2 py-3 text-sm text-slate-400">No active alerts</p>}
-                {notifications.map((n) => (
-                  <button
-                    key={n.id}
-                    onClick={() => openNotification(n)}
-                    className="block w-full rounded-lg px-2 py-1.5 text-left hover:bg-slate-50"
-                  >
-                    <p className="text-sm font-medium">{n.title}</p>
-                    <p className={`text-xs ${n.kind === "due" ? "text-red-600" : n.kind === "inspection" ? "text-sky-600" : n.kind === "tag" ? "text-violet-600" : n.kind === "stock" ? "text-amber-600" : "text-emerald-600"}`}>{n.detail}</p>
-                    {n.target && (
-                      <p className="mt-0.5 text-[10px] font-medium text-blue-600">Tap to open entry →</p>
-                    )}
-                  </button>
-                ))}
+              <div className="absolute right-0 top-full mt-2 max-h-[70vh] w-[min(320px,calc(100vw-80px))] overflow-y-auto rounded-3xl border border-slate-200/70 bg-surface/95 p-2 text-slate-800 shadow-2xl shadow-slate-900/20 backdrop-blur">
+                <div className="flex items-center justify-between px-2.5 pb-1.5 pt-1">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-blue-900">Alerts</p>
+                  {notifications.length > 0 && (
+                    <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                      {notifications.length} active
+                    </span>
+                  )}
+                </div>
+                {notifications.length === 0 ? (
+                  <div className="flex flex-col items-center gap-1.5 px-3 py-7 text-center">
+                    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-50 text-emerald-500 ring-1 ring-emerald-100">
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                        <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+                      </svg>
+                    </span>
+                    <p className="text-sm font-semibold text-slate-700">You&apos;re all caught up</p>
+                    <p className="text-xs text-slate-400">No reminders or alerts right now.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-0.5">
+                    {notifications.map((n) => {
+                      const meta = NOTIF_META[n.kind];
+                      return (
+                        <button
+                          key={n.id}
+                          onClick={() => openNotification(n)}
+                          className="group flex w-full items-start gap-2.5 rounded-2xl px-2.5 py-2 text-left transition hover:bg-blue-50/70 active:scale-[0.99]"
+                        >
+                          <span
+                            className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl text-base ring-1 ring-inset ring-black/5"
+                            style={{ backgroundColor: meta.color + "1f" }}
+                          >
+                            {meta.icon}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-semibold leading-snug text-slate-800">{n.title}</span>
+                            <span className="mt-0.5 block text-xs leading-snug text-slate-500">{n.detail}</span>
+                          </span>
+                          {n.target && (
+                            <svg
+                              className="mt-1.5 flex-shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-blue-500"
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.5"
+                            >
+                              <path d="m9 18 6-6-6-6" />
+                            </svg>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -813,6 +855,14 @@ export function AppShell() {
     </div>
   );
 }
+
+const NOTIF_META: Record<Notification["kind"], { icon: string; color: string }> = {
+  planned: { icon: "📅", color: "#2563eb" },
+  due: { icon: "⚠️", color: "#dc2626" },
+  inspection: { icon: "🔁", color: "#0284c7" },
+  tag: { icon: "🏷️", color: "#7c3aed" },
+  stock: { icon: "📦", color: "#d97706" },
+};
 
 function SheetBtn({ label, icon, color, onClick }: { label: string; icon: string; color: string; onClick: () => void }) {
   return (

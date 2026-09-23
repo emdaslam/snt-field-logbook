@@ -213,25 +213,42 @@ export function Timeline({
                 rowRefs.current[iso] = el;
               }}
               onClick={addable ? () => onAddEntry(iso) : undefined}
-              className={`flex gap-3 rounded-xl border bg-surface p-3 shadow-sm transition ${
+              className={`relative flex gap-3 overflow-hidden rounded-2xl border bg-surface p-3 shadow-sm transition ${
                 isSelected
-                  ? "border-emerald-400 ring-2 ring-emerald-200"
+                  ? "border-emerald-400 ring-2 ring-emerald-100 shadow-emerald-500/10"
                   : isToday
-                    ? "border-blue-300"
-                    : "border-slate-200"
+                    ? "border-blue-300 shadow-blue-500/10"
+                    : "border-slate-200/80 hover:border-slate-300 hover:shadow"
               } ${addable ? "cursor-pointer active:bg-blue-50" : ""}`}
             >
+              {/* Accent stripe: marks today / the selected date at a glance */}
+              <span
+                className={`absolute inset-y-0 left-0 w-1 ${
+                  isSelected ? "bg-emerald-400" : isToday ? "bg-gradient-to-b from-blue-500 to-blue-700" : "bg-transparent"
+                }`}
+                aria-hidden
+              />
               {/* Left column: Day / Date / Time */}
-              <div className="flex w-16 flex-shrink-0 flex-col items-center border-r border-slate-100 pr-2 text-center">
-                <span className="text-xs font-semibold uppercase text-emerald-700">{dayName(iso)}</span>
-                <span className={`text-2xl font-bold ${isToday ? "text-blue-700" : "text-blue-900"}`}>
+              <div className="flex w-[3.75rem] flex-shrink-0 flex-col items-center text-center">
+                <span className={`text-[10px] font-bold uppercase tracking-wide ${isToday ? "text-blue-600" : "text-slate-400"}`}>
+                  {dayName(iso)}
+                </span>
+                <span
+                  className={`mt-0.5 flex h-9 w-9 items-center justify-center rounded-xl text-lg font-bold ${
+                    isToday
+                      ? "bg-gradient-to-br from-blue-600 to-blue-800 text-white shadow-md shadow-blue-500/30"
+                      : isSelected
+                        ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                        : "bg-slate-100 text-slate-700"
+                  }`}
+                >
                   {d.getDate()}
                 </span>
-                <span className="text-[10px] text-slate-400">
+                <span className="mt-1 text-[10px] font-medium text-slate-400">
                   {d.toLocaleDateString("en-US", { month: "short" })} {d.getFullYear()}
                 </span>
                 {isToday && (
-                  <span className="mt-1 rounded-full bg-blue-800 px-1.5 py-0.5 text-[9px] font-bold text-white">
+                  <span className="mt-1 rounded-full bg-blue-100 px-1.5 py-0.5 text-[8px] font-bold tracking-wider text-blue-700">
                     TODAY
                   </span>
                 )}
@@ -248,9 +265,18 @@ export function Timeline({
               {/* Main content */}
               <div className="min-w-0 flex-1">
                 {empty && (
-                  <p className={addable ? "py-3 text-sm font-medium text-blue-700" : "py-3 text-sm italic text-slate-400"}>
-                    {addable ? "No entry — tap to add" : "No entry"}
-                  </p>
+                  addable ? (
+                    <span className="flex items-center gap-1.5 py-3 text-sm font-semibold text-blue-700">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-blue-700">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <path d="M12 5v14M5 12h14" />
+                        </svg>
+                      </span>
+                      No entry — tap to add
+                    </span>
+                  ) : (
+                    <p className="py-3 text-sm italic text-slate-400">No entry</p>
+                  )
                 )}
 
                 {dayLogs.map((log) => {
@@ -278,25 +304,36 @@ export function Timeline({
                     <button
                       key={log.id}
                       onClick={() => onOpen(log)}
-                      className="mb-2 block w-full border-b border-slate-100 pb-2 text-left last:mb-0 last:border-0 last:pb-0"
+                      className="-mx-1.5 mb-1.5 block w-[calc(100%+0.75rem)] rounded-xl px-1.5 py-1.5 text-left transition last:mb-0 hover:bg-slate-50 active:bg-slate-100"
                     >
                       {shared ? (
-                        <p className="truncate text-xs font-medium text-teal-700">
-                          🔗 Shared ·{" "}
+                        <p className="flex items-center gap-1 truncate text-xs font-semibold text-teal-700">
+                          <span aria-hidden>🔗</span> Shared ·{" "}
                           {stationName(bundles[0]?.stationId ?? log.pcdoStationId ?? log.inspectionStationId)}
                         </p>
                       ) : (
                         log.stationMovement && (
-                          <p className="entry-text-xs truncate text-xs font-medium text-blue-800">
-                            {log.stationMovement}
+                          <p className="entry-text-xs flex items-center gap-1 truncate text-xs font-semibold text-blue-700">
+                            <svg
+                              className="flex-shrink-0"
+                              width="12"
+                              height="12"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.2"
+                            >
+                              <path d="M5 12h14M13 6l6 6-6 6" />
+                            </svg>
+                            <span className="truncate">{log.stationMovement}</span>
                           </p>
                         )
                       )}
-                      <p className="entry-text-sm line-clamp-2 text-sm text-slate-800">{summary}</p>
+                      <p className="entry-text-sm line-clamp-2 font-medium leading-snug text-slate-800">{summary}</p>
 
                       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                         {hasPcdo && (
-                          <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
+                          <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-100">
                             ⭐ PCDO
                           </span>
                         )}
@@ -306,7 +343,7 @@ export function Timeline({
                               w.department && (
                                 <span
                                   key={w.department}
-                                  className="rounded-full px-2 py-0.5 text-[10px] font-semibold text-white"
+                                  className="rounded-full px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm"
                                   style={{ backgroundColor: DEPARTMENT_COLORS[w.department] }}
                                 >
                                   {w.department}
@@ -314,17 +351,17 @@ export function Timeline({
                               )
                           )}
                         {hasDisc && (
-                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                          <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-100">
                             ⚡ {discTotal} disc.
                           </span>
                         )}
                         {hasCounter && (
-                          <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-semibold text-teal-700">
+                          <span className="inline-flex items-center rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-semibold text-teal-700 ring-1 ring-inset ring-teal-100">
                             🔢 {counterTotal} resets
                           </span>
                         )}
                         {log.inspectionKind && (
-                          <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
+                          <span className="inline-flex items-center rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700 ring-1 ring-inset ring-sky-100">
                             🔁 {stationName(log.inspectionStationId)}
                             {log.inspectionKind !== "footplate" &&
                               (log.inspectionSide === "Both"
@@ -337,7 +374,7 @@ export function Timeline({
                           </span>
                         )}
                         {log.attachments.length > 0 && (
-                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                          <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 ring-1 ring-inset ring-slate-200">
                             📎 {log.attachments.length}
                           </span>
                         )}
@@ -387,26 +424,40 @@ export function Timeline({
                 })}
 
                 {(dayDefs.length > 0 || dayPlans.length > 0) && (
-                  <div className={`space-y-1 ${dayLogs.length ? "border-t border-slate-100 pt-2" : ""}`}>
+                  <div className={`space-y-1 ${dayLogs.length ? "mt-1.5 border-t border-slate-100 pt-2" : ""}`}>
                     {dayDefs.map((t) => (
-                      <p key={"d" + t.id} className="entry-text-xs text-xs text-slate-500">
-                        🔧 Deficiency due:{" "}
-                        <span className="font-medium text-slate-700">{t.title}</span> ·{" "}
-                        {stationName(t.stationId)} ({t.status})
+                      <p
+                        key={"d" + t.id}
+                        className="entry-text-xs flex items-start gap-1.5 rounded-lg bg-amber-50/70 px-2 py-1 text-xs text-amber-900/80"
+                      >
+                        <span aria-hidden>🔧</span>
+                        <span>
+                          Deficiency due: <span className="font-semibold">{t.title}</span> ·{" "}
+                          {stationName(t.stationId)} ({t.status})
+                        </span>
                       </p>
                     ))}
                     {dayPlans.map((p) => (
-                      <p key={"p" + p.id} className="entry-text-xs text-xs text-slate-500">
-                        📅 Planned: <span className="font-medium text-slate-700">{p.title}</span> ·{" "}
-                        {stationName(p.stationId)} ({p.status})
+                      <p
+                        key={"p" + p.id}
+                        className="entry-text-xs flex items-start gap-1.5 rounded-lg bg-emerald-50/70 px-2 py-1 text-xs text-emerald-900/80"
+                      >
+                        <span aria-hidden>📅</span>
+                        <span>
+                          Planned: <span className="font-semibold">{p.title}</span> ·{" "}
+                          {stationName(p.stationId)} ({p.status})
+                        </span>
                       </p>
                     ))}
                   </div>
                 )}
 
                 {addable && !empty && (
-                  <p className="mt-1.5 border-t border-slate-100 pt-1.5 text-xs font-semibold text-blue-700">
-                    + Add daily log for this date
+                  <p className="mt-1.5 flex items-center gap-1 border-t border-slate-100 pt-1.5 text-xs font-semibold text-blue-700">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
+                    Add daily log for this date
                   </p>
                 )}
               </div>
