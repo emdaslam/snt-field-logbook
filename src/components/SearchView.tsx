@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useData } from "./DataProvider";
-import { Chip, Highlight } from "./ui";
+import { Chip, Highlight, inputClass } from "./ui";
 import { api, fmtDate } from "@/lib/api";
 import { DEPARTMENTS, PRIORITIES, STATUSES, DEPARTMENT_COLORS, PRIORITY_COLORS } from "@/lib/types";
 import type { DailyLog, DeficiencyTask, PlannedWork, Note, Material, MaterialReceipt, MaterialUsage, MaterialTransfer, MaterialStation } from "@/db/schema";
@@ -91,7 +91,7 @@ export function SearchView({
               return { label: t?.name ?? "", color: t?.color ?? "#2563eb" };
             }),
             ...(l.attachments && l.attachments.length
-              ? [{ label: `📎 ${l.attachments.length} attachment${l.attachments.length !== 1 ? "s" : ""}`, color: "#0d9488" }]
+              ? [{ label: `${l.attachments.length} attachment${l.attachments.length !== 1 ? "s" : ""}`, color: "#0d9488" }]
               : []),
           ],
           date: l.logDate,
@@ -211,16 +211,23 @@ export function SearchView({
     materials, matReceipts, matUsages, matTransfers, matStations,
   ]);
 
-  const selCls = "w-full min-w-0 rounded-full border border-slate-300 bg-surface px-2.5 py-1 text-xs text-slate-700";
+  const selCls = `${inputClass} min-w-0 py-1.5 text-xs`;
+  const TYPE_COLOR: Record<ResultType, string> = {
+    Log: "#2563eb",
+    Deficiency: "#b45309",
+    "Planned Work": "#059669",
+    Note: "#7c3aed",
+    Material: "#0e7490",
+  };
 
   return (
     <div className="pb-24">
-      <div className="sticky top-0 z-10 space-y-2 border-b border-slate-200 bg-slate-50 p-3">
+      <div className="sticky top-0 z-10 space-y-2 bg-slate-100/95 p-3 backdrop-blur">
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search logs, tasks, notes, materials & planned works…"
-          className="w-full rounded-full border border-slate-300 bg-surface px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+          className="w-full rounded-2xl border border-slate-200 bg-surface px-4 py-2.5 text-sm shadow-sm outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
         />
         <div className="grid grid-cols-3 gap-2">
           <select className={selCls} value={typeF} onChange={(e) => setTypeF(e.target.value as ResultType | "")}>
@@ -256,22 +263,28 @@ export function SearchView({
             {staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
           <button
-            className={`w-full min-w-0 rounded-full border px-2.5 py-1 text-xs transition ${
+            className={`w-full min-w-0 rounded-xl px-2.5 py-1.5 text-xs font-semibold transition active:scale-95 ${
               attachF
-                ? "border-emerald-500 bg-emerald-500 font-semibold text-white shadow-sm"
-                : "border-slate-300 bg-surface text-slate-700"
+                ? "bg-emerald-500 text-white shadow-sm shadow-emerald-700/20"
+                : "bg-surface text-slate-700 ring-1 ring-inset ring-slate-200 hover:bg-slate-50"
             }`}
             onClick={() => setAttachF((v) => !v)}
           >
-            📎 Has attachments
+            Has attachments
           </button>
         </div>
       </div>
       <div className="space-y-2 p-3">
-        <p className="text-xs text-slate-400">{results.length} result{results.length !== 1 ? "s" : ""}</p>
-        {results.map((r) => (
+        <p className="px-1 text-xs font-medium text-slate-400">{results.length} result{results.length !== 1 ? "s" : ""}</p>
+        {results.length === 0 && (
+          <p className="rounded-2xl border border-dashed border-slate-300 bg-surface p-8 text-center text-sm text-slate-400">
+            Nothing matches those filters.
+          </p>
+        )}
+        {results.map((r, i) => (
           <button
             key={r.key}
+            style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}
             onClick={() => {
               if (r.type === "Log") {
                 const l = logs.find((x) => x.id === r.id);
@@ -290,22 +303,23 @@ export function SearchView({
                 if (p) onOpenPlan(p);
               }
             }}
-            className="block w-full rounded-xl border border-slate-200 bg-surface p-3 text-left shadow-sm transition hover:bg-slate-50 active:bg-slate-100"
+            className="card-rise group relative block w-full overflow-hidden rounded-2xl border border-slate-200/80 bg-surface p-3 text-left shadow-sm transition hover:border-slate-300 hover:shadow active:scale-[0.99]"
           >
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-blue-700">{r.type}</span>
+            <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: TYPE_COLOR[r.type] }} aria-hidden />
+            <div className="flex items-center justify-between pl-1">
+              <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider" style={{ backgroundColor: TYPE_COLOR[r.type] + "1f", color: TYPE_COLOR[r.type] }}>{r.type}</span>
               {r.date && <span className="text-xs text-slate-400">{fmtDate(r.date)}</span>}
             </div>
-            <p className="mt-0.5 font-semibold text-slate-800">
+            <p className="mt-1 pl-1 font-semibold tracking-tight text-slate-800">
               <Highlight text={r.title} query={q} />
             </p>
             {r.sub && (
-              <p className="text-sm text-slate-500">
+              <p className="line-clamp-2 pl-1 text-sm leading-snug text-slate-500">
                 <Highlight text={r.sub} query={q} />
               </p>
             )}
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
-              {r.chips.filter((c) => c.label).map((c, i) => <Chip key={i} label={c.label} color={c.color} />)}
+            <div className="mt-1.5 flex flex-wrap gap-1.5 pl-1">
+              {r.chips.filter((c) => c.label).map((c, ci) => <Chip key={ci} label={c.label} color={c.color} />)}
             </div>
           </button>
         ))}

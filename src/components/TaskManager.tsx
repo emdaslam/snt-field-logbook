@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useData } from "./DataProvider";
 import { useBackClose } from "@/lib/backButton";
-import { Chip } from "./ui";
+import { Chip, inputClass } from "./ui";
 import { api, fmtDate, toISODate } from "@/lib/api";
 import { PRIORITY_COLORS, DEPARTMENT_COLORS, DEPARTMENTS } from "@/lib/types";
 import { DeficiencyForm, PlannedWorkForm } from "./Forms";
@@ -167,35 +167,39 @@ export function TaskManager({
       onTouchEnd={onTouchEnd}
       onTouchCancel={onTouchEnd}
     >
-      <div className="sticky top-0 z-10 flex border-b border-slate-200 bg-surface">
-        {TAB_LIST.map((t) => (
-          <button
-            key={t}
-            onClick={() => selectTab(t)}
-            className={`flex-1 py-3 text-sm font-medium capitalize ${
-              tab === t ? "border-b-2 border-blue-800 text-blue-800" : "text-slate-500"
-            }`}
-          >
-            {t === "deficiencies" ? "Deficiencies" : t === "planned" ? "Planned" : "Archive"}
-          </button>
-        ))}
+      <div className="sticky top-0 z-10 bg-slate-100/95 px-3 pb-2 pt-2 backdrop-blur">
+        <div className="flex rounded-2xl bg-slate-200/70 p-1 ring-1 ring-slate-200/80">
+          {TAB_LIST.map((t) => (
+            <button
+              key={t}
+              onClick={() => selectTab(t)}
+              className={`flex-1 rounded-xl py-2 text-[13px] font-semibold capitalize transition active:scale-[0.98] ${
+                tab === t
+                  ? "bg-surface text-blue-800 shadow-sm ring-1 ring-black/5"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              {t === "deficiencies" ? "Deficiencies" : t === "planned" ? "Planned" : "Archive"}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div key={tab} className={lastDir === 1 ? "tab-enter-right" : "tab-enter-left"}>
       {myStationsOnly && (
-        <div className="border-b border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] text-emerald-800">
+        <div className="mx-3 mt-1 rounded-xl bg-emerald-50 px-3 py-1.5 text-[11px] font-medium text-emerald-800 ring-1 ring-inset ring-emerald-100">
           Showing only your mapped stations:{" "}
           {myStationNames.length ? myStationNames.join(", ") : "none mapped (showing all)"}
         </div>
       )}
       {(tab === "deficiencies" || tab === "planned") && (
-        <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2">
+        <div className="mx-3 mt-2 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-surface p-2.5 shadow-sm">
           <select
             value={tab === "deficiencies" ? defDept : planDept}
             onChange={(e) =>
               tab === "deficiencies" ? setDefDept(e.target.value) : setPlanDept(e.target.value)
             }
-            className="rounded-md border border-slate-300 bg-surface px-2 py-1 text-sm text-slate-700"
+            className={`${inputClass} w-auto min-w-0 flex-1 py-1.5 text-xs`}
           >
             <option value="">All departments</option>
             {DEPARTMENTS.map((d) => (
@@ -207,7 +211,7 @@ export function TaskManager({
             onChange={(e) =>
               tab === "deficiencies" ? setDefStation(e.target.value) : setPlanStation(e.target.value)
             }
-            className="rounded-md border border-slate-300 bg-surface px-2 py-1 text-sm text-slate-700"
+            className={`${inputClass} w-auto min-w-0 flex-1 py-1.5 text-xs`}
           >
             <option value="">All stations</option>
             {[...stations]
@@ -228,7 +232,7 @@ export function TaskManager({
                 setPlanDept("");
                 setPlanStation("");
               }}
-              className="text-xs font-medium text-blue-600 underline"
+              className="rounded-full px-2.5 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-50 active:scale-95"
             >
               Clear
             </button>
@@ -239,27 +243,29 @@ export function TaskManager({
         {tab === "deficiencies" && (
           <>
             {pendingDef.length === 0 && <Empty text="No pending deficiency tasks" />}
-            {pendingDef.map((d) => (
+            {pendingDef.map((d, i) => (
               <div
                 key={d.id}
                 ref={(el) => { rowRefs.current["def-" + d.id] = el; }}
-                className={`rounded-xl border bg-surface p-3 shadow-sm transition ${
+                style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}
+                className={`card-rise relative overflow-hidden rounded-2xl border bg-surface p-3 shadow-sm transition hover:shadow ${
                   highlightId === "def-" + d.id
-                    ? "border-amber-400 ring-2 ring-amber-300"
-                    : "border-slate-200"
+                    ? "border-amber-400 ring-2 ring-amber-200 shadow-amber-500/10"
+                    : "border-slate-200/80 hover:border-slate-300"
                 }`}
               >
-                <div className="flex items-start gap-2">
+                <span className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-amber-400 to-amber-600" aria-hidden />
+                <div className="flex items-start gap-2.5 pl-1">
                   <input
                     type="checkbox"
                     checked={d.selectedForTomorrow}
                     onChange={(e) => toggleTomorrow("def", d.id, e.target.checked)}
-                    className="mt-1 h-4 w-4 accent-emerald-600"
+                    className="mt-1.5 h-4 w-4 accent-emerald-600"
                     title="Include in Tomorrow's Work"
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="entry-text-lg font-semibold text-slate-800">{d.title}</p>
-                    {d.description && <p className="entry-text-sm text-sm text-slate-500">{d.description}</p>}
+                    <p className="entry-text-lg font-semibold tracking-tight text-slate-800">{d.title}</p>
+                    {d.description && <p className="entry-text-sm mt-0.5 text-sm leading-snug text-slate-500">{d.description}</p>}
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
                       <Chip label={d.department} color={DEPARTMENT_COLORS[d.department] ?? "#2563eb"} />
                       <Chip label={d.priority} color={PRIORITY_COLORS[d.priority] ?? "#2563eb"} />
@@ -267,7 +273,7 @@ export function TaskManager({
                       {d.dueDate && <Chip label={"Due " + fmtDate(d.dueDate)} color="#b45309" />}
                     </div>
                     <AttachmentsRow attachments={d.attachments ?? []} onOpen={setPreviewAtt} />
-                    <p className="mt-1 text-xs text-slate-400">Routed to: {staffName(d.assignedStaffId)}</p>
+                    <p className="mt-1.5 text-[11px] text-slate-400">Routed to: {staffName(d.assignedStaffId)}</p>
                   </div>
                 </div>
                 <RowActions
@@ -289,7 +295,7 @@ export function TaskManager({
         {tab === "planned" && (
           <>
             {pendingPlan.length === 0 && <Empty text="No pending planned works" />}
-            {pendingPlan.map((p) => {
+            {pendingPlan.map((p, i) => {
               const daysTo = Math.round(
                 (new Date(p.plannedDate + "T00:00:00").getTime() - new Date(toISODate(new Date()) + "T00:00:00").getTime()) / 86400000
               );
@@ -297,31 +303,33 @@ export function TaskManager({
                 <div
                   key={p.id}
                   ref={(el) => { rowRefs.current["plan-" + p.id] = el; }}
-                  className={`rounded-xl border bg-surface p-3 shadow-sm transition ${
+                  style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}
+                  className={`card-rise relative overflow-hidden rounded-2xl border bg-surface p-3 shadow-sm transition hover:shadow ${
                     highlightId === "plan-" + p.id
-                      ? "border-amber-400 ring-2 ring-amber-300"
-                      : "border-slate-200"
+                      ? "border-amber-400 ring-2 ring-amber-200 shadow-amber-500/10"
+                      : "border-slate-200/80 hover:border-slate-300"
                   }`}
                 >
-                  <div className="flex items-start gap-2">
+                  <span className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-emerald-400 to-emerald-600" aria-hidden />
+                  <div className="flex items-start gap-2.5 pl-1">
                     <input
                       type="checkbox"
                       checked={p.selectedForTomorrow}
                       onChange={(e) => toggleTomorrow("plan", p.id, e.target.checked)}
-                      className="mt-1 h-4 w-4 accent-emerald-600"
+                      className="mt-1.5 h-4 w-4 accent-emerald-600"
                       title="Include in Tomorrow's Work"
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="entry-text-lg font-semibold text-slate-800">{p.title}</p>
-                      {p.description && <p className="entry-text-sm text-sm text-slate-500">{p.description}</p>}
+                      <p className="entry-text-lg font-semibold tracking-tight text-slate-800">{p.title}</p>
+                      {p.description && <p className="entry-text-sm mt-0.5 text-sm leading-snug text-slate-500">{p.description}</p>}
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
                         <Chip label={"Planned " + fmtDate(p.plannedDate)} color="#059669" />
                         <Chip label={p.department} color={DEPARTMENT_COLORS[p.department] ?? "#2563eb"} />
                         <Chip label={stationName(p.stationId)} color="#0e7490" />
-                        {daysTo >= 0 && daysTo <= 3 && <Chip label="⏰ Alert active" color="#dc2626" />}
+                        {daysTo >= 0 && daysTo <= 3 && <Chip label="Alert active" color="#dc2626" />}
                       </div>
                       <AttachmentsRow attachments={p.attachments ?? []} onOpen={setPreviewAtt} />
-                      {p.materialRemarks && <p className="entry-text-xs mt-1 text-xs text-slate-500">Material: {p.materialRemarks}</p>}
+                      {p.materialRemarks && <p className="entry-text-xs mt-1.5 text-xs text-slate-500">Material: {p.materialRemarks}</p>}
                     </div>
                   </div>
                   <RowActions
@@ -347,13 +355,13 @@ export function TaskManager({
 
         {tab === "archive" && (
           <>
-            <div className="flex flex-wrap items-end gap-2 rounded-xl border border-slate-200 bg-surface p-3">
-              <label className="text-xs text-slate-600">
+            <div className="flex flex-wrap items-end gap-2 rounded-2xl border border-slate-200/80 bg-surface p-3 shadow-sm">
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                 Station
                 <select
                   value={archiveStation}
                   onChange={(e) => setArchiveStation(e.target.value)}
-                  className="mt-1 block rounded-md border border-slate-300 bg-surface px-2 py-1 text-sm text-slate-700"
+                  className={`${inputClass} mt-1 block py-1.5 text-xs`}
                 >
                   <option value="">All stations</option>
                   {[...stations]
@@ -365,24 +373,32 @@ export function TaskManager({
                     ))}
                 </select>
               </label>
-              <label className="text-xs text-slate-600">
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                 From
-                <input type="date" value={archiveFrom} onChange={(e) => setArchiveFrom(e.target.value)} className="mt-1 block rounded-md border border-slate-300 px-2 py-1 text-sm" />
+                <input type="date" value={archiveFrom} onChange={(e) => setArchiveFrom(e.target.value)} className={`${inputClass} mt-1 block py-1.5 text-xs`} />
               </label>
-              <label className="text-xs text-slate-600">
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                 To
-                <input type="date" value={archiveTo} onChange={(e) => setArchiveTo(e.target.value)} className="mt-1 block rounded-md border border-slate-300 px-2 py-1 text-sm" />
+                <input type="date" value={archiveTo} onChange={(e) => setArchiveTo(e.target.value)} className={`${inputClass} mt-1 block py-1.5 text-xs`} />
               </label>
               {(archiveFrom || archiveTo || archiveStation) && (
-                <button onClick={() => { setArchiveFrom(""); setArchiveTo(""); setArchiveStation(""); }} className="text-xs text-blue-600 underline">
+                <button onClick={() => { setArchiveFrom(""); setArchiveTo(""); setArchiveStation(""); }} className="rounded-full px-2.5 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-50 active:scale-95">
                   Clear
                 </button>
               )}
             </div>
             {completed.length === 0 && <Empty text="No completed items match" />}
-            {completed.map((c) => (
-              <div key={c.id} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-surface p-3 shadow-sm">
-                <span className="text-emerald-600">✓</span>
+            {completed.map((c, i) => (
+              <div
+                key={c.id}
+                style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}
+                className="card-rise flex items-center gap-2.5 overflow-hidden rounded-2xl border border-slate-200/80 bg-surface p-3 shadow-sm transition hover:border-slate-300 hover:shadow"
+              >
+                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 ring-1 ring-inset ring-emerald-100">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                </span>
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-slate-700 line-through decoration-slate-300">{c.title}</p>
                   <p className="text-xs text-slate-400">
@@ -391,7 +407,7 @@ export function TaskManager({
                 </div>
                 <button
                   onClick={() => toggleStatus(c.rawKind, c.rawId, "Completed")}
-                  className="flex-shrink-0 rounded-md bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 hover:bg-amber-100"
+                  className="flex-shrink-0 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-100 transition hover:bg-amber-100 active:scale-95"
                   title="Mistakenly marked complete? Move back to Pending"
                 >
                   Mark Incomplete
@@ -431,7 +447,7 @@ export function AttachmentsRow({
             <img
               src={a.dataUrl}
               alt={a.name}
-              className="h-9 w-9 rounded-md border border-slate-200 object-cover"
+              className="h-9 w-9 rounded-xl border border-slate-200 object-cover transition hover:ring-2 hover:ring-blue-200"
             />
           </button>
         ) : (
@@ -439,7 +455,7 @@ export function AttachmentsRow({
             key={i}
             onClick={() => onOpen(a)}
             title={a.name}
-            className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-[10px] font-semibold text-slate-500"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-[10px] font-semibold text-slate-500 transition hover:bg-red-50 hover:text-red-700"
           >
             PDF
           </button>
@@ -464,19 +480,19 @@ function RowActions({
   onDelete: () => void;
 }) {
   return (
-    <div className="mt-2 flex flex-wrap gap-2 border-t border-slate-100 pt-2">
-      <button onClick={onComplete} className="rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100">
+    <div className="mt-2.5 flex flex-wrap gap-1.5 border-t border-slate-100 pt-2.5">
+      <button onClick={onComplete} className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-100 transition hover:bg-emerald-100 active:scale-95">
         Mark Complete
       </button>
       {onConvert && (
-        <button onClick={onConvert} className="rounded-md bg-cyan-50 px-2.5 py-1 text-xs font-medium text-cyan-700 hover:bg-cyan-100">
+        <button onClick={onConvert} className="rounded-full bg-cyan-50 px-2.5 py-1 text-xs font-semibold text-cyan-700 ring-1 ring-inset ring-cyan-100 transition hover:bg-cyan-100 active:scale-95">
           Convert to Plan
         </button>
       )}
-      <button onClick={onEdit} className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200">
+      <button onClick={onEdit} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 ring-1 ring-inset ring-slate-200 transition hover:bg-slate-200 active:scale-95">
         Edit
       </button>
-      <button onClick={onDelete} className="rounded-md px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50">
+      <button onClick={onDelete} className="rounded-full px-2.5 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-50 active:scale-95">
         Delete
       </button>
     </div>
@@ -485,7 +501,7 @@ function RowActions({
 
 function Empty({ text }: { text: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-slate-300 bg-surface p-8 text-center text-sm text-slate-400">
+    <div className="rounded-2xl border border-dashed border-slate-300 bg-surface p-8 text-center text-sm text-slate-400">
       {text}
     </div>
   );

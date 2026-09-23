@@ -455,3 +455,17 @@ html[data-content-scale="150"] {
 .tab-enter-left {
   animation: tab-enter-left 220ms cubic-bezier(0.32, 0.72, 0.28, 1);
 }
+
+@keyframes card-rise {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+.card-rise {
+  animation: card-rise 280ms cubic-bezier(0.32, 0.72, 0.28, 1) both;
+}

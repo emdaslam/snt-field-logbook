@@ -34,13 +34,13 @@ export function PeriodPicker({
   const activeIdx = months.findIndex((m) => m.from === period.from && m.to === period.to);
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-surface p-3 shadow-sm">
+    <div className="rounded-2xl border border-slate-200/80 bg-surface p-3 shadow-sm">
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-xs font-bold uppercase tracking-wide text-blue-900">Report Period</span>
+        <span className="text-[11px] font-bold uppercase tracking-wider text-blue-900">Report Period</span>
         <button
           onClick={() => setCustom(!custom)}
-          className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition ${
-            custom ? "bg-emerald-600 text-white" : "border border-slate-300 text-slate-600"
+          className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition active:scale-95 ${
+            custom ? "bg-emerald-600 text-white shadow-sm shadow-emerald-700/20" : "bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200 hover:bg-slate-200"
           }`}
         >
           {custom ? "Custom range" : "By month"}
@@ -49,7 +49,7 @@ export function PeriodPicker({
 
       {custom ? (
         <div className="flex flex-wrap items-end gap-2">
-          <label className="text-xs text-slate-600">
+          <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
             From
             <input
               type="date"
@@ -57,16 +57,16 @@ export function PeriodPicker({
               onChange={(e) =>
                 onChange({ ...period, from: e.target.value, label: "Custom range" })
               }
-              className="mt-1 block rounded-md border border-slate-300 px-2 py-1 text-sm"
+              className="mt-1 block w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:bg-surface focus:ring-4 focus:ring-blue-100"
             />
           </label>
-          <label className="text-xs text-slate-600">
+          <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
             To
             <input
               type="date"
               value={period.to}
               onChange={(e) => onChange({ ...period, to: e.target.value, label: "Custom range" })}
-              className="mt-1 block rounded-md border border-slate-300 px-2 py-1 text-sm"
+              className="mt-1 block w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:bg-surface focus:ring-4 focus:ring-blue-100"
             />
           </label>
         </div>
@@ -74,7 +74,7 @@ export function PeriodPicker({
         <select
           value={activeIdx < 0 ? 0 : activeIdx}
           onChange={(e) => onChange(months[Number(e.target.value)])}
-          className="w-full rounded-lg border border-slate-300 bg-surface px-3 py-2 text-sm"
+          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm outline-none transition hover:border-slate-300 focus:border-blue-500 focus:bg-surface focus:ring-4 focus:ring-blue-100"
         >
           {months.map((m, i) => (
             <option key={m.from} value={i}>

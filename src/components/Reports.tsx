@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type MutableRefObject } from "react";
+import { useEffect, useMemo, useState, type MutableRefObject, type ReactNode } from "react";
 import { useData } from "./DataProvider";
 import { TomorrowWorkModal } from "./TomorrowWorkModal";
 import { PcdoExportModal } from "./PcdoExportModal";
@@ -10,7 +10,6 @@ import { PeriodPicker, monthPeriod, type Period } from "./PeriodPicker";
 import { getPcdoPeriod } from "@/lib/pcdo";
 import { useBackClose } from "@/lib/backButton";
 import { fmtDate, pcdoEntriesOf, pcdoWorkEntries, counterResetsOf, counterResetTotal, isTaClaimable, logStationNames } from "@/lib/api";
-import { PrimaryButton } from "./ui";
 import { StatDetailModal, type StatRow } from "./StatDetailModal";
 import { computeAllSchedules, expandInspectionRecords, INSPECTION_RULES, isGenericSideLabel, sideAskingKinds, tagReminderConfigs, cap } from "@/lib/inspections";
 import type { DailyLog, DeficiencyTask, PlannedWork } from "@/db/schema";
@@ -155,7 +154,7 @@ export function Reports({
       <PeriodPicker period={period} onChange={setPeriod} custom={custom} setCustom={setCustom} />
 
       <p className="-mt-2 px-1 text-xs text-slate-500">
-        Showing <strong>{period.label}</strong> · {fmtDate(period.from)} — {fmtDate(period.to)}
+        Showing <strong className="text-slate-700">{period.label}</strong> · {fmtDate(period.from)} — {fmtDate(period.to)}
       </p>
 
       <div className="grid grid-cols-2 gap-3">
@@ -380,8 +379,8 @@ export function Reports({
       </div>
 
       {stats.discTotal > 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-          <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-amber-900">
+        <div className="card-rise overflow-hidden rounded-2xl border border-amber-200/80 bg-amber-50/80 p-4 shadow-sm">
+          <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wider text-amber-900">
             Disconnections Breakdown
           </h3>
           <div className="grid grid-cols-2 gap-2 text-center">
@@ -394,8 +393,8 @@ export function Reports({
       )}
 
       {stats.counter > 0 && (
-        <div className="rounded-xl border border-teal-200 bg-teal-50 p-4">
-          <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-teal-900">
+        <div className="card-rise overflow-hidden rounded-2xl border border-teal-200/80 bg-teal-50/80 p-4 shadow-sm">
+          <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wider text-teal-900">
             Counter Resets Breakdown
           </h3>
           <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-teal-900">
@@ -421,8 +420,8 @@ export function Reports({
       )}
 
       {stats.byStation.length > 0 && (
-        <div className="rounded-xl border border-slate-200 bg-surface p-4 shadow-sm">
-          <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-blue-900">
+        <div className="card-rise overflow-hidden rounded-2xl border border-slate-200/80 bg-surface p-4 shadow-sm">
+          <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wider text-blue-900">
             Logs by Station
           </h3>
           <ul className="divide-y divide-slate-100">
@@ -443,10 +442,10 @@ export function Reports({
                         })),
                     })
                   }
-                  className="flex w-full items-center justify-between py-1.5 text-left text-sm hover:text-blue-700"
+                  className="group flex w-full items-center justify-between rounded-xl py-2 pl-1 pr-0.5 text-left text-sm transition hover:bg-blue-50/70 active:scale-[0.99]"
                 >
-                  <span className="truncate text-slate-700">{name}</span>
-                  <span className="font-semibold tabular-nums text-blue-900">{count}</span>
+                  <span className="truncate text-slate-700 group-hover:text-blue-800">{name}</span>
+                  <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-blue-50 px-2 text-xs font-bold tabular-nums text-blue-800 ring-1 ring-inset ring-blue-100">{count}</span>
                 </button>
               </li>
             ))}
@@ -455,8 +454,8 @@ export function Reports({
       )}
 
       {schedules.length > 0 && (
-        <div className="rounded-xl border border-sky-200 bg-surface p-4 shadow-sm">
-          <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-sky-900">
+        <div className="card-rise overflow-hidden rounded-2xl border border-sky-200/80 bg-surface p-4 shadow-sm">
+          <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wider text-sky-900">
             Inspection Schedule
           </h3>
           <ul className="divide-y divide-slate-100">
@@ -498,7 +497,7 @@ export function Reports({
                     <button
                       type="button"
                       onClick={() => onOpenLog(log)}
-                      className="flex w-full items-center justify-between gap-2 py-2 text-left transition hover:text-blue-700"
+                      className="flex w-full items-center justify-between gap-2 rounded-xl py-2 text-left transition hover:bg-sky-50/70 hover:text-blue-700 active:scale-[0.99]"
                     >
                       {body}
                     </button>
@@ -512,42 +511,51 @@ export function Reports({
         </div>
       )}
 
-      <div className="rounded-xl border border-slate-200 bg-surface p-4 shadow-sm">
-        <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-blue-900">Generate Reports</h3>
+      <div className="card-rise overflow-hidden rounded-2xl border border-slate-200/80 bg-surface p-4 shadow-sm">
+        <h3 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-blue-900">Generate Reports</h3>
         <div className="flex flex-col gap-2">
-          <PrimaryButton onClick={() => setTomorrowOpen(true)}>
-            📄 Export Tomorrow&apos;s Work (PDF)
-          </PrimaryButton>
-          <button
+          <ExportBtn
+            color="#2563eb"
+            icon={<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6M8 13h8M8 17h5" /></>}
+            onClick={() => setTomorrowOpen(true)}
+          >
+            Export Tomorrow&apos;s Work (PDF)
+          </ExportBtn>
+          <ExportBtn
+            color="#1e40af"
+            icon={<><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></>}
             onClick={onOpenMonthly}
-            className="rounded-lg border border-blue-800 px-4 py-2.5 text-sm font-semibold text-blue-800"
           >
-            🗓️ Export Monthly List (with filters)
-          </button>
-          <button
+            Export Monthly List (with filters)
+          </ExportBtn>
+          <ExportBtn
+            color="#4f46e5"
+            icon={<path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7-6.3-4.6L5.7 21l2.3-7-6-4.6h7.6z" />}
             onClick={() => setPcdoOpen(true)}
-            className="rounded-lg border border-indigo-600 px-4 py-2.5 text-sm font-semibold text-indigo-700"
           >
-            ⭐ Export PCDO — Special Works ({pcdoPeriod.label})
-          </button>
-          <button
+            Export PCDO — Special Works ({pcdoPeriod.label})
+          </ExportBtn>
+          <ExportBtn
+            color="#059669"
+            icon={<><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></>}
             onClick={() => setDiaryOpen(true)}
-            className="rounded-lg border border-emerald-600 px-4 py-2.5 text-sm font-semibold text-emerald-700"
           >
-            📔 Export Diary (movement, TA &amp; work done)
-          </button>
-          <button
+            Export Diary (movement, TA &amp; work done)
+          </ExportBtn>
+          <ExportBtn
+            color="#d97706"
+            icon={<path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />}
             onClick={() => setTaOpen(true)}
-            className="rounded-lg border border-amber-600 px-4 py-2.5 text-sm font-semibold text-amber-700"
           >
-            💰 Export TA Journal (with summary)
-          </button>
-          <button
+            Export TA Journal (with summary)
+          </ExportBtn>
+          <ExportBtn
+            color="#0284c7"
+            icon={<><path d="M17 1l4 4-4 4" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><path d="M7 23l-4-4 4-4" /><path d="M21 13v2a4 4 0 0 1-4 4H3" /></>}
             onClick={() => setInspOpen(true)}
-            className="rounded-lg border border-sky-600 px-4 py-2.5 text-sm font-semibold text-sky-700"
           >
-            🔁 Export Inspections (monthly / quarterly / maintenance)
-          </button>
+            Export Inspections (monthly / quarterly / maintenance)
+          </ExportBtn>
         </div>
       </div>
 
@@ -583,22 +591,62 @@ function Stat({
     <button
       onClick={onClick}
       disabled={!onClick}
-      className="rounded-xl border border-slate-200 bg-surface p-4 text-left shadow-sm transition enabled:hover:border-blue-300 enabled:hover:shadow-md"
+      className="card-rise relative overflow-hidden rounded-2xl border border-slate-200/80 bg-surface p-4 text-left shadow-sm transition enabled:hover:border-blue-300 enabled:hover:shadow-md enabled:active:scale-[0.98]"
     >
-      <p className="text-2xl font-bold" style={{ color }}>
+      <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: color }} aria-hidden />
+      <p className="pl-1 text-2xl font-bold tracking-tight" style={{ color }}>
         {value}
       </p>
-      <p className="text-xs text-slate-500">{label}</p>
-      {onClick && <p className="mt-0.5 text-[10px] font-medium text-blue-500">Tap for details →</p>}
+      <p className="pl-1 text-xs font-medium text-slate-500">{label}</p>
+      {onClick && (
+        <p className="mt-1 flex items-center gap-0.5 pl-1 text-[10px] font-semibold text-blue-500">
+          Tap for details
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+            <path d="m9 18 6-6-6-6" />
+          </svg>
+        </p>
+      )}
     </button>
   );
 }
 
 function Mini({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-lg bg-surface py-2">
+    <div className="rounded-xl bg-surface py-2 shadow-sm ring-1 ring-black/5">
       <p className="text-xl font-bold text-amber-900">{value}</p>
-      <p className="text-[10px] text-amber-700">{label}</p>
+      <p className="text-[10px] font-medium text-amber-700">{label}</p>
     </div>
+  );
+}
+
+function ExportBtn({
+  color,
+  icon,
+  onClick,
+  children,
+}: {
+  color: string;
+  icon: ReactNode;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex w-full items-center gap-3 rounded-2xl border border-slate-200/80 bg-surface p-3 text-left shadow-sm transition hover:bg-slate-50 active:scale-[0.98]"
+    >
+      <span
+        className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl"
+        style={{ backgroundColor: color + "1f", color }}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          {icon}
+        </svg>
+      </span>
+      <span className="min-w-0 flex-1 text-sm font-semibold text-slate-800">{children}</span>
+      <svg className="flex-shrink-0 text-slate-300" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+        <path d="m9 18 6-6-6-6" />
+      </svg>
+    </button>
   );
 }

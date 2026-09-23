@@ -3,6 +3,15 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.76 — 2026-09-23
+
+**Minor: Tasks, Reports, Notes and Search look like the rest of the app**
+
+- Task Manager gets a pill sub-tab bar, accent-stripe cards, staggered enter, and rounded filter/action chips — same visual language as Home daily-log cards.
+- Reports stat tiles, period picker, station/inspection lists and export rows use stroke icons, colour stripes and press transitions instead of the old emoji outline buttons.
+- Notes and Search match: glass search bars, category-coloured cards, pin without the photo-emoji, and typed result rows with a colour stripe.
+- Purely visual — no changes to how the app works or to your data.
+
 ## 1.7.7.75 — 2026-09-23
 
 **Minor: weekday names on daily-log cards are easier to read**

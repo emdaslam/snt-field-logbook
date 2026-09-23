@@ -62,12 +62,12 @@ export function Notes({ focusNote }: { focusNote?: Note | null }) {
 
   return (
     <div className="pb-24">
-      <div className="sticky top-0 z-10 space-y-2 border-b border-slate-200 bg-slate-50 p-3">
+      <div className="sticky top-0 z-10 space-y-2 bg-slate-100/95 p-3 backdrop-blur">
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search notes…"
-          className="w-full rounded-full border border-slate-300 bg-surface px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+          className="w-full rounded-2xl border border-slate-200 bg-surface px-4 py-2.5 text-sm shadow-sm outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
         />
         <div className="flex flex-wrap items-center gap-1.5">
           <Chip label="All" color="#334155" active={cat === ""} onClick={() => setCat("")} />
@@ -82,7 +82,7 @@ export function Notes({ focusNote }: { focusNote?: Note | null }) {
           ))}
           <button
             onClick={() => setManaging(true)}
-            className="rounded-full border border-dashed border-slate-400 px-2 py-0.5 text-xs font-medium text-slate-500 hover:bg-surface"
+            className="rounded-full border border-dashed border-slate-400 px-2.5 py-0.5 text-xs font-semibold text-slate-500 transition hover:bg-surface hover:text-slate-700 active:scale-95"
           >
             + Edit categories
           </button>
@@ -92,29 +92,39 @@ export function Notes({ focusNote }: { focusNote?: Note | null }) {
       <div className="space-y-3 p-3">
         <button
           onClick={() => setAdding(true)}
-          className="w-full rounded-xl border-2 border-dashed border-emerald-400 bg-emerald-50 py-3 text-sm font-semibold text-emerald-700 hover:bg-emerald-100"
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-emerald-400 bg-emerald-50 py-3 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-100 active:scale-[0.98]"
         >
-          + Add Important Note
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-white">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </span>
+          Add Important Note
         </button>
 
         {filtered.length === 0 && (
-          <p className="rounded-xl border border-dashed border-slate-300 bg-surface p-8 text-center text-sm text-slate-400">
+          <p className="rounded-2xl border border-dashed border-slate-300 bg-surface p-8 text-center text-sm text-slate-400">
             No notes yet. Store installation dates, equipment details, contacts or standing instructions here.
           </p>
         )}
 
         {pinned.length > 0 && (
-          <p className="px-1 text-xs font-bold uppercase tracking-wide text-amber-700">📌 Pinned</p>
+          <p className="flex items-center gap-1.5 px-1 text-[11px] font-bold uppercase tracking-wider text-amber-700">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" />
+            </svg>
+            Pinned
+          </p>
         )}
-        {pinned.map((n) => (
-          <NoteCard key={n.id} note={n} onEdit={setEditing} onPin={togglePin} onOpen={setPreviewAtt} stationName={stationName} refresh={refresh} colorOf={colorOf} query={q} initiallyExpanded={focusId === n.id} />
+        {pinned.map((n, i) => (
+          <NoteCard key={n.id} note={n} onEdit={setEditing} onPin={togglePin} onOpen={setPreviewAtt} stationName={stationName} refresh={refresh} colorOf={colorOf} query={q} initiallyExpanded={focusId === n.id} index={i} />
         ))}
 
         {pinned.length > 0 && rest.length > 0 && (
-          <p className="px-1 pt-1 text-xs font-bold uppercase tracking-wide text-slate-400">Other notes</p>
+          <p className="px-1 pt-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">Other notes</p>
         )}
-        {rest.map((n) => (
-          <NoteCard key={n.id} note={n} onEdit={setEditing} onPin={togglePin} onOpen={setPreviewAtt} stationName={stationName} refresh={refresh} colorOf={colorOf} query={q} initiallyExpanded={focusId === n.id} />
+        {rest.map((n, i) => (
+          <NoteCard key={n.id} note={n} onEdit={setEditing} onPin={togglePin} onOpen={setPreviewAtt} stationName={stationName} refresh={refresh} colorOf={colorOf} query={q} initiallyExpanded={focusId === n.id} index={pinned.length + i} />
         ))}
       </div>
 
@@ -137,6 +147,7 @@ function NoteCard({
   colorOf,
   query,
   initiallyExpanded = false,
+  index = 0,
 }: {
   note: Note;
   onEdit: (n: Note) => void;
@@ -147,10 +158,12 @@ function NoteCard({
   colorOf: (name: string) => string;
   query: string;
   initiallyExpanded?: boolean;
+  index?: number;
 }) {
   const [expanded, setExpanded] = useState(initiallyExpanded);
   const showBody = Boolean(note.body);
   const cardRef = useRef<HTMLDivElement>(null);
+  const accent = colorOf(note.category);
 
   // A note opened from Global Search scrolls into view when it first mounts.
   useEffect(() => {
@@ -160,53 +173,62 @@ function NoteCard({
   }, [initiallyExpanded]);
 
   return (
-    <div ref={cardRef} className="rounded-xl border border-slate-200 bg-surface p-3 shadow-sm">
-      <div className="flex items-start justify-between gap-2">
-        <p className="min-w-0 flex-1 font-semibold text-slate-800">
+    <div
+      ref={cardRef}
+      style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
+      className="card-rise relative overflow-hidden rounded-2xl border border-slate-200/80 bg-surface p-3 shadow-sm transition hover:border-slate-300 hover:shadow"
+    >
+      <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: accent }} aria-hidden />
+      <div className="flex items-start justify-between gap-2 pl-1">
+        <p className="min-w-0 flex-1 font-semibold tracking-tight text-slate-800">
           <Highlight text={note.title} query={query} />
         </p>
         <button
           onClick={() => onPin(note)}
-          className={`flex-shrink-0 rounded-md px-1.5 py-0.5 text-sm ${
-            note.pinned ? "text-amber-500" : "text-slate-300 hover:text-amber-400"
+          className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl transition active:scale-95 ${
+            note.pinned ? "bg-amber-50 text-amber-500 ring-1 ring-inset ring-amber-100" : "text-slate-300 hover:bg-amber-50 hover:text-amber-400"
           }`}
           title={note.pinned ? "Unpin" : "Pin to top"}
         >
-          📌
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" />
+          </svg>
         </button>
       </div>
 
       {showBody && (
         <button
           onClick={() => setExpanded(!expanded)}
-          className="mt-1 block w-full text-left"
+          className="mt-1 block w-full pl-1 text-left"
           title={expanded ? "Show less" : "Show full note"}
         >
           <p
-            className={`whitespace-pre-wrap text-sm text-slate-600 ${
+            className={`whitespace-pre-wrap text-sm leading-snug text-slate-600 ${
               expanded ? "" : "line-clamp-3"
             }`}
           >
             <Highlight text={note.body ?? ""} query={query} />
           </p>
-          <span className="mt-1 inline-block text-xs font-medium text-blue-600">
+          <span className="mt-1 inline-block text-xs font-semibold text-blue-600">
             {expanded ? "Show less" : "Read full note"}
           </span>
         </button>
       )}
 
-      <div className="mt-2 flex flex-wrap gap-1.5">
+      <div className="mt-2 flex flex-wrap gap-1.5 pl-1">
         <Chip label={note.category} color={colorOf(note.category)} />
         {note.stationId && <Chip label={stationName(note.stationId)} color="#0e7490" />}
         {note.refDate && <Chip label={fmtDate(note.refDate)} color="#7c3aed" />}
       </div>
 
-      <AttachmentsRow attachments={note.attachments ?? []} onOpen={onOpen} />
+      <div className="pl-1">
+        <AttachmentsRow attachments={note.attachments ?? []} onOpen={onOpen} />
+      </div>
 
-      <div className="mt-2 flex gap-2 border-t border-slate-100 pt-2">
+      <div className="mt-2.5 flex gap-1.5 border-t border-slate-100 pt-2.5 pl-1">
         <button
           onClick={() => onEdit(note)}
-          className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200"
+          className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 ring-1 ring-inset ring-slate-200 transition hover:bg-slate-200 active:scale-95"
         >
           Edit
         </button>
@@ -217,7 +239,7 @@ function NoteCard({
               await refresh();
             }
           }}
-          className="rounded-md px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+          className="rounded-full px-2.5 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-50 active:scale-95"
         >
           Delete
         </button>
@@ -318,7 +340,7 @@ function NoteForm({ existing, onClose }: { existing: Note | null; onClose: () =>
           onChange={(e) => setPinned(e.target.checked)}
           className="h-4 w-4 accent-amber-500"
         />
-        📌 Pin to top
+        Pin to top
       </label>
       <AttachmentField value={attachments} onChange={setAttachments} />
       <div className="mt-4 flex justify-end">
