@@ -9,7 +9,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 - Header, bottom navigation, quick-add button, drawer, modals, inputs and buttons all got a cleaner, modern look: deep-blue gradient header, translucent blurred bottom bar with an active pill, gradient quick-add button, rounded glass panels and dropdowns, and softer rounded fields with a clear focus ring.
 - Purely visual — no changes to how the app works or to your data.
-- Implemented in ``.
+- Implemented in `77647b6`.
 
 ## 1.7.7.69 — 2026-09-22
 
