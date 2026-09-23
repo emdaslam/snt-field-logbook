@@ -10,7 +10,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 - The Alerts panel now gives each reminder a colour-coded icon (planned, due, inspection, tag, stock), roomier cards and a friendly “all caught up” empty state.
 - Daily log entries on Home got a cleaner card: a tinted date tile (gradient for today), an accent stripe on today / the selected day, clearer chips for PCDO, department, disconnections, counter resets, inspections and attachments, and tinted rows for deficiency-due and planned-work lines.
 - Purely visual — no changes to how the app works or to your data.
-- Implemented in `pending`.
+- Implemented in `943d3bb`.
 
 ## 1.7.7.70 — 2026-09-23
 
