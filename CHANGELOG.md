@@ -8,6 +8,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 **Minor: daily log date sits on the left again**
 
 - The date on Home daily-log cards under the Calendar is back on the left of each row (day name, number, month), matching 1.7.7.71, instead of a full-width header bar.
+- Implemented in `90a7f55`.
 
 ## 1.7.7.73 — 2026-09-23
 
