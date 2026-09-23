@@ -228,7 +228,17 @@ export function Timeline({
                 aria-hidden
               />
               <div className="flex w-[3.75rem] flex-shrink-0 flex-col items-center text-center">
-                <span className={`text-[10px] font-bold uppercase tracking-wide ${isToday ? "text-blue-600" : "text-slate-400"}`}>
+                <span
+                  className={`text-[10px] font-bold uppercase tracking-wide ${
+                    isToday
+                      ? "text-blue-700"
+                      : d.getDay() === 0
+                        ? "text-rose-600"
+                        : d.getDay() === 6
+                          ? "text-amber-600"
+                          : "text-slate-700"
+                  }`}
+                >
                   {dayName(iso)}
                 </span>
                 <span

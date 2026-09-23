@@ -3,6 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.75 — 2026-09-23
+
+**Minor: weekday names on daily-log cards are easier to read**
+
+- Sat, Sun and weekday labels on the left of Home daily-log cards were pale grey. Weekdays are now ink, Saturday amber, Sunday rose, and today stays blue.
+- Implemented in `PLACEHOLDER`.
+
 ## 1.7.7.74 — 2026-09-23
 
 **Minor: daily log date sits on the left again**
