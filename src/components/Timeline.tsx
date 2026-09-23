@@ -213,7 +213,7 @@ export function Timeline({
                 rowRefs.current[iso] = el;
               }}
               onClick={addable ? () => onAddEntry(iso) : undefined}
-              className={`overflow-hidden rounded-2xl border bg-surface shadow-sm transition ${
+              className={`relative flex gap-3 overflow-hidden rounded-2xl border bg-surface p-3 shadow-sm transition ${
                 isSelected
                   ? "border-emerald-400 ring-2 ring-emerald-100 shadow-emerald-500/10"
                   : isToday
@@ -221,41 +221,37 @@ export function Timeline({
                     : "border-slate-200/80 hover:border-slate-300 hover:shadow"
               } ${addable ? "cursor-pointer active:bg-blue-50" : ""}`}
             >
-              <div
-                className={`flex items-center gap-2 border-b px-3 py-2 ${
-                  isSelected
-                    ? "border-emerald-100 bg-emerald-50/70"
-                    : isToday
-                      ? "border-blue-100 bg-gradient-to-r from-blue-50 to-sky-50"
-                      : "border-slate-100 bg-slate-50/80"
+              <span
+                className={`absolute inset-y-0 left-0 w-1 ${
+                  isSelected ? "bg-emerald-400" : isToday ? "bg-gradient-to-b from-blue-500 to-blue-700" : "bg-transparent"
                 }`}
-              >
+                aria-hidden
+              />
+              <div className="flex w-[3.75rem] flex-shrink-0 flex-col items-center text-center">
+                <span className={`text-[10px] font-bold uppercase tracking-wide ${isToday ? "text-blue-600" : "text-slate-400"}`}>
+                  {dayName(iso)}
+                </span>
                 <span
-                  className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-sm font-bold ${
+                  className={`mt-0.5 flex h-9 w-9 items-center justify-center rounded-xl text-lg font-bold ${
                     isToday
-                      ? "bg-gradient-to-br from-blue-600 to-blue-800 text-white shadow-sm shadow-blue-500/30"
+                      ? "bg-gradient-to-br from-blue-600 to-blue-800 text-white shadow-md shadow-blue-500/30"
                       : isSelected
-                        ? "bg-emerald-500 text-white"
-                        : "bg-white text-slate-700 ring-1 ring-slate-200"
+                        ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                        : "bg-slate-100 text-slate-700"
                   }`}
                 >
                   {d.getDate()}
                 </span>
-                <div className="min-w-0 flex-1">
-                  <p className={`text-[11px] font-bold uppercase tracking-wide ${isToday ? "text-blue-700" : isSelected ? "text-emerald-700" : "text-slate-500"}`}>
-                    {dayName(iso)}
-                    <span className="ml-1 font-medium normal-case tracking-normal text-slate-400">
-                      {d.toLocaleDateString("en-US", { month: "short" })} {d.getFullYear()}
-                    </span>
-                  </p>
-                </div>
+                <span className="mt-1 text-[10px] font-medium text-slate-400">
+                  {d.toLocaleDateString("en-US", { month: "short" })} {d.getFullYear()}
+                </span>
                 {isToday && (
-                  <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[9px] font-bold tracking-wider text-white">
+                  <span className="mt-1 rounded-full bg-blue-100 px-1.5 py-0.5 text-[8px] font-bold tracking-wider text-blue-700">
                     TODAY
                   </span>
                 )}
                 {dayLogs[0] && (
-                  <span className="text-[10px] font-medium text-slate-400">
+                  <span className="mt-1 text-[10px] text-slate-400">
                     {new Date(dayLogs[0].createdAt).toLocaleTimeString("en-GB", {
                       hour: "2-digit",
                       minute: "2-digit",
@@ -264,7 +260,7 @@ export function Timeline({
                 )}
               </div>
 
-              <div className="px-3 py-2.5">
+              <div className="min-w-0 flex-1">
                 {empty && (
                   addable ? (
                     <span className="flex items-center gap-1.5 py-2 text-sm font-semibold text-blue-700">

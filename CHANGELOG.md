@@ -3,6 +3,12 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.74 — 2026-09-23
+
+**Minor: daily log date sits on the left again**
+
+- The date on Home daily-log cards under the Calendar is back on the left of each row (day name, number, month), matching 1.7.7.71, instead of a full-width header bar.
+
 ## 1.7.7.73 — 2026-09-23
 
 **Minor: Alerts stay on screen; daily log cards look like a new layout**
