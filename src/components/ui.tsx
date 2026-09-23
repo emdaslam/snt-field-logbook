@@ -76,12 +76,12 @@ export function Modal({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center" onClick={onClose}>
       <div
-        className={`w-full ${wide ? "sm:max-w-2xl" : "sm:max-w-md"} max-h-[92vh] overflow-y-auto rounded-t-2xl bg-surface shadow-2xl sm:rounded-2xl`}
+        className={`w-full ${wide ? "sm:max-w-2xl" : "sm:max-w-md"} max-h-[92vh] overflow-y-auto rounded-t-3xl bg-surface shadow-2xl ring-1 ring-black/5 sm:rounded-3xl`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="sticky top-0 flex items-center justify-between border-b border-slate-200 bg-surface px-5 py-3.5">
-          <h3 className="text-base font-semibold text-blue-900">{title}</h3>
-          <button onClick={onClose} className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100">
+        <div className="sticky top-0 flex items-center justify-between border-b border-slate-100 bg-surface/95 px-5 py-4 backdrop-blur">
+          <h3 className="text-base font-bold tracking-tight text-blue-900">{title}</h3>
+          <button onClick={onClose} className="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 active:scale-95">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M18 6 6 18M6 6l12 12" />
             </svg>
@@ -106,8 +106,8 @@ export function Field({
    *  clicks can't be re-targeted onto one of them. */
   as?: "label" | "div";
 }) {
-  const cls = "mb-3 block";
-  const heading = <span className="mb-1 block text-sm font-medium text-slate-700">{label}</span>;
+  const cls = "mb-4 block";
+  const heading = <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">{label}</span>;
   return as === "div" ? (
     <div className={cls}>
       {heading}
@@ -122,7 +122,7 @@ export function Field({
 }
 
 export const inputClass =
-  "w-full rounded-lg border border-slate-300 bg-surface px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200";
+  "w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-blue-500 focus:bg-surface focus:ring-4 focus:ring-blue-100";
 
 export function PrimaryButton({
   children,
@@ -142,7 +142,7 @@ export function PrimaryButton({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-lg bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
+      className={`rounded-xl bg-gradient-to-b from-blue-700 to-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-900/20 transition hover:from-blue-600 hover:to-blue-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none ${className}`}
     >
       {children}
     </button>

@@ -418,8 +418,8 @@ export function AppShell() {
     return (
       <div className="flex h-dvh items-center justify-center bg-slate-100">
         <div className="text-center">
-          <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 border-blue-200 border-t-blue-800" />
-          <p className="text-sm text-slate-500">Loading logbook…</p>
+          <div className="mx-auto mb-3 h-9 w-9 animate-spin rounded-full border-[3px] border-blue-200 border-t-blue-700" />
+          <p className="text-sm font-medium text-slate-500">Loading logbook…</p>
         </div>
       </div>
     );
@@ -428,29 +428,29 @@ export function AppShell() {
   return (
     <div className="mx-auto flex h-dvh max-w-md flex-col bg-slate-100 shadow-xl">
       {/* Header */}
-      <header className="relative z-20 flex items-center justify-between bg-blue-900 px-3 py-3 text-white shadow-md">
-        <button onClick={() => setDrawer(true)} className="rounded-lg p-1.5 hover:bg-blue-800" aria-label="Menu">
+      <header className="relative z-20 flex items-center justify-between bg-gradient-to-r from-blue-950 via-blue-900 to-blue-800 px-3 py-3 text-white shadow-lg shadow-blue-900/30">
+        <button onClick={() => setDrawer(true)} className="rounded-xl p-2 transition hover:bg-white/10 active:scale-95" aria-label="Menu">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M3 12h18M3 6h18M3 18h18" />
           </svg>
         </button>
-        <h1 className="min-w-0 flex-1 truncate text-center text-sm font-semibold">{titles[view]}</h1>
+        <h1 className="min-w-0 flex-1 truncate text-center text-sm font-semibold tracking-wide">{titles[view]}</h1>
         <div className="flex items-center gap-1">
           {/* Notifications */}
           <div className="relative" ref={notifRef}>
-            <button onClick={() => { setNotifOpen((v) => !v); setExportMenu(false); }} className="relative rounded-lg p-1.5 hover:bg-blue-800" aria-label="Alerts" title="Alerts">
+            <button onClick={() => { setNotifOpen((v) => !v); setExportMenu(false); }} className="relative rounded-xl p-2 transition hover:bg-white/10 active:scale-95" aria-label="Alerts" title="Alerts">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
                 <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
               </svg>
               {notifications.length > 0 && (
-                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-400 px-0.5 text-[10px] font-bold text-blue-900">
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-400 px-0.5 text-[10px] font-bold text-blue-950 ring-2 ring-blue-900">
                   {notifications.length}
                 </span>
               )}
             </button>
             {notifOpen && (
-              <div className="absolute right-0 top-full mt-1 max-h-[70vh] w-[min(288px,calc(100vw-88px))] overflow-y-auto rounded-xl border border-slate-200 bg-surface p-2 text-slate-800 shadow-xl">
+              <div className="absolute right-0 top-full mt-2 max-h-[70vh] w-[min(288px,calc(100vw-88px))] overflow-y-auto rounded-2xl border border-slate-200/70 bg-surface/95 p-2 text-slate-800 shadow-2xl shadow-slate-900/20 backdrop-blur">
                 <p className="px-2 py-1 text-xs font-bold uppercase text-blue-900">Alerts</p>
                 {notifications.length === 0 && <p className="px-2 py-3 text-sm text-slate-400">No active alerts</p>}
                 {notifications.map((n) => (
@@ -471,13 +471,13 @@ export function AppShell() {
           </div>
           {/* Export */}
           <div className="relative" ref={exportRef}>
-            <button onClick={() => { setExportMenu((v) => !v); setNotifOpen(false); }} className="rounded-lg p-1.5 hover:bg-blue-800" aria-label="Export">
+            <button onClick={() => { setExportMenu((v) => !v); setNotifOpen(false); }} className="rounded-xl p-2 transition hover:bg-white/10 active:scale-95" aria-label="Export">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
               </svg>
             </button>
             {exportMenu && (
-              <div className="absolute right-0 top-full mt-1 w-[min(240px,calc(100vw-88px))] rounded-xl border border-slate-200 bg-surface p-1.5 text-slate-800 shadow-xl">
+              <div className="absolute right-0 top-full mt-2 w-[min(240px,calc(100vw-88px))] rounded-2xl border border-slate-200/70 bg-surface/95 p-1.5 text-slate-800 shadow-2xl shadow-slate-900/20 backdrop-blur">
                 <button
                   onClick={() => { setTomorrowOpen(true); setExportMenu(false); }}
                   className="block w-full rounded-lg px-3 py-2.5 text-left text-sm hover:bg-blue-50"
@@ -520,7 +520,7 @@ export function AppShell() {
           {/* Sync */}
           <button
             onClick={doSync}
-            className="flex items-center gap-1 rounded-lg p-1.5 hover:bg-blue-800"
+            className="flex items-center gap-1 rounded-xl p-2 transition hover:bg-white/10 active:scale-95"
             aria-label="Sync"
             title={
               autoSyncing || driveSyncing
@@ -681,7 +681,7 @@ export function AppShell() {
         {(view === "home" || view === "tasks") && (
           <button
             onClick={() => setFabOpen(true)}
-            className="fixed bottom-20 right-[max(1rem,calc(50%-13rem))] z-30 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-400 text-white shadow-lg transition hover:bg-emerald-500"
+            className="fixed bottom-24 right-[max(1rem,calc(50%-13rem))] z-30 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-xl shadow-emerald-600/30 ring-1 ring-white/20 transition hover:scale-105 hover:from-emerald-300 hover:to-emerald-500 active:scale-95"
             aria-label="Quick add"
           >
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -692,7 +692,7 @@ export function AppShell() {
       </main>
 
       {/* Bottom nav */}
-      <nav className="z-20 flex border-t border-slate-200 bg-surface">
+      <nav className="z-20 flex border-t border-slate-200/70 bg-surface/95 px-1 pb-[env(safe-area-inset-bottom)] pt-1 shadow-[0_-4px_24px_rgba(15,23,42,0.06)] backdrop-blur">
         {([
           ["home", "Home", "M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"],
           ["tasks", "Tasks", "M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"],
@@ -703,11 +703,11 @@ export function AppShell() {
           <button
             key={key}
             onClick={() => { go(key); if (key === "notes") setSearchNote(null); }}
-            className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium ${
-              view === key ? "text-blue-800" : "text-slate-400"
+            className={`mx-0.5 flex flex-1 flex-col items-center gap-0.5 rounded-xl py-1.5 text-[10px] font-semibold transition active:scale-95 ${
+              view === key ? "bg-blue-50 text-blue-700" : "text-slate-400 hover:text-slate-600"
             }`}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={view === key ? 2.4 : 2}>
               <path d={path} />
             </svg>
             {label}
@@ -717,14 +717,14 @@ export function AppShell() {
 
       {/* Drawer */}
       {drawer && (
-        <div className="fixed inset-0 z-40 flex" onClick={() => setDrawer(false)}>
-          <div className="w-64 max-w-[80%] bg-blue-900 p-5 text-white" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-6 border-b border-blue-800 pb-4">
-              <p className="text-lg font-bold">Railway S&amp;T</p>
+        <div className="fixed inset-0 z-40 flex bg-black/40 backdrop-blur-[2px]" onClick={() => setDrawer(false)}>
+          <div className="w-72 max-w-[85%] rounded-r-3xl bg-gradient-to-b from-blue-950 via-blue-900 to-blue-800 p-5 text-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-6 border-b border-white/10 pb-4">
+              <p className="text-lg font-bold tracking-tight">Railway S&amp;T</p>
               <p className="text-xs text-blue-200">Field Logbook</p>
               <p className="mt-1 text-[10px] text-blue-300/80">Developed by Aslam, JE/SIG/JMDG</p>
               {currentUser && (
-                <div className="mt-3 rounded-lg bg-blue-800/60 p-2 text-xs">
+                <div className="mt-3 rounded-xl bg-white/10 p-2.5 text-xs ring-1 ring-white/10">
                   <p className="font-semibold">{currentUser.name}</p>
                   <p className="text-blue-200">{currentUser.designation}</p>
                 </div>
@@ -734,8 +734,8 @@ export function AppShell() {
               <button
                 key={v}
                 onClick={() => { go(v); if (v === "notes") setSearchNote(null); if (v === "materials") setSearchMaterial(null); setDrawer(false); }}
-                className={`mb-1 block w-full rounded-lg px-3 py-2.5 text-left text-sm capitalize ${
-                  view === v ? "bg-emerald-500 font-semibold" : "hover:bg-blue-800"
+                className={`mb-1 block w-full rounded-xl px-3 py-2.5 text-left text-sm capitalize transition active:scale-[0.98] ${
+                  view === v ? "bg-emerald-500 font-semibold shadow-lg shadow-emerald-900/40" : "text-blue-100 hover:bg-white/10"
                 }`}
               >
                 {v === "notes"
@@ -748,16 +748,16 @@ export function AppShell() {
               </button>
             ))}
           </div>
-          <div className="flex-1 bg-black/40" />
+          <div className="flex-1" />
         </div>
       )}
 
       {/* FAB sheet */}
       {fabOpen && (
-        <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/50" onClick={() => setFabOpen(false)}>
-          <div className="w-full max-w-md rounded-t-2xl bg-surface p-4 pb-8" onClick={(e) => e.stopPropagation()}>
-            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-slate-300" />
-            <h3 className="mb-3 text-center text-sm font-semibold text-blue-900">Quick Add</h3>
+        <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/50 backdrop-blur-[2px]" onClick={() => setFabOpen(false)}>
+          <div className="w-full max-w-md rounded-t-3xl bg-surface p-4 pb-8 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-300" />
+            <h3 className="mb-3 text-center text-sm font-bold tracking-tight text-blue-900">Quick Add</h3>
             <div className="space-y-2">
               <SheetBtn label="Add Daily Log" icon="📝" color="#2563eb" onClick={() => { setFabOpen(false); setLogForm(true); }} />
               <SheetBtn label="Add Deficiency Task" icon="🔧" color="#b45309" onClick={() => { setFabOpen(false); setDefForm(true); }} />
@@ -818,12 +818,12 @@ function SheetBtn({ label, icon, color, onClick }: { label: string; icon: string
   return (
     <button
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-xl border border-slate-200 p-3 text-left hover:bg-slate-50"
+      className="flex w-full items-center gap-3 rounded-2xl border border-slate-200/80 bg-surface p-3 text-left shadow-sm transition hover:bg-slate-50 active:scale-[0.98]"
     >
-      <span className="flex h-10 w-10 items-center justify-center rounded-full text-lg" style={{ backgroundColor: color + "22" }}>
+      <span className="flex h-10 w-10 items-center justify-center rounded-xl text-lg" style={{ backgroundColor: color + "1f" }}>
         {icon}
       </span>
-      <span className="font-medium text-slate-800">{label}</span>
+      <span className="font-semibold text-slate-800">{label}</span>
     </button>
   );
 }

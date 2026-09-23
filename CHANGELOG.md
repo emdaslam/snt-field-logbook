@@ -3,6 +3,14 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.70 — 2026-09-23
+
+**Minor: refreshed, more modern app design**
+
+- Header, bottom navigation, quick-add button, drawer, modals, inputs and buttons all got a cleaner, modern look: deep-blue gradient header, translucent blurred bottom bar with an active pill, gradient quick-add button, rounded glass panels and dropdowns, and softer rounded fields with a clear focus ring.
+- Purely visual — no changes to how the app works or to your data.
+- Implemented in ``.
+
 ## 1.7.7.69 — 2026-09-22
 
 **Minor: text size shows again on PCDO / monthly exports after a diary or TA Journal PDF**
