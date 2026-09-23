@@ -213,7 +213,7 @@ export function Timeline({
                 rowRefs.current[iso] = el;
               }}
               onClick={addable ? () => onAddEntry(iso) : undefined}
-              className={`relative flex gap-3 overflow-hidden rounded-2xl border bg-surface p-3 shadow-sm transition ${
+              className={`overflow-hidden rounded-2xl border bg-surface shadow-sm transition ${
                 isSelected
                   ? "border-emerald-400 ring-2 ring-emerald-100 shadow-emerald-500/10"
                   : isToday
@@ -221,39 +221,41 @@ export function Timeline({
                     : "border-slate-200/80 hover:border-slate-300 hover:shadow"
               } ${addable ? "cursor-pointer active:bg-blue-50" : ""}`}
             >
-              {/* Accent stripe: marks today / the selected date at a glance */}
-              <span
-                className={`absolute inset-y-0 left-0 w-1 ${
-                  isSelected ? "bg-emerald-400" : isToday ? "bg-gradient-to-b from-blue-500 to-blue-700" : "bg-transparent"
+              <div
+                className={`flex items-center gap-2 border-b px-3 py-2 ${
+                  isSelected
+                    ? "border-emerald-100 bg-emerald-50/70"
+                    : isToday
+                      ? "border-blue-100 bg-gradient-to-r from-blue-50 to-sky-50"
+                      : "border-slate-100 bg-slate-50/80"
                 }`}
-                aria-hidden
-              />
-              {/* Left column: Day / Date / Time */}
-              <div className="flex w-[3.75rem] flex-shrink-0 flex-col items-center text-center">
-                <span className={`text-[10px] font-bold uppercase tracking-wide ${isToday ? "text-blue-600" : "text-slate-400"}`}>
-                  {dayName(iso)}
-                </span>
+              >
                 <span
-                  className={`mt-0.5 flex h-9 w-9 items-center justify-center rounded-xl text-lg font-bold ${
+                  className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-sm font-bold ${
                     isToday
-                      ? "bg-gradient-to-br from-blue-600 to-blue-800 text-white shadow-md shadow-blue-500/30"
+                      ? "bg-gradient-to-br from-blue-600 to-blue-800 text-white shadow-sm shadow-blue-500/30"
                       : isSelected
-                        ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
-                        : "bg-slate-100 text-slate-700"
+                        ? "bg-emerald-500 text-white"
+                        : "bg-white text-slate-700 ring-1 ring-slate-200"
                   }`}
                 >
                   {d.getDate()}
                 </span>
-                <span className="mt-1 text-[10px] font-medium text-slate-400">
-                  {d.toLocaleDateString("en-US", { month: "short" })} {d.getFullYear()}
-                </span>
+                <div className="min-w-0 flex-1">
+                  <p className={`text-[11px] font-bold uppercase tracking-wide ${isToday ? "text-blue-700" : isSelected ? "text-emerald-700" : "text-slate-500"}`}>
+                    {dayName(iso)}
+                    <span className="ml-1 font-medium normal-case tracking-normal text-slate-400">
+                      {d.toLocaleDateString("en-US", { month: "short" })} {d.getFullYear()}
+                    </span>
+                  </p>
+                </div>
                 {isToday && (
-                  <span className="mt-1 rounded-full bg-blue-100 px-1.5 py-0.5 text-[8px] font-bold tracking-wider text-blue-700">
+                  <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[9px] font-bold tracking-wider text-white">
                     TODAY
                   </span>
                 )}
                 {dayLogs[0] && (
-                  <span className="mt-1 text-[10px] text-slate-400">
+                  <span className="text-[10px] font-medium text-slate-400">
                     {new Date(dayLogs[0].createdAt).toLocaleTimeString("en-GB", {
                       hour: "2-digit",
                       minute: "2-digit",
@@ -262,11 +264,10 @@ export function Timeline({
                 )}
               </div>
 
-              {/* Main content */}
-              <div className="min-w-0 flex-1">
+              <div className="px-3 py-2.5">
                 {empty && (
                   addable ? (
-                    <span className="flex items-center gap-1.5 py-3 text-sm font-semibold text-blue-700">
+                    <span className="flex items-center gap-1.5 py-2 text-sm font-semibold text-blue-700">
                       <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-blue-700">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                           <path d="M12 5v14M5 12h14" />
@@ -275,7 +276,7 @@ export function Timeline({
                       No entry — tap to add
                     </span>
                   ) : (
-                    <p className="py-3 text-sm italic text-slate-400">No entry</p>
+                    <p className="py-2 text-sm italic text-slate-400">No entry</p>
                   )
                 )}
 
@@ -308,7 +309,11 @@ export function Timeline({
                     >
                       {shared ? (
                         <p className="flex items-center gap-1 truncate text-xs font-semibold text-teal-700">
-                          <span aria-hidden>🔗</span> Shared ·{" "}
+                          <svg className="flex-shrink-0" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                          </svg>
+                          Shared ·{" "}
                           {stationName(bundles[0]?.stationId ?? log.pcdoStationId ?? log.inspectionStationId)}
                         </p>
                       ) : (
@@ -333,8 +338,9 @@ export function Timeline({
 
                       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                         {hasPcdo && (
-                          <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-100">
-                            ⭐ PCDO
+                          <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-100">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7-6.3-4.6L5.7 21l2.3-7-6-4.6h7.6z"/></svg>
+                            PCDO
                           </span>
                         )}
                         {hasPcdo &&
@@ -351,18 +357,21 @@ export function Timeline({
                               )
                           )}
                         {hasDisc && (
-                          <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-100">
-                            ⚡ {discTotal} disc.
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-100">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z"/></svg>
+                            {discTotal} disc.
                           </span>
                         )}
                         {hasCounter && (
-                          <span className="inline-flex items-center rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-semibold text-teal-700 ring-1 ring-inset ring-teal-100">
-                            🔢 {counterTotal} resets
+                          <span className="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-semibold text-teal-700 ring-1 ring-inset ring-teal-100">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 12h8M12 8v8"/></svg>
+                            {counterTotal} resets
                           </span>
                         )}
                         {log.inspectionKind && (
-                          <span className="inline-flex items-center rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700 ring-1 ring-inset ring-sky-100">
-                            🔁 {stationName(log.inspectionStationId)}
+                          <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700 ring-1 ring-inset ring-sky-100">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                            {stationName(log.inspectionStationId)}
                             {log.inspectionKind !== "footplate" &&
                               (log.inspectionSide === "Both"
                                 ? " → Both sides"
@@ -374,8 +383,9 @@ export function Timeline({
                           </span>
                         )}
                         {log.attachments.length > 0 && (
-                          <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 ring-1 ring-inset ring-slate-200">
-                            📎 {log.attachments.length}
+                          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 ring-1 ring-inset ring-slate-200">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                            {log.attachments.length}
                           </span>
                         )}
                         {log.tagIds.map((id) => {
@@ -430,7 +440,9 @@ export function Timeline({
                         key={"d" + t.id}
                         className="entry-text-xs flex items-start gap-1.5 rounded-lg bg-amber-50/70 px-2 py-1 text-xs text-amber-900/80"
                       >
-                        <span aria-hidden>🔧</span>
+                        <svg className="mt-0.5 flex-shrink-0" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94z" />
+                        </svg>
                         <span>
                           Deficiency due: <span className="font-semibold">{t.title}</span> ·{" "}
                           {stationName(t.stationId)} ({t.status})
@@ -442,7 +454,10 @@ export function Timeline({
                         key={"p" + p.id}
                         className="entry-text-xs flex items-start gap-1.5 rounded-lg bg-emerald-50/70 px-2 py-1 text-xs text-emerald-900/80"
                       >
-                        <span aria-hidden>📅</span>
+                        <svg className="mt-0.5 flex-shrink-0" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="3" y="4" width="18" height="18" rx="2" />
+                          <path d="M16 2v4M8 2v4M3 10h18" />
+                        </svg>
                         <span>
                           Planned: <span className="font-semibold">{p.title}</span> ·{" "}
                           {stationName(p.stationId)} ({p.status})

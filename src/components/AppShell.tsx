@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef, useEffect, type ReactNode } from "react";
 import { useData, type Notification } from "./DataProvider";
 import { Calendar } from "./Calendar";
 import { Timeline } from "./Timeline";
@@ -75,6 +75,7 @@ export function AppShell() {
   // the state change after the user scrolled the list away on their own).
   const [goToSignal, setGoToSignal] = useState(0);
   const notifRef = useRef<HTMLDivElement>(null);
+  const notifPanelRef = useRef<HTMLDivElement>(null);
   const exportRef = useRef<HTMLDivElement>(null);
 
 
@@ -109,7 +110,10 @@ export function AppShell() {
     if (!notifOpen && !exportMenu) return;
     const onDown = (e: PointerEvent) => {
       const t = e.target as Node;
-      if (notifOpen && notifRef.current && !notifRef.current.contains(t)) setNotifOpen(false);
+      const inNotif =
+        (notifRef.current && notifRef.current.contains(t)) ||
+        (notifPanelRef.current && notifPanelRef.current.contains(t));
+      if (notifOpen && !inNotif) setNotifOpen(false);
       if (exportMenu && exportRef.current && !exportRef.current.contains(t)) setExportMenu(false);
     };
     const onEsc = (e: KeyboardEvent) => {
@@ -450,8 +454,11 @@ export function AppShell() {
               )}
             </button>
             {notifOpen && (
-              <div className="absolute right-0 top-full mt-2 max-h-[70vh] w-[min(320px,calc(100vw-80px))] overflow-y-auto rounded-3xl border border-slate-200/70 bg-surface/95 p-2 text-slate-800 shadow-2xl shadow-slate-900/20 backdrop-blur">
-                <div className="flex items-center justify-between px-2.5 pb-1.5 pt-1">
+              <div
+                ref={notifPanelRef}
+                className="fixed inset-x-3 top-14 z-30 mx-auto flex max-h-[min(70dvh,28rem)] w-auto max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/70 bg-surface/95 text-slate-800 shadow-2xl shadow-slate-900/20 backdrop-blur"
+              >
+                <div className="flex flex-shrink-0 items-center justify-between px-3 pb-1.5 pt-2.5">
                   <p className="text-[11px] font-bold uppercase tracking-wider text-blue-900">Alerts</p>
                   {notifications.length > 0 && (
                     <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">
@@ -471,24 +478,24 @@ export function AppShell() {
                     <p className="text-xs text-slate-400">No reminders or alerts right now.</p>
                   </div>
                 ) : (
-                  <div className="space-y-0.5">
+                  <div className="min-h-0 space-y-0.5 overflow-y-auto px-1.5 pb-1.5">
                     {notifications.map((n) => {
                       const meta = NOTIF_META[n.kind];
                       return (
                         <button
                           key={n.id}
                           onClick={() => openNotification(n)}
-                          className="group flex w-full items-start gap-2.5 rounded-2xl px-2.5 py-2 text-left transition hover:bg-blue-50/70 active:scale-[0.99]"
+                          className="group flex w-full items-start gap-2.5 rounded-2xl px-2 py-2 text-left transition hover:bg-blue-50/70 active:scale-[0.99]"
                         >
                           <span
-                            className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl text-base ring-1 ring-inset ring-black/5"
-                            style={{ backgroundColor: meta.color + "1f" }}
+                            className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl ring-1 ring-inset ring-black/5"
+                            style={{ backgroundColor: meta.color + "1f", color: meta.color }}
                           >
                             {meta.icon}
                           </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block text-sm font-semibold leading-snug text-slate-800">{n.title}</span>
-                            <span className="mt-0.5 block text-xs leading-snug text-slate-500">{n.detail}</span>
+                          <span className="min-w-0 flex-1 overflow-hidden">
+                            <span className="block break-words text-sm font-semibold leading-snug text-slate-800">{n.title}</span>
+                            <span className="mt-0.5 block break-words text-xs leading-snug text-slate-500">{n.detail}</span>
                           </span>
                           {n.target && (
                             <svg
@@ -801,9 +808,9 @@ export function AppShell() {
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-300" />
             <h3 className="mb-3 text-center text-sm font-bold tracking-tight text-blue-900">Quick Add</h3>
             <div className="space-y-2">
-              <SheetBtn label="Add Daily Log" icon="📝" color="#2563eb" onClick={() => { setFabOpen(false); setLogForm(true); }} />
-              <SheetBtn label="Add Deficiency Task" icon="🔧" color="#b45309" onClick={() => { setFabOpen(false); setDefForm(true); }} />
-              <SheetBtn label="Add Future Planned Work" icon="📅" color="#059669" onClick={() => { setFabOpen(false); setPlanForm(true); }} />
+              <SheetBtn label="Add Daily Log" icon={<IconLog />} color="#2563eb" onClick={() => { setFabOpen(false); setLogForm(true); }} />
+              <SheetBtn label="Add Deficiency Task" icon={<IconWrench />} color="#b45309" onClick={() => { setFabOpen(false); setDefForm(true); }} />
+              <SheetBtn label="Add Future Planned Work" icon={<IconCalendar />} color="#059669" onClick={() => { setFabOpen(false); setPlanForm(true); }} />
             </div>
           </div>
         </div>
@@ -856,21 +863,84 @@ export function AppShell() {
   );
 }
 
-const NOTIF_META: Record<Notification["kind"], { icon: string; color: string }> = {
-  planned: { icon: "📅", color: "#2563eb" },
-  due: { icon: "⚠️", color: "#dc2626" },
-  inspection: { icon: "🔁", color: "#0284c7" },
-  tag: { icon: "🏷️", color: "#7c3aed" },
-  stock: { icon: "📦", color: "#d97706" },
+function StrokeIcon({ children, size = 16 }: { children: ReactNode; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      {children}
+    </svg>
+  );
+}
+
+function IconLog({ size = 18 }: { size?: number }) {
+  return (
+    <StrokeIcon size={size}>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2v6h6M8 13h8M8 17h5" />
+    </StrokeIcon>
+  );
+}
+
+function IconWrench({ size = 18 }: { size?: number }) {
+  return (
+    <StrokeIcon size={size}>
+      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94z" />
+    </StrokeIcon>
+  );
+}
+
+function IconCalendar({ size = 18 }: { size?: number }) {
+  return (
+    <StrokeIcon size={size}>
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <path d="M16 2v4M8 2v4M3 10h18" />
+    </StrokeIcon>
+  );
+}
+
+function IconRepeat({ size = 18 }: { size?: number }) {
+  return (
+    <StrokeIcon size={size}>
+      <path d="M17 1l4 4-4 4" />
+      <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+      <path d="M7 23l-4-4 4-4" />
+      <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+    </StrokeIcon>
+  );
+}
+
+function IconTag({ size = 18 }: { size?: number }) {
+  return (
+    <StrokeIcon size={size}>
+      <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+      <circle cx="7" cy="7" r="1.5" fill="currentColor" stroke="none" />
+    </StrokeIcon>
+  );
+}
+
+function IconBox({ size = 18 }: { size?: number }) {
+  return (
+    <StrokeIcon size={size}>
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+      <path d="M3.27 6.96L12 12.01l8.73-5.05M12 22.08V12" />
+    </StrokeIcon>
+  );
+}
+
+const NOTIF_META: Record<Notification["kind"], { icon: ReactNode; color: string }> = {
+  planned: { icon: <IconCalendar size={16} />, color: "#2563eb" },
+  due: { icon: <IconWrench size={16} />, color: "#dc2626" },
+  inspection: { icon: <IconRepeat size={16} />, color: "#0284c7" },
+  tag: { icon: <IconTag size={16} />, color: "#7c3aed" },
+  stock: { icon: <IconBox size={16} />, color: "#d97706" },
 };
 
-function SheetBtn({ label, icon, color, onClick }: { label: string; icon: string; color: string; onClick: () => void }) {
+function SheetBtn({ label, icon, color, onClick }: { label: string; icon: ReactNode; color: string; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
       className="flex w-full items-center gap-3 rounded-2xl border border-slate-200/80 bg-surface p-3 text-left shadow-sm transition hover:bg-slate-50 active:scale-[0.98]"
     >
-      <span className="flex h-10 w-10 items-center justify-center rounded-xl text-lg" style={{ backgroundColor: color + "1f" }}>
+      <span className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: color + "1f", color }}>
         {icon}
       </span>
       <span className="font-semibold text-slate-800">{label}</span>

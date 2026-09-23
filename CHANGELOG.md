@@ -3,6 +3,14 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.73 — 2026-09-23
+
+**Minor: Alerts stay on screen; daily log cards look like a new layout**
+
+- The Alerts panel from 1.7.7.71 could spill off the right of a phone. It now sits under the header, full card width, with wrapping titles and a scrollable list.
+- The warning photo-emoji on due items is gone. Alerts and the + button sheet use the same stroke symbols as the + button (log, wrench, calendar, repeat, tag, box).
+- Daily log rows on Home now have a date header bar (gradient for today, green for the selected day) instead of the old left-hand date column, so the 1.7.7.71 restyle is actually visible.
+
 ## 1.7.7.72 — 2026-09-23
 
 **Minor: the app can no longer get stuck on “Loading logbook…”**
