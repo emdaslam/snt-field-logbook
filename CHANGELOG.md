@@ -11,6 +11,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 - Reports stat tiles, period picker, station/inspection lists and export rows use stroke icons, colour stripes and press transitions instead of the old emoji outline buttons.
 - Notes and Search match: glass search bars, category-coloured cards, pin without the photo-emoji, and typed result rows with a colour stripe.
 - Purely visual — no changes to how the app works or to your data.
+- Implemented in `198c2e7`.
 
 ## 1.7.7.75 — 2026-09-23
 
