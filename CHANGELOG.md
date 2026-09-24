@@ -3,6 +3,18 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.81 — 2026-09-24
+
+**Major: Modernized calendar with smooth swipe transitions**
+
+- The calendar now renders three months side-by-side (previous, current, next) so swiping between months is buttery smooth — you see the next month sliding in as you drag.
+- Day cells have rounded corners and soft shadows. Today is a bold blue gradient, selected dates are a green gradient, and focused dates get a soft ring.
+- Weekend headers (Sun/Sat) are tinted blue for visual hierarchy.
+- Tag dots are slightly larger and more visible.
+- Go-to-date and Today buttons have a frosted-glass style with subtle shadows.
+- The carousel uses spring-back physics when you don't swipe far enough.
+- Implemented in `__________`.
+
 ## 1.7.7.80 — 2026-09-24
 
 **Minor: Footplate Night Up from the other end clears that direction**

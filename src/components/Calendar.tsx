@@ -21,15 +21,15 @@ function GoToDateButton({
 }) {
   const [val, setVal] = useState(initial);
   return (
-    <span className="relative inline-flex items-center gap-2">
+    <span className="relative inline-flex items-center gap-1.5">
       <span className="relative inline-flex">
         <button
-          className="flex h-[25px] items-center rounded-lg border border-blue-300 bg-blue-50 px-2 text-blue-900 hover:bg-blue-100"
+          className="flex h-[26px] items-center rounded-full border border-blue-200/80 bg-blue-50/80 px-2 text-blue-900 shadow-sm shadow-blue-100/60 backdrop-blur-sm transition hover:bg-blue-100 active:scale-95"
           type="button"
           aria-label="Go to date"
           title="Go to date"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <rect x="3" y="4" width="18" height="18" rx="2" />
             <path d="M16 2v4M8 2v4M3 10h18" />
           </svg>
@@ -49,11 +49,11 @@ function GoToDateButton({
       <button
         type="button"
         onClick={() => onGo(today)}
-        className="flex h-[25px] items-center gap-1 rounded-lg border border-blue-300 bg-blue-50 px-2 text-xs font-semibold text-blue-900 hover:bg-blue-100"
+        className="flex h-[26px] items-center gap-1 rounded-full border border-blue-200/80 bg-blue-50/80 px-2.5 text-[11px] font-semibold text-blue-900 shadow-sm shadow-blue-100/60 backdrop-blur-sm transition hover:bg-blue-100 active:scale-95"
         aria-label="Go to today"
         title="Go to today"
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <circle cx="12" cy="12" r="9" />
           <path d="M12 7v5l3 3" />
         </svg>
@@ -63,6 +63,7 @@ function GoToDateButton({
   );
 }
 
+/** Single month grid — 7-column layout with styled day cells. */
 function MonthGrid({
   month,
   activeDates,
@@ -91,16 +92,17 @@ function MonthGrid({
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
   return (
-    <div className="w-full flex-shrink-0">
-      <div className="grid grid-cols-7 gap-0.5 text-center">
+    <div className="w-full flex-shrink-0 px-1">
+      <div className="grid grid-cols-7 gap-1 text-center">
         {cells.map((day, i) => {
-          if (day === null) return <div key={i} />;
+          if (day === null) return <div key={i} className="h-9" />;
           const iso = `${year}-${String(m + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
           const isToday = iso === today;
           const isSelected = iso === selectedDate;
           const isFocused = iso === focusedDate;
           const hasEntry = activeDates.has(iso);
           const tagColors = dateTagColors.get(iso) ?? [];
+
           return (
             <button
               key={i}
@@ -108,32 +110,38 @@ function MonthGrid({
                 if (suppressClick.current) return;
                 onSelect(isSelected ? null : iso);
               }}
-              className={`relative mx-auto flex h-8 w-8 flex-col items-center justify-center rounded-full text-xs transition ${
+              className={`relative mx-auto flex h-9 w-9 flex-col items-center justify-center rounded-xl text-[13px] transition-all duration-150 active:scale-90 ${
                 isToday
-                  ? "bg-blue-800 font-bold text-white"
+                  ? "bg-gradient-to-br from-blue-700 to-blue-900 font-bold text-white shadow-md shadow-blue-800/30"
                   : isSelected
-                    ? "bg-emerald-600 font-semibold text-white"
+                    ? "bg-gradient-to-br from-emerald-500 to-emerald-700 font-semibold text-white shadow-md shadow-emerald-600/30"
                     : isFocused
-                      ? "bg-emerald-100 font-semibold text-emerald-800"
-                      : "text-slate-700 hover:bg-blue-50"
-              } ${isFocused && !isSelected ? "ring-2 ring-emerald-500" : ""}`}
+                      ? "bg-emerald-50 font-semibold text-emerald-800 ring-[1.5px] ring-emerald-400"
+                      : hasEntry
+                        ? "font-medium text-slate-800 hover:bg-blue-50 hover:shadow-sm"
+                        : "text-slate-500 hover:bg-blue-50/60"
+              }`}
             >
               <span className="leading-none">{day}</span>
               {hasEntry && !isToday && !isSelected && (
-                <span className="mt-[3px] flex items-center justify-center gap-[2px] leading-none">
+                <span className="mt-[3px] flex items-center justify-center gap-[2.5px] leading-none">
                   {tagColors.length > 0 ? (
                     <>
                       {tagColors.slice(0, 3).map((c, j) => (
-                        <span key={j} className="h-1 w-1 rounded-full" style={{ backgroundColor: c }} />
+                        <span
+                          key={j}
+                          className="h-[5px] w-[5px] rounded-full"
+                          style={{ backgroundColor: c }}
+                        />
                       ))}
                       {tagColors.length > 3 && (
-                        <span className="text-[7px] font-semibold leading-none text-slate-400">
+                        <span className="text-[6px] font-bold leading-none text-slate-400">
                           +{tagColors.length - 3}
                         </span>
                       )}
                     </>
                   ) : (
-                    <span className="h-[3px] w-3 rounded-full bg-emerald-500" />
+                    <span className="h-[3.5px] w-3.5 rounded-full bg-emerald-500/80" />
                   )}
                 </span>
               )}
@@ -197,8 +205,8 @@ export function Calendar({
       setDragX(0);
       setSettling(false);
       if (jump) onMonthJump?.(target);
-    }, 240);
-    setTimeout(() => (suppressClick.current = false), 380);
+    }, 260);
+    setTimeout(() => (suppressClick.current = false), 400);
   };
 
   const onTouchStart = (e: React.TouchEvent) => {
@@ -215,7 +223,10 @@ export function Calendar({
     // Only track clearly horizontal gestures; pan-y keeps vertical scrolling.
     if (Math.abs(dx) <= Math.abs(dy) || Math.abs(dx) < 4) return;
     const W = slideRef.current?.offsetWidth ?? 320;
-    setDragX(Math.max(-W, Math.min(W, dx)));
+    // Rubber-band resistance near the edges
+    const clamped = Math.max(-W, Math.min(W, dx));
+    const resistance = Math.abs(clamped) > W * 0.7 ? 1 - (Math.abs(clamped) - W * 0.7) / (W * 0.6) : 1;
+    setDragX(clamped * resistance);
   };
   const onTouchEnd = () => {
     const s = touchStart.current;
@@ -234,11 +245,19 @@ export function Calendar({
   };
 
   const monthLabel = cursor.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const shortMonth = cursor.toLocaleDateString("en-US", { month: "short" });
+  const shortYear = String(cursor.getFullYear());
 
   if (collapsed) {
     return (
-      <div className="flex items-center justify-between px-4 py-1.5 text-sm font-medium text-blue-900">
-        <span>{monthLabel}</span>
+      <div className="flex items-center justify-between px-4 py-2 text-sm font-medium text-blue-900">
+        <span className="flex items-center gap-2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-blue-700">
+            <rect x="3" y="4" width="18" height="18" rx="3" />
+            <path d="M16 2v4M8 2v4M3 10h18" />
+          </svg>
+          {shortMonth} {shortYear}
+        </span>
         <div className="flex items-center gap-2">
           <GoToDateButton
             initial={focusedDate ?? selectedDate ?? today}
@@ -246,7 +265,7 @@ export function Calendar({
             onGo={(iso) => onGoToDate?.(iso)}
           />
           {focusedDate && (
-            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
+            <span className="rounded-full bg-emerald-100/80 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 shadow-sm">
               {new Date(focusedDate + "T00:00:00").toLocaleDateString("en-GB", {
                 weekday: "short",
                 day: "2-digit",
@@ -259,31 +278,30 @@ export function Calendar({
     );
   }
 
-  const draggingNext = dragX < 0;
-  const draggingPrev = dragX > 0;
-  const rowTransform =
-    dragX === 0
-      ? "translateX(0px)"
-      : draggingNext
-        ? `translateX(${dragX}px)`
-        : `translateX(calc(-100% + ${dragX}px))`;
+  // Always render all 3 months: prev, current, next. The flex row is shifted
+  // left by one panel width (-100%) so the current month is visible. Dragging
+  // slides the row left/right by dragX pixels.
+  const rowTransform = `translateX(calc(-100% + ${dragX}px))`;
 
   const gridProps = { activeDates, dateTagColors, selectedDate, focusedDate, today, suppressClick, onSelect };
+  const prevMonth = new Date(year, month - 1, 1);
+  const nextMonth = new Date(year, month + 1, 1);
 
   return (
-    <div className="px-2 pb-2 pt-1">
-      <div className="mb-1 flex items-center justify-between">
+    <div className="px-3 pb-2 pt-1.5">
+      {/* Header row */}
+      <div className="mb-1.5 flex items-center justify-between">
         <button
           onClick={() => goMonth(-1)}
-          className="rounded-full p-1 text-blue-800 hover:bg-blue-100"
+          className="flex h-7 w-7 items-center justify-center rounded-full text-blue-800 transition hover:bg-blue-100/80 active:scale-90"
           aria-label="Previous month"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="m15 18-6-6 6-6" />
           </svg>
         </button>
-        <div className="flex items-center gap-2">
-          <span className="text-[13px] font-semibold text-blue-900">{monthLabel}</span>
+        <div className="flex items-center gap-2.5">
+          <span className="text-[14px] font-bold tracking-tight text-blue-900">{monthLabel}</span>
           <GoToDateButton
             initial={focusedDate ?? selectedDate ?? today}
             today={today}
@@ -292,7 +310,7 @@ export function Calendar({
         </div>
         <button
           onClick={() => goMonth(1)}
-          className="rounded-full p-1 text-blue-800 hover:bg-blue-100"
+          className="flex h-7 w-7 items-center justify-center rounded-full text-blue-800 transition hover:bg-blue-100/80 active:scale-90"
           aria-label="Next month"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -300,13 +318,22 @@ export function Calendar({
           </svg>
         </button>
       </div>
-      <div className="grid grid-cols-7 gap-0.5 text-center">
-        {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
-          <div key={i} className="py-0.5 text-[10px] font-semibold text-slate-400">
+
+      {/* Weekday header */}
+      <div className="grid grid-cols-7 gap-1 text-center">
+        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d, i) => (
+          <div
+            key={i}
+            className={`py-1 text-[10px] font-semibold uppercase tracking-wider ${
+              i === 0 || i === 6 ? "text-blue-400" : "text-slate-400"
+            }`}
+          >
             {d}
           </div>
         ))}
       </div>
+
+      {/* 3-month carousel */}
       <div
         ref={slideRef}
         className="overflow-hidden"
@@ -320,12 +347,15 @@ export function Calendar({
           className="flex items-start"
           style={{
             transform: rowTransform,
-            transition: settling ? "transform 240ms cubic-bezier(0.32, 0.72, 0.28, 1)" : "none",
+            transition: settling
+              ? "transform 260ms cubic-bezier(0.25, 0.46, 0.45, 0.94)"
+              : "none",
+            willChange: "transform",
           }}
         >
-          {draggingPrev && <MonthGrid month={new Date(year, month - 1, 1)} {...gridProps} />}
+          <MonthGrid month={prevMonth} {...gridProps} />
           <MonthGrid month={cursor} {...gridProps} />
-          {draggingNext && <MonthGrid month={new Date(year, month + 1, 1)} {...gridProps} />}
+          <MonthGrid month={nextMonth} {...gridProps} />
         </div>
       </div>
     </div>

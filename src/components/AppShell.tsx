@@ -646,7 +646,7 @@ export function AppShell() {
               </button>
             </div>
             {/* Top half: calendar */}
-            <div className="border-b border-slate-200 bg-surface shadow-sm">
+            <div className="border-b border-slate-200/80 bg-gradient-to-b from-slate-50/50 to-surface shadow-sm">
               <Calendar
                 activeDates={activeDates}
                 dateTagColors={dateTagColors}

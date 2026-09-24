@@ -687,6 +687,28 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.7.81",
+    tag: "Modern calendar",
+    subtitle: "A refreshed calendar with smooth swipe transitions.",
+    slides: [
+      {
+        glyph: "◐",
+        title: "Swipe between months",
+        body: "The calendar now slides smoothly left and right as you swipe between months. The next month is already visible as you drag, so transitions feel natural and responsive.",
+      },
+      {
+        glyph: "◈",
+        title: "Fresh look",
+        body: "Day cells are now rounded with soft shadows. Today glows in blue, selected dates in green. Weekend headers are tinted, and tag dots are slightly larger for better visibility.",
+      },
+      {
+        glyph: "➜",
+        title: "Quick navigation",
+        body: "Tap the calendar icon to jump to any date instantly. The Today button returns you to the current day. Both buttons have a subtle frosted-glass style.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {
