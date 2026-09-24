@@ -399,6 +399,74 @@ html[data-theme="sunset"] {
 }
 
 /*
+ * App typeface (Settings → Appearance → Font style). Fonts except System
+ * are bundled under /fonts so they work offline in the APK.
+ */
+@font-face {
+  font-family: "Delius";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/delius.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Patrick Hand";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/patrick-hand.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Nunito";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("/fonts/nunito.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Caveat";
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url("/fonts/caveat.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Atkinson Hyperlegible";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/atkinson-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Atkinson Hyperlegible";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/atkinson-700.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Literata";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("/fonts/literata.woff2") format("woff2");
+}
+html[data-font="system"] { font-family: system-ui, sans-serif; }
+html[data-font="delius"] { font-family: "Delius", system-ui, sans-serif; }
+html[data-font="patrick-hand"] { font-family: "Patrick Hand", system-ui, sans-serif; }
+html[data-font="nunito"] { font-family: "Nunito", system-ui, sans-serif; }
+html[data-font="caveat"] { font-family: "Caveat", system-ui, sans-serif; }
+html[data-font="atkinson"] { font-family: "Atkinson Hyperlegible", system-ui, sans-serif; }
+html[data-font="literata"] { font-family: "Literata", Georgia, serif; }
+html[data-font] body,
+html[data-font] button,
+html[data-font] input,
+html[data-font] select,
+html[data-font] textarea {
+  font-family: inherit;
+}
+
+/*
  * Entry text scaling (Settings → Appearance → Entry text size).
  * Scales only the written content of log entries, deficiencies and planned
  * works on the Home and Tasks tabs. The default scale (100%) keeps the exact

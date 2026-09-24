@@ -7,6 +7,7 @@ const SETTINGS_KEYS = [
   "snt.jointReminder",
   "snt.stationSides",
   "snt.fontSize",
+  "snt.fontFamily",
   "snt.theme",
   "snt.contentScale",
   "snt.myStationsOnly",

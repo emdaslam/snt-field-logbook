@@ -11,7 +11,7 @@ import { EMPTY_STATION_DRAFT, StationFields, stationPayload, type StationDraft }
 import { FeatureTutorials } from "./FeatureTutorials";
 import { BackupModal } from "./BackupModal";
 import { RestoreModal } from "./RestoreModal";
-import { FONT_SIZES, FONT_SIZE_LABEL, THEMES, THEME_LABEL, APP_VERSION } from "@/lib/types";
+import { FONT_SIZES, FONT_SIZE_LABEL, FONT_FAMILIES, FONT_FAMILY_LABEL, FONT_FAMILY_CSS, THEMES, THEME_LABEL, APP_VERSION } from "@/lib/types";
 import { AUTO_TIMINGS } from "@/lib/timingsMode";
 import {
   loadAiConfig,
@@ -59,7 +59,7 @@ type GroupId = (typeof GROUPS)[number]["id"];
 const SWIPE_THRESHOLD = 48;
 
 export function Settings() {
-  const { stations, staff, tags, currentUser, refresh, fontSize, setFontSize, theme, setTheme, contentScale, setContentScale, reminderDays, setReminderDays, footplateReminder, setFootplateReminder, jointReminder, setJointReminder } = useData();
+  const { stations, staff, tags, currentUser, refresh, fontSize, setFontSize, fontFamily, setFontFamily, theme, setTheme, contentScale, setContentScale, reminderDays, setReminderDays, footplateReminder, setFootplateReminder, jointReminder, setJointReminder } = useData();
   const [group, setGroup] = useState<GroupId>("account");
   const [newStation, setNewStation] = useState<StationDraft>(EMPTY_STATION_DRAFT);
   const [editStation, setEditStation] = useState<Station | null>(null);
@@ -826,6 +826,28 @@ export function Settings() {
           Light is the default look. Dark uses dark surfaces and lighter text throughout the app.
           Ocean is a light, coastal look with cool blue-grey surfaces and a deep ocean-blue accent.
           Sunset is a bright, warm look with sunlit surfaces and a vivid coral accent.
+        </p>
+        <p className="mb-2 text-sm text-slate-600">Font style</p>
+        <div className="grid grid-cols-2 gap-2">
+          {FONT_FAMILIES.map((f) => (
+            <button
+              key={f}
+              onClick={() => setFontFamily(f)}
+              className={`rounded-lg border px-3 py-2 text-left text-sm font-medium ${
+                fontFamily === f
+                  ? "border-blue-600 bg-blue-50 text-blue-800"
+                  : "border-slate-300 text-slate-600"
+              }`}
+              style={{ fontFamily: FONT_FAMILY_CSS[f] }}
+            >
+              {FONT_FAMILY_LABEL[f]}
+            </button>
+          ))}
+        </div>
+        <p className="mb-3 mt-2 text-xs text-slate-400">
+          System is the phone’s default. Delius and Patrick Hand are handwritten; Nunito is rounded;
+          Caveat is a brush script; Atkinson is high-legibility; Literata is a book serif. Applies to
+          the whole app. Saved on this device and included in backups.
         </p>
         <p className="mb-2 text-sm text-slate-600">Font size (applies to the whole app)</p>
         <div className="flex gap-2">

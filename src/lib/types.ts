@@ -165,6 +165,49 @@ export const THEME_LABEL: Record<AppTheme, string> = {
   sunset: "Sunset",
 };
 
+/**
+ * App-wide typeface. "system" keeps the device default; the rest are bundled
+ * in the APK so they work offline.
+ */
+export type AppFontFamily =
+  | "system"
+  | "delius"
+  | "patrick-hand"
+  | "nunito"
+  | "caveat"
+  | "atkinson"
+  | "literata";
+export const FONT_FAMILIES: AppFontFamily[] = [
+  "system",
+  "delius",
+  "patrick-hand",
+  "nunito",
+  "caveat",
+  "atkinson",
+  "literata",
+];
+export const FONT_FAMILY_LABEL: Record<AppFontFamily, string> = {
+  system: "System",
+  delius: "Delius",
+  "patrick-hand": "Patrick Hand",
+  nunito: "Nunito",
+  caveat: "Caveat",
+  atkinson: "Atkinson",
+  literata: "Literata",
+};
+export const FONT_FAMILY_CSS: Record<AppFontFamily, string> = {
+  system: "system-ui, sans-serif",
+  delius: '"Delius", system-ui, sans-serif',
+  "patrick-hand": '"Patrick Hand", system-ui, sans-serif',
+  nunito: '"Nunito", system-ui, sans-serif',
+  caveat: '"Caveat", system-ui, sans-serif',
+  atkinson: '"Atkinson Hyperlegible", system-ui, sans-serif',
+  literata: '"Literata", Georgia, serif',
+};
+export function isAppFontFamily(v: string | null | undefined): v is AppFontFamily {
+  return !!v && (FONT_FAMILIES as readonly string[]).includes(v);
+}
+
 /** App-wide font size preference, applied to the UI and the exported PDFs. */
 export type FontSize = "small" | "medium" | "large";
 export const FONT_SIZES: FontSize[] = ["small", "medium", "large"];
@@ -227,5 +270,5 @@ export function variableKmText(km: number | string | null | undefined): string |
 }
 
 /** App version shown in Settings → About. Bump alongside android/app/build.gradle. */
-export const APP_VERSION_BASE = "1.7.7.76";
+export const APP_VERSION_BASE = "1.7.7.77";
 export const APP_VERSION = `${APP_VERSION_BASE}${AUTO_TIMINGS ? "p" : ""}`;

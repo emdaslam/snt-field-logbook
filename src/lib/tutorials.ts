@@ -670,6 +670,23 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.7.77",
+    tag: "Font styles",
+    subtitle: "Pick a typeface for the whole app in Settings → Appearance.",
+    slides: [
+      {
+        glyph: "Aa",
+        title: "Choose a font style",
+        body: "Settings → Appearance now has Font style. System keeps the phone default. Delius and Patrick Hand are handwritten, Nunito is rounded, Caveat is a brush script, Atkinson is high-legibility, Literata is a book serif.",
+      },
+      {
+        glyph: "▤",
+        title: "Applies everywhere, stays offline",
+        body: "The chosen font is used throughout the app. Fonts are bundled on the device so they work without a network. The choice is saved here and included in JSON backups.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {

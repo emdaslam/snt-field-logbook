@@ -28,7 +28,7 @@ import {
   type FootplateReminderSettings,
   type JointReminderSettings,
 } from "@/lib/inspections";
-import { FONT_SIZE_ROOT, type AppTheme, type FontSize } from "@/lib/types";
+import { FONT_SIZE_ROOT, isAppFontFamily, type AppFontFamily, type AppTheme, type FontSize } from "@/lib/types";
 import { isNative, scheduleDailyReminders } from "@/lib/native";
 import { driveStatus, syncWithDrive, replaceDriveBackup, pullFromDrive, type DriveResult, type DriveProgress, type DriveConflictInfo } from "@/lib/drive";
 import { lowStockAlerts, qtyWithUnit } from "@/lib/stock";
@@ -97,6 +97,8 @@ type Ctx = {
   setTheme: (v: AppTheme) => void;
   fontSize: FontSize;
   setFontSize: (v: FontSize) => void;
+  fontFamily: AppFontFamily;
+  setFontFamily: (v: AppFontFamily) => void;
   // Scale (%) for the written content text (log entries, deficiencies, planned works)
   contentScale: number;
   setContentScale: (v: number) => void;
@@ -164,6 +166,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [dirty, setDirty] = useState(false);
   const [myStationsOnly, setMyStationsOnlyState] = useState(false);
   const [fontSize, setFontSizeState] = useState<FontSize>("medium");
+  const [fontFamily, setFontFamilyState] = useState<AppFontFamily>(() => {
+    if (typeof window === "undefined") return "system";
+    try {
+      const saved = localStorage.getItem("snt.fontFamily");
+      return isAppFontFamily(saved) ? saved : "system";
+    } catch {
+      return "system";
+    }
+  });
   const [theme, setThemeState] = useState<AppTheme>(() => {
     if (typeof window === "undefined") return "light";
     try {
@@ -184,6 +195,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const applyFontSize = useCallback((v: FontSize) => {
     if (typeof document !== "undefined") {
       document.documentElement.style.fontSize = FONT_SIZE_ROOT[v];
+    }
+  }, []);
+
+  const applyFontFamily = useCallback((v: AppFontFamily) => {
+    if (typeof document !== "undefined") {
+      document.documentElement.dataset.font = v;
     }
   }, []);
 
@@ -231,6 +248,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
     },
     [applyFontSize]
+  );
+
+  useEffect(() => {
+    applyFontFamily(fontFamily);
+  }, [fontFamily, applyFontFamily]);
+
+  const setFontFamily = useCallback(
+    (v: AppFontFamily) => {
+      setFontFamilyState(v);
+      applyFontFamily(v);
+      try {
+        localStorage.setItem("snt.fontFamily", v);
+      } catch {
+        /* ignore */
+      }
+    },
+    [applyFontFamily]
   );
 
   const setMyStationsOnly = useCallback((v: boolean) => {
@@ -786,6 +820,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         inScopeMovement,
         fontSize,
         setFontSize,
+        fontFamily,
+        setFontFamily,
         theme,
         setTheme,
         contentScale,

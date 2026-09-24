@@ -3,6 +3,14 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.77 — 2026-09-24
+
+**Major: pick a font style in Appearance**
+
+- Settings → Appearance gains Font style. System keeps the phone default; Delius and Patrick Hand are handwritten, Nunito is rounded, Caveat is a brush script, Atkinson is high-legibility, Literata is a book serif.
+- The chosen typeface applies to the whole app. Fonts are bundled in the APK so they work offline. The choice is saved on this device and included in JSON backups.
+- Implemented in `pending`.
+
 ## 1.7.7.76 — 2026-09-23
 
 **Minor: Tasks, Reports, Notes and Search look like the rest of the app**
