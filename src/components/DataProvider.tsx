@@ -32,6 +32,7 @@ import { FONT_SIZE_ROOT, isAppFontFamily, type AppFontFamily, type AppTheme, typ
 import { isNative, scheduleDailyReminders } from "@/lib/native";
 import { driveStatus, syncWithDrive, replaceDriveBackup, pullFromDrive, type DriveResult, type DriveProgress, type DriveConflictInfo } from "@/lib/drive";
 import { lowStockAlerts, qtyWithUnit } from "@/lib/stock";
+import { sortNotifications } from "@/lib/notificationOrder";
 import { DriveConflictModal } from "./DriveConflictModal";
 import type {
   Station,
@@ -62,6 +63,8 @@ export type Notification = {
   kind: "planned" | "due" | "inspection" | "tag" | "stock";
   /** Where tapping the notification should take the user */
   target?: NotificationTarget;
+  priority?: string;
+  dueDays?: number;
 };
 
 type Ctx = {
@@ -598,6 +601,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           detail: `Planned work ${days === 0 ? "today" : `in ${days} day${days > 1 ? "s" : ""}`} (${p.plannedDate}) · ${stationNameFor(p.stationId)}`,
           kind: "planned",
           target: { type: "planned", id: p.id },
+          dueDays: days,
         });
       }
     }
@@ -614,6 +618,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
             ` · ${stationNameFor(d.stationId)}`,
           kind: "due",
           target: { type: "deficiency", id: d.id },
+          priority: d.priority,
+          dueDays: Math.round((dd.getTime() - today.getTime()) / 86400000),
         });
       }
     }
@@ -686,6 +692,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           (due.jointDept ? ` with ${due.jointDept}` : ""),
         kind: "inspection",
         target: due.sourceLogId ? { type: "log", id: due.sourceLogId } : undefined,
+        dueDays: due.daysLeft,
       });
     }
     // Reminders for custom tags with "Remind me" switched on in Settings
@@ -701,6 +708,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
               : `Due in ${due.daysLeft} day${due.daysLeft !== 1 ? "s" : ""} (last done ${due.lastDone})`),
         kind: "tag",
         target: due.sourceLogId ? { type: "log", id: due.sourceLogId } : undefined,
+        dueDays: due.daysLeft,
       });
     }
 
@@ -713,10 +721,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
         detail: `Only ${qtyWithUnit(a.inHand, a.material.unit)} in hand at ${a.stationLabel}, minimum required ${qtyWithUnit(a.minRequiredSpare, a.material.unit)}`,
         kind: "stock",
         target: { type: "materials" },
+        dueDays: 0,
       });
     }
 
-    setNotifications(notes);
+    setNotifications(sortNotifications(notes));
   }, [planned, deficiencies, logs, stations, tags, reminderDays, footplateReminder, jointReminder, materials, materialStations, materialReceipts, materialUsages, materialTransfers]);
 
   /** True when the current user already made a log entry for today. */

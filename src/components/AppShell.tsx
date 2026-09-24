@@ -25,6 +25,7 @@ import { getPendingTutorials, markTutorialsSeen, type VersionTutorial } from "@/
 import { isNative } from "@/lib/native";
 import { tryCloseTop } from "@/lib/backButton";
 import { APP_VERSION_BASE } from "@/lib/types";
+import { NOTIF_GROUP_LABEL, notifGroup } from "@/lib/notificationOrder";
 import { toISODate, fmtDate } from "@/lib/api";
 import { footplateDotColor, isFootplateLog } from "@/lib/movements";
 import type { DailyLog, Attachment, DeficiencyTask, PlannedWork, Note } from "@/db/schema";
@@ -480,38 +481,46 @@ export function AppShell() {
                   </div>
                 ) : (
                   <div className="min-h-0 space-y-0.5 overflow-y-auto px-1.5 pb-1.5">
-                    {notifications.map((n) => {
+                    {notifications.map((n, i) => {
                       const meta = NOTIF_META[n.kind];
+                      const group = notifGroup(n.kind);
+                      const showHead = i === 0 || notifGroup(notifications[i - 1].kind) !== group;
                       return (
-                        <button
-                          key={n.id}
-                          onClick={() => openNotification(n)}
-                          className="group flex w-full items-start gap-2.5 rounded-2xl px-2 py-2 text-left transition hover:bg-blue-50/70 active:scale-[0.99]"
-                        >
-                          <span
-                            className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl ring-1 ring-inset ring-black/5"
-                            style={{ backgroundColor: meta.color + "1f", color: meta.color }}
-                          >
-                            {meta.icon}
-                          </span>
-                          <span className="min-w-0 flex-1 overflow-hidden">
-                            <span className="block break-words text-sm font-semibold leading-snug text-slate-800">{n.title}</span>
-                            <span className="mt-0.5 block break-words text-xs leading-snug text-slate-500">{n.detail}</span>
-                          </span>
-                          {n.target && (
-                            <svg
-                              className="mt-1.5 flex-shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-blue-500"
-                              width="16"
-                              height="16"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2.5"
-                            >
-                              <path d="m9 18 6-6-6-6" />
-                            </svg>
+                        <div key={n.id}>
+                          {showHead && (
+                            <p className="px-2 pb-0.5 pt-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                              {NOTIF_GROUP_LABEL[group]}
+                            </p>
                           )}
-                        </button>
+                          <button
+                            onClick={() => openNotification(n)}
+                            className="group flex w-full items-start gap-2.5 rounded-2xl px-2 py-2 text-left transition hover:bg-blue-50/70 active:scale-[0.99]"
+                          >
+                            <span
+                              className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl ring-1 ring-inset ring-black/5"
+                              style={{ backgroundColor: meta.color + "1f", color: meta.color }}
+                            >
+                              {meta.icon}
+                            </span>
+                            <span className="min-w-0 flex-1 overflow-hidden">
+                              <span className="block break-words text-sm font-semibold leading-snug text-slate-800">{n.title}</span>
+                              <span className="mt-0.5 block break-words text-xs leading-snug text-slate-500">{n.detail}</span>
+                            </span>
+                            {n.target && (
+                              <svg
+                                className="mt-1.5 flex-shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-blue-500"
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2.5"
+                              >
+                                <path d="m9 18 6-6-6-6" />
+                              </svg>
+                            )}
+                          </button>
+                        </div>
                       );
                     })}
                   </div>

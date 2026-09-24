@@ -3,6 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.83 — 2026-09-24
+
+**Minor: Alerts grouped by type, then priority, then due date**
+
+- The Alerts list is now Inspections (monthly/quarterly and repeat tags), Planned works, Deficiencies, then Material order.
+- Inside each group, Urgent comes before Normal and Later. Overdue items and nearer due dates sit above later ones.
+
 ## 1.7.7.82 — 2026-09-24
 
 **Minor: Home calendar no longer keeps a blank last week**
