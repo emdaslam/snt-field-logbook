@@ -284,7 +284,12 @@ export type InspectionRecord = {
   footplateUp?: FootplateDetail | null;
   footplateDown?: FootplateDetail | null;
   footplateJourney?: { boardingStationId?: number | null } | null;
-  footplateJourneys?: { boardingStationId?: number | null; day?: FootplateBlock | null; night?: FootplateBlock | null }[] | null;
+  footplateJourneys?: {
+    boardingStationId?: number | null;
+    otherEndStationId?: number | null;
+    day?: FootplateBlock | null;
+    night?: FootplateBlock | null;
+  }[] | null;
   stationMovement?: string | null;
 };
 
@@ -329,11 +334,13 @@ function isBlock(b: FootplateBlock | null | undefined): b is FootplateBlock {
  * The individual (shift, direction) facts a footplate log records. A direction
  * of "Both" (or an old block with train details for both) splits into separate
  * Up and Down facts, so each entered direction tracks its own schedule. Chain
- * logs contribute one fact per ride, each at its own boarding station;
- * standalone logs use the logged station.
+ * logs contribute one fact per ride, with boarding and other-end so the
+ * same section is one schedule from either end; standalone logs use the
+ * logged station.
  */
 export function footplateFactsOf(r: InspectionRecord): {
   stationId: number | null;
+  otherEndStationId: number | null;
   shift: "Day" | "Night";
   dir: "Up" | "Down";
   date: string;
@@ -341,9 +348,32 @@ export function footplateFactsOf(r: InspectionRecord): {
   logId?: number;
 }[] {
   const per = r.inspectionPeriodicity ?? null;
-  const out: { stationId: number | null; shift: "Day" | "Night"; dir: "Up" | "Down"; date: string; periodicity: string | null; logId?: number }[] = [];
-  const add = (shift: "Day" | "Night", dir: "Up" | "Down", stationId: number | null) =>
-    out.push({ stationId, shift, dir, date: r.logDate, periodicity: per, logId: r.id });
+  const out: {
+    stationId: number | null;
+    otherEndStationId: number | null;
+    shift: "Day" | "Night";
+    dir: "Up" | "Down";
+    date: string;
+    periodicity: string | null;
+    logId?: number;
+  }[] = [];
+  const endId = (id: number | null | undefined): number | null =>
+    id && id > 0 ? id : null;
+  const add = (
+    shift: "Day" | "Night",
+    dir: "Up" | "Down",
+    stationId: number | null,
+    otherEndStationId: number | null = null
+  ) =>
+    out.push({
+      stationId,
+      otherEndStationId,
+      shift,
+      dir,
+      date: r.logDate,
+      periodicity: per,
+      logId: r.id,
+    });
   const blockDirs = (b: FootplateBlock | null | undefined): ("Up" | "Down")[] => {
     if (!isBlock(b)) return [];
     const d = (b.direction || "").toLowerCase();
@@ -360,9 +390,10 @@ export function footplateFactsOf(r: InspectionRecord): {
   const rides = Array.isArray(r.footplateJourneys) ? r.footplateJourneys : [];
   if (rides.length > 0) {
     for (const ride of rides) {
-      const st = ride?.boardingStationId ?? r.inspectionStationId ?? null;
-      for (const dir of blockDirs(ride?.day ?? null)) add("Day", dir, st);
-      for (const dir of blockDirs(ride?.night ?? null)) add("Night", dir, st);
+      const st = endId(ride?.boardingStationId) ?? r.inspectionStationId ?? null;
+      const other = endId(ride?.otherEndStationId);
+      for (const dir of blockDirs(ride?.day ?? null)) add("Day", dir, st, other);
+      for (const dir of blockDirs(ride?.night ?? null)) add("Night", dir, st, other);
     }
     return out;
   }
@@ -517,8 +548,8 @@ function collectLatest(
 
 /** A log row extended with the footplate ride columns. */
 export type FootplateLogRecord = InspectionRecord & {
-  footplateJourney?: { boardingStationId?: number | null } | null;
-  footplateJourneys?: { boardingStationId?: number | null }[] | null;
+  footplateJourney?: { boardingStationId?: number | null; otherEndStationId?: number | null } | null;
+  footplateJourneys?: { boardingStationId?: number | null; otherEndStationId?: number | null }[] | null;
 };
 
 type FootplateLatest = {
@@ -531,11 +562,18 @@ type FootplateLatest = {
   id?: number;
 };
 
+function footplateSectionKey(boardingId: number | null, otherEndId: number | null, boardingName: string): string {
+  const ids = [boardingId, otherEndId].filter((n): n is number => typeof n === "number" && n > 0).sort((a, b) => a - b);
+  if (ids.length === 2) return `${ids[0]}-${ids[1]}`;
+  if (ids.length === 1) return String(ids[0]);
+  return boardingName.toLowerCase();
+}
+
 /**
- * Most recent fact per (station, shift, direction). This is what makes footplate
- * behave per direction: doing only Up leaves the Down schedule at its own last
- * done date (due again after the periodicity), and a "Both" entry refreshes
- * BOTH directions at once.
+ * Most recent fact per (section, shift, direction). Boarding either end of
+ * the same pair is one schedule: doing Night Up from B after Night Up+Down
+ * from A refreshes Up and leaves Down on A's date. Doing only Up still
+ * leaves Down on its own last done date; "Both" refreshes both.
  */
 function collectFootplate(records: InspectionRecord[], resolve: StationResolver): Map<string, FootplateLatest> {
   const latest = new Map<string, FootplateLatest>();
@@ -543,12 +581,12 @@ function collectFootplate(records: InspectionRecord[], resolve: StationResolver)
     if (r.inspectionKind !== "footplate") continue;
     const base = resolve(r);
     for (const f of footplateFactsOf(r)) {
-      // Chain-ride facts resolve at their own boarding station
       const st =
         f.stationId === null || f.stationId === base.id
           ? base
           : resolve({ ...r, inspectionStationId: f.stationId, inspectionTowardsStationId: null, stationMovement: null });
-      const key = `${st.name.toLowerCase()}::${f.shift}::${f.dir}`;
+      const loc = footplateSectionKey(f.stationId ?? st.id, f.otherEndStationId, st.name);
+      const key = `${loc}::${f.shift}::${f.dir}`;
       const prev = latest.get(key);
       if (!prev || f.date > prev.date)
         latest.set(key, {
@@ -566,7 +604,7 @@ function collectFootplate(records: InspectionRecord[], resolve: StationResolver)
 }
 
 /**
- * One schedule per (station, shift, direction) that the user has ever entered.
+ * One schedule per (section, shift, direction) that the user has ever entered.
  * Each is due `interval` days after its own last done date (the period set on
  * that entry — monthly / quarterly, with the dedicated settings overriding the
  * lengths), warned from `warnDays` before due and tracked once overdue.

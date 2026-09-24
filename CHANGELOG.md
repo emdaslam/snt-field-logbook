@@ -3,6 +3,15 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.80 — 2026-09-24
+
+**Minor: Footplate Night Up from the other end clears that direction**
+
+- Footplate reminders were keyed by boarding station. Riding Night Up+Down from Yerraguntla, then Night Up from Koilakuntla on the same section, still warned Night Up as due from the first ride.
+- The same section (either end), shift and direction now share one schedule. Night Up from the other end refreshes Up; Night Down stays on its own last-done date until you ride it again.
+
+- Implemented in ``.
+
 ## 1.7.7.79 — 2026-09-24
 
 **Minor: Home tiles all animate; every movement shows; footplate calendar dots follow inspection tag colour**
