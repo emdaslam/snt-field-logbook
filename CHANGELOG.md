@@ -11,7 +11,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 - A card with extra stops shows every movement as its own pill, not just the first station. Opening the entry lists the full chain too.
 - A Footplate day gets the same calendar dot as Monthly inspection, or Quarterly inspection when the ride is quarterly. Changing those tag colours in Settings updates the dots.
 
-- Implemented in ``.
+- Implemented in `97dde2d`.
 
 ## 1.7.7.78 — 2026-09-24
 
