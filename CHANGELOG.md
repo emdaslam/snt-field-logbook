@@ -9,7 +9,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 - Daily-log cards no longer show an arrow before the station. The name is a small blue pill.
 - Opening Home, the calendar chevron, and the first daily-log cards ease in instead of snapping.
-- Implemented in `PENDING`.
+- Implemented in `f0d100a`.
 
 ## 1.7.7.77 — 2026-09-24
 
