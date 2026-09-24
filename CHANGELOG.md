@@ -9,6 +9,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 - Swiping months rendered previous, current and next side-by-side, so a 6-week neighbour stretched a 5-week month and left an empty row.
 - Height now follows the month on screen. Neighbouring months stay off to the side for the swipe animation.
+- Implemented in `8f1e9cc`.
 
 ## 1.7.7.81 — 2026-09-24
 
