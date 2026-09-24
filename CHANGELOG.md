@@ -3,6 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.82 — 2026-09-24
+
+**Minor: Home calendar no longer keeps a blank last week**
+
+- Swiping months rendered previous, current and next side-by-side, so a 6-week neighbour stretched a 5-week month and left an empty row.
+- Height now follows the month on screen. Neighbouring months stay off to the side for the swipe animation.
+
 ## 1.7.7.81 — 2026-09-24
 
 **Major: Modernized calendar with smooth swipe transitions**

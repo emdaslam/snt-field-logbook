@@ -278,10 +278,9 @@ export function Calendar({
     );
   }
 
-  // Always render all 3 months: prev, current, next. The flex row is shifted
-  // left by one panel width (-100%) so the current month is visible. Dragging
-  // slides the row left/right by dragX pixels.
-  const rowTransform = `translateX(calc(-100% + ${dragX}px))`;
+  // Current month stays in-flow so height matches its week count. Prev/next
+  // sit off-screen; a 6-week neighbour must not stretch a 5-week month.
+  const rowTransform = `translateX(${dragX}px)`;
 
   const gridProps = { activeDates, dateTagColors, selectedDate, focusedDate, today, suppressClick, onSelect };
   const prevMonth = new Date(year, month - 1, 1);
@@ -344,7 +343,7 @@ export function Calendar({
         onTouchCancel={onTouchEnd}
       >
         <div
-          className="flex items-start"
+          className="relative"
           style={{
             transform: rowTransform,
             transition: settling
@@ -353,9 +352,13 @@ export function Calendar({
             willChange: "transform",
           }}
         >
-          <MonthGrid month={prevMonth} {...gridProps} />
+          <div className="absolute top-0 right-full w-full">
+            <MonthGrid month={prevMonth} {...gridProps} />
+          </div>
           <MonthGrid month={cursor} {...gridProps} />
-          <MonthGrid month={nextMonth} {...gridProps} />
+          <div className="absolute top-0 left-full w-full">
+            <MonthGrid month={nextMonth} {...gridProps} />
+          </div>
         </div>
       </div>
     </div>
