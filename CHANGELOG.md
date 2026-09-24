@@ -10,7 +10,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 - Footplate reminders were keyed by boarding station. Riding Night Up+Down from Yerraguntla, then Night Up from Koilakuntla on the same section, still warned Night Up as due from the first ride.
 - The same section (either end), shift and direction now share one schedule. Night Up from the other end refreshes Up; Night Down stays on its own last-done date until you ride it again.
 
-- Implemented in ``.
+- Implemented in `62e47f7`.
 
 ## 1.7.7.79 — 2026-09-24
 
