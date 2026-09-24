@@ -13,7 +13,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 - Tag dots are slightly larger and more visible.
 - Go-to-date and Today buttons have a frosted-glass style with subtle shadows.
 - The carousel uses spring-back physics when you don't swipe far enough.
-- Implemented in `__________`.
+- Implemented in `89596f7`.
 
 ## 1.7.7.80 — 2026-09-24
 
