@@ -9,6 +9,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 - The Alerts list is now Inspections (monthly/quarterly and repeat tags), Planned works, Deficiencies, then Material order.
 - Inside each group, Urgent comes before Normal and Later. Overdue items and nearer due dates sit above later ones.
+- Implemented in `860c97e`.
 
 ## 1.7.7.82 — 2026-09-24
 
