@@ -3,6 +3,14 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.78 — 2026-09-24
+
+**Minor: station names on Home, and smoother Home transitions**
+
+- Daily-log cards no longer show an arrow before the station. The name is a small blue pill.
+- Opening Home, the calendar chevron, and the first daily-log cards ease in instead of snapping.
+- Implemented in `PENDING`.
+
 ## 1.7.7.77 — 2026-09-24
 
 **Major: pick a font style in Appearance**

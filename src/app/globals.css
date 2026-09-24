@@ -537,3 +537,17 @@ html[data-content-scale="150"] {
 .card-rise {
   animation: card-rise 280ms cubic-bezier(0.32, 0.72, 0.28, 1) both;
 }
+
+@keyframes home-enter {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+.home-enter {
+  animation: home-enter 340ms cubic-bezier(0.32, 0.72, 0.28, 1) both;
+}

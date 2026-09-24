@@ -192,7 +192,7 @@ export function Timeline({
   return (
     <div ref={scrollRef} onScroll={handleScroll} className="h-full overflow-y-auto">
       <div className="space-y-2.5 px-3 pb-2 pt-2">
-        {dates.map((iso) => {
+        {dates.map((iso, i) => {
           const bucket = byDate.get(iso);
           const dayLogs = bucket?.logs ?? [];
           const dayDefs = bucket?.defs ?? [];
@@ -213,13 +213,16 @@ export function Timeline({
                 rowRefs.current[iso] = el;
               }}
               onClick={addable ? () => onAddEntry(iso) : undefined}
-              className={`relative flex gap-3 overflow-hidden rounded-2xl border bg-surface p-3 shadow-sm transition ${
+              style={i < 10 ? { animationDelay: `${i * 45}ms` } : undefined}
+              className={`relative flex gap-3 overflow-hidden rounded-2xl border bg-surface p-3 shadow-sm transition duration-300 ease-[cubic-bezier(0.32,0.72,0.28,1)] ${
+                i < 10 ? "card-rise" : ""
+              } ${
                 isSelected
                   ? "border-emerald-400 ring-2 ring-emerald-100 shadow-emerald-500/10"
                   : isToday
                     ? "border-blue-300 shadow-blue-500/10"
                     : "border-slate-200/80 hover:border-slate-300 hover:shadow"
-              } ${addable ? "cursor-pointer active:bg-blue-50" : ""}`}
+              } ${addable ? "cursor-pointer active:scale-[0.99] active:bg-blue-50" : ""}`}
             >
               <span
                 className={`absolute inset-y-0 left-0 w-1 ${
@@ -242,7 +245,7 @@ export function Timeline({
                   {dayName(iso)}
                 </span>
                 <span
-                  className={`mt-0.5 flex h-9 w-9 items-center justify-center rounded-xl text-lg font-bold ${
+                  className={`mt-0.5 flex h-9 w-9 items-center justify-center rounded-xl text-lg font-bold transition duration-300 ${
                     isToday
                       ? "bg-gradient-to-br from-blue-600 to-blue-800 text-white shadow-md shadow-blue-500/30"
                       : isSelected
@@ -311,7 +314,7 @@ export function Timeline({
                     <button
                       key={log.id}
                       onClick={() => onOpen(log)}
-                      className="-mx-1.5 mb-1.5 block w-[calc(100%+0.75rem)] rounded-xl px-1.5 py-1.5 text-left transition last:mb-0 hover:bg-slate-50 active:bg-slate-100"
+                      className="-mx-1.5 mb-1.5 block w-[calc(100%+0.75rem)] rounded-xl px-1.5 py-1.5 text-left transition duration-200 last:mb-0 hover:bg-slate-50 active:scale-[0.99] active:bg-slate-100"
                     >
                       {shared ? (
                         <p className="flex items-center gap-1 truncate text-xs font-semibold text-teal-700">
@@ -324,19 +327,10 @@ export function Timeline({
                         </p>
                       ) : (
                         log.stationMovement && (
-                          <p className="entry-text-xs flex items-center gap-1 truncate text-xs font-semibold text-blue-700">
-                            <svg
-                              className="flex-shrink-0"
-                              width="12"
-                              height="12"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2.2"
-                            >
-                              <path d="M5 12h14M13 6l6 6-6 6" />
-                            </svg>
-                            <span className="truncate">{log.stationMovement}</span>
+                          <p className="mb-1">
+                            <span className="entry-text-xs inline-flex max-w-full truncate rounded-full bg-gradient-to-r from-blue-50 to-sky-50 px-2.5 py-[3px] text-[11px] font-bold tracking-wide text-blue-800 shadow-sm ring-1 ring-inset ring-blue-100/80">
+                              {log.stationMovement}
+                            </span>
                           </p>
                         )
                       )}

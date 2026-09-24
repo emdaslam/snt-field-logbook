@@ -611,7 +611,7 @@ export function AppShell() {
       {/* Content */}
       <main className="relative flex flex-1 flex-col overflow-hidden">
         {view === "home" && (
-          <div className="flex h-full min-h-0 flex-col">
+          <div key="home" className="home-enter flex h-full min-h-0 flex-col">
             {/* Sync + scope bar */}
             <div className="flex items-center justify-between gap-2 border-b border-slate-200 bg-blue-50 px-3 py-1.5">
               <div className="flex min-w-0 items-center gap-1.5">
@@ -667,7 +667,7 @@ export function AppShell() {
                 className="flex w-full items-center justify-center gap-1 border-t border-slate-100 py-1 text-xs text-slate-400 hover:bg-slate-50"
               >
                 {calCollapsed ? "Expand calendar" : "Collapse calendar"}
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={calCollapsed ? "" : "rotate-180"}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0.28,1)] ${calCollapsed ? "" : "rotate-180"}`}>
                   <path d="m6 9 6 6 6-6" />
                 </svg>
               </button>
