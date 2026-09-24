@@ -26,6 +26,7 @@ import { isNative } from "@/lib/native";
 import { tryCloseTop } from "@/lib/backButton";
 import { APP_VERSION_BASE } from "@/lib/types";
 import { toISODate, fmtDate } from "@/lib/api";
+import { footplateDotColor, isFootplateLog } from "@/lib/movements";
 import type { DailyLog, Attachment, DeficiencyTask, PlannedWork, Note } from "@/db/schema";
 
 type View = "home" | "tasks" | "search" | "reports" | "notes" | "attachments" | "materials" | "settings";
@@ -389,15 +390,15 @@ export function AppShell() {
   const dateTagColors = useMemo(() => {
     const m = new Map<string, string[]>();
     for (const l of logs) {
-      if (!l.tagIds?.length) continue;
-      const colors = l.tagIds
+      const colors = (l.tagIds ?? [])
         .map((id) => tagsById.get(id)?.color)
         .filter((c): c is string => !!c);
+      if (isFootplateLog(l)) colors.push(footplateDotColor(l, tags));
       if (!colors.length) continue;
       m.set(l.logDate, [...new Set([...(m.get(l.logDate) ?? []), ...colors])]);
     }
     return m;
-  }, [logs, tagsById]);
+  }, [logs, tagsById, tags]);
 
   async function doSync() {
     try {

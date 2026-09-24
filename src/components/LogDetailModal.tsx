@@ -6,6 +6,7 @@ import { useData } from "./DataProvider";
 import { Modal, Chip } from "./ui";
 import { api, fmtDate, dayName, formatFootplateSummary, footplateRidesOf, pcdoEntriesOf } from "@/lib/api";
 import { DEPARTMENT_COLORS } from "@/lib/types";
+import { logMovementLabels } from "@/lib/movements";
 import { isSharedLog } from "@/lib/backup";
 import { INSPECTION_RULES, addDays, intervalFor, jointPeriodOf, type InspectionKind } from "@/lib/inspections";
 import { AttachmentPreviewModal } from "./AttachmentPreviewModal";
@@ -46,7 +47,7 @@ export function LogDetailModal({
         </div>
       ) : (
         <>
-          <Row label="Movement" value={log.stationMovement} />
+          <Row label="Movement" value={logMovementLabels(log).join(" → ") || log.stationMovement} />
           {log.timeDep || log.returnTimeArr ? (
             <Row
               label="Timings"

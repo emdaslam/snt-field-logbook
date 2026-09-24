@@ -3,6 +3,16 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.79 — 2026-09-24
+
+**Minor: Home tiles all animate; every movement shows; footplate calendar dots follow inspection tag colour**
+
+- Daily-log cards on Home all ease in, not only the first few.
+- A card with extra stops shows every movement as its own pill, not just the first station. Opening the entry lists the full chain too.
+- A Footplate day gets the same calendar dot as Monthly inspection, or Quarterly inspection when the ride is quarterly. Changing those tag colours in Settings updates the dots.
+
+- Implemented in ``.
+
 ## 1.7.7.78 — 2026-09-24
 
 **Minor: station names on Home, and smoother Home transitions**

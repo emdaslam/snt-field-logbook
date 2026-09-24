@@ -6,6 +6,7 @@ import { Chip } from "./ui";
 import { dayName, toISODate, formatFootplateSummary, pcdoEntriesOf, pcdoWorkEntries, counterResetTotal } from "@/lib/api";
 import { DEPARTMENT_COLORS } from "@/lib/types";
 import { isSharedLog } from "@/lib/backup";
+import { logMovementLabels } from "@/lib/movements";
 import type { DailyLog } from "@/db/schema";
 
 /** Build a continuous, descending list of ISO dates spanning all known data. */
@@ -213,10 +214,8 @@ export function Timeline({
                 rowRefs.current[iso] = el;
               }}
               onClick={addable ? () => onAddEntry(iso) : undefined}
-              style={i < 10 ? { animationDelay: `${i * 45}ms` } : undefined}
-              className={`relative flex gap-3 overflow-hidden rounded-2xl border bg-surface p-3 shadow-sm transition duration-300 ease-[cubic-bezier(0.32,0.72,0.28,1)] ${
-                i < 10 ? "card-rise" : ""
-              } ${
+              style={{ animationDelay: `${Math.min(i, 16) * 40}ms` }}
+              className={`card-rise relative flex gap-3 overflow-hidden rounded-2xl border bg-surface p-3 shadow-sm transition duration-300 ease-[cubic-bezier(0.32,0.72,0.28,1)] ${
                 isSelected
                   ? "border-emerald-400 ring-2 ring-emerald-100 shadow-emerald-500/10"
                   : isToday
@@ -301,6 +300,7 @@ export function Timeline({
                   const pcdoWorks = pcdoWorkEntries(log);
                   const hasPcdo = bundles.length > 0;
                   const shared = isSharedLog(log);
+                  const movements = logMovementLabels(log);
                   const summary = shared
                     ? pcdoWorks
                         .map((w) => w.work)
@@ -326,11 +326,16 @@ export function Timeline({
                           {stationName(bundles[0]?.stationId ?? log.pcdoStationId ?? log.inspectionStationId)}
                         </p>
                       ) : (
-                        log.stationMovement && (
-                          <p className="mb-1">
-                            <span className="entry-text-xs inline-flex max-w-full truncate rounded-full bg-gradient-to-r from-blue-50 to-sky-50 px-2.5 py-[3px] text-[11px] font-bold tracking-wide text-blue-800 shadow-sm ring-1 ring-inset ring-blue-100/80">
-                              {log.stationMovement}
-                            </span>
+                        movements.length > 0 && (
+                          <p className="mb-1 flex flex-wrap gap-1">
+                            {movements.map((m) => (
+                              <span
+                                key={m}
+                                className="entry-text-xs inline-flex rounded-full bg-gradient-to-r from-blue-50 to-sky-50 px-2.5 py-[3px] text-[11px] font-bold tracking-wide text-blue-800 shadow-sm ring-1 ring-inset ring-blue-100/80"
+                              >
+                                {m}
+                              </span>
+                            ))}
                           </p>
                         )
                       )}
