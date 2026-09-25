@@ -335,7 +335,7 @@ export function Calendar({
       {/* 3-month carousel */}
       <div
         ref={slideRef}
-        className="overflow-hidden"
+        className="overflow-hidden py-1"
         style={{ touchAction: "pan-y" }}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}

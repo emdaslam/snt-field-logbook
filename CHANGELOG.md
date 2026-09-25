@@ -3,6 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.84 — 2026-09-25
+
+**Minor: calendar highlighter no longer clipped on the first and last rows**
+
+- Scrolling the daily-log tiles draws a ring on the matching day. That ring sat flush with the grid edge, so the first and last weeks cut it off.
+- The month carousel now leaves a little vertical room so the ring stays whole.
+
 ## 1.7.7.83 — 2026-09-24
 
 **Minor: Alerts grouped by type, then priority, then due date**
