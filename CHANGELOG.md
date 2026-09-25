@@ -9,6 +9,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 - Scrolling the daily-log tiles draws a ring on the matching day. That ring sat flush with the grid edge, so the first and last weeks cut it off.
 - The month carousel now leaves a little vertical room so the ring stays whole.
+- Implemented in `fcb979b`.
 
 ## 1.7.7.83 — 2026-09-24
 
