@@ -93,9 +93,9 @@ function MonthGrid({
 
   return (
     <div className="w-full flex-shrink-0 px-1">
-      <div className="grid grid-cols-7 gap-1 text-center">
+      <div className="grid grid-cols-7 gap-[2px] text-center">
         {cells.map((day, i) => {
-          if (day === null) return <div key={i} className="h-9" />;
+          if (day === null) return <div key={i} className="h-[28px]" />;
           const iso = `${year}-${String(m + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
           const isToday = iso === today;
           const isSelected = iso === selectedDate;
@@ -110,7 +110,9 @@ function MonthGrid({
                 if (suppressClick.current) return;
                 onSelect(isSelected ? null : iso);
               }}
-              className={`relative mx-auto flex h-9 w-9 flex-col items-center justify-center rounded-xl text-[13px] transition-all duration-150 active:scale-90 ${
+              className={`relative mx-auto flex h-[28px] w-[28px] items-center justify-center rounded-lg text-[12px] transition-all duration-150 active:scale-90 ${
+                hasEntry && !isToday && !isSelected ? "pb-[5px]" : ""
+              } ${
                 isToday
                   ? "bg-gradient-to-br from-blue-700 to-blue-900 font-bold text-white shadow-md shadow-blue-800/30"
                   : isSelected
@@ -124,13 +126,13 @@ function MonthGrid({
             >
               <span className="leading-none">{day}</span>
               {hasEntry && !isToday && !isSelected && (
-                <span className="mt-[3px] flex items-center justify-center gap-[2.5px] leading-none">
+                <span className="absolute bottom-[2px] flex items-center justify-center gap-[2px] leading-none">
                   {tagColors.length > 0 ? (
                     <>
                       {tagColors.slice(0, 3).map((c, j) => (
                         <span
                           key={j}
-                          className="h-[5px] w-[5px] rounded-full"
+                          className="h-[4px] w-[4px] rounded-full"
                           style={{ backgroundColor: c }}
                         />
                       ))}
@@ -141,7 +143,7 @@ function MonthGrid({
                       )}
                     </>
                   ) : (
-                    <span className="h-[3.5px] w-3.5 rounded-full bg-emerald-500/80" />
+                    <span className="h-[3px] w-3 rounded-full bg-emerald-500/80" />
                   )}
                 </span>
               )}
@@ -287,9 +289,9 @@ export function Calendar({
   const nextMonth = new Date(year, month + 1, 1);
 
   return (
-    <div className="px-3 pb-2 pt-1.5">
+    <div className="px-3 pb-1.5 pt-1">
       {/* Header row */}
-      <div className="mb-1.5 flex items-center justify-between">
+      <div className="mb-0.5 flex items-center justify-between">
         <button
           onClick={() => goMonth(-1)}
           className="flex h-7 w-7 items-center justify-center rounded-full text-blue-800 transition hover:bg-blue-100/80 active:scale-90"
@@ -319,11 +321,11 @@ export function Calendar({
       </div>
 
       {/* Weekday header */}
-      <div className="grid grid-cols-7 gap-1 text-center">
+      <div className="grid grid-cols-7 gap-[2px] text-center">
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d, i) => (
           <div
             key={i}
-            className={`py-1 text-[10px] font-semibold uppercase tracking-wider ${
+            className={`pb-0.5 text-[10px] font-semibold uppercase tracking-wider ${
               i === 0 || i === 6 ? "text-blue-400" : "text-slate-400"
             }`}
           >

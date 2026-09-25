@@ -3,6 +3,14 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.85 — 2026-09-25
+
+**Minor: Home calendar takes less vertical space**
+
+- Day cells are shorter and tag dots sit inside the cell, so a 6-week month no longer fills about half the screen at Medium font.
+- Gradients, the focus ring, swipe, and weekday labels are unchanged.
+- Implemented in `PLACEHOLDER`.
+
 ## 1.7.7.84 — 2026-09-25
 
 **Minor: calendar highlighter no longer clipped on the first and last rows**
