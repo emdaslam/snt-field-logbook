@@ -8,7 +8,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 **Minor: Home daily-log tiles no longer show a created-at time**
 
 - The clock under the date on the left of each Home tile is gone. Sparse days (little work, or only a due/planned line) shrink with the content instead of staying tall for that time.
-- Implemented in pending.
+- Implemented in `fef376a`.
 
 ## 1.7.7.85 — 2026-09-25
 
