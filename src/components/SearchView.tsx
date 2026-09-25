@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useData } from "./DataProvider";
 import { Chip, Highlight, inputClass } from "./ui";
 import { api, fmtDate } from "@/lib/api";
+import { isFootplateLog } from "@/lib/movements";
 import { DEPARTMENTS, PRIORITIES, STATUSES, DEPARTMENT_COLORS, PRIORITY_COLORS } from "@/lib/types";
 import type { DailyLog, DeficiencyTask, PlannedWork, Note, Material, MaterialReceipt, MaterialUsage, MaterialTransfer, MaterialStation } from "@/db/schema";
 
@@ -48,7 +49,7 @@ export function SearchView({
   }, []);
   const [q, setQ] = useState("");
   const [typeF, setTypeF] = useState<ResultType | "">("");
-  const [stationF, setStationF] = useState<number | "">("");
+  const [stationF, setStationF] = useState<number | "" | "footplate">("");
   const [deptF, setDeptF] = useState("");
   const [prioF, setPrioF] = useState("");
   const [tagF, setTagF] = useState<number | "">("");
@@ -71,7 +72,9 @@ export function SearchView({
 
     if (!typeF || typeF === "Log") {
       for (const l of logs) {
-        if (stationF && !l.stationMovement?.includes(stationName(stationF as number))) continue;
+        if (stationF === "footplate") {
+          if (!isFootplateLog(l)) continue;
+        } else if (stationF && !l.stationMovement?.includes(stationName(stationF))) continue;
         if (tagF && !l.tagIds.includes(tagF as number)) continue;
         if (attachF && (!l.attachments || l.attachments.length === 0)) continue;
         if (deptF || prioF || statusF || staffF) continue;
@@ -98,7 +101,7 @@ export function SearchView({
         });
       }
     }
-    if ((!typeF || typeF === "Deficiency") && !attachF) {
+    if ((!typeF || typeF === "Deficiency") && !attachF && stationF !== "footplate") {
       for (const d of deficiencies) {
         if (stationF && d.stationId !== stationF) continue;
         if (deptF && d.department !== deptF) continue;
@@ -123,7 +126,7 @@ export function SearchView({
         });
       }
     }
-    if ((!typeF || typeF === "Planned Work") && !attachF) {
+    if ((!typeF || typeF === "Planned Work") && !attachF && stationF !== "footplate") {
       for (const p of planned) {
         if (stationF && p.stationId !== stationF) continue;
         if (statusF && p.status !== statusF) continue;
@@ -146,6 +149,7 @@ export function SearchView({
     }
     if (!typeF || typeF === "Note") {
       for (const n of notes) {
+        if (stationF === "footplate") continue;
         if (stationF && n.stationId !== stationF) continue;
         if (deptF || prioF || tagF || statusF || staffF || attachF) continue;
         const text = `${n.title} ${n.body ?? ""}`.toLowerCase();
@@ -174,6 +178,7 @@ export function SearchView({
     if (!typeF || typeF === "Material") {
       for (const m of materials) {
         if (deptF || prioF || tagF || statusF || staffF || attachF) continue;
+        if (stationF === "footplate") continue;
         if (stationF) {
           const present =
             matStations.some((s) => s.materialId === m.id && s.stationId === stationF) ||
@@ -238,8 +243,18 @@ export function SearchView({
             <option>Note</option>
             <option>Material</option>
           </select>
-          <select className={selCls} value={stationF} onChange={(e) => setStationF(e.target.value ? Number(e.target.value) : "")}>
+          <select
+            className={selCls}
+            value={stationF}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (!v) setStationF("");
+              else if (v === "footplate") setStationF("footplate");
+              else setStationF(Number(v));
+            }}
+          >
             <option value="">All Stations</option>
+            <option value="footplate">Footplate</option>
             {stations.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
           <select className={selCls} value={deptF} onChange={(e) => setDeptF(e.target.value)}>
@@ -263,7 +278,7 @@ export function SearchView({
             {staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
           <button
-            className={`w-full min-w-0 rounded-xl px-2.5 py-1.5 text-xs font-semibold transition active:scale-95 ${
+            className={`w-full min-w-0 whitespace-nowrap rounded-xl px-2 py-1.5 text-xs font-semibold transition active:scale-95 ${
               attachF
                 ? "bg-emerald-500 text-white shadow-sm shadow-emerald-700/20"
                 : "bg-surface text-slate-700 ring-1 ring-inset ring-slate-200 hover:bg-slate-50"

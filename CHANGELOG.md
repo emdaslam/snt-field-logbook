@@ -3,6 +3,15 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.87 — 2026-09-25
+
+**Minor: Reports month snap, Search Footplate, attachments chip**
+
+- Reports Custom range → By month now loads the current month when the custom dates are not a full calendar month, instead of keeping the custom data under a month label.
+- Search → Stations includes Footplate, so footplate daily logs can be filtered like a station.
+- Search “Has attachments” stays on one line.
+- Implemented in `PENDING`.
+
 ## 1.7.7.86 — 2026-09-25
 
 **Minor: Home daily-log tiles no longer show a created-at time**

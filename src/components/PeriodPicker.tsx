@@ -1,8 +1,10 @@
 "use client";
 
 import { toISODate } from "@/lib/api";
+import { snapToMonth, type Period } from "@/lib/period";
 
-export type Period = { from: string; to: string; label: string };
+export type { Period };
+export { snapToMonth };
 
 /** Calendar month period for an offset from the current month (0 = this month). */
 export function monthPeriod(offset = 0, ref: Date = new Date()): Period {
@@ -38,7 +40,10 @@ export function PeriodPicker({
       <div className="mb-2 flex items-center justify-between">
         <span className="text-[11px] font-bold uppercase tracking-wider text-blue-900">Report Period</span>
         <button
-          onClick={() => setCustom(!custom)}
+          onClick={() => {
+            if (custom) onChange(snapToMonth(period, months));
+            setCustom(!custom);
+          }}
           className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition active:scale-95 ${
             custom ? "bg-emerald-600 text-white shadow-sm shadow-emerald-700/20" : "bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200 hover:bg-slate-200"
           }`}
