@@ -8,7 +8,7 @@ import { PeriodPicker, monthPeriod, type Period } from "./PeriodPicker";
 import { fmtDate, isTaClaimable, formatRupee } from "@/lib/api";
 import { isSharedLog } from "@/lib/backup";
 import { isSpecialMovement, variableKmText } from "@/lib/types";
-import type { DailyLog } from "@/db/schema";
+import type { DailyLog, JourneyLeg } from "@/db/schema";
 
 type Mode = "diary" | "ta";
 
@@ -55,6 +55,37 @@ export function DiaryExportModal({
   const rateNotSet = taRate == null;
 
   const isTa = mode === "ta";
+
+  const legTrain = (leg: JourneyLeg) =>
+    leg.timeDep === "---" && leg.timeArr === "---"
+      ? "---"
+      : leg.mode === "train"
+        ? (leg.trainNo?.trim() || "TRAIN")
+        : "ROAD";
+
+  const previewLegs = (r: DailyLog) => {
+    const legs = Array.isArray(r.journeyLegs) ? r.journeyLegs : [];
+    if (legs.length === 0) return null;
+    return legs.map((leg, i) => ({
+      trainNo: legTrain(leg),
+      dep: leg.timeDep || (i === 0 ? r.timeDep : i === legs.length - 1 ? r.returnTimeDep : "") || "—",
+      arr: leg.timeArr || (i === 0 ? r.timeArr : i === legs.length - 1 ? r.returnTimeArr : "") || "—",
+      from: leg.from || (i === 0 ? hqCode ?? "HQ" : "—"),
+      to: leg.to || (i === legs.length - 1 ? hqCode ?? "HQ" : "—"),
+    }));
+  };
+
+  const workDoneOf = (r: DailyLog) => {
+    const t = (r.stationMovement ?? "").trim().toLowerCase();
+    const st = stations.find(
+      (s) => s.name.toLowerCase() === t || (s.code && s.code.toLowerCase() === t)
+    );
+    const km =
+      st?.distanceFromHq === "variable" && r.taAtVariableKm === true
+        ? variableKmText(st.variableKm)
+        : null;
+    return `${r.workDone || "-"}${km != null ? ` at ${km} KMs` : ""}`;
+  };
 
   return (
     <Modal open={open} onClose={onClose} title={isTa ? "Export TA Journal" : "Export Diary"} wide>
@@ -148,54 +179,59 @@ export function DiaryExportModal({
               )}
             </thead>
             <tbody>
-              {(isTa ? taRows : own).map((r) => {
+              {(isTa ? taRows : own).flatMap((r) => {
                 const p = r.taPercent ?? 100;
                 const amount = taRate != null ? Math.round(((p / 100) * taRate) * 100) / 100 : null;
-                // TRAIN column for the on-board leg — the train number when the
-                // journey was by train, else "ROAD" (the default).
-                const legTrain =
-                  r.travelMode === "train" ? (r.travelTrainNo?.trim() || "TRAIN") : "ROAD";
-                return (
-                  <tr key={r.id} className="border-t border-slate-100">
-                    {isTa ? (
-                      <>
-                        <td className="whitespace-nowrap px-2 py-1.5">{fmtDate(r.logDate)}</td>
-                        <td className="px-2 py-1.5 text-slate-600">
-                          {r.movementKind === "footplate"
-                            ? r.stationMovement || "Footplate"
-                            : `${hqCode ?? "HQ"} → ${codeOf(r.stationMovement)}`}
-                        </td>
-                        <td className="px-2 py-1.5 font-medium">{p}%</td>
-                        <td className="px-2 py-1.5">{rateNotSet ? "—" : `₹${amount}`}</td>
-                        <td className="px-2 py-1.5 text-slate-600">
-                          {(() => {
-                            const t = (r.stationMovement ?? "").trim().toLowerCase();
-                            const st = stations.find(
-                              (s) => s.name.toLowerCase() === t || (s.code && s.code.toLowerCase() === t)
-                            );
-                            const km =
-                              st?.distanceFromHq === "variable" && r.taAtVariableKm === true
-                                ? variableKmText(st.variableKm)
-                                : null;
-                            return `${r.workDone || "-"}${km != null ? ` at ${km} KMs` : ""}`;
-                          })()}
-                        </td>
-                      </>
-                    ) : (
-                      <>
-                        <td className="whitespace-nowrap px-2 py-1.5">{fmtDate(r.logDate)}</td>
-                        <td className="px-2 py-1.5">{isSpecialMovement(r) ? r.stationMovement || "—" : legTrain}</td>
-                        <td className="px-2 py-1.5 text-slate-600">{isSpecialMovement(r) ? "—" : (r.timeDep || "—")}</td>
-                        <td className="px-2 py-1.5 text-slate-600">{isSpecialMovement(r) ? "—" : (r.timeArr || "—")}</td>
-                        <td className="px-2 py-1.5 text-slate-600">{isSpecialMovement(r) ? "—" : hqCode ?? "HQ"}</td>
-                        <td className="px-2 py-1.5 text-slate-600">
-                          {isSpecialMovement(r) ? "—" : codeOf(r.stationMovement)}
-                        </td>
-                        <td className="px-2 py-1.5 text-slate-600">{r.workDone || "-"}</td>
-                      </>
-                    )}
+                const custom = previewLegs(r);
+                if (isTa) {
+                  const movement = custom
+                    ? custom.map((leg) => `${leg.from} → ${leg.to}`).join(" · ")
+                    : r.movementKind === "footplate"
+                      ? r.stationMovement || "Footplate"
+                      : `${hqCode ?? "HQ"} → ${codeOf(r.stationMovement)}`;
+                  return [
+                    <tr key={r.id} className="border-t border-slate-100">
+                      <td className="whitespace-nowrap px-2 py-1.5">{fmtDate(r.logDate)}</td>
+                      <td className="px-2 py-1.5 text-slate-600">{movement}</td>
+                      <td className="px-2 py-1.5 font-medium">{p}%</td>
+                      <td className="px-2 py-1.5">{rateNotSet ? "—" : `₹${amount}`}</td>
+                      <td className="px-2 py-1.5 text-slate-600">{workDoneOf(r)}</td>
+                    </tr>,
+                  ];
+                }
+                if (isSpecialMovement(r)) {
+                  return [
+                    <tr key={r.id} className="border-t border-slate-100">
+                      <td className="whitespace-nowrap px-2 py-1.5">{fmtDate(r.logDate)}</td>
+                      <td className="px-2 py-1.5">{r.stationMovement || "—"}</td>
+                      <td className="px-2 py-1.5 text-slate-600">—</td>
+                      <td className="px-2 py-1.5 text-slate-600">—</td>
+                      <td className="px-2 py-1.5 text-slate-600">—</td>
+                      <td className="px-2 py-1.5 text-slate-600">—</td>
+                      <td className="px-2 py-1.5 text-slate-600">{r.workDone || "-"}</td>
+                    </tr>,
+                  ];
+                }
+                const rows = custom ?? [
+                  {
+                    trainNo: r.travelMode === "train" ? (r.travelTrainNo?.trim() || "TRAIN") : "ROAD",
+                    dep: r.timeDep || "—",
+                    arr: r.timeArr || "—",
+                    from: hqCode ?? "HQ",
+                    to: codeOf(r.stationMovement) ?? "—",
+                  },
+                ];
+                return rows.map((leg, i) => (
+                  <tr key={`${r.id}-${i}`} className="border-t border-slate-100">
+                    <td className="whitespace-nowrap px-2 py-1.5">{i === 0 ? fmtDate(r.logDate) : ""}</td>
+                    <td className="px-2 py-1.5">{leg.trainNo}</td>
+                    <td className="px-2 py-1.5 text-slate-600">{leg.dep}</td>
+                    <td className="px-2 py-1.5 text-slate-600">{leg.arr}</td>
+                    <td className="px-2 py-1.5 text-slate-600">{leg.from}</td>
+                    <td className="px-2 py-1.5 text-slate-600">{leg.to}</td>
+                    <td className="px-2 py-1.5 text-slate-600">{i === 0 ? r.workDone || "-" : ""}</td>
                   </tr>
-                );
+                ));
               })}
             </tbody>
           </table>

@@ -514,46 +514,22 @@ export function Reports({
       <div className="card-rise overflow-hidden rounded-2xl border border-slate-200/80 bg-surface p-4 shadow-sm">
         <h3 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-blue-900">Generate Reports</h3>
         <div className="flex flex-col gap-2">
-          <ExportBtn
-            color="#2563eb"
-            icon={<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6M8 13h8M8 17h5" /></>}
-            onClick={() => setTomorrowOpen(true)}
-          >
+          <ExportBtn color="#2563eb" glyph="📄" onClick={() => setTomorrowOpen(true)}>
             Export Tomorrow&apos;s Work (PDF)
           </ExportBtn>
-          <ExportBtn
-            color="#1e40af"
-            icon={<><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></>}
-            onClick={onOpenMonthly}
-          >
+          <ExportBtn color="#1e40af" glyph="🗓️" onClick={onOpenMonthly}>
             Export Monthly List (with filters)
           </ExportBtn>
-          <ExportBtn
-            color="#4f46e5"
-            icon={<path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7-6.3-4.6L5.7 21l2.3-7-6-4.6h7.6z" />}
-            onClick={() => setPcdoOpen(true)}
-          >
+          <ExportBtn color="#4f46e5" glyph="⭐" onClick={() => setPcdoOpen(true)}>
             Export PCDO — Special Works ({pcdoPeriod.label})
           </ExportBtn>
-          <ExportBtn
-            color="#059669"
-            icon={<><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></>}
-            onClick={() => setDiaryOpen(true)}
-          >
+          <ExportBtn color="#059669" glyph="📔" onClick={() => setDiaryOpen(true)}>
             Export Diary (movement, TA &amp; work done)
           </ExportBtn>
-          <ExportBtn
-            color="#d97706"
-            icon={<path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />}
-            onClick={() => setTaOpen(true)}
-          >
+          <ExportBtn color="#d97706" glyph="💰" onClick={() => setTaOpen(true)}>
             Export TA Journal (with summary)
           </ExportBtn>
-          <ExportBtn
-            color="#0284c7"
-            icon={<><path d="M17 1l4 4-4 4" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><path d="M7 23l-4-4 4-4" /><path d="M21 13v2a4 4 0 0 1-4 4H3" /></>}
-            onClick={() => setInspOpen(true)}
-          >
+          <ExportBtn color="#0284c7" glyph="🔁" onClick={() => setInspOpen(true)}>
             Export Inspections (monthly / quarterly / maintenance)
           </ExportBtn>
         </div>
@@ -621,12 +597,12 @@ function Mini({ label, value }: { label: string; value: number }) {
 
 function ExportBtn({
   color,
-  icon,
+  glyph,
   onClick,
   children,
 }: {
   color: string;
-  icon: ReactNode;
+  glyph: string;
   onClick: () => void;
   children: ReactNode;
 }) {
@@ -636,12 +612,10 @@ function ExportBtn({
       className="flex w-full items-center gap-3 rounded-2xl border border-slate-200/80 bg-surface p-3 text-left shadow-sm transition hover:bg-slate-50 active:scale-[0.98]"
     >
       <span
-        className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl"
-        style={{ backgroundColor: color + "1f", color }}
+        className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-lg leading-none"
+        style={{ backgroundColor: color + "1f" }}
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          {icon}
-        </svg>
+        {glyph}
       </span>
       <span className="min-w-0 flex-1 text-sm font-semibold text-slate-800">{children}</span>
       <svg className="flex-shrink-0 text-slate-300" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">

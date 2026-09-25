@@ -1031,6 +1031,18 @@ export function Settings() {
         >
           Join WhatsApp feedback group
         </button>
+        <button
+          onClick={() => window.open("https://t.me/+H41qMXKWHow2MzY1", "_blank", "noopener")}
+          className="mt-2 rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700"
+        >
+          S&amp;T materials Telegram group
+        </button>
+        <button
+          onClick={() => window.open("https://chat.whatsapp.com/JFZMkGBHbnnG2BezVzrqOg", "_blank", "noopener")}
+          className="mt-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+        >
+          S&amp;T materials WhatsApp group
+        </button>
       </Section>
       )}
 

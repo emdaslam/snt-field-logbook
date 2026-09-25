@@ -310,11 +310,7 @@ export function Timeline({
                     >
                       {shared ? (
                         <p className="flex items-center gap-1 truncate text-xs font-semibold text-teal-700">
-                          <svg className="flex-shrink-0" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                          </svg>
-                          Shared ·{" "}
+                          🔗 Shared ·{" "}
                           {stationName(bundles[0]?.stationId ?? log.pcdoStationId ?? log.inspectionStationId)}
                         </p>
                       ) : (
@@ -336,8 +332,7 @@ export function Timeline({
                       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                         {hasPcdo && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-100">
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7-6.3-4.6L5.7 21l2.3-7-6-4.6h7.6z"/></svg>
-                            PCDO
+                            ⭐ PCDO
                           </span>
                         )}
                         {hasPcdo &&
@@ -355,20 +350,17 @@ export function Timeline({
                           )}
                         {hasDisc && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-100">
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z"/></svg>
-                            {discTotal} disc.
+                            ⚡ {discTotal} disc.
                           </span>
                         )}
                         {hasCounter && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-semibold text-teal-700 ring-1 ring-inset ring-teal-100">
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 12h8M12 8v8"/></svg>
-                            {counterTotal} resets
+                            🔢 {counterTotal} resets
                           </span>
                         )}
                         {log.inspectionKind && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700 ring-1 ring-inset ring-sky-100">
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-                            {stationName(log.inspectionStationId)}
+                            🔁 {stationName(log.inspectionStationId)}
                             {log.inspectionKind !== "footplate" &&
                               (log.inspectionSide === "Both"
                                 ? " → Both sides"
@@ -381,8 +373,7 @@ export function Timeline({
                         )}
                         {log.attachments.length > 0 && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 ring-1 ring-inset ring-slate-200">
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-                            {log.attachments.length}
+                            📎 {log.attachments.length}
                           </span>
                         )}
                         {log.tagIds.map((id) => {
@@ -437,11 +428,8 @@ export function Timeline({
                         key={"d" + t.id}
                         className="entry-text-xs flex items-start gap-1.5 rounded-lg bg-amber-50/70 px-2 py-1 text-xs text-amber-900/80"
                       >
-                        <svg className="mt-0.5 flex-shrink-0" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94z" />
-                        </svg>
                         <span>
-                          Deficiency due: <span className="font-semibold">{t.title}</span> ·{" "}
+                          🔧 Deficiency due: <span className="font-semibold">{t.title}</span> ·{" "}
                           {stationName(t.stationId)} ({t.status})
                         </span>
                       </p>
@@ -451,12 +439,8 @@ export function Timeline({
                         key={"p" + p.id}
                         className="entry-text-xs flex items-start gap-1.5 rounded-lg bg-emerald-50/70 px-2 py-1 text-xs text-emerald-900/80"
                       >
-                        <svg className="mt-0.5 flex-shrink-0" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <rect x="3" y="4" width="18" height="18" rx="2" />
-                          <path d="M16 2v4M8 2v4M3 10h18" />
-                        </svg>
                         <span>
-                          Planned: <span className="font-semibold">{p.title}</span> ·{" "}
+                          📅 Planned: <span className="font-semibold">{p.title}</span> ·{" "}
                           {stationName(p.stationId)} ({p.status})
                         </span>
                       </p>
