@@ -229,7 +229,7 @@ export function Timeline({
                 }`}
                 aria-hidden
               />
-              <div className="flex w-[3.75rem] flex-shrink-0 flex-col items-center text-center">
+              <div className="flex w-[3.75rem] flex-shrink-0 flex-col items-center justify-between self-stretch text-center">
                 <span
                   className={`text-[10px] font-bold uppercase tracking-wide ${
                     isToday
@@ -244,7 +244,7 @@ export function Timeline({
                   {dayName(iso)}
                 </span>
                 <span
-                  className={`mt-0.5 flex h-9 w-9 items-center justify-center rounded-xl text-lg font-bold transition duration-300 ${
+                  className={`flex h-9 w-9 items-center justify-center rounded-xl text-lg font-bold transition duration-300 ${
                     isToday
                       ? "bg-gradient-to-br from-blue-600 to-blue-800 text-white shadow-md shadow-blue-500/30"
                       : isSelected
@@ -254,11 +254,11 @@ export function Timeline({
                 >
                   {d.getDate()}
                 </span>
-                <span className="mt-1 text-[10px] font-medium text-slate-400">
+                <span className="text-[10px] font-medium text-slate-400">
                   {d.toLocaleDateString("en-US", { month: "short" })} {d.getFullYear()}
                 </span>
                 {isToday && (
-                  <span className="mt-1 rounded-full bg-blue-100 px-1.5 py-0.5 text-[8px] font-bold tracking-wider text-blue-700">
+                  <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[8px] font-bold tracking-wider text-blue-700">
                     TODAY
                   </span>
                 )}

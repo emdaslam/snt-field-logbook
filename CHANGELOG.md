@@ -3,6 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.89 — 2026-09-25
+
+**Minor: daily-log TA asked after work done; Home tiles spread the date column**
+
+- The daily log form now asks TA right after Work Done. For a variable-TA station it asks “Worked at [KMs] KMs?” first, then TA.
+- On Home, the weekday / date / month on the left of a daily-log tile stretch with the row when the entry is tall, instead of sitting at the top with a blank below.
+
 ## 1.7.7.88 — 2026-09-25
 
 **Minor: restore export/daily-log glyphs, S&T materials groups, Diary preview rows**

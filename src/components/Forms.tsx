@@ -1974,6 +1974,77 @@ export function DailyLogForm({
           </span>
         )}
       </Field>
+      {isVariableSplit && (
+        <Field label={variableKm != null ? `Worked at ${variableKm} KMs?` : "Worked at the station's KMs marker?"} as="div">
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setTaAtVariableKm(true)}
+              className={`flex-1 rounded-lg border px-3 py-1.5 text-sm font-medium ${
+                taAtVariableKm === true
+                  ? "border-emerald-600 bg-emerald-600 text-white"
+                  : "border-slate-300 text-slate-600"
+              }`}
+            >
+              Yes — at/after {variableKm} KMs
+            </button>
+            <button
+              type="button"
+              onClick={() => setTaAtVariableKm(false)}
+              className={`flex-1 rounded-lg border px-3 py-1.5 text-sm font-medium ${
+                taAtVariableKm === false
+                  ? "border-slate-600 bg-slate-600 text-white"
+                  : "border-slate-300 text-slate-600"
+              }`}
+            >
+              No — within 8 km
+            </button>
+          </div>
+          {variableTaPending ? (
+            <span className="mt-1 block text-xs text-amber-600">
+              This station{"'"}s distance is variable — TA is only claimed when the work was done at/after{" "}
+              {variableKm != null ? `${variableKm} KMs` : "the station's KMs marker"}.
+            </span>
+          ) : (
+            <span className="mt-1 block text-xs text-slate-500">
+              {variableKm != null ? `at/after ${variableKm} KMs` : "at/after the station's KMs marker"} — the
+              entry will be included in the TA Journal.
+            </span>
+          )}
+        </Field>
+      )}
+      {isSpecial ? (
+        <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+          No TA is claimed for {movementLabel} — assumed <strong>0%</strong>.
+        </div>
+      ) : (
+      <Field label="TA (%)">
+        <select
+          className={inputClass}
+          value={taPercentEffective}
+          disabled={taTakenOnSameDate}
+          onChange={(e) => setTaPercent(e.target.value)}
+        >
+          <option value="100">100 %</option>
+          <option value="70">70 %</option>
+          <option value="30">30 %</option>
+          <option value="0">0 %</option>
+        </select>
+        {taTakenOnSameDate && (
+          <span className="mt-1 block text-xs text-amber-600">
+            Only one TA claim is allowed per date — this date already has one.
+          </span>
+        )}
+        {isHeadquarters && (
+          <span className="mt-1 block text-xs text-slate-500">
+            Headquarters station — no travel allowance claimed.
+          </span>
+        )}
+        <span className="mt-1 block text-xs text-slate-500">
+          Claiming <strong>{taPercentEffective}%</strong>
+        </span>
+      </Field>
+      )}
       {hasFootplateInChain && (
         <div className="mb-3 space-y-3">
           {fpRides.map((ride, i) => {
@@ -2256,77 +2327,6 @@ export function DailyLogForm({
             </Field>
           )}
         </>
-      )}
-      {isVariableSplit && (
-        <Field label={variableKm != null ? `Worked at ${variableKm} KMs?` : "Worked at the station's KMs marker?"} as="div">
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setTaAtVariableKm(true)}
-              className={`flex-1 rounded-lg border px-3 py-1.5 text-sm font-medium ${
-                taAtVariableKm === true
-                  ? "border-emerald-600 bg-emerald-600 text-white"
-                  : "border-slate-300 text-slate-600"
-              }`}
-            >
-              Yes — at/after {variableKm} KMs
-            </button>
-            <button
-              type="button"
-              onClick={() => setTaAtVariableKm(false)}
-              className={`flex-1 rounded-lg border px-3 py-1.5 text-sm font-medium ${
-                taAtVariableKm === false
-                  ? "border-slate-600 bg-slate-600 text-white"
-                  : "border-slate-300 text-slate-600"
-              }`}
-            >
-              No — within 8 km
-            </button>
-          </div>
-          {variableTaPending ? (
-            <span className="mt-1 block text-xs text-amber-600">
-              This station{"'"}s distance is variable — TA is only claimed when the work was done at/after{" "}
-              {variableKm != null ? `${variableKm} KMs` : "the station's KMs marker"}.
-            </span>
-          ) : (
-            <span className="mt-1 block text-xs text-slate-500">
-              {variableKm != null ? `at/after ${variableKm} KMs` : "at/after the station's KMs marker"} — the
-              entry will be included in the TA Journal.
-            </span>
-          )}
-        </Field>
-      )}
-      {isSpecial ? (
-        <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
-          No TA is claimed for {movementLabel} — assumed <strong>0%</strong>.
-        </div>
-      ) : (
-      <Field label="TA (%)">
-        <select
-          className={inputClass}
-          value={taPercentEffective}
-          disabled={taTakenOnSameDate}
-          onChange={(e) => setTaPercent(e.target.value)}
-        >
-          <option value="100">100 %</option>
-          <option value="70">70 %</option>
-          <option value="30">30 %</option>
-          <option value="0">0 %</option>
-        </select>
-        {taTakenOnSameDate && (
-          <span className="mt-1 block text-xs text-amber-600">
-            Only one TA claim is allowed per date — this date already has one.
-          </span>
-        )}
-        {isHeadquarters && (
-          <span className="mt-1 block text-xs text-slate-500">
-            Headquarters station — no travel allowance claimed.
-          </span>
-        )}
-        <span className="mt-1 block text-xs text-slate-500">
-          Claiming <strong>{taPercentEffective}%</strong>
-        </span>
-      </Field>
       )}
 
       {/* PCDO — one card per station (works, disconnections, counters) */}
