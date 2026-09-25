@@ -9,7 +9,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 - Day cells are shorter and tag dots sit inside the cell, so a 6-week month no longer fills about half the screen at Medium font.
 - Gradients, the focus ring, swipe, and weekday labels are unchanged.
-- Implemented in `PLACEHOLDER`.
+- Implemented in `6a39cbd`.
 
 ## 1.7.7.84 — 2026-09-25
 
