@@ -11,7 +11,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 - Home daily-log chips use those same glyphs again (shared, PCDO, disc, resets, inspection, attachments, deficiency, planned).
 - Settings → About adds the S&T materials Telegram group and WhatsApp group, next to the existing feedback group.
 - Diary / TA Journal export preview now shows edited From/To (and extra legs) instead of always putting headquarters on the From column. The generated file was already correct.
-- Implemented in `PENDING`.
+- Implemented in `f781ff0`.
 
 ## 1.7.7.87 — 2026-09-25
 
