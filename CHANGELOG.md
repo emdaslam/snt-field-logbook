@@ -3,6 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.86 — 2026-09-25
+
+**Minor: Home daily-log tiles no longer show a created-at time**
+
+- The clock under the date on the left of each Home tile is gone. Sparse days (little work, or only a due/planned line) shrink with the content instead of staying tall for that time.
+- Implemented in pending.
+
 ## 1.7.7.85 — 2026-09-25
 
 **Minor: Home calendar takes less vertical space**

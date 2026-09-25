@@ -262,14 +262,6 @@ export function Timeline({
                     TODAY
                   </span>
                 )}
-                {dayLogs[0] && (
-                  <span className="mt-1 text-[10px] text-slate-400">
-                    {new Date(dayLogs[0].createdAt).toLocaleTimeString("en-GB", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </span>
-                )}
               </div>
 
               <div className="min-w-0 flex-1">
