@@ -10,6 +10,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 - Settings groups sit in rounded cards with a colour stripe, pill tabs, and the same action chips as Home and Reports. Station, staff and tag rows are no longer a flat list.
 - Materials uses station cards, a glass toolbar, and a dashed Add row like Notes. Low-stock sits in a rounded banner instead of a full-width strip.
 - The hamburger slides in with a brand mark and icon rows for Home, Notes, Attachments, Materials and Settings.
+- Implemented in `64bcc27`.
 
 ## 1.7.7.94 — 2026-09-26
 
