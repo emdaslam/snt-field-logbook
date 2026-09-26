@@ -301,6 +301,7 @@ export type FootplateRide = {
   shift: string | null;
   day: FootplateBlock | null;
   night: FootplateBlock | null;
+  upFromBoarding?: boolean | null;
 };
 
 export type Attachment = {

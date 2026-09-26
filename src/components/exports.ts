@@ -1,5 +1,5 @@
 import { exportDocument } from "@/lib/pdf";
-import { fmtDate, toISODate, formatFootplateShifts, footplateTrainList, footplateRidesOf, footplateTrainListFromRide, footplateFromTo, logMatchesInspectionStation, pcdoEntriesOf, formatRupee } from "@/lib/api";
+import { fmtDate, toISODate, footplateRidesOf, footplateInspectionRows, logMatchesInspectionStation, pcdoEntriesOf, formatRupee } from "@/lib/api";
 import { formatInspectionDates } from "@/lib/inspections";
 import { isSpecialMovement, EQUIPMENT_DEFAULTS, variableKmText, type ExportStyle } from "@/lib/types";
 import { railwayHeading } from "@/lib/railways";
@@ -1424,7 +1424,7 @@ type InspKind = "monthly" | "quarterly" | "maintenance" | "joint" | "footplate" 
 
 /**
  * Inspection export. Accepts one or more kinds and renders a section per kind:
- *   - footplate -> Day/Night | Train No. | From | To | Date
+ *   - footplate -> Day/Night | Train No. | From | To | Date (date merged per day)
  *   - others    -> Station Inspected | Dates Inspected
  */
 export function exportInspections(
@@ -1491,20 +1491,25 @@ export function exportInspections(
     }
 
     if (kind === "footplate") {
-      // One row per Footplate ride (a chain with two rides lists both)
       body += `<table>`;
       body += `<tr><th style="width:100px">Day / Night</th><th>Train No.</th><th>From</th><th>To</th><th style="width:110px">Date</th></tr>`;
+      const byDate = new Map<string, { shift: string; trainNo: string; from: string; to: string }[]>();
       for (const r of rows) {
         const rides = footplateRidesOf(r);
         const emit = rides.length > 0 ? rides : [null];
-        for (const ride of emit) {
-          const trains = ride ? footplateTrainListFromRide(ride) : footplateTrainList(r);
-          const shift = formatFootplateShifts(ride?.shift ?? r.footplateShift) || "-";
-          const { from, to } = footplateFromTo(ride ?? r.footplateJourney, nameOf);
-          body += `<tr><td>${esc(shift)} footplate</td><td>${
-            esc(trains) || "-"
-          }</td><td>${esc(from)}</td><td>${esc(to)}</td><td>${fmtDate(r.logDate)}</td></tr>`;
-        }
+        const lines = emit.flatMap((ride) => footplateInspectionRows(ride, r, nameOf));
+        const bucket = byDate.get(r.logDate) ?? [];
+        bucket.push(...lines);
+        byDate.set(r.logDate, bucket);
+      }
+      for (const [iso, lines] of [...byDate.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+        lines.forEach((line, i) => {
+          const dateCell =
+            i === 0
+              ? `<td rowspan="${lines.length}">${fmtDate(iso)}</td>`
+              : "";
+          body += `<tr><td>${esc(line.shift)}</td><td>${esc(line.trainNo)}</td><td>${esc(line.from)}</td><td>${esc(line.to)}</td>${dateCell}</tr>`;
+        });
       }
       body += `</table>`;
       continue;

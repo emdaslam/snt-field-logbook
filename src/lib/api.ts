@@ -1129,6 +1129,116 @@ export function footplateFromTo(
   return { from: fromId ? nameOf(fromId) : "-", to: toId ? nameOf(toId) : "-" };
 }
 
+export function rideHasBothDirections(ride: {
+  day?: FootplateBlock | FootplateDetail | null;
+  night?: FootplateBlock | FootplateDetail | null;
+}): boolean {
+  const dirs = new Set<string>();
+  const add = (b: FootplateBlock | FootplateDetail | null | undefined) => {
+    if (!b) return;
+    if (isBlock(b)) {
+      const d = (b.direction || "").toLowerCase();
+      if (d === "both") {
+        dirs.add("Up");
+        dirs.add("Down");
+        return;
+      }
+      if (d === "up") dirs.add("Up");
+      else if (d === "down") dirs.add("Down");
+      else {
+        if (b.up) dirs.add("Up");
+        if (b.down) dirs.add("Down");
+      }
+    }
+  };
+  add(ride.day);
+  add(ride.night);
+  return dirs.has("Up") && dirs.has("Down");
+}
+
+export function footplateEndsForDir(
+  ride: {
+    boardingStationId?: number | null;
+    otherEndStationId?: number | null;
+    upFromBoarding?: boolean | null;
+    day?: FootplateBlock | FootplateDetail | null;
+    night?: FootplateBlock | FootplateDetail | null;
+  } | null | undefined,
+  dir: "Up" | "Down",
+  nameOf: (id: number | null) => string
+): { from: string; to: string } {
+  const ends = footplateFromTo(ride, nameOf);
+  if (!ride || !rideHasBothDirections(ride)) return ends;
+  const up = ride.upFromBoarding === false
+    ? { from: ends.to, to: ends.from }
+    : ends;
+  return dir === "Up" ? up : { from: up.to, to: up.from };
+}
+
+export type FootplateInspectionRow = {
+  shift: string;
+  trainNo: string;
+  from: string;
+  to: string;
+};
+
+function trainsFromBlock(
+  shift: string,
+  b: FootplateBlock | FootplateDetail | null | undefined
+): { shift: string; dir: "Up" | "Down" | ""; trainNo: string }[] {
+  if (!b) return [];
+  if (isBlock(b)) {
+    const out: { shift: string; dir: "Up" | "Down" | ""; trainNo: string }[] = [];
+    if (b.up?.trainNo) out.push({ shift, dir: "Up", trainNo: b.up.trainNo });
+    if (b.down?.trainNo) out.push({ shift, dir: "Down", trainNo: b.down.trainNo });
+    return out;
+  }
+  if (b.trainNo) return [{ shift, dir: "", trainNo: b.trainNo }];
+  return [];
+}
+
+export function footplateInspectionRows(
+  ride: FootplateRide | null,
+  log: {
+    footplateShift?: string | null;
+    footplateDay?: FootplateBlock | FootplateDetail | null;
+    footplateNight?: FootplateBlock | FootplateDetail | null;
+    footplateUp?: FootplateDetail | null;
+    footplateDown?: FootplateDetail | null;
+    footplateJourney?: { boardingStationId?: number | null; otherEndStationId?: number | null } | null;
+  },
+  nameOf: (id: number | null) => string
+): FootplateInspectionRow[] {
+  const src: FootplateRide = ride ?? {
+    boardingStationId: log.footplateJourney?.boardingStationId ?? 0,
+    otherEndStationId: log.footplateJourney?.otherEndStationId ?? 0,
+    shift: log.footplateShift ?? null,
+    day: (log.footplateDay as FootplateBlock) ?? null,
+    night: (log.footplateNight as FootplateBlock) ?? null,
+  };
+  const trains = [
+    ...trainsFromBlock("Day", src.day ?? log.footplateDay),
+    ...trainsFromBlock("Night", src.night ?? log.footplateNight),
+  ];
+  if (trains.length === 0) {
+    if (log.footplateUp?.trainNo) trains.push({ shift: "", dir: "Up", trainNo: log.footplateUp.trainNo });
+    if (log.footplateDown?.trainNo) trains.push({ shift: "", dir: "Down", trainNo: log.footplateDown.trainNo });
+  }
+  if (trains.length === 0) {
+    const { from, to } = footplateFromTo(src, nameOf);
+    const shift = formatFootplateShifts(src.shift ?? log.footplateShift) || "-";
+    return [{ shift: `${shift} footplate`, trainNo: "-", from, to }];
+  }
+  return trains.map((t) => {
+    const ends =
+      t.dir === "Up" || t.dir === "Down"
+        ? footplateEndsForDir(src, t.dir, nameOf)
+        : footplateFromTo(src, nameOf);
+    const label = [t.shift, t.dir].filter(Boolean).join(" ") || "-";
+    return { shift: `${label} footplate`, trainNo: t.trainNo || "-", from: ends.from, to: ends.to };
+  });
+}
+
 /** True when the log's inspection station or any Footplate ride endpoint matches. */
 export function logMatchesInspectionStation(
   l: {

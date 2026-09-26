@@ -94,6 +94,7 @@ type ChainFpSnap = {
   fpDayDn: FootplateJourneyTrain;
   fpNightUp: FootplateJourneyTrain;
   fpNightDn: FootplateJourneyTrain;
+  upFromBoarding: boolean;
 };
 
 type ChainSnap = {
@@ -124,6 +125,7 @@ type FpRideDraft = {
   fpDayDn: FootplateJourneyTrain;
   fpNightUp: FootplateJourneyTrain;
   fpNightDn: FootplateJourneyTrain;
+  upFromBoarding: boolean;
 };
 
 function emptyFpRide(): FpRideDraft {
@@ -138,6 +140,7 @@ function emptyFpRide(): FpRideDraft {
     fpDayDn: { ...EMPTY_FP_TRAIN },
     fpNightUp: { ...EMPTY_FP_TRAIN },
     fpNightDn: { ...EMPTY_FP_TRAIN },
+    upFromBoarding: true,
   };
 }
 
@@ -162,7 +165,20 @@ function draftFromRide(r: FootplateRide): FpRideDraft {
     fpDayDn: trainFromBlock(day?.down),
     fpNightUp: trainFromBlock(night?.up),
     fpNightDn: trainFromBlock(night?.down),
+    upFromBoarding: r.upFromBoarding !== false,
   };
+}
+
+function draftHasBothDirections(d: FpRideDraft): boolean {
+  const dirs = new Set<string>();
+  const add = (active: boolean, dir: string) => {
+    if (!active) return;
+    if (dir === "Both" || dir === "Up") dirs.add("Up");
+    if (dir === "Both" || dir === "Down") dirs.add("Down");
+  };
+  add(d.fpDay, d.fpDayDir);
+  add(d.fpNight, d.fpNightDir);
+  return dirs.has("Up") && dirs.has("Down");
 }
 
 function snapFromDraft(
@@ -183,6 +199,7 @@ function snapFromDraft(
     fpDayDn: d.fpDayDn,
     fpNightUp: d.fpNightUp,
     fpNightDn: d.fpNightDn,
+    upFromBoarding: d.upFromBoarding,
   };
 }
 
@@ -251,6 +268,7 @@ function buildChainLegs(
         fpDayDn: { ...EMPTY_FP_TRAIN },
         fpNightUp: { ...EMPTY_FP_TRAIN },
         fpNightDn: { ...EMPTY_FP_TRAIN },
+        upFromBoarding: true,
       };
       const boarding = fp.boardingLabel;
       const otherEnd = fp.otherEndLabel;
@@ -267,21 +285,21 @@ function buildChainLegs(
       }
       let lastTo = boarding || fromStation;
       if (fp.boardingId && fp.otherEndId && fp.boardingId !== fp.otherEndId) {
-        const hopTrain = (active: boolean, dirOk: boolean, train: FootplateJourneyTrain) => {
+        const hopTrain = (active: boolean, dirOk: boolean, train: FootplateJourneyTrain, dest: string) => {
           if (!active || !dirOk || !train.trainNo) return;
-          const dest = lastTo === otherEnd ? boarding : otherEnd;
+          const from = dest === otherEnd ? boarding : otherEnd;
           const fit: JourneyLeg = {
-            from: lastTo,
+            from,
             to: dest,
             timeDep: train.depTime || null,
             timeArr: train.arrTime || null,
             mode: "train",
             trainNo: train.trainNo,
           };
-          const reused = reuse(lastTo, dest, "train", train.trainNo, fit);
+          const reused = reuse(from, dest, "train", train.trainNo, fit);
           legs.push({
             ...reused,
-            from: lastTo,
+            from,
             to: dest,
             mode: "train",
             trainNo: train.trainNo,
@@ -290,10 +308,18 @@ function buildChainLegs(
           });
           lastTo = dest;
         };
-        hopTrain(fp.fpDay, fp.fpDayDir === "Up" || fp.fpDayDir === "Both", fp.fpDayUp);
-        hopTrain(fp.fpDay, fp.fpDayDir === "Down" || fp.fpDayDir === "Both", fp.fpDayDn);
-        hopTrain(fp.fpNight, fp.fpNightDir === "Up" || fp.fpNightDir === "Both", fp.fpNightUp);
-        hopTrain(fp.fpNight, fp.fpNightDir === "Down" || fp.fpNightDir === "Both", fp.fpNightDn);
+        const hasUp =
+          (fp.fpDay && (fp.fpDayDir === "Up" || fp.fpDayDir === "Both") && fp.fpDayUp.trainNo) ||
+          (fp.fpNight && (fp.fpNightDir === "Up" || fp.fpNightDir === "Both") && fp.fpNightUp.trainNo);
+        const hasDn =
+          (fp.fpDay && (fp.fpDayDir === "Down" || fp.fpDayDir === "Both") && fp.fpDayDn.trainNo) ||
+          (fp.fpNight && (fp.fpNightDir === "Down" || fp.fpNightDir === "Both") && fp.fpNightDn.trainNo);
+        const upDest = hasUp && hasDn && fp.upFromBoarding === false ? boarding : otherEnd;
+        const dnDest = hasUp && hasDn ? (upDest === otherEnd ? boarding : otherEnd) : otherEnd;
+        hopTrain(fp.fpDay, fp.fpDayDir === "Up" || fp.fpDayDir === "Both", fp.fpDayUp, upDest);
+        hopTrain(fp.fpDay, fp.fpDayDir === "Down" || fp.fpDayDir === "Both", fp.fpDayDn, dnDest);
+        hopTrain(fp.fpNight, fp.fpNightDir === "Up" || fp.fpNightDir === "Both", fp.fpNightUp, upDest);
+        hopTrain(fp.fpNight, fp.fpNightDir === "Down" || fp.fpNightDir === "Both", fp.fpNightDn, dnDest);
       }
       fromStation = lastTo;
       isFirst = false;
@@ -1523,6 +1549,7 @@ export function DailyLogForm({
       shift: [d.fpDay ? "Day" : "", d.fpNight ? "Night" : ""].filter(Boolean).join(",") || null,
       day: fpBlock(d.fpDay, d.fpDayDir, d.fpDayUp, d.fpDayDn),
       night: fpBlock(d.fpNight, d.fpNightDir, d.fpNightUp, d.fpNightDn),
+      upFromBoarding: draftHasBothDirections(d) ? d.upFromBoarding : true,
     }));
     const firstRidePayload = ridesPayload[0];
     const savedPcdo = pcdoOpen
@@ -3315,6 +3342,14 @@ function FootplateRidePanel({
           setDown={(v) => onChange({ fpNightDn: v })}
         />
       )}
+      {draftHasBothDirections(ride) && boardingName && otherEndName && ride.boardingId !== ride.otherEndId && (
+        <UpWayPicker
+          boardingName={boardingName}
+          otherEndName={otherEndName}
+          upFromBoarding={ride.upFromBoarding}
+          onChange={(v) => onChange({ upFromBoarding: v })}
+        />
+      )}
       {showPeriodicity && (
         <label className="mt-2 block">
           <span className="mb-1 block text-xs font-medium text-slate-700">Periodicity</span>
@@ -3404,6 +3439,46 @@ function ShiftDetails({
           <TrainDetails label={`${label} Down Train`} value={down} onChange={setDown} />
         </>
       )}
+    </div>
+  );
+}
+
+function UpWayPicker({
+  boardingName,
+  otherEndName,
+  upFromBoarding,
+  onChange,
+}: {
+  boardingName: string;
+  otherEndName: string;
+  upFromBoarding: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="mt-2">
+      <span className="mb-1 block text-xs font-medium text-slate-700">
+        Which way is Up? <span className="font-normal text-slate-400">(Down is the opposite)</span>
+      </span>
+      <div className="flex flex-col gap-1.5">
+        <button
+          type="button"
+          onClick={() => onChange(true)}
+          className={`rounded-lg border px-3 py-2 text-left text-sm font-medium ${
+            upFromBoarding ? "border-cyan-600 bg-cyan-50 text-cyan-800" : "border-slate-300 text-slate-600"
+          }`}
+        >
+          Up: {boardingName} → {otherEndName}
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange(false)}
+          className={`rounded-lg border px-3 py-2 text-left text-sm font-medium ${
+            !upFromBoarding ? "border-cyan-600 bg-cyan-50 text-cyan-800" : "border-slate-300 text-slate-600"
+          }`}
+        >
+          Up: {otherEndName} → {boardingName}
+        </button>
+      </div>
     </div>
   );
 }

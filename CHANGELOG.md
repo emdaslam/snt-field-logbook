@@ -3,6 +3,14 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.93 — 2026-09-26
+
+**Minor: footplate inspection export one From/To per train, Date merged**
+
+- Up and Down now each get their own From and To. A single direction is boarding → other end. When both directions are entered, the daily log asks which way is Up (Down is the opposite).
+- Trains on the same date share one Date cell in the PDF.
+- Implemented in `PLACEHOLDER`.
+
 ## 1.7.7.92 — 2026-09-26
 
 **Minor: footplate inspection export includes From and To**

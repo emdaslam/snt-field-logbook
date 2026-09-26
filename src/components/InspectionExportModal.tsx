@@ -19,7 +19,7 @@ import {
   footplateTrainList,
   footplateRidesOf,
   footplateTrainListFromRide,
-  footplateFromTo,
+  footplateInspectionRows,
   formatFootplateShifts,
   formatFootplateSummary,
   logMatchesInspectionStation,
@@ -275,16 +275,12 @@ export function InspectionExportModal({ open, onClose }: { open: boolean; onClos
                         .flatMap((i) => {
                           const rides = footplateRidesOf(i);
                           const emit = rides.length > 0 ? rides : [null];
-                          return emit.map((ride) => {
-                            const t = ride
-                              ? footplateTrainListFromRide(ride) || "-"
-                              : trainsOf(i) || "-";
-                            const { from, to } = footplateFromTo(
-                              ride ?? i.footplateJourney,
-                              stationName
-                            );
-                            return `${t} ${from} → ${to} (${i.logDate.slice(8)})`;
-                          });
+                          return emit.flatMap((ride) =>
+                            footplateInspectionRows(ride, i, stationName).map(
+                              (line) =>
+                                `${line.trainNo} ${line.from} → ${line.to} (${i.logDate.slice(8)})`
+                            )
+                          );
                         })
                         .join("; ")
                     : formatInspectionDates(g.items.map((i) => i.logDate))}
