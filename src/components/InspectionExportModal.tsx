@@ -19,6 +19,7 @@ import {
   footplateTrainList,
   footplateRidesOf,
   footplateTrainListFromRide,
+  footplateFromTo,
   formatFootplateShifts,
   formatFootplateSummary,
   logMatchesInspectionStation,
@@ -262,7 +263,7 @@ export function InspectionExportModal({ open, onClose }: { open: boolean; onClos
       {grouped.size > 0 && (
         <div className="mb-4 rounded-lg border border-sky-200 bg-sky-50 p-3">
           <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-sky-900">
-            Will export — Station Inspected · Dates
+            Will export — Station Inspected · Dates (footplate: Train No. · From · To)
           </p>
             {[...grouped.entries()]
               .sort((a, b) => a[0].localeCompare(b[0]))
@@ -273,11 +274,17 @@ export function InspectionExportModal({ open, onClose }: { open: boolean; onClos
                     ? g.items
                         .flatMap((i) => {
                           const rides = footplateRidesOf(i);
-                          const lists =
-                            rides.length > 0
-                              ? rides.map((ride) => footplateTrainListFromRide(ride) || "-")
-                              : [trainsOf(i) || "-"];
-                          return lists.map((t) => `${t} (${i.logDate.slice(8)})`);
+                          const emit = rides.length > 0 ? rides : [null];
+                          return emit.map((ride) => {
+                            const t = ride
+                              ? footplateTrainListFromRide(ride) || "-"
+                              : trainsOf(i) || "-";
+                            const { from, to } = footplateFromTo(
+                              ride ?? i.footplateJourney,
+                              stationName
+                            );
+                            return `${t} ${from} → ${to} (${i.logDate.slice(8)})`;
+                          });
                         })
                         .join("; ")
                     : formatInspectionDates(g.items.map((i) => i.logDate))}

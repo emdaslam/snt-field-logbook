@@ -1119,6 +1119,16 @@ export function footplateTrainListFromRide(ride: {
   });
 }
 
+/** Boarding → other-end names for one footplate ride. Missing ends show "-". */
+export function footplateFromTo(
+  ride: { boardingStationId?: number | null; otherEndStationId?: number | null } | null | undefined,
+  nameOf: (id: number | null) => string
+): { from: string; to: string } {
+  const fromId = ride?.boardingStationId ?? 0;
+  const toId = ride?.otherEndStationId ?? 0;
+  return { from: fromId ? nameOf(fromId) : "-", to: toId ? nameOf(toId) : "-" };
+}
+
 /** True when the log's inspection station or any Footplate ride endpoint matches. */
 export function logMatchesInspectionStation(
   l: {

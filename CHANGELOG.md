@@ -3,6 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.92 — 2026-09-26
+
+**Minor: footplate inspection export includes From and To**
+
+- The footplate inspection PDF (and its preview) now has From and To columns next to Train No., so each ride shows the boarding and other-end stations.
+- Implemented in `PLACEHOLDER`.
+
 ## 1.7.7.91 — 2026-09-26
 
 **Minor: Home daily-log tile date column vertically centered**

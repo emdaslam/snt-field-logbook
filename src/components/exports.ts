@@ -1,5 +1,5 @@
 import { exportDocument } from "@/lib/pdf";
-import { fmtDate, toISODate, formatFootplateShifts, footplateTrainList, footplateRidesOf, footplateTrainListFromRide, logMatchesInspectionStation, pcdoEntriesOf, formatRupee } from "@/lib/api";
+import { fmtDate, toISODate, formatFootplateShifts, footplateTrainList, footplateRidesOf, footplateTrainListFromRide, footplateFromTo, logMatchesInspectionStation, pcdoEntriesOf, formatRupee } from "@/lib/api";
 import { formatInspectionDates } from "@/lib/inspections";
 import { isSpecialMovement, EQUIPMENT_DEFAULTS, variableKmText, type ExportStyle } from "@/lib/types";
 import { railwayHeading } from "@/lib/railways";
@@ -1424,7 +1424,7 @@ type InspKind = "monthly" | "quarterly" | "maintenance" | "joint" | "footplate" 
 
 /**
  * Inspection export. Accepts one or more kinds and renders a section per kind:
- *   - footplate -> Day/Night | Train No. | Date
+ *   - footplate -> Day/Night | Train No. | From | To | Date
  *   - others    -> Station Inspected | Dates Inspected
  */
 export function exportInspections(
@@ -1493,16 +1493,17 @@ export function exportInspections(
     if (kind === "footplate") {
       // One row per Footplate ride (a chain with two rides lists both)
       body += `<table>`;
-      body += `<tr><th style="width:120px">Day / Night</th><th>Train No.</th><th style="width:110px">Date</th></tr>`;
+      body += `<tr><th style="width:100px">Day / Night</th><th>Train No.</th><th>From</th><th>To</th><th style="width:110px">Date</th></tr>`;
       for (const r of rows) {
         const rides = footplateRidesOf(r);
         const emit = rides.length > 0 ? rides : [null];
         for (const ride of emit) {
           const trains = ride ? footplateTrainListFromRide(ride) : footplateTrainList(r);
           const shift = formatFootplateShifts(ride?.shift ?? r.footplateShift) || "-";
+          const { from, to } = footplateFromTo(ride ?? r.footplateJourney, nameOf);
           body += `<tr><td>${esc(shift)} footplate</td><td>${
             esc(trains) || "-"
-          }</td><td>${fmtDate(r.logDate)}</td></tr>`;
+          }</td><td>${esc(from)}</td><td>${esc(to)}</td><td>${fmtDate(r.logDate)}</td></tr>`;
         }
       }
       body += `</table>`;
