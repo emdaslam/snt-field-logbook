@@ -229,7 +229,7 @@ export function Timeline({
                 }`}
                 aria-hidden
               />
-              <div className="flex w-[3.75rem] flex-shrink-0 flex-col items-center justify-between self-stretch text-center">
+              <div className="flex w-[3.75rem] flex-shrink-0 flex-col items-center gap-1 text-center">
                 <span
                   className={`text-[10px] font-bold uppercase tracking-wide ${
                     isToday
