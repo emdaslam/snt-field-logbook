@@ -10,7 +10,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 - The Attachments tab matches Notes and Home: glass search, photo/PDF filter chips, rounded cards with a colour stripe, stroke icons instead of a plain list.
 - Settings → About no longer calls the Telegram and WhatsApp links “materials groups”. They are S&T manuals groups, with a short note that they are the hub for official PDFs, technical manuals and important updates.
 - Appearance gains Forest, Midnight and Rose themes, plus Lexend, IBM Plex and Merriweather typefaces (bundled, offline).
-- Implemented in `PENDING`.
+- Implemented in `e3135f4`.
 
 ## 1.7.7.95 — 2026-09-26
 
