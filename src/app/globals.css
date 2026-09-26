@@ -9,7 +9,8 @@
  * makes the utilities reference `var(--…)` directly, which is what allows the
  * switch without rebuilding. The default values below are Tailwind's own
  * palette, so the light theme looks exactly like before; `data-theme="dark"`,
- * `data-theme="ocean"` and `data-theme="sunset"` override the tokens.
+ * `data-theme="ocean"`, `data-theme="sunset"`, `data-theme="forest"`,
+ * `data-theme="midnight"` and `data-theme="rose"` override the tokens.
  */
 @theme inline {
   --color-surface: var(--surface);
@@ -399,6 +400,173 @@ html[data-theme="sunset"] {
 }
 
 /*
+ * Forest theme — a light, mossy look. Sage-grey neutrals and a deep pine
+ * green brand; status chips keep their light defaults.
+ */
+html[data-theme="forest"] {
+  --surface: #f7fbf6;
+  --n-50: #f1f6ef;
+  --n-100: #e4ece1;
+  --n-200: #cddbc8;
+  --n-300: #a9c0a3;
+  --n-400: #7a9a74;
+  --n-500: #5b7c55;
+  --n-600: #466343;
+  --n-700: #384f36;
+  --n-800: #2c3e2b;
+  --n-900: #1e2b1e;
+  --b-50: #ecf6ed;
+  --b-100: #d4ead6;
+  --b-200: #abd4af;
+  --b-300: #75b57c;
+  --b-400: #4a9654;
+  --b-500: #2f7a3a;
+  --b-600: #246230;
+  --b-700: #1e4f28;
+  --b-800: #1a4022;
+  --b-900: #15351c;
+}
+
+/*
+ * Midnight theme — a dark navy night look. Deep indigo surfaces with
+ * lighter text; brand blues sit brighter so buttons stay readable.
+ */
+html[data-theme="midnight"] {
+  --surface: #12182b;
+  --n-50: #12182b;
+  --n-100: #0e1424;
+  --n-200: #0a101c;
+  --n-300: #3d4a6b;
+  --n-400: #5c6b8f;
+  --n-500: #8b97b8;
+  --n-600: #c5cde0;
+  --n-700: #dde3f0;
+  --n-800: #eef1f8;
+  --n-900: #f7f8fc;
+  --b-50: #151d38;
+  --b-100: #1c2748;
+  --b-200: #b8c8f5;
+  --b-300: #93a8f0;
+  --b-400: #7b94eb;
+  --b-500: #6380e6;
+  --b-600: #4c6adf;
+  --b-700: #7d98eb;
+  --b-800: #3b5bd9;
+  --b-900: #2f4cc4;
+  --a-50: #211807;
+  --a-100: #2b1f0b;
+  --a-200: #382a12;
+  --a-300: #fcd34d;
+  --a-400: #fbbf24;
+  --a-500: #f59e0b;
+  --a-600: #d97706;
+  --a-700: #f59e0b;
+  --a-800: #fbbf24;
+  --a-900: #fcd34d;
+  --e-50: #0a1f15;
+  --e-100: #10271c;
+  --e-200: #173124;
+  --e-300: #6ee7b7;
+  --e-400: #34d399;
+  --e-500: #10b981;
+  --e-600: #059669;
+  --e-700: #10b981;
+  --e-800: #34d399;
+  --r-50: #2a1215;
+  --r-100: #34181c;
+  --r-200: #402027;
+  --r-300: #fca5a5;
+  --r-400: #f87171;
+  --r-500: #ef4444;
+  --r-600: #ef4444;
+  --r-700: #f87171;
+  --r-800: #fecaca;
+  --r-900: #fecaca;
+  --sk-50: #0c2230;
+  --sk-100: #112b3c;
+  --sk-200: #17364b;
+  --sk-300: #7dd3fc;
+  --sk-400: #38bdf8;
+  --sk-500: #0ea5e9;
+  --sk-600: #38bdf8;
+  --sk-700: #7dd3fc;
+  --sk-800: #bae6fd;
+  --sk-900: #e0f2fe;
+  --sk-950: #f0f9ff;
+  --c-50: #08202b;
+  --c-100: #0c2b37;
+  --c-200: #123a49;
+  --c-300: #67e8f9;
+  --c-400: #22d3ee;
+  --c-500: #22d3ee;
+  --c-600: #67e8f9;
+  --c-700: #a5f3fc;
+  --c-800: #cffafe;
+  --c-900: #ecfeff;
+  --t-50: #07201d;
+  --t-100: #0b2a26;
+  --t-200: #123632;
+  --t-300: #5eead4;
+  --t-400: #2dd4bf;
+  --t-500: #14b8a6;
+  --t-600: #2dd4bf;
+  --t-700: #5eead4;
+  --t-800: #99f6e4;
+  --t-900: #ccfbf1;
+  --t-950: #f0fdfa;
+  --i-50: #171a35;
+  --i-100: #1c2040;
+  --i-200: #23294f;
+  --i-300: #a5b4fc;
+  --i-400: #818cf8;
+  --i-500: #6366f1;
+  --i-600: #6366f1;
+  --i-700: #a5b4fc;
+  --i-800: #c7d2fe;
+  --i-900: #e0e7ff;
+  --i-950: #eef2ff;
+  --v-50: #231539;
+  --v-100: #2b1b45;
+  --v-200: #352254;
+  --v-300: #c4b5fd;
+  --v-400: #a78bfa;
+  --v-500: #8b5cf6;
+  --v-600: #a78bfa;
+  --v-700: #c4b5fd;
+  --v-800: #ddd6fe;
+  --v-900: #ede9fe;
+  --v-950: #f5f3ff;
+}
+
+/*
+ * Rose theme — a light blush look. Warm pink-grey neutrals and a
+ * raspberry brand; status chips keep their light defaults.
+ */
+html[data-theme="rose"] {
+  --surface: #fff8f9;
+  --n-50: #fdf4f6;
+  --n-100: #f8e9ed;
+  --n-200: #efd4db;
+  --n-300: #e0b3bf;
+  --n-400: #c78fa0;
+  --n-500: #a96b80;
+  --n-600: #8c5468;
+  --n-700: #714354;
+  --n-800: #53323e;
+  --n-900: #3a232c;
+  --b-50: #fdeef3;
+  --b-100: #fbdce6;
+  --b-200: #f6b8cc;
+  --b-300: #ee88a8;
+  --b-400: #e45a86;
+  --b-500: #d13a6a;
+  --b-600: #b42454;
+  --b-700: #941c46;
+  --b-800: #79193c;
+  --b-900: #651834;
+}
+
+/*
  * App typeface (Settings → Appearance → Font style). Fonts except System
  * are bundled under /fonts so they work offline in the APK.
  */
@@ -451,6 +619,48 @@ html[data-theme="sunset"] {
   font-display: swap;
   src: url("/fonts/literata.woff2") format("woff2");
 }
+@font-face {
+  font-family: "Lexend";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/lexend-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Lexend";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/lexend-700.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/ibm-plex-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/ibm-plex-700.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Merriweather";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/merriweather-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Merriweather";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/merriweather-700.woff2") format("woff2");
+}
 html[data-font="system"] { font-family: system-ui, sans-serif; }
 html[data-font="delius"] { font-family: "Delius", system-ui, sans-serif; }
 html[data-font="patrick-hand"] { font-family: "Patrick Hand", system-ui, sans-serif; }
@@ -458,6 +668,9 @@ html[data-font="nunito"] { font-family: "Nunito", system-ui, sans-serif; }
 html[data-font="caveat"] { font-family: "Caveat", system-ui, sans-serif; }
 html[data-font="atkinson"] { font-family: "Atkinson Hyperlegible", system-ui, sans-serif; }
 html[data-font="literata"] { font-family: "Literata", Georgia, serif; }
+html[data-font="lexend"] { font-family: "Lexend", system-ui, sans-serif; }
+html[data-font="ibm-plex"] { font-family: "IBM Plex Sans", system-ui, sans-serif; }
+html[data-font="merriweather"] { font-family: "Merriweather", Georgia, serif; }
 html[data-font] body,
 html[data-font] button,
 html[data-font] input,

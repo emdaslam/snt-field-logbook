@@ -14,5 +14,11 @@ for (const id of FONT_FAMILIES) {
 }
 assert.ok(FONT_FAMILIES.includes("delius"));
 assert.ok(FONT_FAMILIES.includes("patrick-hand"));
+assert.ok(FONT_FAMILIES.includes("lexend"));
+assert.ok(FONT_FAMILIES.includes("ibm-plex"));
+assert.ok(FONT_FAMILIES.includes("merriweather"));
+assert.equal(isAppFontFamily("lexend"), true);
+assert.equal(isAppFontFamily("ibm-plex"), true);
+assert.equal(isAppFontFamily("merriweather"), true);
 
 console.log("fontFamily check ok");

@@ -709,6 +709,28 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.8.0",
+    tag: "More looks, restyled Attachments",
+    subtitle: "Forest, Midnight and Rose themes, three extra fonts, and a cleaner Attachments tab.",
+    slides: [
+      {
+        glyph: "◐",
+        title: "New themes",
+        body: "Settings → Appearance now also has Forest (mossy greens), Midnight (a deep navy night look) and Rose (warm blush). Light, Dark, Ocean and Sunset are unchanged.",
+      },
+      {
+        glyph: "Aa",
+        title: "More font styles",
+        body: "Lexend is a readable modern sans, IBM Plex is a technical sans, and Merriweather is a sturdy serif. They sit with the existing styles and are bundled so they work offline.",
+      },
+      {
+        glyph: "▤",
+        title: "Attachments tab",
+        body: "The hamburger Attachments list now uses the same rounded cards, colour stripe and glass search as Notes. Filter by photo or PDF. Settings → About labels the manuals groups instead of materials.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {

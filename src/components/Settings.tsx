@@ -807,12 +807,12 @@ export function Settings() {
       {/* Appearance */}
       <Section title="Appearance" accent="#4f46e5">
         <p className="mb-2 text-sm font-medium text-slate-600">Theme</p>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 gap-2">
           {THEMES.map((t) => (
             <button
               key={t}
               onClick={() => setTheme(t)}
-              className={`flex-1 rounded-xl border px-3 py-2.5 text-sm font-medium capitalize transition active:scale-[0.98] ${
+              className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition active:scale-[0.98] ${
                 theme === t
                   ? "border-blue-500 bg-blue-50 text-blue-800 shadow-sm ring-1 ring-blue-100"
                   : "border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
@@ -823,9 +823,10 @@ export function Settings() {
           ))}
         </div>
         <p className="mb-3 mt-2 text-xs text-slate-400">
-          Light is the default look. Dark uses dark surfaces and lighter text throughout the app.
-          Ocean is a light, coastal look with cool blue-grey surfaces and a deep ocean-blue accent.
-          Sunset is a bright, warm look with sunlit surfaces and a vivid coral accent.
+          Light is the default look. Dark uses dark surfaces and lighter text.
+          Ocean is coastal cool blues; Sunset is sunlit cream with coral.
+          Forest is mossy greens; Midnight is a deep navy night look; Rose is a
+          warm blush palette. Saved on this device and included in backups.
         </p>
         <p className="mb-2 text-sm font-medium text-slate-600">Font style</p>
         <div className="grid grid-cols-2 gap-2">
@@ -846,8 +847,9 @@ export function Settings() {
         </div>
         <p className="mb-3 mt-2 text-xs text-slate-400">
           System is the phone’s default. Delius and Patrick Hand are handwritten; Nunito is rounded;
-          Caveat is a brush script; Atkinson is high-legibility; Literata is a book serif. Applies to
-          the whole app. Saved on this device and included in backups.
+          Caveat is a brush script; Atkinson is high-legibility; Literata is a book serif;
+          Lexend is a readable modern sans; IBM Plex is a technical sans; Merriweather is a
+          sturdy serif. Applies to the whole app. Saved on this device and included in backups.
         </p>
         <p className="mb-2 text-sm font-medium text-slate-600">Font size (applies to the whole app)</p>
         <div className="flex gap-2">
@@ -1038,6 +1040,9 @@ export function Settings() {
           </span>
           <span className="text-sm font-semibold text-slate-800">Join WhatsApp feedback group</span>
         </button>
+        <p className="mt-4 text-xs leading-snug text-slate-500">
+          This group is the central hub for the Signalling &amp; Telecom department&apos;s official PDFs, technical manuals, and important updates.
+        </p>
         <button
           onClick={() => window.open("https://t.me/+H41qMXKWHow2MzY1", "_blank", "noopener")}
           className="flex w-full items-center gap-3 rounded-2xl border border-slate-200/80 bg-surface p-3 text-left shadow-sm transition hover:bg-slate-50 active:scale-[0.98]"
@@ -1045,7 +1050,7 @@ export function Settings() {
           <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-700">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg>
           </span>
-          <span className="text-sm font-semibold text-slate-800">S&amp;T materials Telegram group</span>
+          <span className="text-sm font-semibold text-slate-800">S&amp;T manuals Telegram group</span>
         </button>
         <button
           onClick={() => window.open("https://chat.whatsapp.com/JFZMkGBHbnnG2BezVzrqOg", "_blank", "noopener")}
@@ -1054,7 +1059,7 @@ export function Settings() {
           <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><path d="M3.27 6.96 12 12.01l8.73-5.05M12 22.08V12" /></svg>
           </span>
-          <span className="text-sm font-semibold text-slate-800">S&amp;T materials WhatsApp group</span>
+          <span className="text-sm font-semibold text-slate-800">S&amp;T manuals WhatsApp group</span>
         </button>
         </div>
       </Section>

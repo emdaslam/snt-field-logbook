@@ -28,7 +28,7 @@ import {
   type FootplateReminderSettings,
   type JointReminderSettings,
 } from "@/lib/inspections";
-import { FONT_SIZE_ROOT, isAppFontFamily, type AppFontFamily, type AppTheme, type FontSize } from "@/lib/types";
+import { FONT_SIZE_ROOT, isAppFontFamily, isAppTheme, type AppFontFamily, type AppTheme, type FontSize } from "@/lib/types";
 import { isNative, scheduleDailyReminders } from "@/lib/native";
 import { driveStatus, syncWithDrive, replaceDriveBackup, pullFromDrive, type DriveResult, type DriveProgress, type DriveConflictInfo } from "@/lib/drive";
 import { lowStockAlerts, qtyWithUnit } from "@/lib/stock";
@@ -182,7 +182,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (typeof window === "undefined") return "light";
     try {
       const saved = localStorage.getItem("snt.theme");
-      return saved === "dark" || saved === "ocean" || saved === "sunset" ? saved : "light";
+      return isAppTheme(saved) ? saved : "light";
     } catch {
       return "light";
     }

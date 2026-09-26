@@ -156,14 +156,20 @@ export function isSpecialMovement(l: { movementKind?: string | null }): boolean 
 }
 
 /** Color theme of the app. "light" is the default look. */
-export type AppTheme = "light" | "dark" | "ocean" | "sunset";
-export const THEMES: AppTheme[] = ["light", "dark", "ocean", "sunset"];
+export type AppTheme = "light" | "dark" | "ocean" | "sunset" | "forest" | "midnight" | "rose";
+export const THEMES: AppTheme[] = ["light", "dark", "ocean", "sunset", "forest", "midnight", "rose"];
 export const THEME_LABEL: Record<AppTheme, string> = {
   light: "Light",
   dark: "Dark",
   ocean: "Ocean",
   sunset: "Sunset",
+  forest: "Forest",
+  midnight: "Midnight",
+  rose: "Rose",
 };
+export function isAppTheme(v: string | null | undefined): v is AppTheme {
+  return !!v && (THEMES as readonly string[]).includes(v);
+}
 
 /**
  * App-wide typeface. "system" keeps the device default; the rest are bundled
@@ -176,7 +182,10 @@ export type AppFontFamily =
   | "nunito"
   | "caveat"
   | "atkinson"
-  | "literata";
+  | "literata"
+  | "lexend"
+  | "ibm-plex"
+  | "merriweather";
 export const FONT_FAMILIES: AppFontFamily[] = [
   "system",
   "delius",
@@ -185,6 +194,9 @@ export const FONT_FAMILIES: AppFontFamily[] = [
   "caveat",
   "atkinson",
   "literata",
+  "lexend",
+  "ibm-plex",
+  "merriweather",
 ];
 export const FONT_FAMILY_LABEL: Record<AppFontFamily, string> = {
   system: "System",
@@ -194,6 +206,9 @@ export const FONT_FAMILY_LABEL: Record<AppFontFamily, string> = {
   caveat: "Caveat",
   atkinson: "Atkinson",
   literata: "Literata",
+  lexend: "Lexend",
+  "ibm-plex": "IBM Plex",
+  merriweather: "Merriweather",
 };
 export const FONT_FAMILY_CSS: Record<AppFontFamily, string> = {
   system: "system-ui, sans-serif",
@@ -203,7 +218,10 @@ export const FONT_FAMILY_CSS: Record<AppFontFamily, string> = {
   caveat: '"Caveat", system-ui, sans-serif',
   atkinson: '"Atkinson Hyperlegible", system-ui, sans-serif',
   literata: '"Literata", Georgia, serif',
-};
+  lexend: '"Lexend", system-ui, sans-serif',
+  "ibm-plex": '"IBM Plex Sans", system-ui, sans-serif',
+  merriweather: '"Merriweather", Georgia, serif',
+}
 export function isAppFontFamily(v: string | null | undefined): v is AppFontFamily {
   return !!v && (FONT_FAMILIES as readonly string[]).includes(v);
 }
@@ -270,5 +288,5 @@ export function variableKmText(km: number | string | null | undefined): string |
 }
 
 /** App version shown in Settings → About. Bump alongside android/app/build.gradle. */
-export const APP_VERSION_BASE = "1.7.7.95";
+export const APP_VERSION_BASE = "1.7.8.0";
 export const APP_VERSION = `${APP_VERSION_BASE}${AUTO_TIMINGS ? "p" : ""}`;
