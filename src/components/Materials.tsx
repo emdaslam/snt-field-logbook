@@ -416,8 +416,8 @@ export function Materials({ focusMaterialId }: { focusMaterialId?: number | null
       <div
         key={m.id}
         ref={isFocus ? (el) => { focusRowRef.current = el; } : undefined}
-        className={`px-3 py-3 ${
-          isFocus && focusFlash ? "-m-1 rounded-lg bg-amber-50 ring-2 ring-amber-400" : ""
+        className={`relative overflow-hidden px-3 py-3 ${
+          isFocus && focusFlash ? "rounded-xl bg-amber-50 ring-2 ring-amber-400" : ""
         }`}
       >
         <div className="min-w-0">
@@ -450,19 +450,19 @@ export function Materials({ focusMaterialId }: { focusMaterialId?: number | null
         <div className="mt-2 flex flex-shrink-0 flex-wrap items-center gap-1">
           <button
             onClick={() => setReceiveForm({ material: m, stationId })}
-            className="rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+            className="rounded-xl bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98]"
           >
             Receive
           </button>
           <button
             onClick={() => setUseForm({ material: m, stationId })}
-            className="rounded-lg bg-amber-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
+            className="rounded-xl bg-amber-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-amber-700 active:scale-[0.98]"
           >
             Use
           </button>
           <button
             onClick={() => setTransferForm({ material: m, stationId })}
-            className="rounded-lg bg-violet-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-violet-700"
+            className="rounded-xl bg-violet-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-violet-700 active:scale-[0.98]"
             title="Transfer to another station"
           >
             Transfer
@@ -471,14 +471,14 @@ export function Materials({ focusMaterialId }: { focusMaterialId?: number | null
             <>
               <button
                 onClick={() => setAddReqForm({ material: m, stationId })}
-                className="rounded-lg bg-blue-600 px-2 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+                className="rounded-xl bg-blue-600 px-2 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700 active:scale-[0.98]"
                 title="Add more to this station's requirement"
               >
                 + Req
               </button>
               <button
                 onClick={() => setSetReqForm({ material: m, stationId })}
-                className="rounded-lg border border-blue-800 px-2 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-50"
+                className="rounded-xl border border-blue-200 bg-blue-50 px-2 py-1.5 text-xs font-semibold text-blue-800 transition hover:bg-blue-100 active:scale-[0.98]"
                 title="Set this station's requirement and minimum spare"
               >
                 Req
@@ -487,7 +487,7 @@ export function Materials({ focusMaterialId }: { focusMaterialId?: number | null
           )}
           <button
             onClick={() => toggleDetail(detailKey)}
-            className={`rounded-lg border border-slate-300 px-2 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 ${
+            className={`rounded-xl border border-slate-200 px-2 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 active:scale-[0.98] ${
               open ? "bg-slate-100" : ""
             }`}
             title="Details"
@@ -499,7 +499,7 @@ export function Materials({ focusMaterialId }: { focusMaterialId?: number | null
         <div className="mt-1.5 flex items-center gap-3">
           <button
             onClick={() => setMaterialForm({ open: true, existing: m })}
-            className="text-xs font-medium text-blue-700 hover:underline"
+            className="rounded-lg px-2 py-0.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-50 active:scale-95"
           >
             Edit
           </button>
@@ -509,14 +509,14 @@ export function Materials({ focusMaterialId }: { focusMaterialId?: number | null
                 ? setConfirmDelete({ kind: "materialStation", id: m.id, stationId })
                 : setConfirmDelete({ kind: "material", id: m.id })
             }
-            className="text-xs font-medium text-red-500 hover:underline"
+            className="rounded-lg px-2 py-0.5 text-xs font-semibold text-red-500 transition hover:bg-red-50 active:scale-95"
           >
             {stationId != null ? "Delete" : "Delete material"}
           </button>
         </div>
 
         {open && (
-          <div className="mt-3 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <div className="mt-3 space-y-3 rounded-2xl border border-slate-200/80 bg-slate-50 p-3">
             <div>
               <p className="mb-1 text-xs font-bold uppercase text-slate-500">
                 Received at {stationName(stationId)} ({row.receipts.length})
@@ -528,7 +528,7 @@ export function Materials({ focusMaterialId }: { focusMaterialId?: number | null
                   {row.receipts.map((r) => {
                     const avail = batchAvailable(r, usages, transfers);
                     return (
-                      <div key={r.id} className="flex items-start justify-between gap-2 rounded-lg bg-surface p-2 text-xs">
+                      <div key={r.id} className="flex items-start justify-between gap-2 rounded-xl border border-slate-100 bg-surface p-2 text-xs shadow-sm">
                         <div className="min-w-0">
                           <p className="font-semibold text-slate-800">
                             {qtyLabel(r.qty, m.unit)} · {fmtDate(r.date)}
@@ -565,7 +565,7 @@ export function Materials({ focusMaterialId }: { focusMaterialId?: number | null
                   {row.usages.map((u) => {
                     const batch = u.receiptId != null ? receipts.find((r) => r.id === u.receiptId) : null;
                     return (
-                      <div key={u.id} className="flex items-start justify-between gap-2 rounded-lg bg-surface p-2 text-xs">
+                      <div key={u.id} className="flex items-start justify-between gap-2 rounded-xl border border-slate-100 bg-surface p-2 text-xs shadow-sm">
                         <div className="min-w-0">
                           <p className="font-semibold text-slate-800">
                             {qtyLabel(u.qty, m.unit)} · {fmtDate(u.date)}
@@ -601,7 +601,7 @@ export function Materials({ focusMaterialId }: { focusMaterialId?: number | null
                   {row.transfersOut.map((t) => {
                     const batch = t.receiptId != null ? receipts.find((r) => r.id === t.receiptId) : null;
                     return (
-                      <div key={t.id} className="flex items-start justify-between gap-2 rounded-lg bg-surface p-2 text-xs">
+                      <div key={t.id} className="flex items-start justify-between gap-2 rounded-xl border border-slate-100 bg-surface p-2 text-xs shadow-sm">
                         <div className="min-w-0">
                           <p className="font-semibold text-slate-800">
                             {qtyLabel(t.qty, m.unit)} · {fmtDate(t.date)}
@@ -638,44 +638,44 @@ export function Materials({ focusMaterialId }: { focusMaterialId?: number | null
 
   return (
     <div className="pb-24">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-blue-50 px-3 py-2">
+      <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 bg-slate-100/95 px-3 py-2.5 backdrop-blur">
         <p className="text-xs text-slate-600">
-          <strong>{totalMaterials}</strong> material{totalMaterials !== 1 ? "s" : ""} · received{" "}
-          <strong>{fmtQty(totalReceived)}</strong> · used <strong>{fmtQty(totalUsed)}</strong>
+          <strong className="text-slate-800">{totalMaterials}</strong> material{totalMaterials !== 1 ? "s" : ""} · received{" "}
+          <strong className="text-slate-800">{fmtQty(totalReceived)}</strong> · used <strong className="text-slate-800">{fmtQty(totalUsed)}</strong>
         </p>
         <div className="relative flex flex-shrink-0 items-center gap-1.5">
           <button
             onClick={() => setEquipmentForm(true)}
-            className="rounded-lg border border-blue-800 px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-100"
+            className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800 transition hover:bg-blue-100 active:scale-[0.98]"
           >
             + New Equipment
           </button>
           <button
             onClick={() => setExportMenu((v) => !v)}
             disabled={materials.length === 0 || busy}
-            className="rounded-lg bg-blue-800 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-xl bg-gradient-to-b from-blue-700 to-blue-800 px-3 py-1.5 text-xs font-semibold text-white shadow-md shadow-blue-900/20 transition hover:from-blue-600 hover:to-blue-700 disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98]"
           >
-            📄 Export PDF ▾
+            Export PDF ▾
           </button>
           {exportMenu && (
-            <div className="absolute right-0 top-9 z-20 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+            <div className="absolute right-0 top-9 z-20 w-56 overflow-hidden rounded-2xl border border-slate-200/80 bg-surface/95 p-1.5 shadow-2xl shadow-slate-900/20 backdrop-blur">
               <button
                 onClick={() => doExport("inhand")}
-                className="block w-full px-4 py-2.5 text-left text-sm font-medium text-slate-700 hover:bg-blue-50"
+                className="block w-full rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-blue-50 active:scale-[0.99]"
               >
                 In-hand materials
                 <span className="block text-[11px] font-normal text-slate-400">Overall + station-wise in hand</span>
               </button>
               <button
                 onClick={() => doExport("required")}
-                className="block w-full px-4 py-2.5 text-left text-sm font-medium text-slate-700 hover:bg-blue-50"
+                className="block w-full rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-blue-50 active:scale-[0.99]"
               >
                 Required materials
                 <span className="block text-[11px] font-normal text-slate-400">Overall + station-wise required list</span>
               </button>
               <button
                 onClick={() => doExport("full")}
-                className="block w-full px-4 py-2.5 text-left text-sm font-medium text-slate-700 hover:bg-blue-50"
+                className="block w-full rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-blue-50 active:scale-[0.99]"
               >
                 Full report
                 <span className="block text-[11px] font-normal text-slate-400">All receipts & usage details</span>
@@ -686,11 +686,11 @@ export function Materials({ focusMaterialId }: { focusMaterialId?: number | null
       </div>
 
       {lowStock.length > 0 && (
-        <div className="border-b border-red-200 bg-red-50 px-3 py-2">
-          <p className="text-xs font-bold uppercase text-red-700">
+        <div className="mx-3 mt-3 overflow-hidden rounded-2xl border border-red-200/80 bg-red-50/80 p-3 shadow-sm">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-red-700">
             Low stock — minimum spare not met
           </p>
-          <div className="mt-1 space-y-1">
+          <div className="mt-1.5 space-y-1">
             {lowStock.map((a) => (
               <p key={`${a.material.id}-${a.stationId ?? "none"}`} className="text-xs text-red-700">
                 <strong>{a.material.name}</strong>: only{" "}
@@ -703,7 +703,7 @@ export function Materials({ focusMaterialId }: { focusMaterialId?: number | null
       )}
 
       {materials.length === 0 ? (
-        <div className="p-6 text-center">
+        <div className="m-3 rounded-2xl border border-dashed border-slate-300 bg-surface p-8 text-center shadow-sm">
           <p className="mb-4 text-sm text-slate-500">
             No materials on the required list yet. Add the materials you need — pick the equipment they
             belong to, the quantity and unit, and the station(s) they belong to — then record how many you
@@ -713,27 +713,31 @@ export function Materials({ focusMaterialId }: { focusMaterialId?: number | null
           <PrimaryButton onClick={() => setMaterialForm({ open: true })}>+ Add Material</PrimaryButton>
         </div>
       ) : (
-        <div>
-          {stationGroups.map((group) => {
+        <div className="space-y-3 p-3">
+          {stationGroups.map((group, gi) => {
             const open = expandedStation.has(group.stationId);
             return (
-              <div key={group.stationId ?? "none"}>
+              <div
+                key={group.stationId ?? "none"}
+                style={{ animationDelay: `${Math.min(gi, 8) * 40}ms` }}
+                className="card-rise overflow-hidden rounded-2xl border border-slate-200/80 bg-surface shadow-sm"
+              >
                 <button
                   onClick={() => toggleStation(group.stationId)}
-                  className="flex w-full items-center justify-between gap-2 bg-blue-900 px-3 py-1.5 text-left"
+                  className="flex w-full items-center justify-between gap-2 bg-gradient-to-r from-blue-950 via-blue-900 to-blue-800 px-3 py-2.5 text-left transition hover:from-blue-900 hover:to-blue-700 active:scale-[0.99]"
                 >
-                  <p className="text-xs font-bold uppercase tracking-wide text-white">
+                  <p className="text-xs font-bold uppercase tracking-wider text-white">
                     {stationName(group.stationId)}
                   </p>
                   <span className="flex flex-shrink-0 items-center gap-2">
-                    <span className="rounded-full bg-blue-800 px-2 py-0.5 text-[11px] font-semibold text-blue-200">
+                    <span className="rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-semibold text-blue-100 ring-1 ring-white/10">
                       {group.rows.length}
                     </span>
                     <span className="text-[11px] font-bold text-blue-200">{open ? "▴" : "▾"}</span>
                   </span>
                 </button>
                 {open && (
-                  <div className="bg-surface">
+                  <div>
                     {groupRowsByEquipment(group.rows).map((eqGroup) => {
                       const eqKey = `${group.stationId ?? "none"}|${eqGroup.equipment}`;
                       const eqOpen = !collapsedEquipment.has(eqKey);
@@ -741,9 +745,9 @@ export function Materials({ focusMaterialId }: { focusMaterialId?: number | null
                         <div key={eqGroup.equipment}>
                           <button
                             onClick={() => toggleEquipment(eqKey)}
-                            className="flex w-full items-center justify-between gap-2 border-b border-slate-100 bg-slate-100 px-3 py-1 text-left"
+                            className="flex w-full items-center justify-between gap-2 border-b border-slate-100 bg-slate-50 px-3 py-1.5 text-left transition hover:bg-slate-100"
                           >
-                            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                               {eqGroup.equipment === "general" ? "General" : eqGroup.equipment}
                               <span className="ml-1.5 text-slate-400">({eqGroup.rows.length})</span>
                             </p>
@@ -768,10 +772,18 @@ export function Materials({ focusMaterialId }: { focusMaterialId?: number | null
       )}
 
       {materials.length > 0 && (
-        <div className="mt-3 px-3">
-          <PrimaryButton onClick={() => setMaterialForm({ open: true })} className="w-full">
-            + Add Material
-          </PrimaryButton>
+        <div className="mt-1 px-3">
+          <button
+            onClick={() => setMaterialForm({ open: true })}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-emerald-400 bg-emerald-50 py-3 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-100 active:scale-[0.98]"
+          >
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-white">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </span>
+            Add Material
+          </button>
         </div>
       )}
 

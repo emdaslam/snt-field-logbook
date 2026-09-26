@@ -777,35 +777,48 @@ export function AppShell() {
       {/* Drawer */}
       {drawer && (
         <div className="fixed inset-0 z-40 flex bg-black/40 backdrop-blur-[2px]" onClick={() => setDrawer(false)}>
-          <div className="w-72 max-w-[85%] rounded-r-3xl bg-gradient-to-b from-blue-950 via-blue-900 to-blue-800 p-5 text-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-6 border-b border-white/10 pb-4">
+          <div className="drawer-enter flex w-72 max-w-[85%] flex-col overflow-hidden rounded-r-3xl bg-gradient-to-b from-blue-950 via-blue-900 to-blue-800 text-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="border-b border-white/10 px-5 pb-4 pt-5">
+              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-lg font-black tracking-tight ring-1 ring-white/15">
+                S&amp;T
+              </div>
               <p className="text-lg font-bold tracking-tight">Railway S&amp;T</p>
               <p className="text-xs text-blue-200">Field Logbook</p>
               <p className="mt-1 text-[10px] text-blue-300/80">Developed by Aslam, JE/SIG/JMDG</p>
               {currentUser && (
-                <div className="mt-3 rounded-xl bg-white/10 p-2.5 text-xs ring-1 ring-white/10">
+                <div className="mt-3 rounded-2xl bg-white/10 p-2.5 text-xs ring-1 ring-white/10">
                   <p className="font-semibold">{currentUser.name}</p>
                   <p className="text-blue-200">{currentUser.designation}</p>
                 </div>
               )}
             </div>
-            {(["home", "notes", "attachments", "materials", "settings"] as View[]).map((v) => (
+            <div className="flex-1 space-y-1 overflow-y-auto p-3">
+            {([
+              ["home", "Home", "M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z", "#60a5fa"],
+              ["notes", "Important Notes", "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h5", "#34d399"],
+              ["attachments", "Attachments", "M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48", "#fbbf24"],
+              ["materials", "Materials", "M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16zM3.27 6.96L12 12.01l8.73-5.05M12 22.08V12", "#a78bfa"],
+              ["settings", "Settings", "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z", "#93c5fd"],
+            ] as [View, string, string, string][]).map(([v, label, path, color]) => (
               <button
                 key={v}
                 onClick={() => { go(v); if (v === "notes") setSearchNote(null); if (v === "materials") setSearchMaterial(null); setDrawer(false); }}
-                className={`mb-1 block w-full rounded-xl px-3 py-2.5 text-left text-sm capitalize transition active:scale-[0.98] ${
-                  view === v ? "bg-emerald-500 font-semibold shadow-lg shadow-emerald-900/40" : "text-blue-100 hover:bg-white/10"
+                className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm transition active:scale-[0.98] ${
+                  view === v ? "bg-white/15 font-semibold shadow-lg shadow-black/20 ring-1 ring-white/20" : "text-blue-100 hover:bg-white/10"
                 }`}
               >
-                {v === "notes"
-                  ? "Important Notes"
-                  : v === "attachments"
-                    ? "Attachments"
-                    : v === "materials"
-                      ? "Materials"
-                      : v}
+                <span
+                  className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-white/10"
+                  style={{ backgroundColor: color + "33", color }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d={path} />
+                  </svg>
+                </span>
+                {label}
               </button>
             ))}
+            </div>
           </div>
           <div className="flex-1" />
         </div>

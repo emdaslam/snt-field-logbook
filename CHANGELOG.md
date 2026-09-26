@@ -3,6 +3,14 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.95 — 2026-09-26
+
+**Minor: Settings, Materials and the menu share the rest of the app’s look**
+
+- Settings groups sit in rounded cards with a colour stripe, pill tabs, and the same action chips as Home and Reports. Station, staff and tag rows are no longer a flat list.
+- Materials uses station cards, a glass toolbar, and a dashed Add row like Notes. Low-stock sits in a rounded banner instead of a full-width strip.
+- The hamburger slides in with a brand mark and icon rows for Home, Notes, Attachments, Materials and Settings.
+
 ## 1.7.7.94 — 2026-09-26
 
 **Minor: footplate Diary/TA rows stay boarding → other end → boarding → HQ**

@@ -551,3 +551,15 @@ html[data-content-scale="150"] {
 .home-enter {
   animation: home-enter 340ms cubic-bezier(0.32, 0.72, 0.28, 1) both;
 }
+
+@keyframes drawer-enter {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+.drawer-enter {
+  animation: drawer-enter 280ms cubic-bezier(0.32, 0.72, 0.28, 1) both;
+}
