@@ -8,7 +8,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 **Minor: Home daily-log tile date column centered with even gaps**
 
 - The weekday / date / month on the left of each tile now sit in a centered column with consistent spacing, instead of stretching to fill the row height. Looks clean on both short and tall entries.
-- Implemented in `<HASH>`.
+- Implemented in `7247c23`.
 
 ## 1.7.7.89 — 2026-09-25
 
