@@ -9,7 +9,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 - Up and Down now each get their own From and To. A single direction is boarding → other end. When both directions are entered, the daily log asks which way is Up (Down is the opposite).
 - Trains on the same date share one Date cell in the PDF.
-- Implemented in `PLACEHOLDER`.
+- Implemented in `d1f8551`.
 
 ## 1.7.7.92 — 2026-09-26
 
