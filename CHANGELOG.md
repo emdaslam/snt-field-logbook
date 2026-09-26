@@ -8,7 +8,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 **Minor: Home daily-log tile date column vertically centered**
 
 - The weekday / date / month on the left of each tile now sit in the vertical middle of the row, instead of hugging the top. Even gaps between those items are unchanged.
-- Implemented in `PLACEHOLDER`.
+- Implemented in `731ef62`.
 
 ## 1.7.7.90 — 2026-09-26
 
