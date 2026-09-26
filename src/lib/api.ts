@@ -1175,6 +1175,71 @@ export function footplateEndsForDir(
   return dir === "Up" ? up : { from: up.to, to: up.from };
 }
 
+export type FootplateRideTrain = {
+  shift: string;
+  dir: "Up" | "Down" | "";
+  train: FootplateDetail;
+};
+
+/** Trains in the order they are ridden: leave boarding first, then return.
+ *  `upFromBoarding === false` means the outbound hop is Down (Up is the return). */
+export function footplateTrainsInRideOrder(ride: {
+  upFromBoarding?: boolean | null;
+  day?: FootplateBlock | FootplateDetail | null;
+  night?: FootplateBlock | FootplateDetail | null;
+}): FootplateRideTrain[] {
+  const outboundDir: "Up" | "Down" = ride.upFromBoarding === false ? "Down" : "Up";
+  const outs: FootplateRideTrain[] = [];
+  const ins: FootplateRideTrain[] = [];
+  const legacy: FootplateRideTrain[] = [];
+  const take = (shift: string, b: FootplateBlock | FootplateDetail | null | undefined) => {
+    if (!b) return;
+    if (isBlock(b)) {
+      const d = (b.direction || "").toLowerCase();
+      const wantUp = d === "both" || d === "up" || (d !== "down" && Boolean(b.up?.trainNo));
+      const wantDn = d === "both" || d === "down" || (d !== "up" && Boolean(b.down?.trainNo));
+      const put = (dir: "Up" | "Down", train: FootplateDetail | null | undefined) => {
+        if (!train?.trainNo) return;
+        (dir === outboundDir ? outs : ins).push({ shift, dir, train });
+      };
+      if (wantUp) put("Up", b.up);
+      if (wantDn) put("Down", b.down);
+      return;
+    }
+    if (b.trainNo) legacy.push({ shift, dir: "", train: b });
+  };
+  take("Day", ride.day);
+  take("Night", ride.night);
+  if (legacy.length) return legacy;
+  const out: FootplateRideTrain[] = [];
+  const n = Math.max(outs.length, ins.length);
+  for (let i = 0; i < n; i++) {
+    if (i < outs.length) out.push(outs[i]);
+    if (i < ins.length) out.push(ins[i]);
+  }
+  return out;
+}
+
+/** Geographic hops for one ride: always boarding → other end, then other end → boarding. */
+export function footplateTrainHops(
+  ride: {
+    upFromBoarding?: boolean | null;
+    day?: FootplateBlock | FootplateDetail | null;
+    night?: FootplateBlock | FootplateDetail | null;
+  },
+  boarding: string,
+  otherEnd: string
+): { from: string; to: string; shift: string; dir: "Up" | "Down" | ""; train: FootplateDetail }[] {
+  const trains = footplateTrainsInRideOrder(ride);
+  let lastTo = boarding;
+  return trains.map((tr) => {
+    const from = lastTo;
+    const to = lastTo === otherEnd ? boarding : otherEnd;
+    lastTo = to;
+    return { from, to, shift: tr.shift, dir: tr.dir, train: tr.train };
+  });
+}
+
 export type FootplateInspectionRow = {
   shift: string;
   trainNo: string;

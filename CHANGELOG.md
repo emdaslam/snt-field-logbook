@@ -3,6 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.7.94 — 2026-09-26
+
+**Minor: footplate Diary/TA rows stay boarding → other end → boarding → HQ**
+
+- Up still links to the Up train (and Down to Down) on the inspection sheet. Diary and TA rows no longer follow that label: after the road to the boarding station, the first train is always boarding → other end, the next is other end → boarding, then the road back to HQ.
+- Clock times stay on those rows in order, so swapping which way is Up does not jump a later time onto an earlier row.
+
 ## 1.7.7.93 — 2026-09-26
 
 **Minor: footplate inspection export one From/To per train, Date merged**

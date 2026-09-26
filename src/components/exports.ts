@@ -1,5 +1,5 @@
 import { exportDocument } from "@/lib/pdf";
-import { fmtDate, toISODate, footplateRidesOf, footplateInspectionRows, logMatchesInspectionStation, pcdoEntriesOf, formatRupee } from "@/lib/api";
+import { fmtDate, toISODate, footplateRidesOf, footplateInspectionRows, footplateTrainHops, logMatchesInspectionStation, pcdoEntriesOf, formatRupee } from "@/lib/api";
 import { formatInspectionDates } from "@/lib/inspections";
 import { isSpecialMovement, EQUIPMENT_DEFAULTS, variableKmText, type ExportStyle } from "@/lib/types";
 import { railwayHeading } from "@/lib/railways";
@@ -16,7 +16,6 @@ import type {
   Tag,
   Staff,
   FootplateDetail,
-  FootplateBlock,
   FootplateJourneyTrain,
   FootplateJourney,
   Material,
@@ -508,32 +507,11 @@ type JourneyLeg = {
   to: string;
 };
 
-/** The train movements of a Footplate day in display order — each Day/Night
- *  shift's Up and Down trains, in the order they are ridden. */
-function fpTrains(
-  l: DailyLog
-): Array<{ shift: string; dir: string; train: FootplateDetail }> {
-  const out: Array<{ shift: string; dir: string; train: FootplateDetail }> = [];
-  const push = (shift: string, b: FootplateBlock | FootplateDetail | null | undefined) => {
-    if (!b) return;
-    if ("direction" in b) {
-      if (b.up?.trainNo) out.push({ shift, dir: "UP", train: b.up });
-      if (b.down?.trainNo) out.push({ shift, dir: "DN", train: b.down });
-    } else if (b.trainNo) {
-      out.push({ shift, dir: "", train: b });
-    }
-  };
-  push("Day", l.footplateDay);
-  push("Night", l.footplateNight);
-  if (l.footplateUp?.trainNo) out.push({ shift: "", dir: "UP", train: l.footplateUp });
-  if (l.footplateDown?.trainNo) out.push({ shift: "", dir: "DN", train: l.footplateDown });
-  return out;
-}
-
 /**
  * The legs of a Footplate day as export rows: HQ → boarding station (ROAD),
- * one row per train movement recorded on the Day/Night shifts, then the final
- * station → HQ (ROAD). Returns null when the journey or any train is missing.
+ * boarding → other end then other end → boarding (train hops), then boarding
+ * → HQ (ROAD). Up/Down only picks which train is on each hop. Returns null
+ * when the journey or any train is missing.
  */
 function footplateLegs(
   l: DailyLog,
@@ -541,42 +519,73 @@ function footplateLegs(
   hqCode: string,
   t: TripTimes
 ): JourneyLeg[] | null {
+  const ride = footplateRidesOf(l)[0];
   const fj: FootplateJourney | null = l.footplateJourney ?? null;
-  if (!fj) return null;
-  const boarding = stations.find((s) => s.id === fj.boardingStationId);
-  const otherEnd = stations.find((s) => s.id === fj.otherEndStationId);
+  const boardingId = ride?.boardingStationId ?? fj?.boardingStationId;
+  const otherEndId = ride?.otherEndStationId ?? fj?.otherEndStationId;
+  if (!boardingId || !otherEndId) return null;
+  const boarding = stations.find((s) => s.id === boardingId);
+  const otherEnd = stations.find((s) => s.id === otherEndId);
   if (!boarding || !otherEnd || boarding.id === otherEnd.id) return null;
   const b = stationLabel(boarding);
   const o = stationLabel(otherEnd);
-  const trains = fpTrains(l);
-  if (trains.length === 0) return null;
-  // In the auto build the boarding-station window is split into one slot per
-  // train, and a typed boarding / alighting time overrides its slot (blank ones
-  // keep the generated value); in the manual build the entered times are used
-  // verbatim.
+  const hops = footplateTrainHops(ride ?? { day: l.footplateDay, night: l.footplateNight }, b, o);
+  if (hops.length === 0) {
+    if (l.footplateUp?.trainNo || l.footplateDown?.trainNo) {
+      const legacy = [l.footplateUp, l.footplateDown].filter((tr): tr is FootplateDetail => Boolean(tr?.trainNo));
+      if (legacy.length === 0) return null;
+      let lastTo = b;
+      const miss = "not entered in daily log";
+      const slots = AUTO_TIMINGS
+        ? journeyTrainTimes(l.logDate, l.taPercent ?? 100, boarding.travelMin, boarding.travelMax, legacy.length)
+        : [];
+      const legs: JourneyLeg[] = [
+        { trainNo: trainNoLabel(l.travelMode, l.travelTrainNo), dep: t.outDep, arr: t.outArr, from: hqCode, to: b },
+      ];
+      legacy.forEach((tr, i) => {
+        const from = lastTo;
+        const to = lastTo === o ? b : o;
+        lastTo = to;
+        const train = tr as FootplateJourneyTrain;
+        const slot = slots[i];
+        legs.push({
+          trainNo: tr.trainNo || "---",
+          dep: AUTO_TIMINGS ? train.depTime || slot?.dep || miss : train.depTime || miss,
+          arr: AUTO_TIMINGS ? train.arrTime || slot?.arr || miss : train.arrTime || miss,
+          from,
+          to,
+        });
+      });
+      legs.push({ trainNo: trainNoLabel(l.returnMode, l.returnTrainNo), dep: t.retDep, arr: t.retArr, from: lastTo, to: hqCode });
+      return legs;
+    }
+    return null;
+  }
   const slots = AUTO_TIMINGS
-    ? journeyTrainTimes(l.logDate, l.taPercent ?? 100, boarding.travelMin, boarding.travelMax, trains.length)
+    ? journeyTrainTimes(l.logDate, l.taPercent ?? 100, boarding.travelMin, boarding.travelMax, hops.length)
     : [];
   const miss = "not entered in daily log";
   const legs: JourneyLeg[] = [
     { trainNo: trainNoLabel(l.travelMode, l.travelTrainNo), dep: t.outDep, arr: t.outArr, from: hqCode, to: b },
   ];
-  let lastTo = b;
-  trains.forEach((tr, i) => {
-    const from = lastTo;
-    const to = lastTo === o ? b : o;
-    lastTo = to;
-    const train = tr.train as FootplateJourneyTrain;
+  hops.forEach((h, i) => {
+    const train = h.train as FootplateJourneyTrain;
     const slot = slots[i];
     legs.push({
-      trainNo: tr.train.trainNo || "---",
+      trainNo: h.train.trainNo || "---",
       dep: AUTO_TIMINGS ? train.depTime || slot?.dep || miss : train.depTime || miss,
       arr: AUTO_TIMINGS ? train.arrTime || slot?.arr || miss : train.arrTime || miss,
-      from,
-      to,
+      from: h.from,
+      to: h.to,
     });
   });
-  legs.push({ trainNo: trainNoLabel(l.returnMode, l.returnTrainNo), dep: t.retDep, arr: t.retArr, from: lastTo, to: hqCode });
+  legs.push({
+    trainNo: trainNoLabel(l.returnMode, l.returnTrainNo),
+    dep: t.retDep,
+    arr: t.retArr,
+    from: hops[hops.length - 1]?.to ?? b,
+    to: hqCode,
+  });
   return legs;
 }
 

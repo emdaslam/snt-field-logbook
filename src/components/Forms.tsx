@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useData } from "./DataProvider";
 import { useBackClose } from "@/lib/backButton";
 import { Modal, Field, inputClass, Chip, PrimaryButton } from "./ui";
-import { api, toISODate, fmtDate, pcdoEntriesOf } from "@/lib/api";
+import { api, toISODate, fmtDate, pcdoEntriesOf, footplateTrainHops, footplateTrainsInRideOrder } from "@/lib/api";
 import {
   DEPARTMENTS,
   PRIORITIES,
@@ -284,42 +284,49 @@ function buildChainLegs(
         legs.push(reuse(fromStation, boarding, "road", roadFit.trainNo, roadFit));
       }
       let lastTo = boarding || fromStation;
-      if (fp.boardingId && fp.otherEndId && fp.boardingId !== fp.otherEndId) {
-        const hopTrain = (active: boolean, dirOk: boolean, train: FootplateJourneyTrain, dest: string) => {
-          if (!active || !dirOk || !train.trainNo) return;
-          const from = dest === otherEnd ? boarding : otherEnd;
-          const fit: JourneyLeg = {
-            from,
-            to: dest,
-            timeDep: train.depTime || null,
-            timeArr: train.arrTime || null,
-            mode: "train",
-            trainNo: train.trainNo,
-          };
-          const reused = reuse(from, dest, "train", train.trainNo, fit);
+      if (fp.boardingId && fp.otherEndId && fp.boardingId !== fp.otherEndId && boarding && otherEnd) {
+        const hops = footplateTrainHops(
+          {
+            upFromBoarding: fp.upFromBoarding,
+            day: fp.fpDay ? { direction: fp.fpDayDir, up: fp.fpDayUp, down: fp.fpDayDn } : null,
+            night: fp.fpNight ? { direction: fp.fpNightDir, up: fp.fpNightUp, down: fp.fpNightDn } : null,
+          },
+          boarding,
+          otherEnd
+        );
+        for (const h of hops) {
+          const train = h.train as FootplateJourneyTrain;
+          const exact = cur.findIndex(
+            (l, i) =>
+              !used.has(i) &&
+              l.from === h.from &&
+              l.to === h.to &&
+              l.mode === "train" &&
+              l.trainNo === train.trainNo
+          );
+          const loose =
+            exact < 0
+              ? cur.findIndex(
+                  (l, i) => !used.has(i) && l.from === h.from && l.to === h.to && l.mode === "train"
+                )
+              : -1;
+          const hit = exact >= 0 ? exact : loose;
+          if (hit >= 0) used.add(hit);
+          const prev = hit >= 0 ? cur[hit] : null;
+          const timeDep =
+            exact >= 0 ? train.depTime || prev?.timeDep || null : prev?.timeDep || train.depTime || null;
+          const timeArr =
+            exact >= 0 ? train.arrTime || prev?.timeArr || null : prev?.timeArr || train.arrTime || null;
           legs.push({
-            ...reused,
-            from,
-            to: dest,
+            from: h.from,
+            to: h.to,
+            timeDep,
+            timeArr,
             mode: "train",
             trainNo: train.trainNo,
-            timeDep: train.depTime || reused.timeDep,
-            timeArr: train.arrTime || reused.timeArr,
           });
-          lastTo = dest;
-        };
-        const hasUp =
-          (fp.fpDay && (fp.fpDayDir === "Up" || fp.fpDayDir === "Both") && fp.fpDayUp.trainNo) ||
-          (fp.fpNight && (fp.fpNightDir === "Up" || fp.fpNightDir === "Both") && fp.fpNightUp.trainNo);
-        const hasDn =
-          (fp.fpDay && (fp.fpDayDir === "Down" || fp.fpDayDir === "Both") && fp.fpDayDn.trainNo) ||
-          (fp.fpNight && (fp.fpNightDir === "Down" || fp.fpNightDir === "Both") && fp.fpNightDn.trainNo);
-        const upDest = hasUp && hasDn && fp.upFromBoarding === false ? boarding : otherEnd;
-        const dnDest = hasUp && hasDn ? (upDest === otherEnd ? boarding : otherEnd) : otherEnd;
-        hopTrain(fp.fpDay, fp.fpDayDir === "Up" || fp.fpDayDir === "Both", fp.fpDayUp, upDest);
-        hopTrain(fp.fpDay, fp.fpDayDir === "Down" || fp.fpDayDir === "Both", fp.fpDayDn, dnDest);
-        hopTrain(fp.fpNight, fp.fpNightDir === "Up" || fp.fpNightDir === "Both", fp.fpNightUp, upDest);
-        hopTrain(fp.fpNight, fp.fpNightDir === "Down" || fp.fpNightDir === "Both", fp.fpNightDn, dnDest);
+          lastTo = h.to;
+        }
       }
       fromStation = lastTo;
       isFirst = false;
@@ -1394,21 +1401,20 @@ export function DailyLogForm({
       if (!boarding) return null;
       const g = tripTimes(logDate, pct, boarding.travelMin, boarding.travelMax, win[rate]);
       const trains: Array<{ key: string; train: FootplateJourneyTrain }> = [];
-      const push = (
-        upKey: string,
-        dnKey: string,
-        active: boolean,
-        dir: string,
-        up: FootplateJourneyTrain,
-        dn: FootplateJourneyTrain
-      ) => {
-        if (!active) return;
-        if ((dir === "Up" || dir === "Both") && up.trainNo) trains.push({ key: upKey, train: up });
-        if ((dir === "Down" || dir === "Both") && dn.trainNo) trains.push({ key: dnKey, train: dn });
-      };
       fpRides.forEach((d, i) => {
-        push(`${i}-dayUp`, `${i}-dayDn`, d.fpDay, d.fpDayDir, d.fpDayUp, d.fpDayDn);
-        push(`${i}-nightUp`, `${i}-nightDn`, d.fpNight, d.fpNightDir, d.fpNightUp, d.fpNightDn);
+        const ordered = footplateTrainsInRideOrder({
+          upFromBoarding: d.upFromBoarding,
+          day: d.fpDay ? { direction: d.fpDayDir, up: d.fpDayUp, down: d.fpDayDn } : null,
+          night: d.fpNight ? { direction: d.fpNightDir, up: d.fpNightUp, down: d.fpNightDn } : null,
+        });
+        for (const tr of ordered) {
+          const shift = tr.shift.toLowerCase();
+          const dir = tr.dir === "Up" ? "Up" : tr.dir === "Down" ? "Dn" : "";
+          trains.push({
+            key: dir ? `${i}-${shift}${dir}` : `${i}-${shift}`,
+            train: tr.train as FootplateJourneyTrain,
+          });
+        }
       });
       const fpShown: Record<string, { depTime: string; arrTime: string }> = {};
       if (trains.length > 0) {

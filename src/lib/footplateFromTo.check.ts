@@ -3,6 +3,8 @@ import {
   footplateFromTo,
   footplateEndsForDir,
   footplateInspectionRows,
+  footplateTrainHops,
+  footplateTrainsInRideOrder,
   rideHasBothDirections,
 } from "./api";
 import type { FootplateRide } from "@/db/schema";
@@ -71,5 +73,58 @@ assert.deepEqual(rows[1], {
   from: "KOILAKUNTLA",
   to: "YERRAGUNTLA",
 });
+
+const hopTrue = footplateTrainHops(both, "YERRAGUNTLA", "KOILAKUNTLA");
+assert.equal(hopTrue.length, 2);
+assert.deepEqual(
+  hopTrue.map((h) => [h.from, h.to, h.dir, h.train.trainNo]),
+  [
+    ["YERRAGUNTLA", "KOILAKUNTLA", "Up", "17215"],
+    ["KOILAKUNTLA", "YERRAGUNTLA", "Down", "17216"],
+  ]
+);
+
+const hopRev = footplateTrainHops(reversed, "YERRAGUNTLA", "KOILAKUNTLA");
+assert.deepEqual(
+  hopRev.map((h) => [h.from, h.to, h.dir, h.train.trainNo]),
+  [
+    ["YERRAGUNTLA", "KOILAKUNTLA", "Down", "17216"],
+    ["KOILAKUNTLA", "YERRAGUNTLA", "Up", "17215"],
+  ]
+);
+
+const hopOnlyUp = footplateTrainHops(onlyUp, "YERRAGUNTLA", "KOILAKUNTLA");
+assert.deepEqual(
+  hopOnlyUp.map((h) => [h.from, h.to, h.dir, h.train.trainNo]),
+  [["YERRAGUNTLA", "KOILAKUNTLA", "Up", "17215"]]
+);
+
+const dayNightBoth: FootplateRide = {
+  ...both,
+  shift: "Day,Night",
+  night: {
+    direction: "Both",
+    up: { trainNo: "17217", engineNo: "", lpName: "", alpName: "", tmrName: "", remarks: "" },
+    down: { trainNo: "17218", engineNo: "", lpName: "", alpName: "", tmrName: "", remarks: "" },
+  },
+};
+assert.deepEqual(
+  footplateTrainsInRideOrder(dayNightBoth).map((t) => [t.shift, t.dir, t.train.trainNo]),
+  [
+    ["Day", "Up", "17215"],
+    ["Day", "Down", "17216"],
+    ["Night", "Up", "17217"],
+    ["Night", "Down", "17218"],
+  ]
+);
+assert.deepEqual(
+  footplateTrainHops(dayNightBoth, "YERRAGUNTLA", "KOILAKUNTLA").map((h) => [h.from, h.to]),
+  [
+    ["YERRAGUNTLA", "KOILAKUNTLA"],
+    ["KOILAKUNTLA", "YERRAGUNTLA"],
+    ["YERRAGUNTLA", "KOILAKUNTLA"],
+    ["KOILAKUNTLA", "YERRAGUNTLA"],
+  ]
+);
 
 console.log("footplateFromTo.check.ts: ok");
