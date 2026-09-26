@@ -8,7 +8,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 **Minor: footplate inspection export includes From and To**
 
 - The footplate inspection PDF (and its preview) now has From and To columns next to Train No., so each ride shows the boarding and other-end stations.
-- Implemented in `PLACEHOLDER`.
+- Implemented in `2779233`.
 
 ## 1.7.7.91 — 2026-09-26
 
