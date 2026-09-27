@@ -731,6 +731,23 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.8.1",
+    tag: "Eight more themes",
+    subtitle: "Butter, Champagne, Dragonfruit, Spark, Ultra, Vanilla, Neon and Lilac.",
+    slides: [
+      {
+        glyph: "◐",
+        title: "New colour pairs",
+        body: "Settings → Appearance adds eight looks: Butter (yellow + iris), Champagne (cream + emerald), Dragonfruit (night violet + pink), Spark (graphite + lime), Ultra (apricot + violet), Vanilla (cream + burnt orange), Neon (violet ink + lime) and Lilac (lilac + indigo).",
+      },
+      {
+        glyph: "▣",
+        title: "Pick and keep",
+        body: "Each pair tints surfaces and the brand colour together. Your choice is saved on this device and included in JSON backups.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {

@@ -826,7 +826,11 @@ export function Settings() {
           Light is the default look. Dark uses dark surfaces and lighter text.
           Ocean is coastal cool blues; Sunset is sunlit cream with coral.
           Forest is mossy greens; Midnight is a deep navy night look; Rose is a
-          warm blush palette. Saved on this device and included in backups.
+          warm blush palette. Butter is yellow with iris; Champagne is cream with
+          emerald; Dragonfruit is night-violet with pink; Spark is graphite with
+          lime; Ultra is apricot with violet; Vanilla is cream with burnt orange;
+          Neon is violet-ink with lime; Lilac is soft lilac with indigo. Saved on
+          this device and included in backups.
         </p>
         <p className="mb-2 text-sm font-medium text-slate-600">Font style</p>
         <div className="grid grid-cols-2 gap-2">

@@ -3,6 +3,14 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.1 — 2026-09-27
+
+**Major: eight extra Appearance themes**
+
+- Settings → Appearance adds Butter (yellow + iris), Champagne (cream + emerald), Dragonfruit (night violet + pink), Spark (graphite + lime), Ultra (apricot + violet), Vanilla (cream + burnt orange), Neon (violet ink + lime) and Lilac (lilac + indigo).
+- Supporting neutrals and status tints follow each pair so chips, buttons and text stay readable.
+- Implemented in `PLACEHOLDER`.
+
 ## 1.7.8.0 — 2026-09-26
 
 **Major: Attachments restyle, manuals groups, extra themes and fonts**

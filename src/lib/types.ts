@@ -156,8 +156,39 @@ export function isSpecialMovement(l: { movementKind?: string | null }): boolean 
 }
 
 /** Color theme of the app. "light" is the default look. */
-export type AppTheme = "light" | "dark" | "ocean" | "sunset" | "forest" | "midnight" | "rose";
-export const THEMES: AppTheme[] = ["light", "dark", "ocean", "sunset", "forest", "midnight", "rose"];
+export type AppTheme =
+  | "light"
+  | "dark"
+  | "ocean"
+  | "sunset"
+  | "forest"
+  | "midnight"
+  | "rose"
+  | "butter"
+  | "champagne"
+  | "dragon"
+  | "spark"
+  | "ultra"
+  | "vanilla"
+  | "neon"
+  | "lilac";
+export const THEMES: AppTheme[] = [
+  "light",
+  "dark",
+  "ocean",
+  "sunset",
+  "forest",
+  "midnight",
+  "rose",
+  "butter",
+  "champagne",
+  "dragon",
+  "spark",
+  "ultra",
+  "vanilla",
+  "neon",
+  "lilac",
+];
 export const THEME_LABEL: Record<AppTheme, string> = {
   light: "Light",
   dark: "Dark",
@@ -166,6 +197,14 @@ export const THEME_LABEL: Record<AppTheme, string> = {
   forest: "Forest",
   midnight: "Midnight",
   rose: "Rose",
+  butter: "Butter",
+  champagne: "Champagne",
+  dragon: "Dragonfruit",
+  spark: "Spark",
+  ultra: "Ultra",
+  vanilla: "Vanilla",
+  neon: "Neon",
+  lilac: "Lilac",
 };
 export function isAppTheme(v: string | null | undefined): v is AppTheme {
   return !!v && (THEMES as readonly string[]).includes(v);
@@ -288,5 +327,5 @@ export function variableKmText(km: number | string | null | undefined): string |
 }
 
 /** App version shown in Settings → About. Bump alongside android/app/build.gradle. */
-export const APP_VERSION_BASE = "1.7.8.0";
+export const APP_VERSION_BASE = "1.7.8.1";
 export const APP_VERSION = `${APP_VERSION_BASE}${AUTO_TIMINGS ? "p" : ""}`;
