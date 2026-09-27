@@ -9,7 +9,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 - Settings → Appearance adds Butter (yellow + iris), Champagne (cream + emerald), Dragonfruit (night violet + pink), Spark (graphite + lime), Ultra (apricot + violet), Vanilla (cream + burnt orange), Neon (violet ink + lime) and Lilac (lilac + indigo).
 - Supporting neutrals and status tints follow each pair so chips, buttons and text stay readable.
-- Implemented in `PLACEHOLDER`.
+- Implemented in `a06393e`.
 
 ## 1.7.8.0 — 2026-09-26
 
