@@ -3,6 +3,14 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.2 — 2026-09-28
+
+**Major: modern colour PDF and Word exports**
+
+- Colour PDF and Word reports of every type share a new look: deep indigo headings and table headers with white text, a teal accent rule, soft zebra rows and a tinted Total row.
+- Plain (no colour) and Excel are unchanged. AI polish can still pick another palette; if it is off or unreachable the new look is the default.
+- Implemented in `PLACEHOLDER`.
+
 ## 1.7.8.1 — 2026-09-27
 
 **Major: eight extra Appearance themes**

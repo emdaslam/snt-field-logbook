@@ -75,6 +75,7 @@ export function loadAiConfig(): AiConfig {
 /* ------------------------------------------------------------------ */
 
 export type PaletteName =
+  | "modern"
   | "classic"
   | "navy"
   | "indigo"
@@ -104,6 +105,10 @@ export interface PaletteColors {
 }
 
 const RAW_PALETTES: Record<PaletteName, Record<"head" | "headText" | "ink" | "accent" | "zebra" | "total" | "line", string>> = {
+  // "modern" is the default look of every colour export (AI polish can switch
+  // to any other palette): deep indigo header band with white text, teal
+  // accent, soft slate zebra rows and a sky total-row tint.
+  modern: { head: "#1E1B4B", headText: "#FFFFFF", ink: "#1E1B4B", accent: "#0F766E", zebra: "#EEF2FF", total: "#C7D2FE", line: "#C7D2FE" },
   classic: { head: "#DBEAFE", headText: "#1E3A8A", ink: "#1E3A8A", accent: "#055F46", zebra: "#F8FAFC", total: "#E0F2FE", line: "#CBD5E1" },
   navy: { head: "#172554", headText: "#FFFFFF", ink: "#172554", accent: "#047857", zebra: "#F1F5F9", total: "#E0E7FF", line: "#CBD5E1" },
   indigo: { head: "#3730A3", headText: "#FFFFFF", ink: "#312E81", accent: "#4338CA", zebra: "#EEF2FF", total: "#E0E7FF", line: "#C7D2FE" },
@@ -361,7 +366,7 @@ const SYSTEM_PROMPT =
   "You are the layout designer for railway maintenance reports rendered as strict grid tables in PDF and Word.\n" +
   "You receive a JSON spec of one report (headers, row count, each column's relative content width, and whether the export is colour or plain).\n" +
   "Choose a polished, professional look and return ONLY a JSON object with exactly these keys:\n" +
-  '- "palette": one of "classic","navy","indigo","forest","teal","burgundy","slate","charcoal" for colour exports; omit or set to null for plain (no-colour) exports — the app ignores the palette in that case but still applies the other layout settings.\n' +
+  '- "palette": one of "modern","classic","navy","indigo","forest","teal","burgundy","slate","charcoal" for colour exports; omit or set to null for plain (no-colour) exports — the app ignores the palette in that case but still applies the other layout settings.\n' +
   '- "cellPadding": integer 2..6, points of cell padding suited to the row count density.\n' +
   '- "columnWidths": array of numbers that add up to exactly 100, one entry per column of the FIRST table in "headers" order (each 4..60). They share the printable table width: the column holding the longest free text (nature of work / remarks — see "headers" and the widest entries of "relWidths") gets the single largest share (at least 30), station columns a moderate share (10..20), and date / time / train-number columns the smallest (4..12).\n' +
   '- "zebra": boolean, shade alternate body rows for readability (always true for colour exports).\n' +

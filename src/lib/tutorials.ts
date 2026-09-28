@@ -748,6 +748,23 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.8.2",
+    tag: "Modern colour exports",
+    subtitle: "Colour PDF and Word reports now share a sharper indigo and teal look.",
+    slides: [
+      {
+        glyph: "▤",
+        title: "A new colour look",
+        body: "Every Colour PDF and Word export — Diary, TA Journal, PCDO, inspections, monthly, materials and the rest — now uses a deep indigo header band with white text, a teal accent rule, soft zebra rows and a tinted Total row.",
+      },
+      {
+        glyph: "▣",
+        title: "Same on PDF and Word",
+        body: "Both formats share the same palette, so a Colour Word file matches the Colour PDF. Plain (no colour) still matches the black-and-white reference sheets. Excel is unchanged.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {

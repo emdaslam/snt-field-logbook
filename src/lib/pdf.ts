@@ -18,8 +18,7 @@ import {
   type ExportPolish,
 } from "./aiExport";
 
-const NAVY: [number, number, number] = [30, 58, 138];
-const GREEN: [number, number, number] = [5, 95, 70];
+const MODERN = paletteOf("modern");
 const GREY: [number, number, number] = [100, 116, 139];
 
 /**
@@ -535,18 +534,19 @@ export function buildPdf(
   const baseMargin = opts.margin ?? 40;
   const withFooter = opts.footer ?? true;
   // "plain" drops every fill and colour so the report renders as the reference
-  // black-and-white layout (no navy/green headings, no shaded header, no
-  // alternating rows); "colour" keeps the branded look.
+  // black-and-white layout; "colour" uses the modern indigo / teal palette
+  // (or an AI-chosen one when polish is on).
   const plain = opts.style === "plain";
   // AI polish: layout tweaks chosen in real time by the owner's model — see aiExport.ts.
   // Palette is only used for colour exports; plain exports still get padding, column widths,
   // zebra rows, Total-row tint and border style from the same response.
   const pal = !plain && opts.polish?.palette ? paletteOf(opts.polish.palette) : null;
-  const INK: [number, number, number] = plain ? [0, 0, 0] : (pal ? pal.ink : NAVY);
-  const ACCENT: [number, number, number] = plain ? [0, 0, 0] : (pal ? pal.accent : GREEN);
-  const HEAD_FILL: [number, number, number] = plain ? [255, 255, 255] : (pal ? pal.head : [219, 234, 254]);
-  const HEAD_TXT: [number, number, number] = plain ? [0, 0, 0] : (pal ? pal.headText : NAVY);
-  const cellPad = opts.polish?.cellPadding ?? opts.cellPad ?? 4;
+  const exportPal = pal ?? MODERN;
+  const INK: [number, number, number] = plain ? [0, 0, 0] : exportPal.ink;
+  const ACCENT: [number, number, number] = plain ? [0, 0, 0] : exportPal.accent;
+  const HEAD_FILL: [number, number, number] = plain ? [255, 255, 255] : exportPal.head;
+  const HEAD_TXT: [number, number, number] = plain ? [0, 0, 0] : exportPal.headText;
+  const cellPad = opts.polish?.cellPadding ?? opts.cellPad ?? (plain ? 4 : 5);
   const pageW = doc.internal.pageSize.getWidth();
 
   const parsed = new DOMParser().parseFromString(`<div>${bodyHtml}</div>`, "text/html");
@@ -655,7 +655,7 @@ export function buildPdf(
       }
       const tight = el.className.includes("tight");
       y += lines.length * (tight ? 14 * headFs : 18 * headFs) + (tight ? 2 : 4);
-      doc.setDrawColor(...INK).setLineWidth(plain ? 0.75 : 1.5).line(margin, y, pageW - margin, y);
+      doc.setDrawColor(...(plain ? INK : ACCENT)).setLineWidth(plain ? 0.75 : 2.2).line(margin, y, pageW - margin, y);
       y += 14;
     } else if (tag === "h2") {
       pageBreak(30 * headFs);
@@ -1117,18 +1117,19 @@ export function buildPdf(
             )
           : undefined;
       const { body, notes } = parseTableBody(bodyRows);
-      // AI polish: closing Total / Grand Total rows (the first non-empty cell
-      // carries the word "total") get a tinted wash.
-      let totalRows: number[] = [];
-      if (opts.polish?.highlightTotals) {
-        totalRows = body
-          .map((row, i) => {
-            const first = row.find((c) => (typeof c === "string" ? c : c.content).trim());
-            if (!first) return -1;
-            return /\btotal\b/i.test(typeof first === "string" ? first : first.content) ? i : -1;
-          })
-          .filter((i) => i >= 0);
-      }
+          // Colour exports tint closing Total / Grand Total rows (the first
+          // non-empty cell carries the word "total"). AI polish can turn that
+          // off; plain exports never tint.
+          let totalRows: number[] = [];
+          if (!plain && (opts.polish?.highlightTotals ?? true)) {
+            totalRows = body
+              .map((row, i) => {
+                const first = row.find((c) => (typeof c === "string" ? c : c.content).trim());
+                if (!first) return -1;
+                return /\btotal\b/i.test(typeof first === "string" ? first : first.content) ? i : -1;
+              })
+              .filter((i) => i >= 0);
+          }
       // Capture the drawn geometry of every vtext column cell so the vertical
       // note can be drawn over it after the table (see drawVtextNotes).
       const vtextCols = new Set(notes.map((n) => n.colIndex));
@@ -1166,7 +1167,7 @@ export function buildPdf(
           cellPadding: cellPad,
           overflow: "linebreak",
           textColor: [15, 23, 42],
-          ...(plain ? { lineColor: INK } : pal ? { lineColor: pal.line } : {}),
+          lineColor: plain ? INK : exportPal.line,
         },
         headStyles: {
           fillColor: HEAD_FILL,
@@ -1174,18 +1175,19 @@ export function buildPdf(
           fontStyle: "bold",
           ...(plain ? { lineWidth: 0.1, lineColor: INK } : {}),
         },
-        ...(plain && !opts.polish ? {}
-          : opts.polish && !opts.polish.zebra
+          ...(plain
             ? {}
-            : { alternateRowStyles: { fillColor: pal ? pal.zebra : [248, 250, 252] } }),
-        // AI "none" borders drop the internal grid and keep the header fill
-        // (autoTable "plain" theme); every other case keeps the full grid.
+            : opts.polish && !opts.polish.zebra
+              ? {}
+              : { alternateRowStyles: { fillColor: exportPal.zebra } }),
+        // AI "none" borders drop the internal grid; the modern default keeps a
+        // restrained grid so dense operational reports remain easy to scan.
         theme: opts.polish && opts.polish.borders === "none" ? "plain" : "grid",
         ...(totalRows.length
           ? {
               didParseCell: (data: { section: string; row: { index: number }; cell: { styles: { fillColor?: unknown } } }) => {
                 if (data.section === "body" && totalRows.includes(data.row.index)) {
-                  data.cell.styles.fillColor = pal ? pal.total : [248, 250, 252];
+                  data.cell.styles.fillColor = exportPal.total;
                 }
               },
             }
@@ -1202,7 +1204,7 @@ export function buildPdf(
       // Close the KMS column and repeat its note per page (see drawVtextNotes).
       // The closing line matches the table's grid: grey in the colour export,
       // black ink in the plain export.
-      drawVtextNotes(doc, notes, vtextCells, 8 * fs, plain ? INK : pal ? pal.line : [200, 200, 200], GRID_LINE_WIDTH);
+      drawVtextNotes(doc, notes, vtextCells, 8 * fs, plain ? INK : exportPal.line, GRID_LINE_WIDTH);
       if (process.env.DEBUG_VTEXT) {
         const dbg = vtextCells.map((c) => `page${c.page} col${c.col} top${c.top.toFixed(1)} bot${c.bottom.toFixed(1)} x${c.x.toFixed(1)} w${c.width.toFixed(1)}`);
         const spans: string[] = [];
@@ -1231,11 +1233,13 @@ export function buildPdf(
     const pages = doc.getNumberOfPages();
     for (let i = 1; i <= pages; i++) {
       doc.setPage(i);
+      const footY = doc.internal.pageSize.getHeight() - 20;
+      doc.setDrawColor(...ACCENT).setLineWidth(0.6).line(margin, footY - 10, pageW - margin, footY - 10);
       doc.setFont("helvetica", "normal").setFontSize(7).setTextColor(...GREY);
       doc.text(
         `Railway S&T Field Logbook · generated ${new Date().toLocaleString()}`,
         margin,
-        doc.internal.pageSize.getHeight() - 20
+        footY
       );
       doc.text(
         `Page ${i} of ${pages}`,
@@ -1451,7 +1455,7 @@ export function exportDocument(
   } catch {
     /* ignore */
   }
-  // Style toggle — "colour" (branded navy/green fills) or "plain" (reference
+  // Style toggle — "colour" (modern indigo / teal fills) or "plain" (reference
   // black-and-white, no fills). Each export type remembers its own choice; the
   // default comes from the export builder (diary / TA journal default to plain).
   let style: ExportStyle = opts?.style ?? "colour";
@@ -1499,7 +1503,7 @@ export function exportDocument(
   seg.appendChild(excelBtn);
   box.appendChild(seg);
 
-  // Style toggle — plain (no colours, the reference layout) or the branded
+  // Style toggle — plain (no colours, the reference layout) or the modern
   // coloured output. Only relevant for PDF and Word; Excel carries no fills.
   const styleRow = document.createElement("div");
   styleRow.style.cssText = "display:flex;gap:8px;margin:0 0 14px";

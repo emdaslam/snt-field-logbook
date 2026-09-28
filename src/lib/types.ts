@@ -1,7 +1,7 @@
 import { AUTO_TIMINGS } from "./timingsMode";
 
-/** Visual style of an exported report. "colour" is the familiar branded look
- *  (navy / green headings, shaded table header, alternating rows); "plain" is
+/** Visual style of an exported report. "colour" is the modern branded look
+ *  (indigo headings, teal rule, filled table header, zebra rows); "plain" is
  *  the reference black-and-white layout with no fills anywhere. */
 export type ExportStyle = "colour" | "plain";
 
@@ -327,5 +327,5 @@ export function variableKmText(km: number | string | null | undefined): string |
 }
 
 /** App version shown in Settings → About. Bump alongside android/app/build.gradle. */
-export const APP_VERSION_BASE = "1.7.8.1";
+export const APP_VERSION_BASE = "1.7.8.2";
 export const APP_VERSION = `${APP_VERSION_BASE}${AUTO_TIMINGS ? "p" : ""}`;

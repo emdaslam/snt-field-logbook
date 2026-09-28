@@ -907,7 +907,7 @@ export function Settings() {
       {group === "ai" && AUTO_TIMINGS && (
         <Section title="AI Export Polish" accent="#0284c7">
           <p className="mb-3 text-sm text-slate-600">
-            When enabled, Colour and plain PDF / Word exports ask your AI model for layout polish — palette, column widths, cell padding, zebra rows and Total-row tint — then apply it. If the AI is unreachable the export keeps the standard look. Excel never goes through the AI.
+            When enabled, Colour and plain PDF / Word exports ask your AI model for layout polish — palette, column widths, cell padding, zebra rows and Total-row tint — then apply it. If the AI is unreachable the export keeps the standard modern colour look. Excel never goes through the AI.
           </p>
           <button
             onClick={() => (aiCfg.enabled ? persistAi({ enabled: false }) : setAiEnableOpen(true))}

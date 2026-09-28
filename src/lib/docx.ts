@@ -172,8 +172,8 @@ function tableCell(
   const fill = fillOverride
     ? fillOverride
     : isHead
-      ? (plain ? "FFFFFF" : pal ? pal.headHex : "DBEAFE")
-      : "FFFFFF";
+        ? (plain ? "FFFFFF" : pal ? pal.headHex : "1E1B4B")
+        : "FFFFFF";
   const valign = isHead || vAlignMiddle ? '<w:vAlign w:val="center"/>' : "";
   const tcPr =
     `<w:tcPr>` +
@@ -186,7 +186,7 @@ function tableCell(
     `</w:tcPr>` +
     para(text, {
       bold: isHead,
-      color: isHead && !plain ? (pal ? pal.headTextHex : "1E3A8A") : undefined,
+      color: isHead && !plain ? (pal ? pal.headTextHex : "FFFFFF") : undefined,
       sz: isHead ? 16 : 18,
       after: 60,
       before: 40,
@@ -260,8 +260,8 @@ function buildTable(html: string, plain = false, pal: PaletteColors | null = nul
     const firstBodyText = !isHeadRow
       ? tidy((els[0]?.textContent ?? ""))
       : "";
-    const isTotal = Boolean(pal && polish?.highlightTotals && /\btotal\b/i.test(firstBodyText));
-    const zebraFill = pal && polish?.zebra && !isHeadRow && bodyRow % 2 === 1 ? pal.zebraHex : undefined;
+    const isTotal = Boolean(pal && (polish?.highlightTotals ?? true) && /\btotal\b/i.test(firstBodyText));
+    const zebraFill = pal && (polish?.zebra ?? true) && !isHeadRow && bodyRow % 2 === 1 ? pal.zebraHex : undefined;
     const rowFill = isTotal ? pal?.totalHex : zebraFill;
     if (!isHeadRow) bodyRow++;
     const contCell = () => {
@@ -321,7 +321,7 @@ function buildTable(html: string, plain = false, pal: PaletteColors | null = nul
     (_, i) => (colWidth(i) ? `<w:gridCol w:w="${colWidth(i)}"/>` : "<w:gridCol/>")
   ).join("");
 
-  const borderColor = plain ? "000000" : pal ? pal.lineHex : "CBD5E1";
+  const borderColor = plain ? "000000" : pal ? pal.lineHex : "C7D2FE";
   const borderSides = pal && polish?.borders === "none"
     ? ["top", "left", "bottom", "right"]
     : ["top", "left", "bottom", "right", "insideH", "insideV"];
@@ -343,7 +343,7 @@ function buildTable(html: string, plain = false, pal: PaletteColors | null = nul
  */
 export function buildDocx(title: string, bodyHtml: string, style: ExportStyle = "colour", polish: ExportPolish | null = null): Uint8Array {
   const plain = style === "plain";
-  const pal = !plain && polish?.palette ? paletteOf(polish.palette) : null;
+  const pal = !plain ? paletteOf(polish?.palette ?? "modern") : null;
   const parsed = new DOMParser().parseFromString(`<div>${bodyHtml}</div>`, "text/html");
   const root = parsed.body.firstElementChild;
   const parts: string[] = [];
@@ -368,7 +368,7 @@ export function buildDocx(title: string, bodyHtml: string, style: ExportStyle = 
       if (rightNote) {
         parts.push(
           `<w:p><w:pPr><w:tabs><w:tab w:val="right" w:pos="9360"/></w:tabs><w:spacing w:before="0" w:after="280"/><w:keepNext/><w:jc w:val="center"/></w:pPr>` +
-            `<w:r>${runProps({ bold: true, color: plain ? "000000" : (pal ? pal.inkHex : "1E3A8A"), sz: 30 })}<w:t xml:space="preserve">${esc(text)}</w:t></w:r>` +
+            `<w:r>${runProps({ bold: true, color: plain ? "000000" : (pal ? pal.inkHex : "1E1B4B"), sz: 30 })}<w:t xml:space="preserve">${esc(text)}</w:t></w:r>` +
             `<w:r>${runProps({ color: "1E293B", sz: 16 })}<w:tab/><w:t xml:space="preserve">${esc(rightNote)}</w:t></w:r>` +
             `</w:p>`
         );
@@ -376,11 +376,11 @@ export function buildDocx(title: string, bodyHtml: string, style: ExportStyle = 
         parts.push(
           para(text, {
             bold: true,
-            color: plain ? "000000" : (pal ? pal.inkHex : "1E3A8A"),
+            color: plain ? "000000" : (pal ? pal.inkHex : "1E1B4B"),
             sz: headingSizeFor(text, 30),
             after: 280,
             keepNext: true,
-            borderBottom: plain ? "000000" : (pal ? pal.inkHex : "1E3A8A"),
+            borderBottom: plain ? "000000" : (pal ? pal.accentHex : "0F766E"),
             centered: el.className.includes("centered"),
           })
         );
@@ -390,7 +390,7 @@ export function buildDocx(title: string, bodyHtml: string, style: ExportStyle = 
       parts.push(
         para(text, {
           bold: true,
-          color: plain ? "000000" : (pal ? pal.accentHex : "056346"),
+          color: plain ? "000000" : (pal ? pal.accentHex : "0F766E"),
           sz: 22,
           after: nextIsTable ? 80 : 200,
           keepNext: true,
@@ -402,7 +402,7 @@ export function buildDocx(title: string, bodyHtml: string, style: ExportStyle = 
       parts.push(
         para(text, {
           bold: true,
-          color: plain ? "000000" : (pal ? pal.inkHex : "1E3A8A"),
+          color: plain ? "000000" : (pal ? pal.inkHex : "1E1B4B"),
           sz: 19,
           after: nextIsTable ? 80 : 180,
           keepNext: true,
