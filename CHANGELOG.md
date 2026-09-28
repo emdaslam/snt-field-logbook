@@ -9,7 +9,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 - Colour PDF and Word reports of every type share a new look: deep indigo headings and table headers with white text, a teal accent rule, soft zebra rows and a tinted Total row.
 - Plain (no colour) and Excel are unchanged. AI polish can still pick another palette; if it is off or unreachable the new look is the default.
-- Implemented in `PLACEHOLDER`.
+- Implemented in `36e9a81`.
 
 ## 1.7.8.1 — 2026-09-27
 
