@@ -275,9 +275,9 @@ export function Settings() {
               data-group={g.id}
               onClick={() => selectGroup(g.id)}
               className={`flex-shrink-0 whitespace-nowrap rounded-xl px-3 py-2 text-[13px] font-semibold transition active:scale-[0.98] ${
-                group === g.id
-                  ? "bg-surface text-blue-800 shadow-sm ring-1 ring-black/5"
-                  : "text-slate-500 hover:text-slate-700"
+                 group === g.id
+                   ? "lift bg-surface text-blue-800 ring-1 ring-black/5"
+                   : "text-slate-500 hover:text-slate-700"
               }`}
             >
               {g.label}
@@ -814,7 +814,7 @@ export function Settings() {
               onClick={() => setTheme(t)}
               className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition active:scale-[0.98] ${
                 theme === t
-                  ? "border-blue-500 bg-blue-50 text-blue-800 shadow-sm ring-1 ring-blue-100"
+                  ? "lift border-blue-500 bg-blue-50 text-blue-800 ring-1 ring-blue-100"
                   : "border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
               }`}
             >
@@ -840,7 +840,7 @@ export function Settings() {
               onClick={() => setFontFamily(f)}
               className={`rounded-xl border px-3 py-2.5 text-left text-sm font-medium transition active:scale-[0.98] ${
                 fontFamily === f
-                  ? "border-blue-500 bg-blue-50 text-blue-800 shadow-sm ring-1 ring-blue-100"
+                  ? "lift border-blue-500 bg-blue-50 text-blue-800 ring-1 ring-blue-100"
                   : "border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
               }`}
               style={{ fontFamily: FONT_FAMILY_CSS[f] }}
@@ -863,7 +863,7 @@ export function Settings() {
               onClick={() => setFontSize(f)}
               className={`flex-1 rounded-xl border px-3 py-2.5 text-sm font-medium capitalize transition active:scale-[0.98] ${
                 fontSize === f
-                  ? "border-blue-500 bg-blue-50 text-blue-800 shadow-sm ring-1 ring-blue-100"
+                  ? "lift border-blue-500 bg-blue-50 text-blue-800 ring-1 ring-blue-100"
                   : "border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
               }`}
             >
@@ -885,7 +885,7 @@ export function Settings() {
               onClick={() => setContentScale(o.v)}
               className={`flex-1 rounded-xl border px-3 py-2.5 text-sm font-medium transition active:scale-[0.98] ${
                 contentScale === o.v
-                  ? "border-blue-500 bg-blue-50 text-blue-800 shadow-sm ring-1 ring-blue-100"
+                  ? "lift border-blue-500 bg-blue-50 text-blue-800 ring-1 ring-blue-100"
                   : "border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
               }`}
             >
@@ -913,7 +913,7 @@ export function Settings() {
             onClick={() => (aiCfg.enabled ? persistAi({ enabled: false }) : setAiEnableOpen(true))}
             className={`w-full rounded-xl border px-3 py-2.5 text-sm font-medium transition active:scale-[0.98] ${
               aiCfg.enabled
-                ? "border-emerald-500 bg-emerald-50 text-emerald-800 shadow-sm ring-1 ring-emerald-100"
+                 ? "lift border-emerald-500 bg-emerald-50 text-emerald-800 ring-1 ring-emerald-100"
                 : "border-slate-200 text-slate-600 hover:bg-slate-50"
             }`}
           >

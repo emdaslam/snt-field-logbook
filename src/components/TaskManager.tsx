@@ -174,9 +174,9 @@ export function TaskManager({
               key={t}
               onClick={() => selectTab(t)}
               className={`flex-1 rounded-xl py-2 text-[13px] font-semibold capitalize transition active:scale-[0.98] ${
-                tab === t
-                  ? "bg-surface text-blue-800 shadow-sm ring-1 ring-black/5"
-                  : "text-slate-500 hover:text-slate-700"
+                 tab === t
+                   ? "lift bg-surface text-blue-800 ring-1 ring-black/5"
+                   : "text-slate-500 hover:text-slate-700"
               }`}
             >
               {t === "deficiencies" ? "Deficiencies" : t === "planned" ? "Planned" : "Archive"}

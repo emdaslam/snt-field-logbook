@@ -279,9 +279,9 @@ export function SearchView({
           </select>
           <button
             className={`w-full min-w-0 whitespace-nowrap rounded-xl px-2 py-1.5 text-xs font-semibold transition active:scale-95 ${
-              attachF
-                ? "bg-emerald-500 text-white shadow-sm shadow-emerald-700/20"
-                : "bg-surface text-slate-700 ring-1 ring-inset ring-slate-200 hover:bg-slate-50"
+               attachF
+                 ? "lift bg-emerald-500 text-white shadow-emerald-700/20"
+                 : "bg-surface text-slate-700 ring-1 ring-inset ring-slate-200 hover:bg-slate-50"
             }`}
             onClick={() => setAttachF((v) => !v)}
           >

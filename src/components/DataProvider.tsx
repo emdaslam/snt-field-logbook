@@ -169,24 +169,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [dirty, setDirty] = useState(false);
   const [myStationsOnly, setMyStationsOnlyState] = useState(false);
   const [fontSize, setFontSizeState] = useState<FontSize>("medium");
-  const [fontFamily, setFontFamilyState] = useState<AppFontFamily>(() => {
-    if (typeof window === "undefined") return "system";
+  const [fontFamily, setFontFamilyState] = useState<AppFontFamily>("system");
+  const [theme, setThemeState] = useState<AppTheme>("light");
+
+  useEffect(() => {
     try {
-      const saved = localStorage.getItem("snt.fontFamily");
-      return isAppFontFamily(saved) ? saved : "system";
+      const savedFont = localStorage.getItem("snt.fontFamily");
+      if (savedFont && isAppFontFamily(savedFont)) {
+        setFontFamilyState(savedFont);
+      }
+      const savedTheme = localStorage.getItem("snt.theme");
+      if (savedTheme && isAppTheme(savedTheme)) {
+        setThemeState(savedTheme);
+      }
     } catch {
-      return "system";
+      /* ignore */
     }
-  });
-  const [theme, setThemeState] = useState<AppTheme>(() => {
-    if (typeof window === "undefined") return "light";
-    try {
-      const saved = localStorage.getItem("snt.theme");
-      return isAppTheme(saved) ? saved : "light";
-    } catch {
-      return "light";
-    }
-  });
+  }, []);
   const [autoDriveSync, setAutoDriveSyncState] = useState(true);
   const [reminderDays, setReminderDaysState] = useState(3);
   const [footplateReminder, setFootplateReminderState] =

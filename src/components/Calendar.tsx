@@ -24,7 +24,7 @@ function GoToDateButton({
     <span className="relative inline-flex items-center gap-1.5">
       <span className="relative inline-flex">
         <button
-          className="flex h-[26px] items-center rounded-full border border-blue-200/80 bg-blue-50/80 px-2 text-blue-900 shadow-sm shadow-blue-100/60 backdrop-blur-sm transition hover:bg-blue-100 active:scale-95"
+          className="lift flex h-[26px] items-center rounded-full border border-blue-200/80 bg-blue-50/80 px-2 text-blue-900 shadow-sm shadow-blue-100/60 backdrop-blur-sm transition hover:bg-blue-100 active:scale-95"
           type="button"
           aria-label="Go to date"
           title="Go to date"
@@ -49,7 +49,7 @@ function GoToDateButton({
       <button
         type="button"
         onClick={() => onGo(today)}
-        className="flex h-[26px] items-center gap-1 rounded-full border border-blue-200/80 bg-blue-50/80 px-2.5 text-[11px] font-semibold text-blue-900 shadow-sm shadow-blue-100/60 backdrop-blur-sm transition hover:bg-blue-100 active:scale-95"
+        className="lift flex h-[26px] items-center gap-1 rounded-full border border-blue-200/80 bg-blue-50/80 px-2.5 text-[11px] font-semibold text-blue-900 shadow-sm shadow-blue-100/60 backdrop-blur-sm transition hover:bg-blue-100 active:scale-95"
         aria-label="Go to today"
         title="Go to today"
       >
@@ -113,10 +113,10 @@ function MonthGrid({
               className={`relative mx-auto flex h-[28px] w-[28px] items-center justify-center rounded-lg text-[12px] transition-all duration-150 active:scale-90 ${
                 hasEntry && !isToday && !isSelected ? "pb-[5px]" : ""
               } ${
-                isToday
-                  ? "bg-gradient-to-br from-blue-700 to-blue-900 font-bold text-white shadow-md shadow-blue-800/30"
-                  : isSelected
-                    ? "bg-gradient-to-br from-emerald-500 to-emerald-700 font-semibold text-white shadow-md shadow-emerald-600/30"
+                 isToday
+                   ? "lift bg-gradient-to-br from-blue-700 to-blue-900 font-bold text-white shadow-md shadow-blue-800/30"
+                   : isSelected
+                     ? "lift bg-gradient-to-br from-emerald-500 to-emerald-700 font-semibold text-white shadow-md shadow-emerald-600/30"
                     : isFocused
                       ? "bg-emerald-50 font-semibold text-emerald-800 ring-[1.5px] ring-emerald-400"
                       : hasEntry
@@ -294,7 +294,7 @@ export function Calendar({
       <div className="mb-0.5 flex items-center justify-between">
         <button
           onClick={() => goMonth(-1)}
-          className="flex h-7 w-7 items-center justify-center rounded-full text-blue-800 transition hover:bg-blue-100/80 active:scale-90"
+          className="lift flex h-7 w-7 items-center justify-center rounded-full text-blue-800 transition hover:bg-blue-100/80 active:scale-90"
           aria-label="Previous month"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -311,7 +311,7 @@ export function Calendar({
         </div>
         <button
           onClick={() => goMonth(1)}
-          className="flex h-7 w-7 items-center justify-center rounded-full text-blue-800 transition hover:bg-blue-100/80 active:scale-90"
+          className="lift flex h-7 w-7 items-center justify-center rounded-full text-blue-800 transition hover:bg-blue-100/80 active:scale-90"
           aria-label="Next month"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

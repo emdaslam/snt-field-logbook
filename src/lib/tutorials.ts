@@ -765,6 +765,28 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.8.3",
+    tag: "Raised surfaces, synced calendar",
+    subtitle: "Key tiles sit raised under soft shadows, and the calendar follows the timeline exactly.",
+    slides: [
+      {
+        glyph: "◲",
+        title: "Raised, not flat",
+        body: "Favourite controls now sit raised with a soft shadow, in every theme: the calendar’s Today, go-to-date and month buttons, today and the selected day, the timeline’s date blocks, the Reports stat slabs, and the selected pills in Settings, Tasks, Attachments and Search.",
+      },
+      {
+        glyph: "▤",
+        title: "Dates slide into the calendar",
+        body: "On Home the calendar casts a ledge shadow over the top of the timeline, so the days appear to slide under it as you scroll.",
+      },
+      {
+        glyph: "◈",
+        title: "The calendar keeps up",
+        body: "The green highlight now jumps from the upper tile to the lower one the moment the calendar’s bottom line crosses the middle of the gap between two daily logs — at any date, month or screen size. The solid green block still marks the day you tapped.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {

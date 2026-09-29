@@ -115,9 +115,9 @@ export function AttachmentsView({ onSelect }: { onSelect: (a: Attachment | null)
               key={c.id}
               onClick={() => setKind(c.id)}
               className={`rounded-full px-2.5 py-1 text-xs font-semibold transition active:scale-95 ${
-                kind === c.id
-                  ? "text-white shadow-sm"
-                  : "bg-surface text-slate-600 ring-1 ring-inset ring-slate-200 hover:bg-slate-50"
+                 kind === c.id
+                   ? "lift text-white"
+                   : "bg-surface text-slate-600 ring-1 ring-inset ring-slate-200 hover:bg-slate-50"
               }`}
               style={kind === c.id ? { backgroundColor: KIND_COLOR[c.id] } : undefined}
             >

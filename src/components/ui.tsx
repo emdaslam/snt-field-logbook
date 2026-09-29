@@ -40,7 +40,7 @@ export function Chip({
       onClick={onClick}
       className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition ${
         onClick ? "cursor-pointer" : ""
-      }`}
+      } ${active === false ? "" : "lift"}`}
       style={{
         backgroundColor: active === false ? "#f1f5f9" : color + "22",
         color: active === false ? "#64748b" : color,

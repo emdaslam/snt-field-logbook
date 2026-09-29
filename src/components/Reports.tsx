@@ -567,7 +567,7 @@ function Stat({
     <button
       onClick={onClick}
       disabled={!onClick}
-      className="card-rise relative overflow-hidden rounded-2xl border border-slate-200/80 bg-surface p-4 text-left shadow-sm transition enabled:hover:border-blue-300 enabled:hover:shadow-md enabled:active:scale-[0.98]"
+      className="lift card-rise relative overflow-hidden rounded-2xl border border-slate-200/80 bg-surface p-4 text-left shadow-sm transition enabled:hover:border-blue-300 enabled:hover:shadow-md enabled:active:scale-[0.98]"
     >
       <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: color }} aria-hidden />
       <p className="pl-1 text-2xl font-bold tracking-tight" style={{ color }}>

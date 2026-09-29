@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
+import "./raised.css";
 
 export const metadata: Metadata = {
   title: "Railway S&T Field Logbook",
@@ -15,7 +16,7 @@ export const viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" data-font="system">
+    <html lang="en" data-font="system" suppressHydrationWarning>
       <body className="bg-slate-200 text-slate-900 antialiased">{children}</body>
     </html>
   );

@@ -90,22 +90,19 @@ export function AppShell() {
   const [inspOpen, setInspOpen] = useState(false);
   const [exitToast, setExitToast] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [onboardingDone, setOnboardingDone] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return localStorage.getItem("snt.onboardingDone") === "1";
-    } catch {
-      return false;
-    }
-  });
-  const showOnboarding = !onboardingDone && stations.length === 0;
+  const [onboardingDone, setOnboardingDone] = useState(false);
+  const [tutorialQueue, setTutorialQueue] = useState<VersionTutorial[]>([]);
 
-  // "What's New" tutorials for every major change the user has not seen yet.
-  // Computed once from the version whose tutorials were last finished; hidden
-  // while onboarding runs and cleared by the Tutorials modal when it closes.
-  const [tutorialQueue, setTutorialQueue] = useState<VersionTutorial[]>(() =>
-    typeof window === "undefined" ? [] : getPendingTutorials(),
-  );
+  useEffect(() => {
+    try {
+      setOnboardingDone(localStorage.getItem("snt.onboardingDone") === "1");
+      setTutorialQueue(getPendingTutorials());
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const showOnboarding = !onboardingDone && stations.length === 0;
 
   // Close the header dropdowns when tapping anywhere outside them
   useEffect(() => {
@@ -655,7 +652,7 @@ export function AppShell() {
               </button>
             </div>
             {/* Top half: calendar */}
-            <div className="border-b border-slate-200/80 bg-gradient-to-b from-slate-50/50 to-surface shadow-sm">
+            <div className="cal-depth relative z-10 border-b border-slate-200/80 bg-gradient-to-b from-slate-50/50 to-surface">
               <Calendar
                 activeDates={activeDates}
                 dateTagColors={dateTagColors}
@@ -682,8 +679,10 @@ export function AppShell() {
                 </svg>
               </button>
             </div>
-            {/* Bottom half: timeline */}
-            <div className="min-h-0 flex-1">
+            {/* Bottom half: timeline. -mt-1.5 (6px) tucks the scroller's top
+                under the calendar ledge (the depth effect); keep in sync with
+                DEPTH_TUCK in Timeline.tsx, which compensates for it. */}
+            <div className="-mt-1.5 min-h-0 flex-1">
               <Timeline
                 selectedDate={selectedDate}
                 goToSignal={goToSignal}
@@ -762,9 +761,9 @@ export function AppShell() {
           <button
             key={key}
             onClick={() => { go(key); if (key === "notes") setSearchNote(null); }}
-            className={`mx-0.5 flex flex-1 flex-col items-center gap-0.5 rounded-xl py-1.5 text-[10px] font-semibold transition active:scale-95 ${
-              view === key ? "bg-blue-50 text-blue-700" : "text-slate-400 hover:text-slate-600"
-            }`}
+             className={`mx-0.5 flex flex-1 flex-col items-center gap-0.5 rounded-xl py-1.5 text-[10px] font-semibold transition active:scale-95 ${
+               view === key ? "lift bg-blue-50 text-blue-700" : "text-slate-400 hover:text-slate-600"
+             }`}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={view === key ? 2.4 : 2}>
               <path d={path} />
@@ -803,9 +802,9 @@ export function AppShell() {
               <button
                 key={v}
                 onClick={() => { go(v); if (v === "notes") setSearchNote(null); if (v === "materials") setSearchMaterial(null); setDrawer(false); }}
-                className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm transition active:scale-[0.98] ${
-                  view === v ? "bg-white/15 font-semibold shadow-lg shadow-black/20 ring-1 ring-white/20" : "text-blue-100 hover:bg-white/10"
-                }`}
+                 className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm transition active:scale-[0.98] ${
+                   view === v ? "lift bg-white/15 font-semibold shadow-lg shadow-black/20 ring-1 ring-white/20" : "text-blue-100 hover:bg-white/10"
+                 }`}
               >
                 <span
                   className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-white/10"

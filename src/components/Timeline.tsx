@@ -117,6 +117,44 @@ export function Timeline({
     return m;
   }, [logs, deficiencies, planned]);
 
+  /**
+   * The date owned by the calendar's bottom line (the timeline's visible top
+   * edge). A date takes over the moment the middle of the gap above its tile
+   * — 5px above its top edge, half of the space-y-2.5 (10px) gap — reaches
+   * that line. The jump is from the upper tile's date to the lower tile's
+   * date, for any tile height, screen size, or month.
+   *
+   * The depth effect tucks this scroller's top edge under the calendar ledge
+   * (the Home timeline wrapper uses -mt-1.5 in AppShell, 6px), so the
+   * container's own top sits 6px ABOVE the calendar's bottom line; add the
+   * tuck back in so the switch lands on the visible line, not on the hidden
+   * container top.
+   */
+  const DEPTH_TUCK = 6; // matches -mt-1.5 on the Home timeline wrapper in AppShell
+  function visibleDate(): string | null {
+    const container = scrollRef.current;
+    if (!container) return null;
+    const line = container.scrollTop + DEPTH_TUCK + 5;
+    let lo = 0;
+    let hi = dates.length - 1;
+    let best: string | null = null;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      const el = rowRefs.current[dates[mid]];
+      if (!el) {
+        lo = mid + 1;
+        continue;
+      }
+      if (offsetOf(el, container) <= line) {
+        best = dates[mid];
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    return best;
+  }
+
   // Scroll the picked date to the very top so it sits directly under the calendar.
   // While the smooth scroll runs, suppress the scroll handler so it can't report a
   // different date and knock the calendar highlight off the one just tapped.
@@ -160,7 +198,7 @@ export function Timeline({
     return () => ro.disconnect();
   }, []);
 
-  // On mount, jump to today
+  // Jump to today on mount and report the date now on screen
   useEffect(() => {
     const el = rowRefs.current[todayIso];
     const container = scrollRef.current;
@@ -169,25 +207,17 @@ export function Timeline({
         0,
         Math.min(offsetOf(el, container), container.scrollHeight - container.clientHeight)
       );
+      const v = visibleDate();
+      if (v) onVisibleDateChange?.(v);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dates.length]);
 
   // Report the topmost visible date so the calendar can follow along
   function handleScroll() {
-    const container = scrollRef.current;
-    if (!container || !onVisibleDateChange) return;
     if (suppressScroll.current) return;
-    const top = container.scrollTop;
-    let best: string | null = null;
-    for (const d of dates) {
-      const el = rowRefs.current[d];
-      if (!el) continue;
-      // 2px tolerance for sub-pixel rounding during smooth scrolling
-      if (offsetOf(el, container) <= top + 2) best = d;
-      else break;
-    }
-    if (best) onVisibleDateChange(best);
+    const d = visibleDate();
+    if (d) onVisibleDateChange?.(d);
   }
 
   return (
@@ -244,7 +274,7 @@ export function Timeline({
                   {dayName(iso)}
                 </span>
                 <span
-                  className={`flex h-9 w-9 items-center justify-center rounded-xl text-lg font-bold transition duration-300 ${
+                  className={`lift flex h-9 w-9 items-center justify-center rounded-xl text-lg font-bold transition duration-300 ${
                     isToday
                       ? "bg-gradient-to-br from-blue-600 to-blue-800 text-white shadow-md shadow-blue-500/30"
                       : isSelected
@@ -319,7 +349,7 @@ export function Timeline({
                             {movements.map((m) => (
                               <span
                                 key={m}
-                                className="entry-text-xs inline-flex rounded-full bg-gradient-to-r from-blue-50 to-sky-50 px-2.5 py-[3px] text-[11px] font-bold tracking-wide text-blue-800 shadow-sm ring-1 ring-inset ring-blue-100/80"
+                                 className="entry-text-xs lift inline-flex rounded-full bg-gradient-to-r from-blue-50 to-sky-50 px-2.5 py-[3px] text-[11px] font-bold tracking-wide text-blue-800 ring-1 ring-inset ring-blue-100/80"
                               >
                                 {m}
                               </span>
