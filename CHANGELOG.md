@@ -10,7 +10,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 - Key controls and tiles sit raised with a soft shadow, in every theme: the calendar’s Today, go-to-date and month buttons, today and the selected day, the timeline’s date blocks, the Reports stat slabs, and the selected pills in Settings, Tasks, Attachments and Search.
 - The Home calendar casts a ledge shadow over the top of the timeline, so the days appear to slide under it as you scroll.
 - The calendar’s green highlight now follows the timeline exactly: it jumps from the upper tile to the lower one the moment the calendar’s bottom line crosses the middle of the gap between two daily log tiles — at any date, month or screen size. The solid green block still marks the day you tapped.
-- Implemented in `PLACEHOLDER`.
+- Implemented in `e2cec92`.
 
 ## 1.7.8.2 — 2026-09-28
 
