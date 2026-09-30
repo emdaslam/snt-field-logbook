@@ -9,6 +9,7 @@ const SETTINGS_KEYS = [
   "snt.fontSize",
   "snt.fontFamily",
   "snt.theme",
+  "snt.forcedLilacDelius.1.7.8.4",
   "snt.contentScale",
   "snt.myStationsOnly",
   "snt.autoDriveSync",

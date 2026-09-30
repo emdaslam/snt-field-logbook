@@ -174,6 +174,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     try {
+      // One-shot on this install: switch every existing user to Lilac +
+      // Delius. Later launches (and later APKs) keep whatever they pick.
+      const forced = localStorage.getItem("snt.forcedLilacDelius.1.7.8.4");
+      if (!forced) {
+        setFontFamilyState("delius");
+        setThemeState("lilac");
+        localStorage.setItem("snt.fontFamily", "delius");
+        localStorage.setItem("snt.theme", "lilac");
+        localStorage.setItem("snt.forcedLilacDelius.1.7.8.4", "1");
+        return;
+      }
       const savedFont = localStorage.getItem("snt.fontFamily");
       if (savedFont && isAppFontFamily(savedFont)) {
         setFontFamilyState(savedFont);
