@@ -169,8 +169,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [dirty, setDirty] = useState(false);
   const [myStationsOnly, setMyStationsOnlyState] = useState(false);
   const [fontSize, setFontSizeState] = useState<FontSize>("medium");
-  const [fontFamily, setFontFamilyState] = useState<AppFontFamily>("system");
-  const [theme, setThemeState] = useState<AppTheme>("light");
+  const [fontFamily, setFontFamilyState] = useState<AppFontFamily>("delius");
+  const [theme, setThemeState] = useState<AppTheme>("lilac");
 
   useEffect(() => {
     try {

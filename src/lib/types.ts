@@ -155,7 +155,7 @@ export function isSpecialMovement(l: { movementKind?: string | null }): boolean 
   );
 }
 
-/** Color theme of the app. "light" is the default look. */
+/** Color theme of the app. "lilac" is the default look. */
 export type AppTheme =
   | "light"
   | "dark"
@@ -211,8 +211,8 @@ export function isAppTheme(v: string | null | undefined): v is AppTheme {
 }
 
 /**
- * App-wide typeface. "system" keeps the device default; the rest are bundled
- * in the APK so they work offline.
+ * App-wide typeface. "delius" is the default; "system" keeps the device
+ * default; the rest are bundled in the APK so they work offline.
  */
 export type AppFontFamily =
   | "system"
