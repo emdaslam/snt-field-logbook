@@ -1515,7 +1515,7 @@ export function exportInspections(
         lines.forEach((line, i) => {
           const dateCell =
             i === 0
-              ? `<td rowspan="${lines.length}">${fmtDate(iso)}</td>`
+              ? `<td rowspan="${lines.length}" data-valign="middle">${fmtDate(iso)}</td>`
               : "";
           body += `<tr><td>${esc(line.shift)}</td><td>${esc(line.trainNo)}</td><td>${esc(line.from)}</td><td>${esc(line.to)}</td>${dateCell}</tr>`;
         });
@@ -1620,7 +1620,7 @@ export function exportMonthly(
     if (fLogs.length) {
       body += `<table><tr><th>Date</th><th>Movement</th><th>Work Done</th><th>TA</th><th>Tags</th></tr>`;
       for (const l of fLogs) {
-        body += `<tr><td>${fmtDate(l.logDate)}</td><td>${esc(l.stationMovement)}</td><td>${esc(l.workDone)}</td><td>${(l.taPercent ?? 0) > 0 ? `${l.taPercent ?? 100}%` : "-"}</td><td>${l.tagIds.map(tagName).filter(Boolean).map(esc).join(", ")}</td></tr>`;
+        body += `<tr><td data-valign="middle">${fmtDate(l.logDate)}</td><td>${esc(l.stationMovement)}</td><td>${esc(l.workDone)}</td><td>${(l.taPercent ?? 0) > 0 ? `${l.taPercent ?? 100}%` : "-"}</td><td>${l.tagIds.map(tagName).filter(Boolean).map(esc).join(", ")}</td></tr>`;
       }
       body += `</table>`;
     } else body += `<p class="empty">No logs in range.</p>`;
@@ -1640,7 +1640,7 @@ export function exportMonthly(
         body += `<h3>${esc(station)} (${items.length})</h3>`;
         body += `<table><tr><th>Title</th><th>Dept</th><th>Priority</th><th>Due</th><th>Status</th></tr>`;
         for (const d of items) {
-          body += `<tr><td>${esc(d.title)}</td><td>${esc(d.department)}</td><td>${esc(d.priority)}</td><td>${d.dueDate ? fmtDate(d.dueDate) : "-"}</td><td>${esc(d.status)}</td></tr>`;
+          body += `<tr><td>${esc(d.title)}</td><td>${esc(d.department)}</td><td>${esc(d.priority)}</td><td data-valign="middle">${d.dueDate ? fmtDate(d.dueDate) : "-"}</td><td>${esc(d.status)}</td></tr>`;
         }
         body += `</table>`;
       }
@@ -1661,7 +1661,7 @@ export function exportMonthly(
         body += `<h3>${esc(station)} (${items.length})</h3>`;
         body += `<table><tr><th>Title</th><th>Dept</th><th>Planned Date</th><th>Status</th><th>Material/Remarks</th></tr>`;
         for (const p of items) {
-          body += `<tr><td>${esc(p.title)}</td><td>${esc(p.department ?? "")}</td><td>${fmtDate(p.plannedDate)}</td><td>${esc(p.status)}</td><td>${esc(p.materialRemarks)}</td></tr>`;
+          body += `<tr><td>${esc(p.title)}</td><td>${esc(p.department ?? "")}</td><td data-valign="middle">${fmtDate(p.plannedDate)}</td><td>${esc(p.status)}</td><td>${esc(p.materialRemarks)}</td></tr>`;
         }
         body += `</table>`;
       }

@@ -3,6 +3,16 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.4 — 2026-09-30
+
+**Minor: Appearance copy, WhatsApp icon, saved legs on Edit, centred monthly dates**
+
+- Appearance no longer shows the long descriptions under Themes and Fonts.
+- The S&T manuals WhatsApp group in About uses the WhatsApp symbol.
+- Editing a saved daily log keeps the legs and timings that were saved — they stay as they are until you change them. Removed legs no longer come back on their own.
+- Dates in the monthly report export sit in the vertical middle of the row.
+- Implemented in `PLACEHOLDER`.
+
 ## 1.7.8.3 — 2026-09-29
 
 **Major: raised surfaces, deeper Home calendar, exact timeline-date sync**

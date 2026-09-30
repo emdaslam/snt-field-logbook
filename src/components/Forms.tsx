@@ -1346,7 +1346,18 @@ export function DailyLogForm({
   // While the user entered row editing via "Edit the rows", the native back
   // key cancels it instead of closing the whole form
   useBackClose(editRowsTapped && editExportRows, cancelRowEdit);
+  // Saved custom rows are authoritative on open: the first run of this
+  // effect would rebuild them from the chain + ride data and clobber
+  // edited or removed legs/times. Skip that first run when the entry
+  // already has saved legs; later fpRides changes still rebuild.
+  const skipFirstFpSyncRef = useRef(
+    Array.isArray(existing?.journeyLegs) && existing.journeyLegs.length > 0
+  );
   useEffect(() => {
+    if (skipFirstFpSyncRef.current) {
+      skipFirstFpSyncRef.current = false;
+      return;
+    }
     if (!hasFootplateInChain) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     syncLegs([primarySlot, ...extraMovements]);
