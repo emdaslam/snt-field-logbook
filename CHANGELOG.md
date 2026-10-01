@@ -9,7 +9,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 
 - While entering a daily log with “Edit the rows” on, a Diary preview of just that entry appears below the row editor. It shows exactly how the DATE / TRAIN NO / TIME DEP / TIME ARR / FROM / TO / NATURE OF WORK rows will print, updating as you edit each leg.
 - The preview uses the same row-building logic as the Diary export, so the times, ROAD / train labels and HQ endpoints match the generated PDF and Word output.
-- Implemented in `PLACEHOLDER`.
+- Implemented in `21b1e28`.
 
 ## 1.7.8.4 — 2026-09-30
 
