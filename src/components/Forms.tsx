@@ -28,6 +28,7 @@ import {
   type StationSides,
 } from "@/lib/stationSides";
 import { EMPTY_STATION_DRAFT, StationFields, stationPayload, type StationDraft } from "./StationForm";
+import { customLegRows } from "./exports";
 import {
   kindFromTags,
   kindFromTagName,
@@ -1472,6 +1473,27 @@ export function DailyLogForm({
   const shownArr = AUTO_TIMINGS ? timeArr || autoGenTimes?.base.outArr || "" : timeArr;
   const shownRetDep = AUTO_TIMINGS ? returnTimeDep || autoGenTimes?.base.retDep || "" : returnTimeDep;
   const shownRetArr = AUTO_TIMINGS ? returnTimeArr || autoGenTimes?.base.retArr || "" : returnTimeArr;
+  // Live Diary preview of just this entry (custom export rows only). It reuses
+  // customLegRows so the preview matches exactly what the Diary export prints.
+  const previewMiss = AUTO_TIMINGS ? "" : "not entered in daily log";
+  // The Diary prints the variable-KM note with the work text when the log
+  // confirms the work happened at/after the station's KMs marker.
+  const previewWork = `${workDone || "-"}${
+    isVariableSplit && taAtVariableKm === true && variableKm != null ? ` at ${variableKm} KMs` : ""
+  }`;
+  const diaryPreviewRows = editExportRows
+    ? customLegRows(
+        journeyLegs.map(withTrainIfBothTimesDashed),
+        hqName,
+        {
+          outDep: AUTO_TIMINGS ? shownDep : timeDep || previewMiss,
+          outArr: AUTO_TIMINGS ? shownArr : timeArr || previewMiss,
+          retDep: AUTO_TIMINGS ? shownRetDep : returnTimeDep || previewMiss,
+          retArr: AUTO_TIMINGS ? shownRetArr : returnTimeArr || previewMiss,
+        },
+        previewMiss
+      )
+    : [];
   const shownFpTrain = (key: string, train: FootplateJourneyTrain): FootplateJourneyTrain => {
     const slot = AUTO_TIMINGS ? autoGenTimes?.fpShown?.[key] : undefined;
     return slot
@@ -2275,6 +2297,45 @@ export function DailyLogForm({
                   </p>
                 )}
               </div>
+              {diaryPreviewRows.length > 0 && (
+                <div className="mt-3">
+                  <p className="mb-1 text-xs font-semibold text-slate-600">
+                    Diary preview (this entry)
+                  </p>
+                  <div className="overflow-x-auto rounded-lg border border-slate-200">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-100 text-slate-600">
+                        <tr>
+                          <th className="px-2 py-1.5">Date</th>
+                          <th className="px-2 py-1.5">Train No</th>
+                          <th className="px-2 py-1.5">Time Dep</th>
+                          <th className="px-2 py-1.5">Time Arr</th>
+                          <th className="px-2 py-1.5">From</th>
+                          <th className="px-2 py-1.5">To</th>
+                          <th className="px-2 py-1.5">Nature of Work</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {diaryPreviewRows.map((leg, i) => (
+                          <tr key={i} className="border-t border-slate-100">
+                            <td className="whitespace-nowrap px-2 py-1.5">
+                              {i === 0 ? logDate.split("-").reverse().join("-") : ""}
+                            </td>
+                            <td className="px-2 py-1.5">{leg.trainNo}</td>
+                            <td className="px-2 py-1.5 text-slate-600">{leg.dep}</td>
+                            <td className="px-2 py-1.5 text-slate-600">{leg.arr}</td>
+                            <td className="px-2 py-1.5 text-slate-600">{leg.from}</td>
+                            <td className="px-2 py-1.5 text-slate-600">{leg.to}</td>
+                            <td className="px-2 py-1.5 text-slate-600">
+                              {i === 0 ? previewWork : ""}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </Field>
           ) : (
             <Field label="Timings" as="div">

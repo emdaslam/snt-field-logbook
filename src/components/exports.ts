@@ -597,23 +597,18 @@ function hasCustomJourneyRows(l: DailyLog): boolean {
 }
 
 /**
- * Build the display rows for a station-movement day with custom export rows.
- * Each custom row becomes its own table row; the date and work text span all
- * rows (just like the built-in two-leg layout, and like footplate legs). Times
- * fall back to the generated tour times for the first / last leg and to "not
- * entered in daily log" for middle legs in the manual build.
+ * Build the display rows for a list of custom export rows (one table row per
+ * leg; the date and work text span all rows). Times fall back to the generated
+ * tour times for the first / last leg and to `miss` for middle legs in the
+ * manual build. Shared by the Diary export and the Daily Log form preview.
  */
-function customJourneyRows(
-  l: DailyLog,
-  stations: Station[],
+export function customLegRows(
+  legs: NonNullable<DailyLog['journeyLegs']>,
   hqCode: string,
   t: { outDep: string; outArr: string; retDep: string; retArr: string },
-  isTa: boolean,
   miss: string
 ): { trainNo: string; dep: string; arr: string; from: string; to: string }[] {
-  const legs: NonNullable<DailyLog['journeyLegs']> = l.journeyLegs;
   if (!legs.length) return [];
-  const st = movementStation(l, stations);
   return legs.map((leg, i) => ({
     trainNo: journeyLegTrainNo(leg),
     dep:
@@ -895,7 +890,7 @@ export function exportDiary(
         // Footplate legs. The custom path also correctly ends at HQ.
         if (hasCustomJourneyRows(primary)) {
           const miss = AUTO_TIMINGS ? "" : "not entered in daily log";
-          const cLegs = customJourneyRows(primary, stations, hqCode, t, false, miss);
+          const cLegs = customLegRows(primary.journeyLegs, hqCode, t, miss);
           if (cLegs.length > 0) {
             cLegs.forEach((leg, i) => {
               grid.push([
@@ -938,7 +933,7 @@ export function exportDiary(
       // spanning all legs, matching the footplate layout pattern.
       if (hasCustomJourneyRows(primary)) {
         const miss = AUTO_TIMINGS ? "" : "not entered in daily log";
-        const legs = customJourneyRows(primary, stations, hqCode, t, false, miss);
+        const legs = customLegRows(primary.journeyLegs, hqCode, t, miss);
         if (legs.length > 0) {
           legs.forEach((leg, i) => {
             grid.push([
@@ -1144,7 +1139,7 @@ export function exportTaJournal(
         // Footplate legs. The custom path also correctly ends at HQ.
         if (hasCustomJourneyRows(l)) {
           const miss = AUTO_TIMINGS ? "" : "not entered in daily log";
-          const cLegs = customJourneyRows(l, stations, hqCode, t, true, miss);
+          const cLegs = customLegRows(l.journeyLegs, hqCode, t, miss);
           if (cLegs.length > 0) {
             const baseR = grid.length;
             cLegs.forEach((leg, i) => {
@@ -1215,7 +1210,7 @@ export function exportTaJournal(
       // amount / work spanning all legs, matching the footplate pattern.
       if (hasCustomJourneyRows(l)) {
         const miss = AUTO_TIMINGS ? "" : "not entered in daily log";
-        const legs = customJourneyRows(l, stations, hqCode, t, true, miss);
+        const legs = customLegRows(l.journeyLegs, hqCode, t, miss);
         if (legs.length > 0) {
           const baseR = grid.length;
           legs.forEach((leg, i) => {

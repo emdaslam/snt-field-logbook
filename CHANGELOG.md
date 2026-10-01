@@ -3,6 +3,14 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.5 — 2026-10-01
+
+**Major: live Diary preview while editing export rows**
+
+- While entering a daily log with “Edit the rows” on, a Diary preview of just that entry appears below the row editor. It shows exactly how the DATE / TRAIN NO / TIME DEP / TIME ARR / FROM / TO / NATURE OF WORK rows will print, updating as you edit each leg.
+- The preview uses the same row-building logic as the Diary export, so the times, ROAD / train labels and HQ endpoints match the generated PDF and Word output.
+- Implemented in `PLACEHOLDER`.
+
 ## 1.7.8.4 — 2026-09-30
 
 **Minor: Appearance copy, WhatsApp icon, saved legs on Edit, centred monthly dates**

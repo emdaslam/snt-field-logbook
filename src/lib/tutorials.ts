@@ -787,6 +787,23 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.8.5",
+    tag: "Live Diary preview",
+    subtitle: "See how the entry will print while you edit its rows.",
+    slides: [
+      {
+        glyph: "▤",
+        title: "Preview as you edit",
+        body: "Turn on “Edit the rows” while entering a daily log and a Diary preview of just that entry appears right below the row editor.",
+      },
+      {
+        glyph: "◈",
+        title: "Same as the export",
+        body: "The preview uses the same rows the Diary export prints — DATE, TRAIN NO, TIME DEP, TIME ARR, FROM, TO and NATURE OF WORK — so the times, ROAD / train labels and HQ endpoints match the generated PDF and Word output as you type.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {
