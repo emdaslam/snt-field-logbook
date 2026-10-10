@@ -3,6 +3,8 @@ import { fmtDate, toISODate, footplateRidesOf, footplateInspectionRows, footplat
 import { formatInspectionDates } from "@/lib/inspections";
 import { isSpecialMovement, EQUIPMENT_DEFAULTS, variableKmText, type ExportStyle } from "@/lib/types";
 import { railwayHeading } from "@/lib/railways";
+import { resolvedRailway } from "@/lib/railways";
+import { buildMusterGrid, musterHeaderLines, type MusterHeader } from "@/lib/muster";
 import { AUTO_TIMINGS } from "@/lib/timingsMode";
 import { tripTimes, journeyTrainTimes, type TripTimes } from "@/lib/travel";
 import { loadTaGenConfig, type TaGenWindow, type TaRateKey } from "@/lib/taGenConfig";
@@ -709,7 +711,7 @@ function upperSheet(sheet: XlsxSheet): XlsxSheet {
 function gridHtml(
   grid: (string | number | XlsxCell)[][],
   merges: XlsxMerge[],
-  opts: { dateCol?: number; centerCols?: Set<number>; leftCols?: Set<number>; valignCols?: Set<number>; vTextCols?: Set<number>; fontCols?: Set<number> } = {}
+  opts: { dateCol?: number; centerCols?: Set<number>; leftCols?: Set<number>; valignCols?: Set<number>; vTextCols?: Set<number>; fontCols?: Set<number>; boldRows?: Set<number> } = {}
 ): string {
   const covered = new Set<string>();
   const rows: string[] = [];
@@ -743,7 +745,8 @@ function gridHtml(
           for (let cc = c + 1; cc <= c2; cc++) covered.add(`${r},${cc}`);
         }
       }
-      tds.push(`<td${attrs}>${esc(txt)}</td>`);
+      const body = opts.boldRows?.has(r) && txt.trim() ? `<strong>${esc(txt)}</strong>` : esc(txt);
+      tds.push(`<td${attrs}>${body}</td>`);
     }
     rows.push(`<tr>${tds.join("")}</tr>`);
   }
@@ -2100,4 +2103,69 @@ export function exportRequiredMaterials(
   transfers?: MaterialTransfer[]
 ) {
   exportDocument("Required Materials Report", requiredMaterialsReportBody(materials, materialStations, receipts, usages, stations, transfers), "materials");
+}
+
+/**
+ * Muster export — the attendance sheet for a muster month (11th → 10th), as
+ * PDF / Word / Excel. Two half-rows of days (11..end of month, then 1..10)
+ * with an attendance code under each: OL for TA-claimed movement days, P for
+ * other logged days, REST / NH / CR / PL / CL / SICK from the special entries,
+ * blank when no log exists. Header fields come from the profile (Office,
+ * PF No, name, designation, railway zone); AMC NO / DMC NO are placeholders.
+ */
+export function exportMuster(
+  period: { from: string; to: string; label: string },
+  logs: DailyLog[],
+  stations: Station[],
+  me: Staff | undefined,
+  onComplete?: () => void
+) {
+  const hq = stations.find((s) => s.id === me?.headquartersStationId);
+  const hqCode = hqLabel(hq);
+
+  const officeProfile = (me?.office ?? "").trim();
+  const office = officeProfile || (hqCode ? `SSE/SIG/O/${hqCode}` : "");
+  const nameRaw = (me?.name ?? "").trim();
+  const name = nameRaw ? (/^SRI\b/i.test(nameRaw) ? nameRaw.toUpperCase() : `SRI ${nameRaw.toUpperCase()}`) : "";
+  const desigRaw = (me?.designation ?? "").trim();
+  let designation = desigRaw;
+  if (designation && hqCode && !designation.toLowerCase().endsWith(hqCode.toLowerCase())) {
+    designation = `${designation}/${hqCode}`;
+  } else if (!designation && hqCode) {
+    designation = hqCode;
+  }
+
+  const header: MusterHeader = {
+    railway: resolvedRailway(me?.railwayZone, me?.railwayDivision).zone.toUpperCase(),
+    office,
+    pfNo: (me?.pfNo ?? "").trim(),
+    name,
+    designation,
+  };
+  const lines = musterHeaderLines(period, header);
+
+  const { grid, merges } = buildMusterGrid(period, logs, stations, hq, header);
+  const allCols = new Set(Array.from({ length: grid[0].length }, (_, i) => i));
+
+  let body = `<table>${gridHtml(grid, merges, { centerCols: allCols, boldRows: new Set([0]) })}</table>`;
+  if (lines.signature) {
+    body += `<p class="right" data-right-pad="24" data-space-top="18"><strong>${esc(lines.signature)}</strong></p>`;
+  }
+
+  const dayWidths = Array.from({ length: grid[0].length - 2 }, () => 4.6);
+  const sheet: XlsxSheet = {
+    rows: [
+      ...grid,
+      [lines.signature ? `                                              ${lines.signature}` : ""],
+    ],
+    merges,
+    colWidths: [...dayWidths, 10, 10],
+  };
+
+  exportDocument(`Muster ${period.label}`, body, "muster", sheet, {
+    onePage: true,
+    style: "plain",
+    cellPad: 1.5,
+    onComplete,
+  });
 }

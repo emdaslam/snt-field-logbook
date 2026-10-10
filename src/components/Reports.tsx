@@ -6,6 +6,7 @@ import { TomorrowWorkModal } from "./TomorrowWorkModal";
 import { PcdoExportModal } from "./PcdoExportModal";
 import { DiaryExportModal } from "./DiaryExportModal";
 import { InspectionExportModal } from "./InspectionExportModal";
+import { MusterExportModal } from "./MusterExportModal";
 import { PeriodPicker, monthPeriod, type Period } from "./PeriodPicker";
 import { getPcdoPeriod } from "@/lib/pcdo";
 import { useBackClose } from "@/lib/backButton";
@@ -35,6 +36,7 @@ export function Reports({
   const [diaryOpen, setDiaryOpen] = useState(false);
   const [taOpen, setTaOpen] = useState(false);
   const [inspOpen, setInspOpen] = useState(false);
+  const [musterOpen, setMusterOpen] = useState(false);
   const [period, setPeriod] = useState<Period>(() => monthPeriod(0));
   const [custom, setCustom] = useState(false);
   const [drill, setDrill] = useState<{ title: string; rows: StatRow[]; footer?: string } | null>(null);
@@ -529,6 +531,9 @@ export function Reports({
           <ExportBtn color="#d97706" glyph="💰" onClick={() => setTaOpen(true)}>
             Export TA Journal (with summary)
           </ExportBtn>
+          <ExportBtn color="#7c3aed" glyph="📋" onClick={() => setMusterOpen(true)}>
+            Export Muster (attendance sheet)
+          </ExportBtn>
           <ExportBtn color="#0284c7" glyph="🔁" onClick={() => setInspOpen(true)}>
             Export Inspections (monthly / quarterly / maintenance)
           </ExportBtn>
@@ -540,6 +545,7 @@ export function Reports({
       <DiaryExportModal open={diaryOpen} onClose={() => setDiaryOpen(false)} initialMode="diary" />
       <DiaryExportModal open={taOpen} onClose={() => setTaOpen(false)} initialMode="ta" />
       <InspectionExportModal open={inspOpen} onClose={() => setInspOpen(false)} />
+      <MusterExportModal open={musterOpen} onClose={() => setMusterOpen(false)} />
       <StatDetailModal
         open={Boolean(drill)}
         onClose={() => setDrill(null)}

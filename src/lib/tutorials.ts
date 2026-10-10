@@ -804,6 +804,28 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.8.6",
+    tag: "Muster export",
+    subtitle: "The monthly attendance muster, generated from your daily logs.",
+    slides: [
+      {
+        glyph: "📋",
+        title: "New muster export",
+        body: "Reports (and the top-bar Export menu) gains “Export Muster (attendance sheet)”. Pick a month and the muster runs from the 11th of that month to the 10th of the next, as PDF, Word or Excel — like your office muster sheet.",
+      },
+      {
+        glyph: "▮",
+        title: "Codes from your logs",
+        body: "Each day gets its muster code automatically: OL for days with a TA-claimed movement, P for other logged days, REST / NH / CR for those entries, PL (your LAP leaves), CL or SICK for leave. Days without a daily log stay blank.",
+      },
+      {
+        glyph: "✎",
+        title: "Header from your profile",
+        body: "The railway, office, PF No, name and designation lines come from Settings → My Profile — a new Office field (e.g. SSE/SIG/O/JMDG) completes the header. AMC NO / DMC NO print as --- for you to fill in by hand.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {

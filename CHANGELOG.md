@@ -3,6 +3,16 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.6 — 2026-10-10
+
+**Major: Muster export — the attendance sheet, generated from your daily logs**
+
+- Reports → Generate Reports (and the top-bar Export menu) gains **Export Muster (attendance sheet)**. Pick the muster month and the sheet runs from the 11th of that month to the 10th of the next, printed as the two half-rows of days (11 → end of month, then 1 → 10) with AMC NO / DMC NO columns and the designation signature line.
+- Every day gets its muster code from that day's daily logs: **OL** for days with a TA-claimed movement (the same rule as the TA Journal), **P** for other logged days (office / HQ / within-8 km movement), **REST / NH / CR** from those entries, **PL** (the app's LAP leave), **CL** or **SICK** from the leave kind. Days without a daily log stay blank.
+- The header comes from your profile: railway zone, **Office** (new field in Settings → My Profile, e.g. SSE/SIG/O/JMDG — it falls back to SSE/SIG/O/<HQ> until set), PF No, name (printed as SRI …) and designation with the HQ station appended. AMC NO / DMC NO print as --- to fill in by hand.
+- Available as PDF (fit on one page), Word and Excel through the usual Export Report sheet, in Colour or Plain.
+- Implemented in this release.
+
 ## 1.7.8.5 — 2026-10-01
 
 **Major: live Diary preview while editing export rows**

@@ -85,6 +85,7 @@ export const api = {
       return ldb.insert("staff", {
         name: b.name ?? "",
         designation: b.designation ?? null,
+        office: b.office ?? null,
         pfNo: b.pfNo ?? null,
         buNo: b.buNo ?? null,
         phone: b.phone ?? null,
@@ -105,6 +106,7 @@ export const api = {
       return ldb.update("staff", b.id as number, {
         name: b.name,
         designation: b.designation ?? null,
+        office: b.office ?? null,
         pfNo: b.pfNo ?? null,
         buNo: b.buNo ?? null,
         phone: b.phone ?? null,

@@ -18,6 +18,7 @@ import { PcdoExportModal } from "./PcdoExportModal";
 import { LogDetailModal } from "./LogDetailModal";
 import { DiaryExportModal } from "./DiaryExportModal";
 import { InspectionExportModal } from "./InspectionExportModal";
+import { MusterExportModal } from "./MusterExportModal";
 import { DailyLogForm, DeficiencyForm, PlannedWorkForm } from "./Forms";
 import { Onboarding } from "./Onboarding";
 import { FeatureTutorials } from "./FeatureTutorials";
@@ -88,6 +89,7 @@ export function AppShell() {
   const [diaryOpen, setDiaryOpen] = useState(false);
   const [taOpen, setTaOpen] = useState(false);
   const [inspOpen, setInspOpen] = useState(false);
+  const [musterOpen, setMusterOpen] = useState(false);
   const [exitToast, setExitToast] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [onboardingDone, setOnboardingDone] = useState(false);
@@ -215,6 +217,7 @@ export function AppShell() {
     diaryOpen,
     taOpen,
     inspOpen,
+    musterOpen,
     notifOpen,
     exportMenu,
     reportsDrill,
@@ -240,6 +243,7 @@ export function AppShell() {
       diaryOpen,
       taOpen,
       inspOpen,
+      musterOpen,
       notifOpen,
       exportMenu,
       reportsDrill,
@@ -276,6 +280,7 @@ export function AppShell() {
             [s.diaryOpen, () => setDiaryOpen(false)],
             [s.taOpen, () => setTaOpen(false)],
             [s.inspOpen, () => setInspOpen(false)],
+            [s.musterOpen, () => setMusterOpen(false)],
             [s.notifOpen, () => setNotifOpen(false)],
             [s.exportMenu, () => setExportMenu(false)],
             [s.reportsDrill, () => closeReportsDrill.current()],
@@ -563,6 +568,12 @@ export function AppShell() {
                   className="block w-full rounded-lg px-3 py-2.5 text-left text-sm hover:bg-blue-50"
                 >
                   💰 Export TA Journal
+                </button>
+                <button
+                  onClick={() => { setMusterOpen(true); setExportMenu(false); }}
+                  className="block w-full rounded-lg px-3 py-2.5 text-left text-sm hover:bg-blue-50"
+                >
+                  📋 Export Muster
                 </button>
                 <button
                   onClick={() => { setInspOpen(true); setExportMenu(false); }}
@@ -853,6 +864,7 @@ export function AppShell() {
       <DiaryExportModal open={diaryOpen} onClose={() => setDiaryOpen(false)} initialMode="diary" />
       <DiaryExportModal open={taOpen} onClose={() => setTaOpen(false)} initialMode="ta" />
       <InspectionExportModal open={inspOpen} onClose={() => setInspOpen(false)} />
+      <MusterExportModal open={musterOpen} onClose={() => setMusterOpen(false)} />
       <LogDetailModal log={detailLog} onClose={() => setDetailLog(null)} onEdit={(l) => setEditLog(l)} />
       <AttachmentPreviewModal attachment={selAttachment} onClose={() => setSelAttachment(null)} />
 
