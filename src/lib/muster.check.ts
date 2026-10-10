@@ -136,6 +136,18 @@ assert.equal(cellText(grid[3][21]), "MONTH: AUGUST'2026");
 assert.equal(cellText(grid[3][31]), "AMC NO");
 assert.equal(cellText(grid[3][32]), "DMC NO");
 
+// export sizing contract: day columns pinned 19pt, the AMC / DMC columns 26pt
+// (their header word wraps to "AMC" / "NO" like the office sample); all 33
+// pinned widths are scaled to the printable width downstream, which keeps
+// "AMC" (≈29.5pt with padding) on one line of its stretched ≈32pt column
+const widthFor = (c: number) => (c >= MUSTER_COLS - 2 ? 26 : 19);
+assert.equal(widthFor(30), 19);
+assert.equal(widthFor(31), 26);
+assert.equal(widthFor(32), 26);
+const pinnedSum = Array.from({ length: MUSTER_COLS }, (_, i) => widthFor(i)).reduce((a, b) => a + b, 0);
+assert.equal(pinnedSum, 31 * 19 + 2 * 26);
+assert.equal(26.5 + 3 <= (26 * 793.9) / pinnedSum, true); // "AMC" fits its stretched column
+
 // day numbers 11..31 then 1..10, codes aligned beneath
 assert.equal(cellText(grid[4][0]), "11");
 assert.equal(cellText(grid[4][20]), "31");

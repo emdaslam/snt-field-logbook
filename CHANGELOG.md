@@ -3,6 +3,15 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.8 — 2026-10-10
+
+**Minor: muster sheet enlarged to fill the page**
+
+- The muster table now stretches to the printable width of the landscape page (~94% of the page, like the office sample) instead of the narrower ~75% strip — in the PDF and in Word.
+- The header font starts larger (≈12.4pt, matching the sample's ≈12.2pt); the OFFICE / PF NO / NAME / DESIGNATION row still keeps to a single line.
+- AMC NO / DMC NO columns run wider than the day columns, like the sample, so their header wraps cleanly to AMC / NO.
+- The signature designation line now right-aligns inside the table edge instead of overhanging past it, with extra space above the signature.
+
 ## 1.7.8.7 — 2026-10-10
 
 **Minor: muster sheet prints like the office sample**

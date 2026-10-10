@@ -709,13 +709,14 @@ function upperSheet(sheet: XlsxSheet): XlsxSheet {
  * class="vtext" in PDF and Word; `vTextRows` does the same per row (the
  * muster's attendance codes) and re-spaces the text as one letter per token;
  * `dataWidth` pins every cell to one column width in points (the muster's
- * equal day columns); a cell carrying a colour (the muster's red absence
+ * equal day columns) — a function form pins per column (the muster's wider
+ * AMC/DMC columns); a cell carrying a colour (the muster's red absence
  * codes) emits data-color so PDF / Word render its text in that colour.
  */
 function gridHtml(
   grid: (string | number | XlsxCell)[][],
   merges: XlsxMerge[],
-  opts: { dateCol?: number; centerCols?: Set<number>; leftCols?: Set<number>; valignCols?: Set<number>; vTextCols?: Set<number>; vTextRows?: Set<number>; fontCols?: Set<number>; boldRows?: Set<number>; dataWidth?: number } = {}
+  opts: { dateCol?: number; centerCols?: Set<number>; leftCols?: Set<number>; valignCols?: Set<number>; vTextCols?: Set<number>; vTextRows?: Set<number>; fontCols?: Set<number>; boldRows?: Set<number>; dataWidth?: number | ((col: number) => number) } = {}
 ): string {
   const covered = new Set<string>();
   const rows: string[] = [];
@@ -736,7 +737,8 @@ function gridHtml(
       let cls = opts.dateCol === c ? "date" : "";
       if (isVC || isVR) cls = cls ? `${cls} vtext` : "vtext";
       let attrs = cls ? ` class="${cls}"` : "";
-      if (opts.dataWidth) attrs += ` data-width="${opts.dataWidth}"`;
+      const dw = typeof opts.dataWidth === "function" ? opts.dataWidth(c) : opts.dataWidth;
+      if (dw) attrs += ` data-width="${dw}"`;
       const color = typeof cell === "object" ? cell.color : undefined;
       if (color) attrs += ` data-color="${color}"`;
       if (opts.centerCols?.has(c)) attrs += ' data-align="center"';
@@ -2128,8 +2130,9 @@ export function exportRequiredMaterials(
  * entries — absence codes in red — blank when no log exists. Header fields
  * come from the profile (Office, PF No, name, designation, railway zone);
  * AMC NO / DMC NO are placeholders. The day columns are pinned to an equal
- * width and the page margins are widened so the sheet fills ~70-80% of the
- * landscape page, centred.
+ * width and scaled up so the table spans the printable width of the landscape
+ * page (~94% of the page, like the office sample); the header font starts
+ * large enough that the Office/PF/Name/Designation row stays on one line.
  */
 export function exportMuster(
   period: { from: string; to: string; label: string },
@@ -2169,10 +2172,13 @@ export function exportMuster(
     centerCols: allCols,
     boldRows: new Set([0]),
     vTextRows: new Set([grid.length - 1]),
-    dataWidth: 19,
+    // The AMC/DMC columns run wider than the day columns (like the office
+    // sample) so their header word wraps to "AMC" / "NO" instead of breaking
+    // mid-word; the pinned widths are scaled to the printable width downstream.
+    dataWidth: (c) => (c >= grid[0].length - 2 ? 26 : 19),
   })}</table>`;
   if (lines.signature) {
-    body += `<p class="right" data-right-pad="24" data-space-top="18"><strong>${esc(lines.signature)}</strong></p>`;
+    body += `<p class="right" data-right-pad="24" data-space-top="30"><strong>${esc(lines.signature)}</strong></p>`;
   }
 
   const dayWidths = Array.from({ length: grid[0].length - 2 }, () => 4.6);
@@ -2190,8 +2196,7 @@ export function exportMuster(
     style: "plain",
     cellPad: 1.5,
     orientation: "landscape",
-    fitStart: 11,
-    fitMargin: 100,
+    fitStart: 14,
     onComplete,
   });
 }

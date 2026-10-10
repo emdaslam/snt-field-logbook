@@ -196,7 +196,7 @@ function tableCell(
   return `<w:tc>${tcPr}</w:tc>`;
 }
 
-function buildTable(html: string, plain = false, pal: PaletteColors | null = null, polish: ExportPolish | null = null): string {
+function buildTable(html: string, plain = false, pal: PaletteColors | null = null, polish: ExportPolish | null = null, printableTwips = 0): string {
   const parsed = new DOMParser().parseFromString(`<div>${html}</div>`, "text/html");
   const trs = Array.from(parsed.body.firstElementChild?.querySelectorAll("tr") ?? []);
   if (trs.length === 0) return "";
@@ -219,6 +219,7 @@ function buildTable(html: string, plain = false, pal: PaletteColors | null = nul
   // two-tier header maps "TIME DEPT" etc. to the right grid column. Headless
   // tables (the muster's all-td grid) walk every row for the same purpose.
   const widths: string[] = [];
+  let maxCol = 0;
   {
     const active = new Map<number, number>();
     for (const r of trs.slice(0, hasHead ? headCount : trs.length)) {
@@ -237,7 +238,21 @@ function buildTable(html: string, plain = false, pal: PaletteColors | null = nul
         const colSpan = Math.max(1, parseInt(el.getAttribute("colspan") || "1", 10) || 1);
         if (rowSpan > 1) active.set(col, rowSpan - 1);
         col += colSpan;
+        if (col > maxCol) maxCol = col;
       }
+    }
+  }
+
+  // All-pinned tables (the muster's day grid) stretch to the printable width,
+  // matching the PDF where the same pinned widths are scaled to fill the page
+  // — the signature block right-aligns to the table edge, so a narrow table
+  // would strand it mid-page.
+  if (printableTwips > 0 && maxCol > 0) {
+    const allPinned = Array.from({ length: maxCol }, (_, i) => widths[i]).every(Boolean);
+    const totalW = widths.reduce((a, w) => a + Number(w), 0);
+    if (allPinned && totalW > 0 && totalW < printableTwips) {
+      const k = printableTwips / totalW;
+      for (let i = 0; i < maxCol; i++) widths[i] = String(Math.round(Number(widths[i]) * k));
     }
   }
 
@@ -478,7 +493,8 @@ export function buildDocx(
         }
       }
     } else if (tag === "table") {
-      const tbl = buildTable(el.outerHTML, plain, pal, polish);
+      const printableTwips = (orientation === "landscape" ? 16838 : 11906) - 800 - 800;
+      const tbl = buildTable(el.outerHTML, plain, pal, polish, printableTwips);
       if (tbl) {
         parts.push(tbl);
         // Spacer so content after the table isn't glued to its border.

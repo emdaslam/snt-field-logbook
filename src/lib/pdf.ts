@@ -1004,10 +1004,12 @@ export function buildPdf(
             const colSpan = Math.max(1, parseInt(c.getAttribute("colspan") || "1", 10) || 1);
             const w = c.getAttribute("data-width");
             if (w && columnStyles[col]?.cellWidth == null) {
-              const cw = opts.contentWidths?.[col];
+              // The pinned width alone, no content floor: the muster's
+              // "AMC NO" header wraps to two lines like the office sample
+              // instead of widening its column.
               columnStyles[col] = {
                 ...columnStyles[col],
-                cellWidth: Math.max(cw ?? Number(w), fit[col]?.full ?? (cw ?? Number(w))),
+                cellWidth: opts.contentWidths?.[col] ?? Number(w),
               };
             }
             if (rowSpan > 1) activeW.set(col, rowSpan - 1);
@@ -1043,20 +1045,22 @@ export function buildPdf(
         };
       }
 
-      // Fit-on-one-page mode without AI widths: size the NATURE OF WORK column
-      // (index 9, the only column without a data-width) from its own content —
-      // the widest single line of work text at the current font size — instead
-      // of handing it the whole leftover row. The column is never wider than its
-      // content (no long empty strip inside the cell), never wider than the room
-      // the fixed columns leave (no page overflow, the failure the old rigid
-      // data-width attempt caused), and never below MIN_NATURE_COL. When the
-      // content leaves room to spare, that leftover is spread over the fixed
-      // columns in proportion, so the table still fills the printable width and
-      // those cells get roomier — and the fit loop can land on a larger font
-      // size, because a wider column no longer costs a wrapped work-text line.
-      // (When AI column widths are active the block below owns the whole
-      // budget, including this column, so this one stays out of the way.)
-      if (opts.fitMode && !opts.polish?.columnWidths) {
+      // Leftover-width handling for tables with pinned columns (no AI widths).
+      // When every column is pinned (the muster's day grid) the pinned widths
+      // are scaled so the table spans the printable width exactly — the
+      // signature block right-aligns to that same edge, so the sheet stays one
+      // coherent block instead of the signature overhanging a narrower table.
+      // Otherwise (diary / TA journal) fit mode hands the spare room to the
+      // one unpinned column (NATURE OF WORK, index 9): it gets the widest
+      // single line of work text at the current font size instead of the whole
+      // leftover row. That column is never wider than its content (no long
+      // empty strip inside the cell), never wider than the room the fixed
+      // columns leave (no page overflow, the failure the old rigid data-width
+      // attempt caused), and never below MIN_NATURE_COL; spare room spreads
+      // over the fixed columns in proportion, so the table still fills the
+      // printable width — and the fit loop can land on a larger font size,
+      // because a wider column no longer costs a wrapped work-text line.
+      if (!opts.polish?.columnWidths) {
         const avail = pageW - 2 * margin;
         let used = 0;
         const fixedCols: number[] = [];
@@ -1066,11 +1070,14 @@ export function buildPdf(
             fixedCols.push(Number(col));
           }
         }
-        // When every column already carries a pinned width (the muster's day
-        // grid) there is no leftover column to absorb spare room — keep the
-        // pinned widths untouched instead of fattening column 9.
         const totalCols = Math.max(0, ...bodyRows.map((r) => r.querySelectorAll("td").length));
-        if (fixedCols.length < totalCols) {
+        if (used > 0 && totalCols > 0 && fixedCols.length >= totalCols) {
+          const k = avail / used;
+          for (const col of fixedCols) {
+            const st = columnStyles[col];
+            if (typeof st.cellWidth === "number") st.cellWidth = st.cellWidth * k;
+          }
+        } else if (opts.fitMode && fixedCols.length > 0) {
           const room = Math.max(avail - used, 0);
           const content = Math.max(fit[9]?.full ?? 0, hf[9]?.word ?? 0);
           const cap = Math.max(
