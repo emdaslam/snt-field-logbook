@@ -706,12 +706,16 @@ function upperSheet(sheet: XlsxSheet): XlsxSheet {
  * horizontally — used for the nature-of-work column, which centres
  * vertically but stays left aligned); `vTextCols` marks columns whose
  * non-empty cells render their text vertically (one character per line) via
- * class="vtext" in PDF and Word.
+ * class="vtext" in PDF and Word; `vTextRows` does the same per row (the
+ * muster's attendance codes) and re-spaces the text as one letter per token;
+ * `dataWidth` pins every cell to one column width in points (the muster's
+ * equal day columns); a cell carrying a colour (the muster's red absence
+ * codes) emits data-color so PDF / Word render its text in that colour.
  */
 function gridHtml(
   grid: (string | number | XlsxCell)[][],
   merges: XlsxMerge[],
-  opts: { dateCol?: number; centerCols?: Set<number>; leftCols?: Set<number>; valignCols?: Set<number>; vTextCols?: Set<number>; fontCols?: Set<number>; boldRows?: Set<number> } = {}
+  opts: { dateCol?: number; centerCols?: Set<number>; leftCols?: Set<number>; valignCols?: Set<number>; vTextCols?: Set<number>; vTextRows?: Set<number>; fontCols?: Set<number>; boldRows?: Set<number>; dataWidth?: number } = {}
 ): string {
   const covered = new Set<string>();
   const rows: string[] = [];
@@ -721,11 +725,20 @@ function gridHtml(
       const key = `${r},${c}`;
       if (covered.has(key)) continue;
       const txt = cellText(grid[r][c]);
+      const cell = grid[r][c];
       const m = merges.find(([r1, c1]) => r1 === r && c1 === c);
-      const isV = Boolean(opts.vTextCols?.has(c) && txt.trim());
+      const isVC = Boolean(opts.vTextCols?.has(c) && txt.trim());
+      // Row-pinned vertical text only applies to cells flagged stacked, so
+      // row-mates like the muster's "---" placeholders stay horizontal.
+      const isVR = Boolean(
+        opts.vTextRows?.has(r) && txt.trim() && (typeof cell !== "object" || cell.stacked)
+      );
       let cls = opts.dateCol === c ? "date" : "";
-      if (isV) cls = cls ? `${cls} vtext` : "vtext";
+      if (isVC || isVR) cls = cls ? `${cls} vtext` : "vtext";
       let attrs = cls ? ` class="${cls}"` : "";
+      if (opts.dataWidth) attrs += ` data-width="${opts.dataWidth}"`;
+      const color = typeof cell === "object" ? cell.color : undefined;
+      if (color) attrs += ` data-color="${color}"`;
       if (opts.centerCols?.has(c)) attrs += ' data-align="center"';
       else if (opts.leftCols?.has(c)) attrs += ' data-align="left"';
       if (opts.valignCols?.has(c)) attrs += ' data-valign="middle"';
@@ -745,7 +758,8 @@ function gridHtml(
           for (let cc = c + 1; cc <= c2; cc++) covered.add(`${r},${cc}`);
         }
       }
-      const body = opts.boldRows?.has(r) && txt.trim() ? `<strong>${esc(txt)}</strong>` : esc(txt);
+      const shown = isVR ? txt.split("").join(" ") : txt;
+      const body = opts.boldRows?.has(r) && txt.trim() ? `<strong>${esc(shown)}</strong>` : esc(shown);
       tds.push(`<td${attrs}>${body}</td>`);
     }
     rows.push(`<tr>${tds.join("")}</tr>`);
@@ -2107,11 +2121,15 @@ export function exportRequiredMaterials(
 
 /**
  * Muster export — the attendance sheet for a muster month (11th → 10th), as
- * PDF / Word / Excel. Two half-rows of days (11..end of month, then 1..10)
- * with an attendance code under each: OL for TA-claimed movement days, P for
- * other logged days, REST / NH / CR / PL / CL / SICK from the special entries,
- * blank when no log exists. Header fields come from the profile (Office,
- * PF No, name, designation, railway zone); AMC NO / DMC NO are placeholders.
+ * PDF / Word / Excel. Landscape like the office sample, with the two half-rows
+ * of days (11..end of month, then 1..10) and an attendance code under each,
+ * printed vertically (one letter per line): OL for TA-claimed movement days,
+ * P for other logged days, REST / NH / CR / PL / CL / SICK from the special
+ * entries — absence codes in red — blank when no log exists. Header fields
+ * come from the profile (Office, PF No, name, designation, railway zone);
+ * AMC NO / DMC NO are placeholders. The day columns are pinned to an equal
+ * width and the page margins are widened so the sheet fills ~70-80% of the
+ * landscape page, centred.
  */
 export function exportMuster(
   period: { from: string; to: string; label: string },
@@ -2147,7 +2165,12 @@ export function exportMuster(
   const { grid, merges } = buildMusterGrid(period, logs, stations, hq, header);
   const allCols = new Set(Array.from({ length: grid[0].length }, (_, i) => i));
 
-  let body = `<table>${gridHtml(grid, merges, { centerCols: allCols, boldRows: new Set([0]) })}</table>`;
+  let body = `<table>${gridHtml(grid, merges, {
+    centerCols: allCols,
+    boldRows: new Set([0]),
+    vTextRows: new Set([grid.length - 1]),
+    dataWidth: 19,
+  })}</table>`;
   if (lines.signature) {
     body += `<p class="right" data-right-pad="24" data-space-top="18"><strong>${esc(lines.signature)}</strong></p>`;
   }
@@ -2166,6 +2189,9 @@ export function exportMuster(
     onePage: true,
     style: "plain",
     cellPad: 1.5,
+    orientation: "landscape",
+    fitStart: 11,
+    fitMargin: 100,
     onComplete,
   });
 }

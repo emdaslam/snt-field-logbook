@@ -107,7 +107,8 @@ const { grid, merges } = buildMusterGrid(
   p,
   [
     log({ id: 1, logDate: "2026-07-11", stationMovement: "GADWAL", movementKind: null }),
-    log({ id: 2, logDate: "2026-07-17", movementKind: "rest" }),
+    log({ id: 2, logDate: "2026-07-12", stationMovement: "JMDG", movementKind: null }),
+    log({ id: 3, logDate: "2026-07-17", movementKind: "rest" }),
   ],
   stations,
   hq,
@@ -141,12 +142,30 @@ assert.equal(cellText(grid[4][20]), "31");
 assert.equal(cellText(grid[4][21]), "1");
 assert.equal(cellText(grid[4][30]), "10");
 assert.equal(cellText(grid[5][0]), "OL"); // 11 July = GADWAL TA day
+assert.equal(cellText(grid[5][1]), "P"); // 12 July = HQ day
 assert.equal(cellText(grid[5][6]), "REST"); // 17 July
 assert.equal(cellText(grid[5][31]), "---");
 assert.equal(cellText(grid[5][32]), "---");
 
+// code cells render vertically (stacked); absence codes print red, P / OL
+// and the AMC / DMC placeholders stay black
+const codeCellOf = (i: number) => grid[5][i] as { v: string; stacked?: boolean; color?: string };
+assert.equal(codeCellOf(0).stacked, true);
+assert.equal(codeCellOf(0).color, undefined);
+assert.equal(codeCellOf(1).stacked, true);
+assert.equal(codeCellOf(1).color, undefined);
+assert.equal(codeCellOf(6).stacked, true);
+assert.equal(codeCellOf(6).color, "FF0000");
+assert.equal(codeCellOf(31).stacked, undefined);
+assert.equal(codeCellOf(31).color, undefined);
+
 // merges: full-width rows 0/2, header blocks, month halves
 assert.deepEqual(merges[0], [0, 0, 0, 32]);
+// header-field spans sized so each field holds its line at the fitted font
+assert.deepEqual(merges[1], [1, 0, 1, 6]);
+assert.deepEqual(merges[2], [1, 7, 1, 12]);
+assert.deepEqual(merges[3], [1, 13, 1, 24]);
+assert.deepEqual(merges[4], [1, 25, 1, 32]);
 assert.ok(merges.some((m) => m[0] === 3 && m[1] === 0 && m[2] === 3 && m[3] === 20));
 assert.ok(merges.some((m) => m[0] === 3 && m[1] === 21 && m[2] === 3 && m[3] === 30));
 

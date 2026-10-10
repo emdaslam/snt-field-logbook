@@ -87,7 +87,14 @@ type PdfCellStyle = {
   halign?: "left" | "center" | "right";
   valign?: "top" | "middle" | "bottom";
   lineWidth?: { top?: number; bottom?: number; left?: number; right?: number };
+  textColor?: [number, number, number];
 };
+
+/** "FF0000" / "#FF0000" → the jsPDF RGB triplet. */
+function hexToRgb(hex: string): [number, number, number] {
+  const n = parseInt(hex.replace("#", ""), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
 
 type PdfCell = string | { content: string; rowSpan: number; colSpan: number; styles?: PdfCellStyle };
 
@@ -137,6 +144,8 @@ function parseTableBody(trs: Element[]): { body: PdfCell[][]; notes: VtextNote[]
       const styles: PdfCellStyle = {};
       const font = el.getAttribute("data-font");
       if (font) styles.font = font;
+      const colorHex = el.getAttribute("data-color");
+      if (colorHex) styles.textColor = hexToRgb(colorHex);
       if (el.querySelector("strong")) styles.fontStyle = "bold";
       const align = el.getAttribute("data-align");
       if (align === "center") {
@@ -514,9 +523,9 @@ export function buildPdf(
   title: string,
   bodyHtml: string,
   contentSize: number,
-  opts: { margin?: number; footer?: boolean; style?: ExportStyle; cellPad?: number; fixedHeader?: boolean; contentWidths?: Record<number, number>; fitMode?: boolean; polish?: ExportPolish | null } = {}
+  opts: { margin?: number; footer?: boolean; style?: ExportStyle; cellPad?: number; fixedHeader?: boolean; contentWidths?: Record<number, number>; fitMode?: boolean; orientation?: "portrait" | "landscape"; polish?: ExportPolish | null } = {}
 ): jsPDF {
-  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const doc = new jsPDF({ unit: "pt", format: "a4", orientation: opts.orientation ?? "portrait" });
   registerPdfFonts(doc);
   const fs = contentSize / 9;
   // The TA journal's header/footer block — the SOUTH COAST RAILWAY title, the
@@ -976,6 +985,37 @@ export function buildPdf(
         }
       }
 
+      // Headless tables (the muster's all-td grid) can pin widths from their
+      // body cells too: walk the body rows column-accurately and take the
+      // first data-width seen per column.
+      if (!hasHead) {
+        const activeW = new Map<number, number>();
+        for (const tr of bodyRows) {
+          const cells = Array.from(tr.querySelectorAll("td"));
+          let col = 0;
+          for (const c of cells) {
+            while (activeW.has(col)) {
+              const left = activeW.get(col)! - 1;
+              if (left <= 0) activeW.delete(col);
+              else activeW.set(col, left);
+              col++;
+            }
+            const rowSpan = Math.max(1, parseInt(c.getAttribute("rowspan") || "1", 10) || 1);
+            const colSpan = Math.max(1, parseInt(c.getAttribute("colspan") || "1", 10) || 1);
+            const w = c.getAttribute("data-width");
+            if (w && columnStyles[col]?.cellWidth == null) {
+              const cw = opts.contentWidths?.[col];
+              columnStyles[col] = {
+                ...columnStyles[col],
+                cellWidth: Math.max(cw ?? Number(w), fit[col]?.full ?? (cw ?? Number(w))),
+              };
+            }
+            if (rowSpan > 1) activeW.set(col, rowSpan - 1);
+            col += colSpan;
+          }
+        }
+      }
+
       // A fixed-width "date" column (cells marked class="date") keeps dates on
       // one line instead of wrapping in a proportionally-narrow column.
       let dateCol: number | null = null;
@@ -1026,23 +1066,29 @@ export function buildPdf(
             fixedCols.push(Number(col));
           }
         }
-        const room = Math.max(avail - used, 0);
-        const content = Math.max(fit[9]?.full ?? 0, hf[9]?.word ?? 0);
-        const cap = Math.max(
-          Math.min(content > 0 ? content : room, room),
-          Math.min(MIN_NATURE_COL, room)
-        );
-        columnStyles[9] = {
-          ...(columnStyles[9] ?? {}),
-          cellWidth: cap,
-        };
-        if (used > 0) {
-          const extra = avail - cap - used;
-          if (extra > 0) {
-            const scale = (used + extra) / used;
-            for (const col of fixedCols) {
-              const st = columnStyles[col];
-              if (typeof st.cellWidth === "number") st.cellWidth = st.cellWidth * scale;
+        // When every column already carries a pinned width (the muster's day
+        // grid) there is no leftover column to absorb spare room — keep the
+        // pinned widths untouched instead of fattening column 9.
+        const totalCols = Math.max(0, ...bodyRows.map((r) => r.querySelectorAll("td").length));
+        if (fixedCols.length < totalCols) {
+          const room = Math.max(avail - used, 0);
+          const content = Math.max(fit[9]?.full ?? 0, hf[9]?.word ?? 0);
+          const cap = Math.max(
+            Math.min(content > 0 ? content : room, room),
+            Math.min(MIN_NATURE_COL, room)
+          );
+          columnStyles[9] = {
+            ...(columnStyles[9] ?? {}),
+            cellWidth: cap,
+          };
+          if (used > 0) {
+            const extra = avail - cap - used;
+            if (extra > 0) {
+              const scale = (used + extra) / used;
+              for (const col of fixedCols) {
+                const st = columnStyles[col];
+                if (typeof st.cellWidth === "number") st.cellWidth = st.cellWidth * scale;
+              }
             }
           }
         }
@@ -1264,9 +1310,15 @@ export function buildFitOnePagePdf(
   style: ExportStyle = "colour",
   cellPad?: number,
   fixedHeader = false,
-  polish?: ExportPolish | null
+  polish?: ExportPolish | null,
+  orientation: "portrait" | "landscape" = "portrait",
+  marginOverride?: number
 ): jsPDF {
   const FIT_MARGIN = 24;
+  // An export can widen the fit margins on purpose: the muster passes a large
+  // margin so its pinned-width table sits centred, filling ~70-80% of the
+  // landscape page instead of stretching edge to edge.
+  const fitMargin = marginOverride ?? FIT_MARGIN;
   const FIT_FONT_MIN = 6;
   // Fit-on-one-page uses tighter cell padding than the default layout: rows
   // shrink by a couple of points each, which frees the vertical room that lets
@@ -1285,7 +1337,7 @@ export function buildFitOnePagePdf(
   const widthless = polish ? { ...polish, columnWidths: undefined } : polish;
   // Measure column content widths at the starting font size so we have a
   // reference to scale against as the size shrinks.
-  const initDoc = new jsPDF({ unit: "pt", format: "a4" });
+  const initDoc = new jsPDF({ unit: "pt", format: "a4", orientation });
   registerPdfFonts(initDoc);
   const pageW = initDoc.internal.pageSize.getWidth();
   const parsed = new DOMParser().parseFromString(`<div>${bodyHtml}</div>`, "text/html");
@@ -1304,7 +1356,7 @@ export function buildFitOnePagePdf(
   let size = Math.max(FIT_FONT_MIN, Math.min(CONTENT_FONT_MAX, startSize + (polish?.fitFontNudge ?? 0)));
   let contentWidths: Record<number, number> = {};
   let curMeasure = measureAt(size / 9);
-  let doc = buildPdf(title, bodyHtml, size, { margin: FIT_MARGIN, footer: false, style, fixedHeader, cellPad: fitPad, fitMode: true, polish: widthless });
+  let doc = buildPdf(title, bodyHtml, size, { margin: fitMargin, footer: false, style, fixedHeader, cellPad: fitPad, fitMode: true, orientation, polish: widthless });
   let required = requiredTableWidth(root, curMeasure.bf, curMeasure.hf);
   // The size must keep the report on one page AND leave the required table
   // width (fixed columns on one line + a readable free-text column) inside
@@ -1333,7 +1385,7 @@ export function buildFitOnePagePdf(
     }
     required = requiredTableWidth(root, curMeasure.bf, curMeasure.hf, contentWidths);
     doc = buildPdf(title, bodyHtml, size, {
-      margin: FIT_MARGIN, footer: false, style, fixedHeader, cellPad: fitPad, fitMode: true, polish: widthless,
+      margin: fitMargin, footer: false, style, fixedHeader, cellPad: fitPad, fitMode: true, orientation, polish: widthless,
       ...(Object.keys(contentWidths).length ? { contentWidths } : {}),
     });
   }
@@ -1354,7 +1406,8 @@ export function buildFitTwoPagePdf(
   style: ExportStyle = "colour",
   cellPad?: number,
   fixedHeader = false,
-  polish?: ExportPolish | null
+  polish?: ExportPolish | null,
+  orientation: "portrait" | "landscape" = "portrait"
 ): jsPDF {
   const TWO_PAGE_FONT_MIN = 6;
   const TWO_PAGE_FONT_MAX = 30;
@@ -1362,7 +1415,7 @@ export function buildFitTwoPagePdf(
   // diary, so the fitted layouts own the column widths and only keep the rest
   // of the AI polish. Standard (non-fit) PDFs and Word still apply AI widths.
   const widthless = polish ? { ...polish, columnWidths: undefined } : polish;
-  const probe = new jsPDF({ unit: "pt", format: "a4" });
+  const probe = new jsPDF({ unit: "pt", format: "a4", orientation });
   registerPdfFonts(probe);
   const pageW = probe.internal.pageSize.getWidth();
   const root = new DOMParser().parseFromString(`<div>${bodyHtml}</div>`, "text/html").body.firstElementChild!;
@@ -1370,6 +1423,7 @@ export function buildFitTwoPagePdf(
     buildPdf(title, bodyHtml, size, {
       style,
       fixedHeader,
+      orientation,
       polish: widthless,
       ...(cellPad != null ? { cellPad } : {}),
     });
@@ -1418,7 +1472,21 @@ export function exportDocument(
   bodyHtml: string,
   type = "general",
   sheet?: XlsxSheet,
-  opts?: { onePage?: boolean; twoPageBody?: string; style?: ExportStyle; cellPad?: number; onComplete?: () => void }
+  opts?: {
+    onePage?: boolean;
+    twoPageBody?: string;
+    style?: ExportStyle;
+    cellPad?: number;
+    onComplete?: () => void;
+    /** Page orientation for the PDF and the Word file (default portrait). */
+    orientation?: "portrait" | "landscape";
+    /** Starting content size for the fit-on-one-page loop (default: the
+     *  remembered per-type size; the fit loop only shrinks from there). */
+    fitStart?: number;
+    /** Fit-mode page margin in pt (default 24) — a large margin centres a
+     *  pinned-width table instead of stretching it edge to edge. */
+    fitMargin?: number;
+  }
 ) {
   // Bottom sheet that offers the report as PDF, Word (.docx) or Excel (.xlsx),
   // with a text size prompt for the PDF path. The last chosen format is remembered.
@@ -1731,7 +1799,7 @@ export function exportDocument(
           artifact = {
             filename: `${slug(title)}.docx`,
             mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            base64: docxToBase64(buildDocx(title, html, style, polish)),
+            base64: docxToBase64(buildDocx(title, html, style, polish, opts?.orientation)),
           };
         } else if (format === "xlsx") {
           const { buildXlsx, xlsxToBase64 } = await import("./xlsx");
@@ -1748,15 +1816,31 @@ export function exportDocument(
           const fixedHeader = type === "ta";
           let doc: jsPDF;
           if (pageMode === "fit") {
-            doc = buildFitOnePagePdf(title, bodyHtml, chosenSize(), style, cellPad, fixedHeader, polish);
+            doc = buildFitOnePagePdf(
+              title,
+              bodyHtml,
+              opts?.fitStart ?? chosenSize(),
+              style,
+              cellPad,
+              fixedHeader,
+              polish,
+              opts?.orientation,
+              opts?.fitMargin
+            );
           } else if (pageMode === "two" && twoBody) {
             // The two-page layout has no manual size — the largest size that
             // keeps the split on exactly two pages fills page 1 and applies
             // the same size to page 2.
-            doc = buildFitTwoPagePdf(title, twoBody, style, cellPad, fixedHeader, polish);
+            doc = buildFitTwoPagePdf(title, twoBody, style, cellPad, fixedHeader, polish, opts?.orientation);
           } else {
             const size = chosenSize();
-            doc = buildPdf(title, bodyHtml, size, { style, fixedHeader, polish, ...(cellPad != null ? { cellPad } : {}) });
+            doc = buildPdf(title, bodyHtml, size, {
+              style,
+              fixedHeader,
+              orientation: opts?.orientation,
+              polish,
+              ...(cellPad != null ? { cellPad } : {}),
+            });
             persistContentFontSize(type, size);
           }
           artifact = {

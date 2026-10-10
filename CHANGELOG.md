@@ -3,6 +3,15 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.7 — 2026-10-10
+
+**Minor: muster sheet prints like the office sample**
+
+- The muster export is now **landscape**, and the sheet fills about 70-80% of the page, centred, instead of hugging the edge.
+- Attendance codes print **vertically** (one letter under the other) — P, OL, REST and the leave codes, exactly like the office muster.
+- Absence codes — REST, NH, CR and every leave kind — print in **red**; P and OL stay black.
+- Header fields (OFFICE / PF NO / NAME / DESIGNATION) were re-spanned so each keeps to a single line.
+
 ## 1.7.8.6 — 2026-10-10
 
 **Major: Muster export — the attendance sheet, generated from your daily logs**

@@ -23,6 +23,10 @@ export type XlsxCell =
       noCaps?: boolean;
       /** The first occurrence of this word is rendered underlined (rich text). */
       underlineWord?: string;
+      /** Font colour as RRGGBB hex (e.g. "FF0000" — the muster's red codes). */
+      color?: string;
+      /** Stack the text vertically, one character per line (textRotation 255). */
+      stacked?: boolean;
     };
 /** 0-indexed inclusive merge: [row1, col1, row2, col2] */
 export type XlsxMerge = [number, number, number, number];
@@ -53,15 +57,16 @@ function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-type CellStyle = { bold?: boolean; center?: boolean; wrap?: boolean };
+type CellStyle = { bold?: boolean; center?: boolean; wrap?: boolean; color?: string; stacked?: boolean };
 
 function cellStyleOf(cell: XlsxCell): CellStyle {
   return typeof cell === "object"
-    ? { bold: cell.bold, center: cell.center, wrap: cell.wrap }
+    ? { bold: cell.bold, center: cell.center, wrap: cell.wrap, color: cell.color, stacked: cell.stacked }
     : {};
 }
 
-const styleKey = (s: CellStyle) => `${s.bold ? 1 : 0}${s.center ? 1 : 0}${s.wrap ? 1 : 0}`;
+const styleKey = (s: CellStyle) =>
+  `${s.bold ? 1 : 0}${s.center ? 1 : 0}${s.wrap ? 1 : 0}${s.stacked ? 1 : 0}${s.color ?? ""}`;
 
 /**
  * Collect the distinct cell styles actually used, in first-seen order with the
@@ -190,25 +195,33 @@ export function buildXlsx(sheet: XlsxSheet): Uint8Array {
     `<Relationship Id="rId2" Type="${R_NS}/styles" Target="styles.xml"/>` +
     `</Relationships>`;
 
-  // Font 0 = normal, font 1 = bold (only when a bold cell exists).
+  // Font 0 = normal, font 1 = bold (only when a bold cell exists), then one
+  // font per distinct colour (e.g. the muster's red absence codes).
+  const colors = [...new Set(list.map((s) => s.color).filter((c): c is string => Boolean(c)))];
+  const fontIdOf = (s: CellStyle) => (s.color ? 2 + colors.indexOf(s.color) : s.bold ? 1 : 0);
   const fonts =
-    `<fonts count="${usedBold ? 2 : 1}">` +
+    `<fonts count="${1 + (usedBold ? 1 : 0) + colors.length}">` +
     `<font><sz val="10"/><name val="Calibri"/></font>` +
     (usedBold ? `<font><b/><sz val="10"/><name val="Calibri"/></font>` : "") +
+    colors
+      .map((c) => `<font><color rgb="FF${c}"/><sz val="10"/><name val="Calibri"/></font>`)
+      .join("") +
     `</fonts>`;
-  // One cellXf per distinct style; alignment (center / wrap) is applied when used.
+  // One cellXf per distinct style; alignment (center / wrap / stacked) is
+  // applied when used. textRotation="255" is OOXML's stacked (vertical) text.
   const cellXfs =
     `<cellXfs count="${list.length}">` +
     list
       .map((s) => {
-        const fontId = s.bold ? 1 : 0;
+        const fontId = fontIdOf(s);
         const align: string[] = [];
         if (s.center) align.push('horizontal="center" vertical="center"');
         if (s.wrap) align.push('wrapText="1"');
+        if (s.stacked) align.push('textRotation="255"');
         const alignment = align.length ? `<alignment ${align.join(" ")}/>` : "";
         return (
           `<xf numFmtId="0" fontId="${fontId}" fillId="0" borderId="0" xfId="0"` +
-          (s.bold ? ` applyFont="1"` : "") +
+          (s.bold || s.color ? ` applyFont="1"` : "") +
           (align.length ? ` applyAlignment="1"` : "") +
           `>${alignment}</xf>`
         );

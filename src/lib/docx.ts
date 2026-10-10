@@ -167,7 +167,8 @@ function tableCell(
   vAlignMiddle = false,
   plain = false,
   pal: PaletteColors | null = null,
-  fillOverride?: string
+  fillOverride?: string,
+  colorHex?: string
 ): string {
   const fill = fillOverride
     ? fillOverride
@@ -186,7 +187,7 @@ function tableCell(
     `</w:tcPr>` +
     para(text, {
       bold: isHead,
-      color: isHead && !plain ? (pal ? pal.headTextHex : "FFFFFF") : undefined,
+      color: colorHex ?? (isHead && !plain ? (pal ? pal.headTextHex : "FFFFFF") : undefined),
       sz: isHead ? 16 : 18,
       after: 60,
       before: 40,
@@ -215,11 +216,12 @@ function buildTable(html: string, plain = false, pal: PaletteColors | null = nul
   }
   // Honour explicit per-column widths from data-width on the header cells,
   // resolved to real column indexes through the rowspan/colspan walk so a
-  // two-tier header maps "TIME DEPT" etc. to the right grid column.
+  // two-tier header maps "TIME DEPT" etc. to the right grid column. Headless
+  // tables (the muster's all-td grid) walk every row for the same purpose.
   const widths: string[] = [];
-  if (hasHead) {
+  {
     const active = new Map<number, number>();
-    for (const r of trs.slice(0, headCount)) {
+    for (const r of trs.slice(0, hasHead ? headCount : trs.length)) {
       const els = Array.from(r.querySelectorAll("td, th"));
       let col = 0;
       for (const el of els) {
@@ -300,8 +302,9 @@ function buildTable(html: string, plain = false, pal: PaletteColors | null = nul
         : tidy(el.textContent ?? "");
       const centered = isV || el.getAttribute("data-align") === "center";
       const vAlignMiddle = centered || el.getAttribute("data-valign") === "middle";
+      const colorHex = el.getAttribute("data-color") || undefined;
       cellsHtml.push(
-        tableCell(text, isHead, width, rowSpan, colSpan, centered, vAlignMiddle, plain, pal, isHead ? undefined : rowFill)
+        tableCell(text, isHead, width, rowSpan, colSpan, centered, vAlignMiddle, plain, pal, isHead ? undefined : rowFill, colorHex)
       );
       if (rowSpan > 1) active.set(col, rowSpan - 1);
       col += colSpan;
@@ -341,7 +344,13 @@ function buildTable(html: string, plain = false, pal: PaletteColors | null = nul
  * Convert the HTML produced by the export builders into a standalone Word
  * document. Returns the raw .docx bytes (a STORE-method ZIP).
  */
-export function buildDocx(title: string, bodyHtml: string, style: ExportStyle = "colour", polish: ExportPolish | null = null): Uint8Array {
+export function buildDocx(
+  title: string,
+  bodyHtml: string,
+  style: ExportStyle = "colour",
+  polish: ExportPolish | null = null,
+  orientation: "portrait" | "landscape" = "portrait"
+): Uint8Array {
   const plain = style === "plain";
   const pal = !plain ? paletteOf(polish?.palette ?? "modern") : null;
   const parsed = new DOMParser().parseFromString(`<div>${bodyHtml}</div>`, "text/html");
@@ -482,7 +491,11 @@ export function buildDocx(title: string, bodyHtml: string, style: ExportStyle = 
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n` +
     `<w:document ${XML_NS}><w:body>` +
     parts.filter((p) => p).join("") +
-    `<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="800" w:right="800" w:bottom="800" w:left="800"/></w:sectPr>` +
+    // Landscape A4 swaps the page sides (twips: 16838 x 11906) — the muster
+    // needs the wide sheet, everything else keeps the portrait default.
+    (orientation === "landscape"
+      ? `<w:sectPr><w:pgSz w:w="16838" w:h="11906" w:orient="landscape"/><w:pgMar w:top="800" w:right="800" w:bottom="800" w:left="800"/></w:sectPr>`
+      : `<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="800" w:right="800" w:bottom="800" w:left="800"/></w:sectPr>`) +
     `</w:body></w:document>`;
 
   const contentTypes =

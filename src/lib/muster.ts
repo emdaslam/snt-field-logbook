@@ -165,6 +165,15 @@ export function buildMusterGrid(
   for (let d = 1; d <= 10; d++) dates.push(iso(new Date(ty, tm - 1, d)));
 
   const C = (v: string | number): XlsxCell => ({ v, center: true });
+  // Attendance-code cells render vertically (one letter per line) in PDF /
+  // Word / Excel; absence codes — everything but P / OL — print red like the
+  // office sample.
+  const codeCell = (code: string): XlsxCell => ({
+    v: code,
+    center: true,
+    ...(code ? { stacked: true } : {}),
+    ...(code && code !== "P" && code !== "OL" ? { color: "FF0000" } : {}),
+  });
   const span = (row: number, c1: number, c2: number): XlsxMerge => [row, c1, row, c2];
   const last = MUSTER_COLS - 1;
 
@@ -180,22 +189,22 @@ export function buildMusterGrid(
   for (const d of toDates) dayRow.push(C(String(Number(d.slice(8)))));
   dayRow.push("", "");
 
-  const codeRow: (string | number | XlsxCell)[] = fromDates.map((d) => C(codes.get(d) ?? ""));
+  const codeRow: (string | number | XlsxCell)[] = fromDates.map((d) => codeCell(codes.get(d) ?? ""));
   while (codeRow.length < MUSTER_LEFT_DAYS) codeRow.push("");
-  for (const d of toDates) codeRow.push(C(codes.get(d) ?? ""));
+  for (const d of toDates) codeRow.push(codeCell(codes.get(d) ?? ""));
   codeRow.push(C("---"), C("---"));
 
   const grid: (string | number | XlsxCell)[][] = [
     [{ v: header.railway, bold: true, center: true }, ...Array(last).fill("")],
     [
       lines.office,
-      ...Array(7).fill(""),
+      ...Array(6).fill(""),
       lines.pf,
       ...Array(5).fill(""),
       lines.name,
-      ...Array(12).fill(""),
+      ...Array(11).fill(""),
       lines.designation,
-      ...Array(5).fill(""),
+      ...Array(7).fill(""),
     ],
     [lines.fromToLine, ...Array(last).fill("")],
     [
@@ -212,10 +221,10 @@ export function buildMusterGrid(
 
   const merges: XlsxMerge[] = [
     span(0, 0, last),
-    span(1, 0, 7),
-    span(1, 8, 13),
-    span(1, 14, 26),
-    span(1, 27, last),
+    span(1, 0, 6),
+    span(1, 7, 12),
+    span(1, 13, 24),
+    span(1, 25, 32),
     span(2, 0, last),
     span(3, 0, MUSTER_LEFT_DAYS - 1),
     span(3, MUSTER_LEFT_DAYS, MUSTER_LEFT_DAYS + MUSTER_RIGHT_DAYS - 1),
