@@ -11,7 +11,7 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 - Every day gets its muster code from that day's daily logs: **OL** for days with a TA-claimed movement (the same rule as the TA Journal), **P** for other logged days (office / HQ / within-8 km movement), **REST / NH / CR** from those entries, **PL** (the app's LAP leave), **CL** or **SICK** from the leave kind. Days without a daily log stay blank.
 - The header comes from your profile: railway zone, **Office** (new field in Settings → My Profile, e.g. SSE/SIG/O/JMDG — it falls back to SSE/SIG/O/<HQ> until set), PF No, name (printed as SRI …) and designation with the HQ station appended. AMC NO / DMC NO print as --- to fill in by hand.
 - Available as PDF (fit on one page), Word and Excel through the usual Export Report sheet, in Colour or Plain.
-- Implemented in this release.
+- Implemented in `f93c2f9`.
 
 ## 1.7.8.5 — 2026-10-01
 
