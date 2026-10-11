@@ -86,6 +86,7 @@ type PdfCellStyle = {
   fontStyle?: "bold";
   halign?: "left" | "center" | "right";
   valign?: "top" | "middle" | "bottom";
+  minCellHeight?: number;
   lineWidth?: { top?: number; bottom?: number; left?: number; right?: number };
   textColor?: [number, number, number];
 };
@@ -113,6 +114,9 @@ function parseTableBody(trs: Element[]): { body: PdfCell[][]; notes: VtextNote[]
   const body: PdfCell[][] = [];
   for (const tr of trs) {
     const cells = Array.from(tr.querySelectorAll("td"));
+    // A row can pin its own minimum height (the muster's attendance-code row,
+    // the tall band of the office sample sheet).
+    const minH = Number(tr.getAttribute("data-min-height")) || 0;
     const row: PdfCell[] = [];
     let col = 0;
     for (const el of cells) {
@@ -156,6 +160,7 @@ function parseTableBody(trs: Element[]): { body: PdfCell[][]; notes: VtextNote[]
       }
       const valign = el.getAttribute("data-valign");
       if (valign === "middle") styles.valign = "middle";
+      if (minH) styles.minCellHeight = minH;
       const isVSpan = isV && rowSpan > 1;
       // A full-column vtext note (the TA journal's KMS note) spans many rows
       // but is emitted as separate empty cells; removing their horizontal
@@ -910,6 +915,10 @@ export function buildPdf(
       }
       y += 16;
     } else if (tag === "table") {
+      // A table can open with extra blank space above it (the muster sheet
+      // sits a third of the page down like the office sample, leaving room
+      // for the file header / stamp above the sheet).
+      y += Number(el.getAttribute("data-space-top")) || 0;
       const allRows = Array.from(el.querySelectorAll("tr"));
       if (!allRows.length) continue;
       // Consecutive leading <tr> rows whose cells are <th> form the header

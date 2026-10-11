@@ -114,6 +114,17 @@ export const MUSTER_LEFT_DAYS = 21;
 export const MUSTER_RIGHT_DAYS = 10;
 export const MUSTER_COLS = MUSTER_LEFT_DAYS + MUSTER_RIGHT_DAYS + 2;
 
+/**
+ * Vertical geometry of the printed PDF sheet, matched to the office sample
+ * (JE SIG JMDG AUGUST MUSTER): the sheet starts a third of the page down —
+ * blank header space above the table, like the sample's vertically centred
+ * print (201pt of its 612pt page) — every row is taller than its text needs,
+ * and the attendance-code row is the sample's tall band (86.7pt of 612).
+ */
+export const MUSTER_SHEET_TOP_GAP = 195;
+export const MUSTER_ROW_MIN = 24;
+export const MUSTER_CODE_ROW_MIN = 88;
+
 export type MusterHeader = {
   railway: string;
   office: string;

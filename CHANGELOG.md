@@ -3,6 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.10 — 2026-10-11
+
+**Minor: taller muster sheet with header space above**
+
+- The muster PDF sheet now matches the office sample's vertical layout: it starts about a third of the page down, leaving blank **header space above the sheet** (for the file header / stamp), instead of hugging the top edge.
+- The sheet itself is taller: every row grows past its text (~24pt) and the attendance-code row is the sample's tall band (~88pt), so printed sheets look like the office muster instead of a compact table. Still one page — the day columns and their widths are unchanged.
+
 ## 1.7.8.9 — 2026-10-11
 
 **Minor: temporary stations in search's station filter**

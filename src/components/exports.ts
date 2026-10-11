@@ -4,7 +4,7 @@ import { formatInspectionDates } from "@/lib/inspections";
 import { isSpecialMovement, EQUIPMENT_DEFAULTS, variableKmText, type ExportStyle } from "@/lib/types";
 import { railwayHeading } from "@/lib/railways";
 import { resolvedRailway } from "@/lib/railways";
-import { buildMusterGrid, musterHeaderLines, type MusterHeader } from "@/lib/muster";
+import { buildMusterGrid, musterHeaderLines, MUSTER_CODE_ROW_MIN, MUSTER_ROW_MIN, MUSTER_SHEET_TOP_GAP, type MusterHeader } from "@/lib/muster";
 import { AUTO_TIMINGS } from "@/lib/timingsMode";
 import { tripTimes, journeyTrainTimes, type TripTimes } from "@/lib/travel";
 import { loadTaGenConfig, type TaGenWindow, type TaRateKey } from "@/lib/taGenConfig";
@@ -710,17 +710,20 @@ function upperSheet(sheet: XlsxSheet): XlsxSheet {
  * muster's attendance codes) and re-spaces the text as one letter per token;
  * `dataWidth` pins every cell to one column width in points (the muster's
  * equal day columns) — a function form pins per column (the muster's wider
- * AMC/DMC columns); a cell carrying a colour (the muster's red absence
+ * AMC/DMC columns); `minRowHeights` pins a row's minimum height in points via
+ * data-min-height (PDF only — the muster's taller sheet rows; Word / Excel
+ * ignore the attribute); a cell carrying a colour (the muster's red absence
  * codes) emits data-color so PDF / Word render its text in that colour.
  */
 function gridHtml(
   grid: (string | number | XlsxCell)[][],
   merges: XlsxMerge[],
-  opts: { dateCol?: number; centerCols?: Set<number>; leftCols?: Set<number>; valignCols?: Set<number>; vTextCols?: Set<number>; vTextRows?: Set<number>; fontCols?: Set<number>; boldRows?: Set<number>; dataWidth?: number | ((col: number) => number) } = {}
+  opts: { dateCol?: number; centerCols?: Set<number>; leftCols?: Set<number>; valignCols?: Set<number>; vTextCols?: Set<number>; vTextRows?: Set<number>; fontCols?: Set<number>; boldRows?: Set<number>; dataWidth?: number | ((col: number) => number); minRowHeights?: Record<number, number> } = {}
 ): string {
   const covered = new Set<string>();
   const rows: string[] = [];
   for (let r = 0; r < grid.length; r++) {
+    const minH = opts.minRowHeights?.[r];
     const tds: string[] = [];
     for (let c = 0; c < grid[r].length; c++) {
       const key = `${r},${c}`;
@@ -764,7 +767,7 @@ function gridHtml(
       const body = opts.boldRows?.has(r) && txt.trim() ? `<strong>${esc(shown)}</strong>` : esc(shown);
       tds.push(`<td${attrs}>${body}</td>`);
     }
-    rows.push(`<tr>${tds.join("")}</tr>`);
+    rows.push(`<tr${minH ? ` data-min-height="${minH}"` : ""}>${tds.join("")}</tr>`);
   }
   return rows.join("");
 }
@@ -2133,6 +2136,9 @@ export function exportRequiredMaterials(
  * width and scaled up so the table spans the printable width of the landscape
  * page (~94% of the page, like the office sample); the header font starts
  * large enough that the Office/PF/Name/Designation row stays on one line.
+ * Vertically the sheet matches the office sample too: it starts a third of
+ * the page down (blank header space above the table), the rows are taller
+ * than their text needs and the attendance-code row is the sample's tall band.
  */
 export function exportMuster(
   period: { from: string; to: string; label: string },
@@ -2168,7 +2174,7 @@ export function exportMuster(
   const { grid, merges } = buildMusterGrid(period, logs, stations, hq, header);
   const allCols = new Set(Array.from({ length: grid[0].length }, (_, i) => i));
 
-  let body = `<table>${gridHtml(grid, merges, {
+  let body = `<table data-space-top="${MUSTER_SHEET_TOP_GAP}">${gridHtml(grid, merges, {
     centerCols: allCols,
     boldRows: new Set([0]),
     vTextRows: new Set([grid.length - 1]),
@@ -2176,6 +2182,12 @@ export function exportMuster(
     // sample) so their header word wraps to "AMC" / "NO" instead of breaking
     // mid-word; the pinned widths are scaled to the printable width downstream.
     dataWidth: (c) => (c >= grid[0].length - 2 ? 26 : 19),
+    // The printed sheet carries the office sample's vertical geometry: taller
+    // rows, and the tall attendance-code band as the last row (constants and
+    // the one-page fit math live in muster.ts / muster.check.ts).
+    minRowHeights: Object.fromEntries(
+      grid.map((_, r) => [r, r === grid.length - 1 ? MUSTER_CODE_ROW_MIN : MUSTER_ROW_MIN])
+    ),
   })}</table>`;
   if (lines.signature) {
     body += `<p class="right" data-right-pad="24" data-space-top="30"><strong>${esc(lines.signature)}</strong></p>`;
