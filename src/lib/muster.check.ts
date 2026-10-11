@@ -2,11 +2,12 @@ import assert from "node:assert/strict";
 import {
   musterPeriodOf,
   musterMonthLabel,
+  musterMonthCode,
   musterDayCode,
   musterCodes,
   buildMusterGrid,
+  musterSheetTopGap,
   MUSTER_COLS,
-  MUSTER_SHEET_TOP_GAP,
   MUSTER_ROW_MIN,
   MUSTER_CODE_ROW_MIN,
 } from "./muster";
@@ -151,23 +152,32 @@ const pinnedSum = Array.from({ length: MUSTER_COLS }, (_, i) => widthFor(i)).red
 assert.equal(pinnedSum, 31 * 19 + 2 * 26);
 assert.equal(26.5 + 3 <= (26 * 793.9) / pinnedSum, true); // "AMC" fits its stretched column
 
-// printed-sheet vertical contract (PDF): the sheet starts a third of the page
-// down (the office sample's blank header space above: 201pt of its 612pt page),
-// the code row is the sample's tall band (86.7pt of 612, tall enough for four
-// stacked letters), and the whole sheet — top gap, six rows, signature block —
-// still fits one A4-landscape page at fitStart 14 (margins 24).
+// printed-sheet vertical contract (PDF): the block — sheet plus signature
+// line — sits vertically centred on the A4-landscape page (equal blank above
+// and below), the code row is the office sample's tall band (tall enough for
+// four stacked letters), and the whole centred block still fits one page at
+// fitStart 14 (margins 24), so the fit loop never shrinks the font.
 const lineH14 = ((8 * 14) / 9) * 1.15; // body line height at content size 14
 const rowH = (lines: number, min: number) => Math.max(lines * lineH14 + 3, min); // + 2×1.5 pad
-assert.equal(Math.abs(MUSTER_SHEET_TOP_GAP / 595.28 - 201.1 / 612) < 0.01, true);
 assert.equal(MUSTER_ROW_MIN > lineH14 + 3, true); // single-line rows grow past their text
 assert.equal(MUSTER_CODE_ROW_MIN >= 4 * lineH14, true); // 4 stacked letters fit
-const sheetH =
-  MUSTER_SHEET_TOP_GAP +
+const tableH =
   rowH(1, MUSTER_ROW_MIN) * 4 + // railway, office/pf, from–to, day numbers
   rowH(2, MUSTER_ROW_MIN) + // month labels + AMC/DMC ("AMC NO" wraps to 2 lines)
-  rowH(4, MUSTER_CODE_ROW_MIN) + // stacked attendance codes
-  30 + lineH14 + 8; // signature block (gap + bold line + trailing space)
-assert.equal(sheetH <= 595.28 - 2 * 24, true);
+  rowH(4, MUSTER_CODE_ROW_MIN); // stacked attendance codes
+const sigH = 30 + 12 * (14 / 9) + 8; // signature block (gap + bold line + trailing space)
+const gap = musterSheetTopGap();
+assert.equal(gap > 0, true);
+assert.equal(24 + gap + tableH + sigH <= 595.28 - 24, true); // one page
+// centred: blank above (margin + gap) equals blank below within half a point
+assert.equal(Math.abs(24 + gap - (595.28 - (24 + gap + tableH + sigH))) < 0.5, true);
+
+// month code + file-name stem contract: JE/SIG/JMDG, 11 Sep – 10 Oct →
+// JE_SIG_JMDG_SEP_OCT (the stem replaces every non-alphanumeric run with _)
+assert.equal(musterMonthCode("2026-09-11"), "SEP");
+assert.equal(musterMonthCode("2026-10-10"), "OCT");
+const desigStem = "JE/SIG/JMDG".replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+assert.equal(`${desigStem}_${musterMonthCode("2026-09-11")}_${musterMonthCode("2026-10-10")}`, "JE_SIG_JMDG_SEP_OCT");
 
 // day numbers 11..31 then 1..10, codes aligned beneath
 assert.equal(cellText(grid[4][0]), "11");

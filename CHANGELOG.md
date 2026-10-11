@@ -3,6 +3,14 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.11 — 2026-10-11
+
+**Minor: muster file naming, period label and centred sheet**
+
+- The muster file is now named after the designation and the two muster months — JE/SIG/JMDG for the 11 Sep – 10 Oct muster exports as **JE_SIG_JMDG_SEP_OCT** (PDF, Word and Excel); without a designation it falls back to MUSTER_SEP_OCT.
+- The export picker shows the full period, not one month: "September - October 2026" instead of "September 2026".
+- The printed sheet sits exactly in the middle of the page — equal blank space above and below (with the signature line) and symmetric side margins — instead of leaning on the lower half.
+
 ## 1.7.8.10 — 2026-10-11
 
 **Minor: taller muster sheet with header space above**

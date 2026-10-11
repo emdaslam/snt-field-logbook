@@ -1502,6 +1502,10 @@ export function exportDocument(
     /** Fit-mode page margin in pt (default 24) — a large margin centres a
      *  pinned-width table instead of stretching it edge to edge. */
     fitMargin?: number;
+    /** File-name stem used verbatim for the PDF / Word / Excel files
+     *  (default: the slug of the title) — the muster's
+     *  JE_SIG_JMDG_SEP_OCT naming. */
+    filename?: string;
   }
 ) {
   // Bottom sheet that offers the report as PDF, Word (.docx) or Excel (.xlsx),
@@ -1810,17 +1814,18 @@ export function exportDocument(
           }
         }
         let artifact: ExportArtifact;
+        const stem = opts?.filename || slug(title);
         if (format === "docx") {
           const { buildDocx, docxToBase64 } = await import("./docx");
           artifact = {
-            filename: `${slug(title)}.docx`,
+            filename: `${stem}.docx`,
             mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             base64: docxToBase64(buildDocx(title, html, style, polish, opts?.orientation)),
           };
         } else if (format === "xlsx") {
           const { buildXlsx, xlsxToBase64 } = await import("./xlsx");
           artifact = {
-            filename: `${slug(title)}.xlsx`,
+            filename: `${stem}.xlsx`,
             mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             base64: xlsxToBase64(buildXlsx(sheet ?? { rows: [] })),
           };
@@ -1860,7 +1865,7 @@ export function exportDocument(
             persistContentFontSize(type, size);
           }
           artifact = {
-            filename: `${slug(title)}.pdf`,
+            filename: `${stem}.pdf`,
             mimeType: "application/pdf",
             base64: doc.output("datauristring").split(",")[1],
           };

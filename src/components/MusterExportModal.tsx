@@ -24,6 +24,14 @@ export function MusterExportModal({ open, onClose }: { open: boolean; onClose: (
   const months = recentMonths(12);
   const period: Period = musterPeriodOf(months[monthIdx].from);
 
+  // Options show the full muster period, not one month: picking September
+  // offers "September - October 2026" (11th Sep → 10th Oct).
+  const pairLabel = (from: string) => {
+    const [y, m] = from.split("-").map(Number);
+    const name = (d: Date) => d.toLocaleDateString("en-US", { month: "long" });
+    return `${name(new Date(y, m - 1, 1))} - ${name(new Date(y, m, 1))} ${new Date(y, m, 1).getFullYear()}`;
+  };
+
   const hq = stations.find((s) => s.id === currentUser?.headquartersStationId);
   const hqCode = hq?.code?.trim() ? hq.code : hq?.name;
 
@@ -52,7 +60,7 @@ export function MusterExportModal({ open, onClose }: { open: boolean; onClose: (
           >
             {months.map((m, i) => (
               <option key={m.from} value={i}>
-                {m.label}
+                {pairLabel(m.from)}
                 {i === 0 ? " (current)" : ""}
               </option>
             ))}

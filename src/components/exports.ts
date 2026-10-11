@@ -4,7 +4,7 @@ import { formatInspectionDates } from "@/lib/inspections";
 import { isSpecialMovement, EQUIPMENT_DEFAULTS, variableKmText, type ExportStyle } from "@/lib/types";
 import { railwayHeading } from "@/lib/railways";
 import { resolvedRailway } from "@/lib/railways";
-import { buildMusterGrid, musterHeaderLines, MUSTER_CODE_ROW_MIN, MUSTER_ROW_MIN, MUSTER_SHEET_TOP_GAP, type MusterHeader } from "@/lib/muster";
+import { buildMusterGrid, musterHeaderLines, musterMonthCode, musterSheetTopGap, MUSTER_CODE_ROW_MIN, MUSTER_ROW_MIN, type MusterHeader } from "@/lib/muster";
 import { AUTO_TIMINGS } from "@/lib/timingsMode";
 import { tripTimes, journeyTrainTimes, type TripTimes } from "@/lib/travel";
 import { loadTaGenConfig, type TaGenWindow, type TaRateKey } from "@/lib/taGenConfig";
@@ -2136,9 +2136,11 @@ export function exportRequiredMaterials(
  * width and scaled up so the table spans the printable width of the landscape
  * page (~94% of the page, like the office sample); the header font starts
  * large enough that the Office/PF/Name/Designation row stays on one line.
- * Vertically the sheet matches the office sample too: it starts a third of
- * the page down (blank header space above the table), the rows are taller
- * than their text needs and the attendance-code row is the sample's tall band.
+ * Vertically the block — sheet plus signature line — is centred on the page
+ * (equal blank above and below, like the office sample's vertically centred
+ * print), the rows are taller than their text needs and the attendance-code
+ * row is the sample's tall band. The file is named after the designation and
+ * the two muster months: JE/SIG/JMDG, 11 Sep – 10 Oct → JE_SIG_JMDG_SEP_OCT.
  */
 export function exportMuster(
   period: { from: string; to: string; label: string },
@@ -2174,7 +2176,7 @@ export function exportMuster(
   const { grid, merges } = buildMusterGrid(period, logs, stations, hq, header);
   const allCols = new Set(Array.from({ length: grid[0].length }, (_, i) => i));
 
-  let body = `<table data-space-top="${MUSTER_SHEET_TOP_GAP}">${gridHtml(grid, merges, {
+  let body = `<table data-space-top="${musterSheetTopGap()}">${gridHtml(grid, merges, {
     centerCols: allCols,
     boldRows: new Set([0]),
     vTextRows: new Set([grid.length - 1]),
@@ -2203,12 +2205,19 @@ export function exportMuster(
     colWidths: [...dayWidths, 10, 10],
   };
 
+  // File name: designation + the two muster months as three-letter codes —
+  // JE/SIG/JMDG for the 11 Sep – 10 Oct muster → JE_SIG_JMDG_SEP_OCT (all
+  // three formats). No designation falls back to MUSTER.
+  const desigStem = designation.replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  const filename = `${desigStem || "MUSTER"}_${musterMonthCode(period.from)}_${musterMonthCode(period.to)}`;
+
   exportDocument(`Muster ${period.label}`, body, "muster", sheet, {
     onePage: true,
     style: "plain",
     cellPad: 1.5,
     orientation: "landscape",
     fitStart: 14,
+    filename,
     onComplete,
   });
 }

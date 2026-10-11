@@ -114,16 +114,45 @@ export const MUSTER_LEFT_DAYS = 21;
 export const MUSTER_RIGHT_DAYS = 10;
 export const MUSTER_COLS = MUSTER_LEFT_DAYS + MUSTER_RIGHT_DAYS + 2;
 
+/** "2026-09-11" → "SEP" — the three-letter month code used in file names. */
+export function musterMonthCode(isoDate: string): string {
+  const [y, m] = isoDate.split("-").map(Number);
+  return (MONTH_NAMES[m - 1] ?? "").slice(0, 3);
+}
+
 /**
- * Vertical geometry of the printed PDF sheet, matched to the office sample
- * (JE SIG JMDG AUGUST MUSTER): the sheet starts a third of the page down —
- * blank header space above the table, like the sample's vertically centred
- * print (201pt of its 612pt page) — every row is taller than its text needs,
- * and the attendance-code row is the sample's tall band (86.7pt of 612).
+ * Row heights of the printed PDF sheet, matched to the office sample (JE SIG
+ * JMDG AUGUST MUSTER): every row is taller than its text needs, and the
+ * attendance-code row is the sample's tall band (86.7pt of its 612pt page).
  */
-export const MUSTER_SHEET_TOP_GAP = 195;
 export const MUSTER_ROW_MIN = 24;
 export const MUSTER_CODE_ROW_MIN = 88;
+
+/**
+ * Blank space above the sheet so the printed block — table plus the signature
+ * line under it — sits vertically centred on the A4-landscape page (equal
+ * blank above and below), like the office sample's vertically centred print.
+ * The maths mirrors the rendered geometry at the fit loop's starting size 14
+ * (it never shrinks: the centred block fits with room to spare — asserted in
+ * muster.check.ts): a text line advances 1.15× its 8·size/9 pt font, each
+ * cell adds 2×1.5pt padding, the AMC/DMC header row wraps to two lines and
+ * the code row stacks four letters; the signature block adds its 30pt gap,
+ * one 14pt line and 8pt trailing space. Known ceiling: two extra wrapped
+ * lines in the office / name row would tip the block slightly below centre —
+ * still one page, and the profile values that wrap that far are rare.
+ */
+export function musterSheetTopGap(): number {
+  const lineH = ((8 * 14) / 9) * 1.15;
+  const rowH = (lines: number, min: number) => Math.max(lines * lineH + 3, min);
+  const tableH =
+    rowH(1, MUSTER_ROW_MIN) * 4 + // railway, office/pf, from–to, day numbers
+    rowH(2, MUSTER_ROW_MIN) + // month labels + AMC/DMC ("AMC NO" wraps)
+    rowH(4, MUSTER_CODE_ROW_MIN); // stacked attendance codes
+  const sigH = 30 + 12 * (14 / 9) + 8;
+  const pageH = 595.28; // A4 landscape height (jspdf a4 landscape)
+  const margin = 24; // the fit-mode margin the muster exports with
+  return Math.max(0, (pageH - 2 * margin - tableH - sigH) / 2);
+}
 
 export type MusterHeader = {
   railway: string;
