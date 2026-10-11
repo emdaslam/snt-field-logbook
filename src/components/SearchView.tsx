@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useData } from "./DataProvider";
 import { Chip, Highlight, inputClass } from "./ui";
-import { api, fmtDate } from "@/lib/api";
+import { api, fmtDate, logStationNames, tempStationNames } from "@/lib/api";
 import { isFootplateLog } from "@/lib/movements";
 import { DEPARTMENTS, PRIORITIES, STATUSES, DEPARTMENT_COLORS, PRIORITY_COLORS } from "@/lib/types";
 import type { DailyLog, DeficiencyTask, PlannedWork, Note, Material, MaterialReceipt, MaterialUsage, MaterialTransfer, MaterialStation } from "@/db/schema";
@@ -49,7 +49,12 @@ export function SearchView({
   }, []);
   const [q, setQ] = useState("");
   const [typeF, setTypeF] = useState<ResultType | "">("");
-  const [stationF, setStationF] = useState<number | "" | "footplate">("");
+  // Station filter: a saved station id, "footplate", or "tmp:<name>" for a
+  // temporary station typed on a log.
+  const [stationF, setStationF] = useState<number | "" | "footplate" | `tmp:${string}`>("");
+  // One-off station names typed on logs (Temporary station…), offered below
+  // the saved stations in the dropdown.
+  const tempStations = useMemo(() => tempStationNames(logs, stations), [logs, stations]);
   const [deptF, setDeptF] = useState("");
   const [prioF, setPrioF] = useState("");
   const [tagF, setTagF] = useState<number | "">("");
@@ -74,6 +79,9 @@ export function SearchView({
       for (const l of logs) {
         if (stationF === "footplate") {
           if (!isFootplateLog(l)) continue;
+        } else if (typeof stationF === "string") {
+          // "tmp:<name>" — a temporary station typed on the log ("" = no filter).
+          if (stationF && !logStationNames(l, stations).includes(stationF.slice("tmp:".length))) continue;
         } else if (stationF && !l.stationMovement?.includes(stationName(stationF))) continue;
         if (tagF && !l.tagIds.includes(tagF as number)) continue;
         if (attachF && (!l.attachments || l.attachments.length === 0)) continue;
@@ -212,7 +220,7 @@ export function SearchView({
     return out;
   }, [
     q, typeF, stationF, deptF, prioF, tagF, statusF, staffF, attachF,
-    logs, deficiencies, planned, notes, noteCategories, tags, stationName,
+    logs, deficiencies, planned, notes, noteCategories, tags, stationName, stations,
     materials, matReceipts, matUsages, matTransfers, matStations,
   ]);
 
@@ -250,12 +258,19 @@ export function SearchView({
               const v = e.target.value;
               if (!v) setStationF("");
               else if (v === "footplate") setStationF("footplate");
+              else if (v.startsWith("tmp:")) setStationF(v as `tmp:${string}`);
               else setStationF(Number(v));
             }}
           >
             <option value="">All Stations</option>
             <option value="footplate">Footplate</option>
             {stations.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            {tempStations.length > 0 && (
+              <>
+                <option value="" disabled>— Temporary stations —</option>
+                {tempStations.map((n) => <option key={n} value={`tmp:${n}`}>{n}</option>)}
+              </>
+            )}
           </select>
           <select className={selCls} value={deptF} onChange={(e) => setDeptF(e.target.value)}>
             <option value="">All Depts</option>

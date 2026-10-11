@@ -3,6 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.9 — 2026-10-11
+
+**Minor: temporary stations in search's station filter**
+
+- Search's "All Stations" dropdown now lists every **temporary station** typed on a daily log (the "Temporary station…" one-off names) under a "— Temporary stations —" group, alphabetically, so entries at them can be filtered too.
+- Picking one narrows the results to the logs whose movement chain — primary stop, extra stops or legacy row legs — includes that name; Deficiency / Planned Work / Note / Material results are unaffected (temporary stations exist only on logs).
+
 ## 1.7.8.8 — 2026-10-10
 
 **Minor: muster sheet enlarged to fill the page**

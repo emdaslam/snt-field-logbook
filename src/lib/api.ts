@@ -27,6 +27,7 @@ import type {
   EquipmentType,
 } from "@/db/schema";
 import { isSpecialMovement, type PcdoWork, type PcdoEntry, type CounterReset } from "@/lib/types";
+import { isFootplateLog } from "./movements";
 
 const asc = <T extends Record<string, unknown>>(rows: T[], key: keyof T) =>
   [...rows].sort((a, b) => String(a[key] ?? "").localeCompare(String(b[key] ?? "")));
@@ -942,6 +943,27 @@ export function logStationNames(
     return [t || "Unspecified"];
   }
   return names;
+}
+
+/**
+ * One-off station names typed on logs ("Temporary station…"): every name
+ * `logStationNames` resolves that is not one of the saved stations, deduped
+ * and alphabetically sorted. Rest / Leave / CR / NH and Footplate logs carry
+ * no station names and are skipped. Feeds search's station filter.
+ */
+export function tempStationNames(
+  logs: Parameters<typeof logStationNames>[0][],
+  stations: { name: string; code?: string | null }[]
+): string[] {
+  const saved = new Set(stations.map((s) => s.name));
+  const out: string[] = [];
+  for (const l of logs) {
+    if (isSpecialMovement(l) || isFootplateLog(l)) continue;
+    for (const n of logStationNames(l, stations)) {
+      if (!saved.has(n) && !out.includes(n)) out.push(n);
+    }
+  }
+  return out.sort((a, b) => a.localeCompare(b));
 }
 
 /** True when a daily log is a claimable TA day: a movement away from HQ to a
