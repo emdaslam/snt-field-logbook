@@ -28,38 +28,32 @@ request.
 
 ## 2. Build the APK (command line)
 
-One source tree produces **two** APK variants — the only difference is how the
-Diary / TA Journal timings are filled in:
-
-| Variant | Timings | APK |
-|---|---|---|
-| normal | typed by hand in the daily log | `SnTFieldlogbook-v1.7.6.60.apk` |
-| p (personal) | auto-generated from the TA rate + station travel range | `SnTFieldlogbook-v1.7.6.60p.apk` |
-
-A build-time flag (`NEXT_PUBLIC_TIMINGS_MODE=manual|auto`) selects the
-behaviour when the web bundle is built; nothing else differs.
+Since the single-variant change (first applied to 1.7.8.10) one source tree
+produces **one** APK line: timings are **auto-generated** from the TA rate +
+station travel range, and the version carries no suffix
+(`SnTFieldlogbook-v1.7.8.10.apk`, not `…p.apk`). A build-time flag
+(`NEXT_PUBLIC_TIMINGS_MODE=auto`) selects the behaviour when the web bundle is
+built. (Historical releases before 1.7.8.10 had a second, manual-timings
+"normal" variant — `SnTFieldlogbook-v1.7.6.60.apk` — now discontinued.)
 
 ```bash
 # 1. Install dependencies
 npm install
 
-# 2. Build both APK variants and stage them in .apk-download/
-#    (web bundles -> npx cap sync android -> gradlew assembleDebug)
-npm run apk:build          # == scripts/build-variants.sh both
-npm run apk:build normal   # == scripts/build-variants.sh normal  (manual-timing changes only)
-npm run apk:build p        # == scripts/build-variants.sh p       (auto-timing changes only)
+# 2. Build the APK and stage it in .apk-download/
+#    (web bundle -> npx cap sync android -> gradlew assembleDebug)
+npm run apk:build          # == scripts/build-variants.sh
 ```
 
-The staged APKs:
+The staged APK:
 
 ```
-.apk-download/SnTFieldlogbook-v1.7.6.60.apk
-.apk-download/SnTFieldlogbook-v1.7.6.60p.apk
+.apk-download/SnTFieldlogbook-v1.7.8.10.apk
 ```
 
 The build script reads the version from `src/lib/types.ts` (`APP_VERSION_BASE`)
-and `versionCode` from `android/app/build.gradle`, and passes the `p`-suffixed
-`versionName` to Gradle for the personal variant. The script uses
+and `versionCode` from `android/app/build.gradle`, and passes the plain
+`versionName` to Gradle. The script uses
 `JAVA_HOME=${JAVA_HOME:-/opt/jdk21}`; if `assembleDebug` fails with a missing
 Java toolchain, you are on the wrong JDK — switch to 21.
 
@@ -74,9 +68,7 @@ Java toolchain, you are on the wrong JDK — switch to 21.
 Any change to `src/` requires a rebuild, or the APK keeps the old web app:
 
 ```bash
-npm run apk:build          # rebuild both variants + copy into android/
-npm run apk:build normal   # just the normal (manual-timings) variant
-npm run apk:build p        # just the personal (auto-timings) variant
+npm run apk:build          # rebuild the APK + copy into android/
 ```
 
 ---
@@ -103,12 +95,12 @@ versionName System.getenv("APP_VERSION_NAME") ?: "1.7.6.60"
 over a previous build (`INSTALL_FAILED_VERSION_DOWNGRADE`). Current convention
 in this repo: bump `1.7.6.x` → `1.7.6.y` (and `versionCode` by 1) for each fix.
 
-The base version lives in `src/lib/types.ts` as `APP_VERSION_BASE`. Both
-variants share the same `versionCode`; only the `versionName` differs
-(`1.7.6.60` normal, `1.7.6.60p` personal), injected by
-`scripts/build-variants.sh`. The version shown in Settings
-(`APP_VERSION` in `src/lib/types.ts`) gets the `p` suffix automatically in the
-personal build.
+The base version lives in `src/lib/types.ts` as `APP_VERSION_BASE`. Since the
+single-variant change the `versionName` is the plain base version
+(`1.7.8.10`), injected by `scripts/build-variants.sh`. The version shown in
+Settings (`APP_VERSION` in `src/lib/types.ts`) equals `APP_VERSION_BASE` — no
+suffix. (Historical dual variants shared the `versionCode` and differed only in
+the `versionName`: `1.7.6.60` normal, `1.7.6.60p` personal.)
 
 ---
 

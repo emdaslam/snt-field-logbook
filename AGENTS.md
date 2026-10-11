@@ -29,10 +29,10 @@ remote commits), integrate them into the working copy first:
    binary-only diff with no functional value.
    When a NEW change does need a build, follow §2.5: commit and push the code
    first, then ask for build approval — never auto-build while integrating.
-   `npm run apk:build` builds both variants
-   (web bundles → `cap sync android` → `gradlew assembleDebug` → stages
-   `.apk-download/SnTFieldlogbook-v<version>.apk` and `...v<version>p.apk`);
-   `npm run apk:build normal` or `npm run apk:build p` builds one side only.
+   `npm run apk:build` builds the single APK
+   (web bundle → `cap sync android` → `gradlew assembleDebug` → stages
+   `.apk-download/SnTFieldlogbook-v<version>.apk`, auto-generated timings, no
+   `p` suffix).
 3. If the incoming changes bump the version, update `CHANGELOG.md` and the
    download page (`.apk-download/index.html`) to match.
 4. Commit and push the integrated state.
@@ -58,20 +58,20 @@ For **every** code change, the following release steps are mandatory:
    before any build. Code is never left uncommitted while an APK is built.
 4. **Build the APK only after approval.** **Ask** (with `question`) whether to
    build the APK; do **not** run the build until the user approves. When
-   approved, `npm run apk:build` builds both variants
-   (`.apk-download/SnTFieldlogbook-v<version>.apk` and `...v<version>p.apk`)
-   and stages them in `.apk-download/`. Never skip the build or the staging
-   step for an approved build.
-5. **Commit and push the APKs.** After the build, commit the staged APKs
-   (together with any `.apk-download/index.html` update) and push them to
+   approved, `npm run apk:build` builds the single APK
+   (`.apk-download/SnTFieldlogbook-v<version>.apk`, auto-generated timings, no
+   `p` suffix) and stages it in `.apk-download/`. Never skip the build or the
+   staging step for an approved build.
+5. **Commit and push the APKs.** After the build, commit the staged APK
+   (together with any `.apk-download/index.html` update) and push it to
    `origin` — a separate commit after the code commit.
 6. **Publish GitHub releases.** Do **not** publish GitHub releases until the
-   user confirms the change works (and asks to publish). When publishing, each
-   variant gets its own release — tag `v<version>` (title "S&T Field Logbook
-   v<version>") and tag `v<version>p` (title "S&T Field Logbook v<version>p
-   (owner personal build)") — with the matching APK attached and the notes
-   taken from that version's `CHANGELOG.md` entry. The newest `p` release is
-   marked Latest.
+   user confirms the change works (and asks to publish). When publishing, the
+   version gets one release — tag `v<version>` (title "S&T Field Logbook
+   v<version>") — with the APK attached and the notes taken from that
+   version's `CHANGELOG.md` entry, marked Latest. (Releases published before
+   the single-variant change were dual: `v<version>` for the normal APK and
+   `v<version>p` for the personal APK; historical releases are not renamed.)
 7. **Signing verification is required only on the agent's first build ever.**
    On that first build, verify with `apksigner` (debug keystore SHA-1
    `7B:C9:5F:C1:7F:0F:E4:93:52:1B:48:09:54:46:13:48:4E:73:B7:81`). Every later
@@ -91,24 +91,28 @@ For **every** code change, the following release steps are mandatory:
   prune the old APKs from `.apk-download/`. Pruning is allowed only for
   versions that are already published as GitHub releases. Before pruning, check
   `gh release list` against every APK still present in `.apk-download/`: a
-  version is safe to prune only when **both** its variants have a release —
-  tag `v<version>` and tag `v<version>p`, each with its APK attached. If any
-  version in `.apk-download/` is not yet released, publish the GitHub releases
-  for it first (both variants, notes from `CHANGELOG.md`, newest `p` marked
+  version is safe to prune only when its release(s) exist with the APK(s)
+  attached — for legacy dual-variant versions that means both `v<version>` and
+  `v<version>p`. If any version in `.apk-download/` is not yet released, publish
+  its GitHub release(s) first (notes from `CHANGELOG.md`, newest marked
   Latest), and only then prune.
-- When pruning is approved, keep only the latest 5 of each variant — the 5
-  newest `SnTFieldlogbook-v….apk` and the 5 newest `SnTFieldlogbook-v…p.apk` —
-  delete the older `SnTFieldlogbook-v…apk` files, and trim
-  `.apk-download/index.html` so it links only to files that still exist. Never
-  remove `index.html`, `privacy.html`, `terms.html` or other non-APK files.
+- When pruning is approved, keep only the 5 newest APK files overall (the
+  single-variant line); delete the older `SnTFieldlogbook-v…apk` files, and
+  trim `.apk-download/index.html` so it links only to files that still exist.
+  Legacy dual-variant files age out the same way once they fall outside the
+  newest 5. Never remove `index.html`, `privacy.html`, `terms.html` or other
+  non-APK files.
 
 ## 4. Versioning and release conventions
 
 - Version scheme: `1.7.6.x`; bump by one patch (and `versionCode` +1 in
-  `android/app/build.gradle`) per change. The same base version produces both
-  the normal APK (`1.7.6.x`, manual timings) and the personal APK
-  (`1.7.6.xp`, auto timings). The base lives in `src/lib/types.ts`
-  (`APP_VERSION_BASE`); `APP_VERSION` and the APK filename add the `p` suffix.
+  `android/app/build.gradle`) per change. Since the single-variant change
+  (first applied to 1.7.8.10) one APK line is built per version: auto
+  timings, plain version — `.apk-download/SnTFieldlogbook-v<version>.apk`.
+  The base lives in `src/lib/types.ts` (`APP_VERSION_BASE`); `APP_VERSION`
+  equals it with no suffix. (Before that change the same base version
+  produced a normal manual-timings APK `1.7.6.x` and a personal auto-timings
+  APK `1.7.6.xp`; historical files and releases keep their `p` suffix.)
 - Keep `CHANGELOG.md` (timeline) and `.apk-download/index.html` in sync with
   the latest version.
 - Build prerequisites: Node 20+, JDK 21 (`JAVA_HOME=/opt/jdk21`), Android SDK 36
