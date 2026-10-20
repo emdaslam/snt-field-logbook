@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useData } from "./DataProvider";
 import { Chip } from "./ui";
 import { dayName, toISODate, formatFootplateSummary, pcdoEntriesOf, pcdoWorkEntries, counterResetTotal } from "@/lib/api";
-import { DEPARTMENT_COLORS } from "@/lib/types";
+import { DEPARTMENT_COLORS, isSpecialMovement } from "@/lib/types";
 import { isSharedLog } from "@/lib/backup";
 import { logMovementLabels } from "@/lib/movements";
 import type { DailyLog } from "@/db/schema";
@@ -331,7 +331,9 @@ export function Timeline({
                       (log.inspectionKind
                         ? `${log.inspectionKind} inspection at ${stationName(log.inspectionStationId)}`
                         : "Shared record")
-                    : log.workDone?.trim() || log.stationMovement?.trim() || "No entry";
+                    : log.workDone?.trim() ||
+                        log.stationMovement?.trim() ||
+                        (isSpecialMovement(log) ? "No remarks" : "No entry");
                   return (
                     <button
                       key={log.id}

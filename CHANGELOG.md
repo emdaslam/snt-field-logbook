@@ -3,6 +3,12 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.12 — 2026-10-20
+
+**Minor: writable remarks on Rest / NH / Leave / CR**
+
+- Rest, NH, Leave and CR daily logs already showed a Remarks box, but it was disabled and the text was discarded on save. You can type a note there now; it stays on the log for your own reference and is not printed in the Diary or TA Journal.
+
 ## 1.7.8.11 — 2026-10-11
 
 **Minor: muster file naming, period label and centred sheet**

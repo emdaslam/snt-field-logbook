@@ -11,6 +11,7 @@ import { PeriodPicker, monthPeriod, type Period } from "./PeriodPicker";
 import { getPcdoPeriod } from "@/lib/pcdo";
 import { useBackClose } from "@/lib/backButton";
 import { fmtDate, pcdoEntriesOf, pcdoWorkEntries, counterResetsOf, counterResetTotal, isTaClaimable, logStationNames } from "@/lib/api";
+import { isSpecialMovement } from "@/lib/types";
 import { StatDetailModal, type StatRow } from "./StatDetailModal";
 import { computeAllSchedules, expandInspectionRecords, INSPECTION_RULES, isGenericSideLabel, sideAskingKinds, tagReminderConfigs, cap } from "@/lib/inspections";
 import type { DailyLog, DeficiencyTask, PlannedWork } from "@/db/schema";
@@ -170,7 +171,7 @@ export function Reports({
               rows: stats.pLogs.map((l) => ({
                 key: "l" + l.id,
                 date: l.logDate,
-                title: l.workDone?.trim() || l.stationMovement?.trim() || "No entry",
+                title: l.workDone?.trim() || l.stationMovement?.trim() || (isSpecialMovement(l) ? "No remarks" : "No entry"),
                 sub: l.stationMovement ?? undefined,
                 badge: `${l.taPercent ?? 100}%`,
                 logId: l.id,
@@ -438,7 +439,7 @@ export function Reports({
                         .map((l) => ({
                           key: "s" + l.id,
                           date: l.logDate,
-                          title: l.workDone?.trim() || "No entry",
+                          title: l.workDone?.trim() || l.stationMovement?.trim() || (isSpecialMovement(l) ? "No remarks" : "No entry"),
                           badge: `${l.taPercent ?? 100}%`,
                           logId: l.id,
                         })),

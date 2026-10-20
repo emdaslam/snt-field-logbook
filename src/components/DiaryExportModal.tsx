@@ -208,7 +208,7 @@ export function DiaryExportModal({
                       <td className="px-2 py-1.5 text-slate-600">—</td>
                       <td className="px-2 py-1.5 text-slate-600">—</td>
                       <td className="px-2 py-1.5 text-slate-600">—</td>
-                      <td className="px-2 py-1.5 text-slate-600">{r.workDone || "-"}</td>
+                      <td className="px-2 py-1.5 text-slate-600">-</td>
                     </tr>,
                   ];
                 }

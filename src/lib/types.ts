@@ -143,7 +143,7 @@ export const MOVEMENT_LABEL: Record<string, string> = {
 export const LEAVE_KINDS = ["CL", "LAP", "SICK"] as const;
 export type LeaveKind = (typeof LEAVE_KINDS)[number];
 
-/** True for Rest / Leave / CR / NH entries — no work done and no TA. */
+/** True for Rest / Leave / CR / NH entries — no TA; remarks stay in-app. */
 export function isSpecialMovement(l: { movementKind?: string | null }): boolean {
   return (
     l.movementKind === "rest" ||
@@ -151,6 +151,12 @@ export function isSpecialMovement(l: { movementKind?: string | null }): boolean 
     l.movementKind === "cr" ||
     l.movementKind === "nh"
   );
+}
+
+/** Work text for Diary / TA / monthly print. Rest / Leave / CR / NH remarks stay off exports. */
+export function printedWork(l: { movementKind?: string | null; workDone?: string | null }): string {
+  if (isSpecialMovement(l)) return "";
+  return l.workDone?.trim() || "";
 }
 
 /** Color theme of the app. "lilac" is the default look. */
@@ -325,5 +331,5 @@ export function variableKmText(km: number | string | null | undefined): string |
 }
 
 /** App version shown in Settings → About. Bump alongside android/app/build.gradle. */
-export const APP_VERSION_BASE = "1.7.8.11";
+export const APP_VERSION_BASE = "1.7.8.12";
 export const APP_VERSION = APP_VERSION_BASE;

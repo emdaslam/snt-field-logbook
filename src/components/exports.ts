@@ -1,7 +1,7 @@
 import { exportDocument } from "@/lib/pdf";
 import { fmtDate, toISODate, footplateRidesOf, footplateInspectionRows, footplateTrainHops, logMatchesInspectionStation, pcdoEntriesOf, formatRupee } from "@/lib/api";
 import { formatInspectionDates } from "@/lib/inspections";
-import { isSpecialMovement, EQUIPMENT_DEFAULTS, variableKmText, type ExportStyle } from "@/lib/types";
+import { isSpecialMovement, printedWork, EQUIPMENT_DEFAULTS, variableKmText, type ExportStyle } from "@/lib/types";
 import { railwayHeading } from "@/lib/railways";
 import { resolvedRailway } from "@/lib/railways";
 import { buildMusterGrid, musterHeaderLines, musterMonthCode, musterSheetTopGap, MUSTER_CODE_ROW_MIN, MUSTER_ROW_MIN, type MusterHeader } from "@/lib/muster";
@@ -644,9 +644,8 @@ function specialPair(l: DailyLog): [string, string] | null {
   }
 }
 
-/** Non-empty work text for a log, trimmed ("" when nothing was recorded). */
 function workText(l: DailyLog): string {
-  return l.workDone?.trim() || "";
+  return printedWork(l);
 }
 
 /** Wrap a grid cell into an XlsxCell, applying center / wrap cell styles. */
@@ -1637,7 +1636,7 @@ export function exportMonthly(
     if (fLogs.length) {
       body += `<table><tr><th>Date</th><th>Movement</th><th>Work Done</th><th>TA</th><th>Tags</th></tr>`;
       for (const l of fLogs) {
-        body += `<tr><td data-valign="middle">${fmtDate(l.logDate)}</td><td>${esc(l.stationMovement)}</td><td>${esc(l.workDone)}</td><td>${(l.taPercent ?? 0) > 0 ? `${l.taPercent ?? 100}%` : "-"}</td><td>${l.tagIds.map(tagName).filter(Boolean).map(esc).join(", ")}</td></tr>`;
+        body += `<tr><td data-valign="middle">${fmtDate(l.logDate)}</td><td>${esc(l.stationMovement)}</td><td>${esc(printedWork(l))}</td><td>${(l.taPercent ?? 0) > 0 ? `${l.taPercent ?? 100}%` : "-"}</td><td>${l.tagIds.map(tagName).filter(Boolean).map(esc).join(", ")}</td></tr>`;
       }
       body += `</table>`;
     } else body += `<p class="empty">No logs in range.</p>`;

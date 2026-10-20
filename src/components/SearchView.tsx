@@ -5,7 +5,7 @@ import { useData } from "./DataProvider";
 import { Chip, Highlight, inputClass } from "./ui";
 import { api, fmtDate, logStationNames, tempStationNames } from "@/lib/api";
 import { isFootplateLog } from "@/lib/movements";
-import { DEPARTMENTS, PRIORITIES, STATUSES, DEPARTMENT_COLORS, PRIORITY_COLORS } from "@/lib/types";
+import { DEPARTMENTS, PRIORITIES, STATUSES, DEPARTMENT_COLORS, PRIORITY_COLORS, isSpecialMovement } from "@/lib/types";
 import type { DailyLog, DeficiencyTask, PlannedWork, Note, Material, MaterialReceipt, MaterialUsage, MaterialTransfer, MaterialStation } from "@/db/schema";
 
 type ResultType = "Log" | "Deficiency" | "Planned Work" | "Note" | "Material";
@@ -95,7 +95,7 @@ export function SearchView({
           type: "Log",
           id: l.id,
           title: l.stationMovement || "Daily Log",
-          sub: l.workDone || "No work done",
+          sub: l.workDone || (isSpecialMovement(l) ? "No remarks" : "No work done"),
           chips: [
             ...l.tagIds.map((id) => {
               const t = tags.find((x) => x.id === id);

@@ -1171,11 +1171,12 @@ export function DailyLogForm({
   const [tagSides, setTagSides] = useState<Record<number, number>>(existing?.tagSides ?? {});
   const [error, setError] = useState("");
 
-  // Selecting a station / Rest / Leave / CR / NH. Non-station movements clear the
-  // work done field and force TA to zero (no travel allowance) — except
-  // Footplate, which is a working tour and keeps both.
+  // Selecting a station / Rest / Leave / CR / NH. Non-station movements force
+  // TA to zero (no travel allowance) — except Footplate, which is a working
+  // tour and keeps TA. Remarks on Rest / Leave / CR / NH stay on the log.
   const selectMovement = (v: string) => {
     if (v === "footplate") {
+      if (isSpecial) setWorkDone("");
       if (movementKind !== "footplate") {
         setFpRides((prev) => [emptyFpRide(), ...prev]);
       }
@@ -1187,10 +1188,17 @@ export function DailyLogForm({
     }
     if (v === "rest" || v === "leave" || v === "cr" || v === "nh") {
       setTempPrimary(false);
+      if (
+        movementKind !== "rest" &&
+        movementKind !== "leave" &&
+        movementKind !== "cr" &&
+        movementKind !== "nh"
+      ) {
+        setWorkDone("");
+      }
       setMovementKind(v);
       setLeaveKind("");
       setCrFrom("");
-      setWorkDone("");
       setTaPercent("0");
       setMovement(v === "rest" ? "Rest" : v === "leave" ? "Leave" : v === "cr" ? "CR" : "NH");
       setExtraMovements([]);
@@ -1200,6 +1208,7 @@ export function DailyLogForm({
       setJourneyLegs([]);
       return;
     }
+    if (isSpecial) setWorkDone("");
     if (movementKind === "footplate") {
       setFpRides((prev) => prev.slice(1));
     }
@@ -1694,7 +1703,7 @@ export function DailyLogForm({
       movementKind: movementKind !== "station" ? movementKind : null,
       leaveKind: movementKind === "leave" ? leaveKind || null : null,
       crFrom: movementKind === "cr" ? crFrom || null : null,
-      workDone: isSpecial ? null : workDone,
+      workDone: workDone.trim() || null,
       ta: null,
       taPercent: taLocked || variableTaPending ? 0 : Number(taPercent) || 0,
       // Only meaningful for stations with a variable distance — answers the
@@ -2026,17 +2035,16 @@ export function DailyLogForm({
           className={inputClass}
           rows={4}
           value={workDone}
-          disabled={isSpecial}
           placeholder={
             isSpecial
-              ? "No work done for Rest / Leave / CR / NH entries."
+              ? "Optional note for yourself — not printed in Diary or TA."
               : "Describe the work carried out…"
           }
           onChange={(e) => setWorkDone(e.target.value)}
         />
         {isSpecial && (
           <span className="mt-1 block text-xs text-slate-500">
-            No work done is recorded for {movementLabel} entries.
+            For your reference only — not printed in the Diary or TA Journal.
           </span>
         )}
       </Field>

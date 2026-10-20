@@ -5,7 +5,7 @@ import { useBackClose } from "@/lib/backButton";
 import { useData } from "./DataProvider";
 import { Modal, Chip } from "./ui";
 import { api, fmtDate, dayName, formatFootplateSummary, footplateRidesOf, pcdoEntriesOf } from "@/lib/api";
-import { DEPARTMENT_COLORS } from "@/lib/types";
+import { DEPARTMENT_COLORS, isSpecialMovement } from "@/lib/types";
 import { logMovementLabels } from "@/lib/movements";
 import { isSharedLog } from "@/lib/backup";
 import { INSPECTION_RULES, addDays, intervalFor, jointPeriodOf, type InspectionKind } from "@/lib/inspections";
@@ -85,7 +85,11 @@ export function LogDetailModal({
           ).length > 0 && (
             <JourneySummary log={log} stationName={stationName} />
           )}
-          <Row label="Work Done" value={log.workDone} multiline />
+          <Row
+            label={isSpecialMovement(log) ? "Remarks" : "Work Done"}
+            value={log.workDone}
+            multiline
+          />
           {log.taAtVariableKm != null && (
             <Row
               label="Variable station side"
