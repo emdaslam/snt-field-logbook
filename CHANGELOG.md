@@ -3,6 +3,12 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.13 — 2026-10-22
+
+**Minor: re-editing a Footplate daily log no longer adds a spare movement**
+
+- Opening a saved daily log after “Edit the rows” no longer invents an extra Footplate (or other) stop from the train legs. Extra movements come only from the stops you actually added.
+
 ## 1.7.8.12 — 2026-10-20
 
 **Minor: writable remarks on Rest / NH / Leave / CR**

@@ -904,62 +904,12 @@ export function DailyLogForm({
   // Additional movement stops for the same entry. Selecting two or more
   // movements (the first in the Station/Movement picker, the rest below it)
   // turns the entry into an editable export-row chain: HQ → m0 → m1 → … → HQ.
-  const [extraMovements, setExtraMovements] = useState<string[]>(() => {
-    if (Array.isArray(existing?.extraStops) && existing.extraStops.length > 0) {
-      return existing.extraStops;
-    }
-    const legs = existing?.journeyLegs;
-    if (!Array.isArray(legs) || legs.length === 0) return [];
-    const isFpPrimary = existing?.movementKind === "footplate";
-    const storedRides: FootplateRide[] =
-      Array.isArray(existing?.footplateJourneys) && existing.footplateJourneys.length > 0
-        ? existing.footplateJourneys
-        : existing?.footplateJourney
-          ? [
-              {
-                boardingStationId: existing.footplateJourney.boardingStationId,
-                otherEndStationId: existing.footplateJourney.otherEndStationId,
-                shift: existing.footplateJourney.shift,
-                day: existing.footplateDay ?? null,
-                night: existing.footplateNight ?? null,
-              },
-            ]
-          : [];
-    const fpEndpoints = storedRides.flatMap((r) => {
-      const b = stations.find((s) => s.id === r.boardingStationId);
-      const o = stations.find((s) => s.id === r.otherEndStationId);
-      return [legLabel(b?.name || b?.code || ""), legLabel(o?.name || o?.code || "")].filter(Boolean);
-    });
-    const isFpEndpoint = (v: string) => fpEndpoints.includes(v);
-    const slots: string[] = [];
-    for (let i = 0; i < legs.length; i++) {
-      const l = legs[i];
-      const next = legs[i + 1];
-      const startsBlock =
-        l.mode === "train" || (Boolean(l.to) && next && isFpEndpoint(l.to) && next.mode === "train");
-      if (startsBlock) {
-        slots.push(FOOTPLATE_SLOT);
-        while (
-          i + 1 < legs.length &&
-          (legs[i + 1].mode === "train" || isFpEndpoint(legs[i + 1].to) || isFpEndpoint(legs[i + 1].from))
-        ) {
-          i++;
-        }
-        continue;
-      }
-      const v = l.to;
-      if (!v) continue;
-      const st = stations.find((s) => s.code === v || s.name === v);
-      slots.push(st ? st.name : v);
-    }
-    if (slots.length > 1 && slots[slots.length - 1] === hqName) slots.pop();
-    if (isFpPrimary) {
-      if (slots[0] === FOOTPLATE_SLOT) slots.shift();
-      return slots;
-    }
-    if (slots.length <= 1) return [];
-    return slots.slice(1);
-  });
+  // ponytail: extraStops (including []) is authoritative. Reconstructing extras
+  // from journeyLegs treated Footplate train legs as extra movements. Pre-extraStops
+  // logs that only stored the chain as legs reopen as a single movement.
+  const [extraMovements, setExtraMovements] = useState<string[]>(() =>
+    Array.isArray(existing?.extraStops) ? existing.extraStops.filter((m) => m.trim()) : []
+  );
   const [fpRides, setFpRides] = useState<FpRideDraft[]>(() => {
     const stored: FootplateRide[] =
       Array.isArray(existing?.footplateJourneys) && existing.footplateJourneys.length > 0
