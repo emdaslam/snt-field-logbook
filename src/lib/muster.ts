@@ -172,6 +172,8 @@ export function musterMonthCode(isoDate: string): string {
  */
 export const MUSTER_ROW_MIN = 24;
 export const MUSTER_CODE_ROW_MIN = 88;
+/** P / OL band when the station row is on — two stacked letters, not the tall REST band. */
+export const MUSTER_CODE_ROW_WITH_STATIONS_MIN = 36;
 /** Optional stacked movement-station row under P / OL — tall enough for ~6 letters. */
 export const MUSTER_STATION_ROW_MIN = 110;
 
@@ -194,7 +196,10 @@ export function musterSheetTopGap(includeStations = false): number {
   const tableH =
     rowH(1, MUSTER_ROW_MIN) * 4 + // railway, office/pf, from–to, day numbers
     rowH(2, MUSTER_ROW_MIN) + // month labels + AMC/DMC ("AMC NO" wraps)
-    rowH(4, MUSTER_CODE_ROW_MIN) + // stacked attendance codes
+    rowH(
+      includeStations ? 2 : 4,
+      includeStations ? MUSTER_CODE_ROW_WITH_STATIONS_MIN : MUSTER_CODE_ROW_MIN
+    ) +
     (includeStations ? rowH(6, MUSTER_STATION_ROW_MIN) : 0);
   const sigH = 30 + 12 * (14 / 9) + 8;
   const pageH = 595.28; // A4 landscape height (jspdf a4 landscape)
@@ -267,7 +272,9 @@ export function buildMusterGrid(
     ...(code && code !== "P" && code !== "OL" ? { color: "FF0000" } : {}),
   });
   const span = (row: number, c1: number, c2: number): XlsxMerge => [row, c1, row, c2];
+  const vSpan = (c: number): XlsxMerge => [5, c, 6, c];
   const last = MUSTER_COLS - 1;
+  const isSpecialCode = (code: string) => code !== "" && code !== "P" && code !== "OL";
 
   // Left half = only the from-month days (11..end); right half = always the
   // 1st..10th of the next month. A short month pads the left half with blanks.
@@ -335,6 +342,17 @@ export function buildMusterGrid(
     span(3, 0, MUSTER_LEFT_DAYS - 1),
     span(3, MUSTER_LEFT_DAYS, MUSTER_LEFT_DAYS + MUSTER_RIGHT_DAYS - 1),
   ];
+  if (stationRow.length) {
+    const dayDates = [
+      ...fromDates,
+      ...Array(MUSTER_LEFT_DAYS - fromDates.length).fill(""),
+      ...toDates,
+    ];
+    for (let c = 0; c < MUSTER_LEFT_DAYS + MUSTER_RIGHT_DAYS; c++) {
+      const date = dayDates[c];
+      if (date && isSpecialCode(codes.get(date) ?? "")) merges.push(vSpan(c));
+    }
+  }
 
   return { grid, merges };
 }

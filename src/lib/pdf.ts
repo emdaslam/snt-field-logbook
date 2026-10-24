@@ -160,8 +160,11 @@ function parseTableBody(trs: Element[]): { body: PdfCell[][]; notes: VtextNote[]
       }
       const valign = el.getAttribute("data-valign");
       if (valign === "middle") styles.valign = "middle";
-      if (minH) styles.minCellHeight = minH;
-      const isVSpan = isV && rowSpan > 1;
+      if (minH && rowSpan === 1) styles.minCellHeight = minH;
+      // Only the TA journal's full-column KMS note (many rows) is drawn as an
+      // overlay. A 2-row muster merge (REST / NH spanning P/OL + station) is
+      // a real autoTable rowspan so the stacked letters sit in one cell.
+      const isVSpan = isV && rowSpan > 2;
       // A full-column vtext note (the TA journal's KMS note) spans many rows
       // but is emitted as separate empty cells; removing their horizontal
       // borders makes the column render as one merged cell without stray

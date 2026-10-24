@@ -4,7 +4,7 @@ import { formatInspectionDates } from "@/lib/inspections";
 import { isSpecialMovement, printedWork, EQUIPMENT_DEFAULTS, variableKmText, type ExportStyle } from "@/lib/types";
 import { railwayHeading } from "@/lib/railways";
 import { resolvedRailway } from "@/lib/railways";
-import { buildMusterGrid, musterHeaderLines, musterMonthCode, musterSheetTopGap, MUSTER_CODE_ROW_MIN, MUSTER_ROW_MIN, MUSTER_STATION_ROW_MIN, type MusterHeader } from "@/lib/muster";
+import { buildMusterGrid, musterHeaderLines, musterMonthCode, musterSheetTopGap, MUSTER_CODE_ROW_MIN, MUSTER_CODE_ROW_WITH_STATIONS_MIN, MUSTER_ROW_MIN, MUSTER_STATION_ROW_MIN, type MusterHeader } from "@/lib/muster";
 import { AUTO_TIMINGS } from "@/lib/timingsMode";
 import { tripTimes, journeyTrainTimes, type TripTimes } from "@/lib/travel";
 import { loadTaGenConfig, type TaGenWindow, type TaRateKey } from "@/lib/taGenConfig";
@@ -2183,7 +2183,9 @@ export function exportMuster(
     grid.map((_, r) => [
       r,
       r === codeRow
-        ? MUSTER_CODE_ROW_MIN
+        ? includeStations
+          ? MUSTER_CODE_ROW_WITH_STATIONS_MIN
+          : MUSTER_CODE_ROW_MIN
         : r === codeRow + 1 && includeStations
           ? MUSTER_STATION_ROW_MIN
           : MUSTER_ROW_MIN,

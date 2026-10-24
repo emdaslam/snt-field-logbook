@@ -3,6 +3,12 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.15 — 2026-10-24
+
+**Minor: shorter P / OL band and merged REST / NH cells when stations are on**
+
+- With “Include movement station under P / OL”, the attendance-code row shrinks to fit P / OL. Rest, NH, CR and leave days merge that cell with the station row so the code sits in one tall stacked cell; Footplate stays split (OL + FP).
+
 ## 1.7.8.14 — 2026-10-24
 
 **Minor: optional movement-station row on the muster**

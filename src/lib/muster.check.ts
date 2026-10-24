@@ -11,6 +11,7 @@ import {
   MUSTER_COLS,
   MUSTER_ROW_MIN,
   MUSTER_CODE_ROW_MIN,
+  MUSTER_CODE_ROW_WITH_STATIONS_MIN,
   MUSTER_STATION_ROW_MIN,
 } from "./muster";
 import type { DailyLog, Station } from "@/db/schema";
@@ -169,6 +170,7 @@ const withStn = buildMusterGrid(
     log({ id: 1, logDate: "2026-07-11", stationMovement: "GADWAL", movementKind: null }),
     log({ id: 2, logDate: "2026-07-12", stationMovement: "JMDG", movementKind: null }),
     log({ id: 3, logDate: "2026-07-17", movementKind: "rest" }),
+    log({ id: 4, logDate: "2026-07-13", movementKind: "footplate", stationMovement: "Footplate" }),
   ],
   stations,
   hq,
@@ -185,9 +187,20 @@ assert.equal(withStn.grid.length, 7);
 for (const row of withStn.grid) assert.equal(row.length, MUSTER_COLS);
 assert.equal(cellText(withStn.grid[6][0]), "GWL");
 assert.equal(cellText(withStn.grid[6][1]), "JMDG");
+assert.equal(cellText(withStn.grid[6][2]), "FP");
 assert.equal(cellText(withStn.grid[6][6]), "");
 assert.equal((withStn.grid[6][0] as { stacked?: boolean }).stacked, true);
+assert.equal((withStn.grid[6][2] as { stacked?: boolean }).stacked, true);
 assert.equal((withStn.grid[6][6] as { stacked?: boolean }).stacked, undefined);
+assert.ok(withStn.merges.some((m) => m[0] === 5 && m[1] === 6 && m[2] === 6 && m[3] === 6));
+assert.equal(
+  withStn.merges.some((m) => m[0] === 5 && m[1] === 0 && m[2] === 6 && m[3] === 0),
+  false
+);
+assert.equal(
+  withStn.merges.some((m) => m[0] === 5 && m[1] === 2 && m[2] === 6 && m[3] === 2),
+  false
+);
 
 // header rows
 assert.equal(cellText(grid[0][0]), "SOUTH COAST RAILWAY");
@@ -219,6 +232,7 @@ const lineH14 = ((8 * 14) / 9) * 1.15; // body line height at content size 14
 const rowH = (lines: number, min: number) => Math.max(lines * lineH14 + 3, min); // + 2×1.5 pad
 assert.equal(MUSTER_ROW_MIN > lineH14 + 3, true); // single-line rows grow past their text
 assert.equal(MUSTER_CODE_ROW_MIN >= 4 * lineH14, true); // 4 stacked letters fit
+assert.equal(MUSTER_CODE_ROW_WITH_STATIONS_MIN >= 2 * lineH14, true); // P / OL fit the short band
 assert.equal(MUSTER_STATION_ROW_MIN >= 6 * lineH14, true); // ~6 stacked station letters fit
 const tableH =
   rowH(1, MUSTER_ROW_MIN) * 4 + // railway, office/pf, from–to, day numbers
@@ -230,7 +244,11 @@ assert.equal(gap > 0, true);
 assert.equal(24 + gap + tableH + sigH <= 595.28 - 24, true); // one page
 // centred: blank above (margin + gap) equals blank below within half a point
 assert.equal(Math.abs(24 + gap - (595.28 - (24 + gap + tableH + sigH))) < 0.5, true);
-const tableHStn = tableH + rowH(6, MUSTER_STATION_ROW_MIN);
+const tableHStn =
+  rowH(1, MUSTER_ROW_MIN) * 4 +
+  rowH(2, MUSTER_ROW_MIN) +
+  rowH(2, MUSTER_CODE_ROW_WITH_STATIONS_MIN) +
+  rowH(6, MUSTER_STATION_ROW_MIN);
 const gapStn = musterSheetTopGap(true);
 assert.equal(gapStn > 0, true);
 assert.equal(24 + gapStn + tableHStn + sigH <= 595.28 - 24, true);
