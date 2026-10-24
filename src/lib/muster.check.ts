@@ -96,6 +96,37 @@ assert.equal(
   musterDayStation([log({ stationMovement: "KM 15 Cabin", movementKind: null })], stations),
   "KM 15 Cabin"
 );
+assert.equal(
+  musterDayStation(
+    [log({ stationMovement: "GADWAL", extraStops: ["JMDG"], movementKind: null })],
+    stations
+  ),
+  "GWL/JMDG"
+);
+assert.equal(
+  musterDayStation(
+    [log({ stationMovement: "GADWAL", extraStops: ["GADWAL"], movementKind: null })],
+    stations
+  ),
+  "GWL"
+);
+assert.equal(
+  musterDayStation(
+    [
+      log({ id: 1, stationMovement: "GADWAL", movementKind: null }),
+      log({ id: 2, stationMovement: "JMDG", movementKind: null, taPercent: 0 }),
+    ],
+    stations
+  ),
+  "GWL/JMDG"
+);
+assert.equal(
+  musterDayStation(
+    [log({ stationMovement: "GADWAL", extraStops: ["__footplate__"], movementKind: null })],
+    stations
+  ),
+  "GWL/FP"
+);
 // special days
 assert.equal(musterDayCode([log({ movementKind: "rest" })], stations, hq), "REST");
 assert.equal(musterDayStation([log({ movementKind: "rest" })], stations), "");
@@ -167,7 +198,13 @@ const cellText = (c: unknown) => (typeof c === "object" && c ? (c as { v: unknow
 const withStn = buildMusterGrid(
   p,
   [
-    log({ id: 1, logDate: "2026-07-11", stationMovement: "GADWAL", movementKind: null }),
+    log({
+      id: 1,
+      logDate: "2026-07-11",
+      stationMovement: "GADWAL",
+      extraStops: ["JMDG"],
+      movementKind: null,
+    }),
     log({ id: 2, logDate: "2026-07-12", stationMovement: "JMDG", movementKind: null }),
     log({ id: 3, logDate: "2026-07-17", movementKind: "rest" }),
     log({ id: 4, logDate: "2026-07-13", movementKind: "footplate", stationMovement: "Footplate" }),
@@ -185,14 +222,18 @@ const withStn = buildMusterGrid(
 );
 assert.equal(withStn.grid.length, 7);
 for (const row of withStn.grid) assert.equal(row.length, MUSTER_COLS);
-assert.equal(cellText(withStn.grid[6][0]), "GWL");
+assert.equal(cellText(withStn.grid[6][0]), "GWL/JMDG");
 assert.equal(cellText(withStn.grid[6][1]), "JMDG");
 assert.equal(cellText(withStn.grid[6][2]), "FP");
 assert.equal(cellText(withStn.grid[6][6]), "");
+assert.equal(cellText(withStn.grid[6][31]), "");
+assert.equal(cellText(withStn.grid[6][32]), "");
 assert.equal((withStn.grid[6][0] as { stacked?: boolean }).stacked, true);
 assert.equal((withStn.grid[6][2] as { stacked?: boolean }).stacked, true);
 assert.equal((withStn.grid[6][6] as { stacked?: boolean }).stacked, undefined);
 assert.ok(withStn.merges.some((m) => m[0] === 5 && m[1] === 6 && m[2] === 6 && m[3] === 6));
+assert.ok(withStn.merges.some((m) => m[0] === 5 && m[1] === 31 && m[2] === 6 && m[3] === 31));
+assert.ok(withStn.merges.some((m) => m[0] === 5 && m[1] === 32 && m[2] === 6 && m[3] === 32));
 assert.equal(
   withStn.merges.some((m) => m[0] === 5 && m[1] === 0 && m[2] === 6 && m[3] === 0),
   false

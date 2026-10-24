@@ -9,14 +9,16 @@
  *   REST — rest day; NH — NH day; CR — compensatory rest
  *   PL   — privilege leave (the app's LAP); CL / SICK pass through as-is
  *   blank — no daily log for that day
- * AMC NO / DMC NO columns are placeholders ("---").
- * An optional stacked row under P / OL prints the movement station.
+ * AMC NO / DMC NO columns are placeholders ("---"); with the station row
+ * on they span P / OL and the station row like a special-day cell.
+ * An optional stacked row under P / OL prints the movement station
+ * (station/station when the day has more than one).
  */
 
 import type { Period } from "./period";
 import { isSpecialMovement } from "./types";
 import { isTaClaimable } from "./api";
-import { isFootplateLog } from "./movements";
+import { isFootplateLog, isFootplateStop, TEMP_STATION_SLOT } from "./movements";
 import type { DailyLog, Station } from "@/db/schema";
 import type { XlsxCell, XlsxMerge } from "./xlsx";
 
@@ -98,19 +100,51 @@ export function musterDayCode(
   return isTaClaimable(primary, stations, hq) ? "OL" : "P";
 }
 
-/** Station code (else name) of a day's movement — blank on special / empty days. */
-export function musterDayStation(dayLogs: DailyLog[], stations: Station[]): string {
-  const primary = pickMusterLog(dayLogs);
-  if (!primary || isSpecialMovement(primary)) return "";
-  if (isFootplateLog(primary)) return "FP";
-  const t = (primary.stationMovement ?? "").trim();
-  if (!t) return "";
+/** Code (else name) of one movement slot — FP for footplate; null if not a station. */
+function movementStationLabel(raw: string | null | undefined, stations: Station[]): string | null {
+  const t = (raw ?? "").trim();
+  if (!t || t === TEMP_STATION_SLOT) return null;
+  if (isFootplateStop(t)) return "FP";
+  const lower = t.toLowerCase();
+  if (lower === "rest" || lower === "nh" || lower === "cr" || lower === "leave" || lower.startsWith("leave ")) {
+    return null;
+  }
   const match = stations.find(
     (s) =>
-      s.name.toLowerCase() === t.toLowerCase() ||
-      (s.code != null && s.code.trim() !== "" && s.code.toLowerCase() === t.toLowerCase())
+      s.name.toLowerCase() === lower ||
+      (s.code != null && s.code.trim() !== "" && s.code.toLowerCase() === lower)
   );
-  return (match?.code?.trim() || match?.name || t).trim();
+  return (match?.code?.trim() || match?.name || t).trim() || null;
+}
+
+/** Station labels on one log: primary + extraStops. */
+function logMusterStations(l: DailyLog, stations: Station[]): string[] {
+  if (isSpecialMovement(l)) return [];
+  const out: string[] = [];
+  const add = (raw: string | null | undefined) => {
+    const k = movementStationLabel(raw, stations);
+    if (k && !out.includes(k)) out.push(k);
+  };
+  add(l.stationMovement);
+  if (Array.isArray(l.extraStops)) {
+    for (const s of l.extraStops) add(s);
+  }
+  if (out.length === 0 && isFootplateLog(l)) out.push("FP");
+  return out;
+}
+
+/** Station code(s) of a day's movements — "GWL/JMDG" when more than one; blank on special / empty days.
+ *  ponytail: three-plus codes can exceed the 110pt station band (~6 stacked letters); raise MUSTER_STATION_ROW_MIN if office sheets use longer chains. */
+export function musterDayStation(dayLogs: DailyLog[], stations: Station[]): string {
+  const primary = pickMusterLog(dayLogs);
+  if (!primary) return "";
+  const labels: string[] = [];
+  for (const l of [primary, ...dayLogs.filter((x) => x !== primary)]) {
+    for (const s of logMusterStations(l, stations)) {
+      if (!labels.includes(s)) labels.push(s);
+    }
+  }
+  return labels.join("/");
 }
 
 function logsByDate(
@@ -352,6 +386,7 @@ export function buildMusterGrid(
       const date = dayDates[c];
       if (date && isSpecialCode(codes.get(date) ?? "")) merges.push(vSpan(c));
     }
+    merges.push(vSpan(MUSTER_COLS - 2), vSpan(MUSTER_COLS - 1));
   }
 
   return { grid, merges };

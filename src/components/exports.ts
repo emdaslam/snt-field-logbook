@@ -2131,10 +2131,12 @@ export function exportRequiredMaterials(
  * P for other logged days, REST / NH / CR / PL / CL / SICK from the special
  * entries — absence codes in red — blank when no log exists. When
  * includeStations is on, a second stacked row under P / OL prints the
- * movement station (code, else name; FP for footplate). Header fields
- * come from the profile (Office, PF No, name, designation, railway zone);
- * AMC NO / DMC NO are placeholders. The day columns are pinned to an equal
- * width and scaled up so the table spans the printable width of the landscape
+ * movement station (code, else name; FP for footplate; station/station
+ * when the day has more than one). Header fields come from the profile
+ * (Office, PF No, name, designation, railway zone); AMC NO / DMC NO are
+ * placeholders and span the code + station rows when that row is on. The
+ * day columns are pinned to an equal width and scaled up so the table spans
+ * the printable width of the landscape
  * page (~94% of the page, like the office sample); the header font starts
  * large enough that the Office/PF/Name/Designation row stays on one line.
  * Vertically the block — sheet plus signature line — is centred on the page

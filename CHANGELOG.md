@@ -3,6 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.16 — 2026-10-24
+
+**Minor: muster AMC / DMC span the station row; multi-movement days print station/station**
+
+- With “Include movement station under P / OL”, the AMC NO and DMC NO placeholder cells now merge across the P / OL band and the station row, same as a Rest / NH cell.
+- A day with more than one movement prints every station in that cell, joined with a slash (code, or the typed name; FP for Footplate) — extra stops on one log, or several logs on the same day.
+
 ## 1.7.8.15 — 2026-10-24
 
 **Minor: shorter P / OL band and merged REST / NH cells when stations are on**
