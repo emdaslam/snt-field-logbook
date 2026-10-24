@@ -4,7 +4,7 @@ import { formatInspectionDates } from "@/lib/inspections";
 import { isSpecialMovement, printedWork, EQUIPMENT_DEFAULTS, variableKmText, type ExportStyle } from "@/lib/types";
 import { railwayHeading } from "@/lib/railways";
 import { resolvedRailway } from "@/lib/railways";
-import { buildMusterGrid, musterHeaderLines, musterMonthCode, musterSheetTopGap, MUSTER_CODE_ROW_MIN, MUSTER_ROW_MIN, type MusterHeader } from "@/lib/muster";
+import { buildMusterGrid, musterHeaderLines, musterMonthCode, musterSheetTopGap, MUSTER_CODE_ROW_MIN, MUSTER_ROW_MIN, MUSTER_STATION_ROW_MIN, type MusterHeader } from "@/lib/muster";
 import { AUTO_TIMINGS } from "@/lib/timingsMode";
 import { tripTimes, journeyTrainTimes, type TripTimes } from "@/lib/travel";
 import { loadTaGenConfig, type TaGenWindow, type TaRateKey } from "@/lib/taGenConfig";
@@ -2129,7 +2129,9 @@ export function exportRequiredMaterials(
  * of days (11..end of month, then 1..10) and an attendance code under each,
  * printed vertically (one letter per line): OL for TA-claimed movement days,
  * P for other logged days, REST / NH / CR / PL / CL / SICK from the special
- * entries — absence codes in red — blank when no log exists. Header fields
+ * entries — absence codes in red — blank when no log exists. When
+ * includeStations is on, a second stacked row under P / OL prints the
+ * movement station (code, else name; FP for footplate). Header fields
  * come from the profile (Office, PF No, name, designation, railway zone);
  * AMC NO / DMC NO are placeholders. The day columns are pinned to an equal
  * width and scaled up so the table spans the printable width of the landscape
@@ -2146,7 +2148,8 @@ export function exportMuster(
   logs: DailyLog[],
   stations: Station[],
   me: Staff | undefined,
-  onComplete?: () => void
+  onComplete?: () => void,
+  includeStations = false
 ) {
   const hq = stations.find((s) => s.id === me?.headquartersStationId);
   const hqCode = hqLabel(hq);
@@ -2172,13 +2175,25 @@ export function exportMuster(
   };
   const lines = musterHeaderLines(period, header);
 
-  const { grid, merges } = buildMusterGrid(period, logs, stations, hq, header);
+  const { grid, merges } = buildMusterGrid(period, logs, stations, hq, header, includeStations);
   const allCols = new Set(Array.from({ length: grid[0].length }, (_, i) => i));
+  const codeRow = 5;
+  const vTextRows = includeStations ? new Set([codeRow, codeRow + 1]) : new Set([codeRow]);
+  const minRowHeights = Object.fromEntries(
+    grid.map((_, r) => [
+      r,
+      r === codeRow
+        ? MUSTER_CODE_ROW_MIN
+        : r === codeRow + 1 && includeStations
+          ? MUSTER_STATION_ROW_MIN
+          : MUSTER_ROW_MIN,
+    ])
+  );
 
-  let body = `<table data-space-top="${musterSheetTopGap()}">${gridHtml(grid, merges, {
+  let body = `<table data-space-top="${musterSheetTopGap(includeStations)}">${gridHtml(grid, merges, {
     centerCols: allCols,
     boldRows: new Set([0]),
-    vTextRows: new Set([grid.length - 1]),
+    vTextRows,
     // The AMC/DMC columns run wider than the day columns (like the office
     // sample) so their header word wraps to "AMC" / "NO" instead of breaking
     // mid-word; the pinned widths are scaled to the printable width downstream.
@@ -2186,9 +2201,7 @@ export function exportMuster(
     // The printed sheet carries the office sample's vertical geometry: taller
     // rows, and the tall attendance-code band as the last row (constants and
     // the one-page fit math live in muster.ts / muster.check.ts).
-    minRowHeights: Object.fromEntries(
-      grid.map((_, r) => [r, r === grid.length - 1 ? MUSTER_CODE_ROW_MIN : MUSTER_ROW_MIN])
-    ),
+    minRowHeights,
   })}</table>`;
   if (lines.signature) {
     body += `<p class="right" data-right-pad="24" data-space-top="30"><strong>${esc(lines.signature)}</strong></p>`;

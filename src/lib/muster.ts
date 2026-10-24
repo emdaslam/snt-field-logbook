@@ -10,11 +10,13 @@
  *   PL   — privilege leave (the app's LAP); CL / SICK pass through as-is
  *   blank — no daily log for that day
  * AMC NO / DMC NO columns are placeholders ("---").
+ * An optional stacked row under P / OL prints the movement station.
  */
 
 import type { Period } from "./period";
 import { isSpecialMovement } from "./types";
 import { isTaClaimable } from "./api";
+import { isFootplateLog } from "./movements";
 import type { DailyLog, Station } from "@/db/schema";
 import type { XlsxCell, XlsxMerge } from "./xlsx";
 
@@ -54,22 +56,29 @@ export function musterMonthLabel(isoDate: string): string {
 }
 
 /**
- * The attendance code for one day (all logs of that date). The TA movement
- * wins over a plain movement, exactly like the Diary export's day pick; a day
- * carrying only special entries uses the first one.
+ * The log that owns a day's muster cell: a TA movement wins over a plain
+ * movement, exactly like the Diary export's day pick; a day carrying only
+ * special entries uses the first one.
+ */
+function pickMusterLog(dayLogs: DailyLog[]): DailyLog | undefined {
+  if (dayLogs.length === 0) return undefined;
+  const isTa = (l: DailyLog) => {
+    const p = l.taPercent ?? 0;
+    return (p === 100 || p === 70 || p === 30) && !isSpecialMovement(l);
+  };
+  return dayLogs.find(isTa) ?? dayLogs.find((l) => !isSpecialMovement(l)) ?? dayLogs[0];
+}
+
+/**
+ * The attendance code for one day (all logs of that date).
  */
 export function musterDayCode(
   dayLogs: DailyLog[],
   stations: Station[],
   hq: Station | null | undefined
 ): string {
-  if (dayLogs.length === 0) return "";
-  const isTa = (l: DailyLog) => {
-    const p = l.taPercent ?? 0;
-    return (p === 100 || p === 70 || p === 30) && !isSpecialMovement(l);
-  };
-  const primary =
-    dayLogs.find(isTa) ?? dayLogs.find((l) => !isSpecialMovement(l)) ?? dayLogs[0];
+  const primary = pickMusterLog(dayLogs);
+  if (!primary) return "";
   if (isSpecialMovement(primary)) {
     switch (primary.movementKind) {
       case "rest":
@@ -89,6 +98,34 @@ export function musterDayCode(
   return isTaClaimable(primary, stations, hq) ? "OL" : "P";
 }
 
+/** Station code (else name) of a day's movement — blank on special / empty days. */
+export function musterDayStation(dayLogs: DailyLog[], stations: Station[]): string {
+  const primary = pickMusterLog(dayLogs);
+  if (!primary || isSpecialMovement(primary)) return "";
+  if (isFootplateLog(primary)) return "FP";
+  const t = (primary.stationMovement ?? "").trim();
+  if (!t) return "";
+  const match = stations.find(
+    (s) =>
+      s.name.toLowerCase() === t.toLowerCase() ||
+      (s.code != null && s.code.trim() !== "" && s.code.toLowerCase() === t.toLowerCase())
+  );
+  return (match?.code?.trim() || match?.name || t).trim();
+}
+
+function logsByDate(
+  period: { from: string; to: string },
+  logs: DailyLog[]
+): Map<string, DailyLog[]> {
+  const byDate = new Map<string, DailyLog[]>();
+  for (const l of logs) {
+    if (l.logDate < period.from || l.logDate > period.to) continue;
+    if (!byDate.has(l.logDate)) byDate.set(l.logDate, []);
+    byDate.get(l.logDate)!.push(l);
+  }
+  return byDate;
+}
+
 /** Attendance code per date of the muster period (only logged days present). */
 export function musterCodes(
   period: { from: string; to: string },
@@ -96,17 +133,25 @@ export function musterCodes(
   stations: Station[],
   hq: Station | null | undefined
 ): Map<string, string> {
-  const byDate = new Map<string, DailyLog[]>();
-  for (const l of logs) {
-    if (l.logDate < period.from || l.logDate > period.to) continue;
-    if (!byDate.has(l.logDate)) byDate.set(l.logDate, []);
-    byDate.get(l.logDate)!.push(l);
-  }
   const codes = new Map<string, string>();
-  for (const [date, dayLogs] of byDate) {
+  for (const [date, dayLogs] of logsByDate(period, logs)) {
     codes.set(date, musterDayCode(dayLogs, stations, hq));
   }
   return codes;
+}
+
+/** Movement-station label per date of the muster period (P / OL days only). */
+export function musterStations(
+  period: { from: string; to: string },
+  logs: DailyLog[],
+  stations: Station[]
+): Map<string, string> {
+  const labels = new Map<string, string>();
+  for (const [date, dayLogs] of logsByDate(period, logs)) {
+    const s = musterDayStation(dayLogs, stations);
+    if (s) labels.set(date, s);
+  }
+  return labels;
 }
 
 /** Fixed sheet geometry: 11..31 (21 cols), 1..10 (10 cols), AMC + DMC. */
@@ -127,6 +172,8 @@ export function musterMonthCode(isoDate: string): string {
  */
 export const MUSTER_ROW_MIN = 24;
 export const MUSTER_CODE_ROW_MIN = 88;
+/** Optional stacked movement-station row under P / OL — tall enough for ~6 letters. */
+export const MUSTER_STATION_ROW_MIN = 110;
 
 /**
  * Blank space above the sheet so the printed block — table plus the signature
@@ -141,13 +188,14 @@ export const MUSTER_CODE_ROW_MIN = 88;
  * lines in the office / name row would tip the block slightly below centre —
  * still one page, and the profile values that wrap that far are rare.
  */
-export function musterSheetTopGap(): number {
+export function musterSheetTopGap(includeStations = false): number {
   const lineH = ((8 * 14) / 9) * 1.15;
   const rowH = (lines: number, min: number) => Math.max(lines * lineH + 3, min);
   const tableH =
     rowH(1, MUSTER_ROW_MIN) * 4 + // railway, office/pf, from–to, day numbers
     rowH(2, MUSTER_ROW_MIN) + // month labels + AMC/DMC ("AMC NO" wraps)
-    rowH(4, MUSTER_CODE_ROW_MIN); // stacked attendance codes
+    rowH(4, MUSTER_CODE_ROW_MIN) + // stacked attendance codes
+    (includeStations ? rowH(6, MUSTER_STATION_ROW_MIN) : 0);
   const sigH = 30 + 12 * (14 / 9) + 8;
   const pageH = 595.28; // A4 landscape height (jspdf a4 landscape)
   const margin = 24; // the fit-mode margin the muster exports with
@@ -179,21 +227,25 @@ export function musterHeaderLines(period: Period, h: MusterHeader) {
 }
 
 /**
- * The muster grid: header rows, the two day halves, the attendance-code row.
+ * The muster grid: header rows, the two day halves, the attendance-code row,
+ * and (when includeStations) a stacked movement-station row under P / OL.
  * Columns beyond a short month's last day stay blank so both halves keep
  * their width. Rows:
  *   0 railway (full width) · 1 office / PF / name / designation
  *   2 from–to line · 3 month labels + AMC/DMC · 4 day numbers · 5 codes
+ *   6 stations (optional)
  */
 export function buildMusterGrid(
   period: Period,
   logs: DailyLog[],
   stations: Station[],
   hq: Station | null | undefined,
-  header: MusterHeader
+  header: MusterHeader,
+  includeStations = false
 ): { grid: (string | number | XlsxCell)[][]; merges: XlsxMerge[] } {
   const lines = musterHeaderLines(period, header);
   const codes = musterCodes(period, logs, stations, hq);
+  const stationLabels = includeStations ? musterStations(period, logs, stations) : null;
 
   const iso = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -234,6 +286,19 @@ export function buildMusterGrid(
   for (const d of toDates) codeRow.push(codeCell(codes.get(d) ?? ""));
   codeRow.push(C("---"), C("---"));
 
+  const stationCell = (label: string): XlsxCell => ({
+    v: label,
+    center: true,
+    ...(label ? { stacked: true } : {}),
+  });
+  const stationRow: (string | number | XlsxCell)[] = [];
+  if (stationLabels) {
+    for (const d of fromDates) stationRow.push(stationCell(stationLabels.get(d) ?? ""));
+    while (stationRow.length < MUSTER_LEFT_DAYS) stationRow.push("");
+    for (const d of toDates) stationRow.push(stationCell(stationLabels.get(d) ?? ""));
+    stationRow.push("", "");
+  }
+
   const grid: (string | number | XlsxCell)[][] = [
     [{ v: header.railway, bold: true, center: true }, ...Array(last).fill("")],
     [
@@ -257,6 +322,7 @@ export function buildMusterGrid(
     ],
     dayRow,
     codeRow,
+    ...(stationRow.length ? [stationRow] : []),
   ];
 
   const merges: XlsxMerge[] = [

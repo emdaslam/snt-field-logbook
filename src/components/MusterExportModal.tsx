@@ -20,6 +20,7 @@ const CODE_ORDER = ["P", "OL", "REST", "NH", "CR", "PL", "CL", "SICK", "LEAVE", 
 export function MusterExportModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { logs, stations, currentUser } = useData();
   const [monthIdx, setMonthIdx] = useState(0);
+  const [includeStations, setIncludeStations] = useState(false);
 
   const months = recentMonths(12);
   const period: Period = musterPeriodOf(months[monthIdx].from);
@@ -115,9 +116,19 @@ export function MusterExportModal({ open, onClose }: { open: boolean; onClose: (
         without a daily log stay blank; AMC NO / DMC NO print as ---.
       </div>
 
+      <label className="mb-3 flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+        <input
+          type="checkbox"
+          checked={includeStations}
+          onChange={(e) => setIncludeStations(e.target.checked)}
+          className="h-4 w-4 accent-emerald-600"
+        />
+        Include movement station under P / OL
+      </label>
+
       <PrimaryButton
         onClick={() => {
-          exportMuster(period, own, stations, currentUser, onClose);
+          exportMuster(period, own, stations, currentUser, onClose, includeStations);
         }}
       >
         Generate Muster

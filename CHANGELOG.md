@@ -3,6 +3,12 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.14 — 2026-10-24
+
+**Minor: optional movement-station row on the muster**
+
+- Export Muster now has “Include movement station under P / OL”. When ticked, a second stacked row prints under the attendance codes with that day’s movement station (code, or the typed name; FP for Footplate). Rest / NH / Leave / CR days stay blank there.
+
 ## 1.7.8.13 — 2026-10-22
 
 **Minor: re-editing a Footplate daily log no longer adds a spare movement**

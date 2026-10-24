@@ -4,12 +4,14 @@ import {
   musterMonthLabel,
   musterMonthCode,
   musterDayCode,
+  musterDayStation,
   musterCodes,
   buildMusterGrid,
   musterSheetTopGap,
   MUSTER_COLS,
   MUSTER_ROW_MIN,
   MUSTER_CODE_ROW_MIN,
+  MUSTER_STATION_ROW_MIN,
 } from "./muster";
 import type { DailyLog, Station } from "@/db/schema";
 
@@ -46,15 +48,31 @@ assert.equal(musterMonthLabel("2026-08-01"), "AUGUST'2026");
 
 /* ---------- day codes ---------- */
 assert.equal(musterDayCode([], stations, hq), "");
+assert.equal(musterDayStation([], stations), "");
 // TA-claimed movement day → OL
 assert.equal(
   musterDayCode([log({ stationMovement: "GADWAL", movementKind: null })], stations, hq),
   "OL"
 );
+assert.equal(
+  musterDayStation([log({ stationMovement: "GADWAL", movementKind: null })], stations),
+  "GWL"
+);
 // footplate → always TA → OL
 assert.equal(
   musterDayCode([log({ movementKind: "footplate", stationMovement: "Footplate" })], stations, hq),
   "OL"
+);
+assert.equal(
+  musterDayStation([log({ movementKind: "footplate", stationMovement: "Footplate" })], stations),
+  "FP"
+);
+assert.equal(
+  musterDayStation(
+    [log({ movementKind: "footplate", stationMovement: "Footplate: GTL → AD" })],
+    stations
+  ),
+  "FP"
 );
 // HQ / within-8 km movement day → P
 assert.equal(
@@ -62,11 +80,24 @@ assert.equal(
   "P"
 );
 assert.equal(
+  musterDayStation([log({ stationMovement: "JMDG", movementKind: null })], stations),
+  "JMDG"
+);
+assert.equal(
   musterDayCode([log({ stationMovement: "HALF8KM", movementKind: null })], stations, hq),
   "P"
 );
+assert.equal(
+  musterDayStation([log({ stationMovement: "HALF8KM", movementKind: null })], stations),
+  "N8"
+);
+assert.equal(
+  musterDayStation([log({ stationMovement: "KM 15 Cabin", movementKind: null })], stations),
+  "KM 15 Cabin"
+);
 // special days
 assert.equal(musterDayCode([log({ movementKind: "rest" })], stations, hq), "REST");
+assert.equal(musterDayStation([log({ movementKind: "rest" })], stations), "");
 assert.equal(musterDayCode([log({ movementKind: "nh" })], stations, hq), "NH");
 assert.equal(musterDayCode([log({ movementKind: "cr", crFrom: "2026-07-04" })], stations, hq), "CR");
 assert.equal(
@@ -130,8 +161,35 @@ assert.equal(grid.length, 6);
 for (const row of grid) assert.equal(row.length, MUSTER_COLS);
 assert.equal(MUSTER_COLS, 33);
 
-// header rows
 const cellText = (c: unknown) => (typeof c === "object" && c ? (c as { v: unknown }).v : c);
+
+const withStn = buildMusterGrid(
+  p,
+  [
+    log({ id: 1, logDate: "2026-07-11", stationMovement: "GADWAL", movementKind: null }),
+    log({ id: 2, logDate: "2026-07-12", stationMovement: "JMDG", movementKind: null }),
+    log({ id: 3, logDate: "2026-07-17", movementKind: "rest" }),
+  ],
+  stations,
+  hq,
+  {
+    railway: "SOUTH COAST RAILWAY",
+    office: "SSE/SIG/O/JMDG",
+    pfNo: "24529804450",
+    name: "SRI E.MD.ASLAM",
+    designation: "JE/SIG/JMDG",
+  },
+  true
+);
+assert.equal(withStn.grid.length, 7);
+for (const row of withStn.grid) assert.equal(row.length, MUSTER_COLS);
+assert.equal(cellText(withStn.grid[6][0]), "GWL");
+assert.equal(cellText(withStn.grid[6][1]), "JMDG");
+assert.equal(cellText(withStn.grid[6][6]), "");
+assert.equal((withStn.grid[6][0] as { stacked?: boolean }).stacked, true);
+assert.equal((withStn.grid[6][6] as { stacked?: boolean }).stacked, undefined);
+
+// header rows
 assert.equal(cellText(grid[0][0]), "SOUTH COAST RAILWAY");
 assert.equal(String(cellText(grid[1][0])).startsWith("OFFICE : SSE/SIG/O/JMDG"), true);
 assert.equal(String(cellText(grid[2][0])), "MONTH: FROM 11TH JULY'2026 TO 10TH AUGUST'2026");
@@ -161,6 +219,7 @@ const lineH14 = ((8 * 14) / 9) * 1.15; // body line height at content size 14
 const rowH = (lines: number, min: number) => Math.max(lines * lineH14 + 3, min); // + 2×1.5 pad
 assert.equal(MUSTER_ROW_MIN > lineH14 + 3, true); // single-line rows grow past their text
 assert.equal(MUSTER_CODE_ROW_MIN >= 4 * lineH14, true); // 4 stacked letters fit
+assert.equal(MUSTER_STATION_ROW_MIN >= 6 * lineH14, true); // ~6 stacked station letters fit
 const tableH =
   rowH(1, MUSTER_ROW_MIN) * 4 + // railway, office/pf, from–to, day numbers
   rowH(2, MUSTER_ROW_MIN) + // month labels + AMC/DMC ("AMC NO" wraps to 2 lines)
@@ -171,6 +230,11 @@ assert.equal(gap > 0, true);
 assert.equal(24 + gap + tableH + sigH <= 595.28 - 24, true); // one page
 // centred: blank above (margin + gap) equals blank below within half a point
 assert.equal(Math.abs(24 + gap - (595.28 - (24 + gap + tableH + sigH))) < 0.5, true);
+const tableHStn = tableH + rowH(6, MUSTER_STATION_ROW_MIN);
+const gapStn = musterSheetTopGap(true);
+assert.equal(gapStn > 0, true);
+assert.equal(24 + gapStn + tableHStn + sigH <= 595.28 - 24, true);
+assert.equal(Math.abs(24 + gapStn - (595.28 - (24 + gapStn + tableHStn + sigH))) < 0.5, true);
 
 // month code + file-name stem contract: JE/SIG/JMDG, 11 Sep – 10 Oct →
 // JE_SIG_JMDG_SEP_OCT (the stem replaces every non-alphanumeric run with _)
