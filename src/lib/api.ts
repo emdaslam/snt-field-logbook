@@ -659,7 +659,8 @@ export const api = {
   /** Whole-database backup handled entirely on-device. */
   backup: {
     export: () => ldb.exportAll(),
-    import: (payload: Record<string, unknown>) => ldb.importAll(payload),
+    import: (payload: Record<string, unknown>, abortIf?: () => boolean) =>
+      ldb.importAll(payload, abortIf),
   },
 
   seed: () => ldb.seedIfEmpty(),

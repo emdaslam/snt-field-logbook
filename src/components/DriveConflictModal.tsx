@@ -25,11 +25,27 @@ export function DriveConflictModal({
   const remote = `${conflict.remoteRecords.toLocaleString()} records · ${conflict.remoteDays} day${conflict.remoteDays === 1 ? "" : "s"}`;
 
   return (
-    <Modal open onClose={busy ? () => {} : onClose} title="Different data on this account">
+    <Modal
+      open
+      onClose={busy ? () => {} : onClose}
+      title={conflict.kind === "dirty-days" ? "Several days differ from Drive" : "Different data on this account"}
+    >
       <p className="text-sm text-slate-600">
-        The data on this device does not match the backup on{" "}
-        <span className="font-semibold text-slate-800">{conflict.remoteEmail}</span>. Syncing now would
-        overwrite one of them, so nothing has been changed yet.
+        {conflict.kind === "dirty-days" ? (
+          <>
+            {conflict.divergentDays ?? conflict.localDays} changed day
+            {(conflict.divergentDays ?? conflict.localDays) === 1 ? "" : "s"} on this device do not
+            match the backup on{" "}
+            <span className="font-semibold text-slate-800">{conflict.remoteEmail}</span>. Nothing has
+            been changed yet — choose whether to push this device or restore Drive.
+          </>
+        ) : (
+          <>
+            The data on this device does not match the backup on{" "}
+            <span className="font-semibold text-slate-800">{conflict.remoteEmail}</span>. Syncing now
+            would overwrite one of them, so nothing has been changed yet.
+          </>
+        )}
       </p>
 
       <div className="my-4 space-y-1.5 rounded-lg bg-slate-50 p-3 text-sm">

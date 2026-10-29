@@ -3,6 +3,15 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.17 — 2026-10-29
+
+**Minor: Drive no longer overwrites a log you just saved**
+
+- Saving an entry (and the first app-open of the day) only **backs up** new or changed days to Drive. It never pulls the cloud copy over the device.
+- Two-way sync (and restore) runs when you **Sign in** or tap **Sync to Drive**.
+- A restore that races a save keeps the device copy.
+- If more than three dirty days differ from Drive, you are asked whether to push this device or restore Drive; one to three changed days just back up.
+
 ## 1.7.8.16 — 2026-10-24
 
 **Minor: muster AMC / DMC span the station row; multi-movement days print station/station**

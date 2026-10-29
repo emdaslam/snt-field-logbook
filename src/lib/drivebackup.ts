@@ -275,3 +275,54 @@ export function payloadsMatch(a: BackupFingerprint, b: BackupFingerprint): boole
   const set = new Set(a.hashes);
   return set.size === a.hashes.length && b.hashes.every((h) => set.has(h));
 }
+
+export function hasLocalChanges(): boolean {
+  return readDirtyDays().length > 0 || readDataDirty();
+}
+
+export function shouldPullRemote(
+  remote: string | null,
+  local: string | null,
+  localChanges: boolean
+): boolean {
+  if (localChanges) return false;
+  return !!remote && (local === null || remote > local);
+}
+
+export function backupIndexDays(
+  localDates: string[],
+  driveFileNames: string[],
+  backupOnly: boolean
+): string[] {
+  if (!backupOnly) return [...localDates].sort();
+  const extra: string[] = [];
+  for (const n of driveFileNames) {
+    const d = dateFromDayFile(n);
+    if (d) extra.push(d);
+  }
+  return [...new Set([...localDates, ...extra])].sort();
+}
+
+export const DIRTY_DAY_ASK_THRESHOLD = 3;
+
+export function dayLogsMatch(localLogs: unknown[], remoteLogs: unknown[]): boolean {
+  const a = fingerprintPayload({ dailyLogs: localLogs });
+  const b = fingerprintPayload({ dailyLogs: remoteLogs });
+  return payloadsMatch(a, b);
+}
+
+export function countDivergentDirtyDays(
+  dirtyDays: string[],
+  localByDate: Map<string, unknown[]>,
+  remoteByDate: Map<string, unknown[]>
+): number {
+  let n = 0;
+  for (const d of dirtyDays) {
+    if (!dayLogsMatch(localByDate.get(d) ?? [], remoteByDate.get(d) ?? [])) n++;
+  }
+  return n;
+}
+
+export function shouldAskDirtyDayConflict(divergentDays: number): boolean {
+  return divergentDays > DIRTY_DAY_ASK_THRESHOLD;
+}

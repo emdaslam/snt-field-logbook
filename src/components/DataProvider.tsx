@@ -30,7 +30,7 @@ import {
 } from "@/lib/inspections";
 import { FONT_SIZE_ROOT, isAppFontFamily, isAppTheme, type AppFontFamily, type AppTheme, type FontSize } from "@/lib/types";
 import { isNative, scheduleDailyReminders } from "@/lib/native";
-import { driveStatus, syncWithDrive, replaceDriveBackup, pullFromDrive, type DriveResult, type DriveProgress, type DriveConflictInfo } from "@/lib/drive";
+import { driveStatus, syncWithDrive, backupToDrive, replaceDriveBackup, pullFromDrive, type DriveResult, type DriveProgress, type DriveConflictInfo } from "@/lib/drive";
 import { lowStockAlerts, qtyWithUnit } from "@/lib/stock";
 import { sortNotifications } from "@/lib/notificationOrder";
 import { DriveConflictModal } from "./DriveConflictModal";
@@ -501,20 +501,34 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [refresh]
   );
 
+  const doBackup = useCallback(async (): Promise<DriveResult> => {
+    setDriveSyncing(true);
+    setDriveProgress(null);
+    try {
+      const r = await backupToDrive(false, setDriveProgress);
+      if (r.ok) {
+        setDirty(false);
+      } else if (r.conflict) {
+        setDriveConflict(r.conflict);
+      }
+      return r;
+    } finally {
+      setDriveSyncing(false);
+      setDriveProgress(null);
+    }
+  }, []);
+
   /**
-   * Automatic Drive sync — silent and best-effort. Runs only in the Android
-   * app when auto-sync is switched on and the user is signed in to Drive.
-   * Never shows the account picker; failures are ignored. Marks the database
-   * as having pending changes, which the sync icon surfaces, and clears that
-   * flag only once the local data has actually been pushed to Drive.
+   * After a save: backup-only (upload dirty days, never pull). Silent and
+   * best-effort. Two-way restore is the Sync button / sign-in.
    */
   const autoSync = useCallback(async () => {
     setDirty(true);
     if (!autoDriveSync) return;
     if (!isNative()) return;
     if (!driveStatus().email) return;
-    await doDriveSync(false);
-  }, [autoDriveSync, doDriveSync]);
+    await doBackup();
+  }, [autoDriveSync, doBackup]);
 
   useEffect(() => {
     (async () => {
@@ -524,22 +538,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
         /* first run may race; refresh anyway */
       }
       await refresh();
-      // First app-open of the day: sync once automatically. The stamp is only
-      // written when a sync was actually attempted, so signing in to Drive or
-      // switching auto-sync on later in the day still triggers it on the next
-      // app open.
       try {
         const day = toISODate(new Date());
         if (localStorage.getItem("snt.drive.lastAutoSyncDay") === day) return;
         if (!autoDriveSync) return;
         if (!isNative() || !driveStatus().email) return;
-        await doDriveSync(false);
+        await doBackup();
         localStorage.setItem("snt.drive.lastAutoSyncDay", day);
       } catch {
         /* auto-sync is best-effort — silent */
       }
     })();
-  }, [refresh, autoDriveSync, doDriveSync]);
+  }, [refresh, autoDriveSync, doBackup]);
 
   // Offline app: nothing to poll. We only re-read local storage when the app
   // regains focus, in case another tab/window changed something.

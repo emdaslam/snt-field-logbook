@@ -107,6 +107,28 @@ async function idbSet(key: string, value: unknown): Promise<void> {
 
 const cache = new Map<TableName, Row[]>();
 
+let mutations = 0;
+let lock: Promise<unknown> = Promise.resolve();
+
+export function mutationCount(): number {
+  return mutations;
+}
+
+function withLock<T>(fn: () => Promise<T>): Promise<T> {
+  const run = lock.then(fn, fn);
+  lock = run.then(
+    () => undefined,
+    () => undefined
+  );
+  return run;
+}
+
+async function putTable(table: TableName, rows: Row[]) {
+  mutations++;
+  cache.set(table, rows);
+  await idbSet(table, rows);
+}
+
 export async function readTable<T = Row>(table: TableName): Promise<T[]> {
   if (cache.has(table)) return cache.get(table)! as unknown as T[];
   const rows = (await idbGet<Row[]>(table)) ?? [];
@@ -115,8 +137,7 @@ export async function readTable<T = Row>(table: TableName): Promise<T[]> {
 }
 
 export async function writeTable(table: TableName, rows: Row[]) {
-  cache.set(table, rows);
-  await idbSet(table, rows);
+  return withLock(() => putTable(table, rows));
 }
 function nextId(rows: Row[]) {
   return rows.reduce((m, r) => Math.max(m, Number(r.id) || 0), 0) + 1;
@@ -127,14 +148,16 @@ function nextId(rows: Row[]) {
 /* ------------------------------------------------------------------ */
 
 export async function insert<T extends object>(table: TableName, values: T): Promise<T & Row> {
-  const rows = await readTable(table);
-  const row = {
-    ...(values as Record<string, unknown>),
-    id: nextId(rows),
-    createdAt: (values as Record<string, unknown>).createdAt ?? new Date().toISOString(),
-  } as unknown as T & Row;
-  await writeTable(table, [...rows, row]);
-  return row;
+  return withLock(async () => {
+    const rows = await readTable(table);
+    const row = {
+      ...(values as Record<string, unknown>),
+      id: nextId(rows),
+      createdAt: (values as Record<string, unknown>).createdAt ?? new Date().toISOString(),
+    } as unknown as T & Row;
+    await putTable(table, [...rows, row]);
+    return row;
+  });
 }
 
 export async function update<T extends object>(
@@ -142,22 +165,26 @@ export async function update<T extends object>(
   id: number,
   patch: T
 ): Promise<(T & Row) | null> {
-  const rows = await readTable(table);
-  const i = rows.findIndex((r) => r.id === id);
-  if (i < 0) return null;
-  const merged = { ...rows[i], ...(patch as Record<string, unknown>), id } as unknown as T & Row;
-  const next = [...rows];
-  next[i] = merged;
-  await writeTable(table, next);
-  return merged;
+  return withLock(async () => {
+    const rows = await readTable(table);
+    const i = rows.findIndex((r) => r.id === id);
+    if (i < 0) return null;
+    const merged = { ...rows[i], ...(patch as Record<string, unknown>), id } as unknown as T & Row;
+    const next = [...rows];
+    next[i] = merged;
+    await putTable(table, next);
+    return merged;
+  });
 }
 
 export async function remove(table: TableName, id: number): Promise<void> {
-  const rows = await readTable(table);
-  await writeTable(
-    table,
-    rows.filter((r) => r.id !== id)
-  );
+  return withLock(async () => {
+    const rows = await readTable(table);
+    await putTable(
+      table,
+      rows.filter((r) => r.id !== id)
+    );
+  });
 }
 
 /* ------------------------------------------------------------------ */
@@ -175,24 +202,30 @@ export async function exportAll(): Promise<Record<string, unknown>> {
   return out;
 }
 
-export async function importAll(payload: Record<string, unknown>): Promise<void> {
-  for (const t of TABLES) {
-    const rows = payload[t];
-    if (Array.isArray(rows)) {
-      // Guarantee every row has a usable numeric id
-      let auto = 0;
-      const clean = rows.map((r) => {
-        const row = { ...(r as Record<string, unknown>) };
-        const n = Number(row.id);
-        row.id = Number.isFinite(n) && n > 0 ? n : ++auto;
-        return row as Row;
-      });
-      await writeTable(t, clean);
+export async function importAll(
+  payload: Record<string, unknown>,
+  abortIf?: () => boolean
+): Promise<boolean> {
+  return withLock(async () => {
+    if (abortIf?.()) return false;
+    for (const t of TABLES) {
+      const rows = payload[t];
+      if (Array.isArray(rows)) {
+        let auto = 0;
+        const clean = rows.map((r) => {
+          const row = { ...(r as Record<string, unknown>) };
+          const n = Number(row.id);
+          row.id = Number.isFinite(n) && n > 0 ? n : ++auto;
+          return row as Row;
+        });
+        await putTable(t, clean);
+      }
     }
-  }
-  if (payload.settings && typeof payload.settings === "object") {
-    applyAppSettings(payload.settings as Record<string, string>);
-  }
+    if (payload.settings && typeof payload.settings === "object") {
+      applyAppSettings(payload.settings as Record<string, string>);
+    }
+    return true;
+  });
 }
 
 export async function clearAll(): Promise<void> {

@@ -21,6 +21,12 @@ import {
   payloadsMatch,
   totalListedBytes,
   applyListedSizes,
+  hasLocalChanges,
+  shouldPullRemote,
+  backupIndexDays,
+  countDivergentDirtyDays,
+  shouldAskDirtyDayConflict,
+  DIRTY_DAY_ASK_THRESHOLD,
   type BackupFingerprint,
 } from "./drivebackup";
 
@@ -34,9 +40,13 @@ import {
  * data file and every day file and imports them all at once.
  *
  * Conflict rule: last-write-wins using the backup's exportedAt stamp stored
- * locally as the sync version. The version is kept per Google account, so
- * switching the signed-in account never compares stamps written by a
- * different account's backup.
+ * locally as the sync version — but only on an explicit two-way sync (the
+ * Sync button, or sign-in). Saving a log and the daily auto-run are
+ * backup-only: they upload the touched day(s) and never pull Drive over the
+ * device. Local dirty flags always win over a remote stamp, so a log just
+ * entered is never replaced by an older Drive copy. The version is kept per
+ * Google account, so switching the signed-in account never compares stamps
+ * written by a different account's backup.
  *
  * First contact with an account (signed in after switching accounts, a fresh
  * install, or after the app data was cleared) is never silent: the device
@@ -80,6 +90,8 @@ export type DriveConflictInfo = {
   localDays: number;
   remoteRecords: number;
   remoteDays: number;
+  kind?: "first-contact" | "dirty-days";
+  divergentDays?: number;
 };
 
 export type DriveProgress = {
@@ -488,12 +500,21 @@ async function deleteFile(id: string, interactive: boolean): Promise<void> {
  * re-sends the whole backup. The first push after an upgrade does a full pass
  * (splitting everything into day files) and then supersedes the old single
  * JSON backup, which is deleted only once the sharded copy is safe on Drive.
+ *
+ * `backupOnly` (saves / daily auto-run) uploads the touched days and never
+ * deletes other day files on Drive — a local snapshot taken mid-save must
+ * not wipe days that exist only in the cloud copy.
  */
-export async function pushToDrive(interactive = true, onProgress?: DriveProgressFn): Promise<DriveResult> {
+export async function pushToDrive(
+  interactive = true,
+  onProgress?: DriveProgressFn,
+  backupOnly = false
+): Promise<DriveResult> {
   if (!isNative()) return { ok: false, message: "Drive sync works only in the Android app." };
   try {
     const auth = await currentAuth(interactive);
     if (!auth) return { ok: false, message: "Not signed in to Google Drive." };
+    const mutAtExport = ldb.mutationCount();
     const payload = (await api.backup.export()) as Record<string, unknown> & { exportedAt?: string };
     const logs = Array.isArray(payload.dailyLogs) ? payload.dailyLogs : [];
     const files = await listAppDataFiles(interactive);
@@ -533,10 +554,12 @@ export async function pushToDrive(interactive = true, onProgress?: DriveProgress
     const dayUploads = [...groups].filter(
       ([date]) => !(seeded && !dirtyDays.has(date) && byName.has(dayFileName(date)))
     );
-    const orphanDeletes = files.filter((f) => {
-      const d = dateFromDayFile(f.name);
-      return d !== null && !groups.has(d);
-    });
+    const orphanDeletes = backupOnly
+      ? []
+      : files.filter((f) => {
+          const d = dateFromDayFile(f.name);
+          return d !== null && !groups.has(d);
+        });
     const dataUpload = !seeded || dataDirty || !byName.has(DATA_NAME) ? 1 : 0;
     const total =
       dayUploads.length + orphanDeletes.length + dataUpload + (byName.has(LEGACY_NAME) ? 1 : 0) + 1;
@@ -574,7 +597,7 @@ export async function pushToDrive(interactive = true, onProgress?: DriveProgress
     }
 
     if (!changed) {
-      clearDirty();
+      if (ldb.mutationCount() === mutAtExport) clearDirty();
       const onDrive = applyListedSizes(files);
       storeTotalOnDrive(onDrive.bytes, onDrive.files);
       const message = `Already up to date (${localDates.length} days backed up).`;
@@ -583,8 +606,14 @@ export async function pushToDrive(interactive = true, onProgress?: DriveProgress
     }
 
     // Tiny index — rewritten whenever anything changed so the exportedAt stamp
-    // advances (this is what last-write-wins compares against).
-    const indexBody = JSON.stringify({ version: 2, exportedAt, days: localDates });
+    // advances (this is what last-write-wins compares against). A backup-only
+    // push keeps Drive-only days in the index so they are not dropped.
+    const indexDays = backupIndexDays(
+      localDates,
+      files.map((f) => f.name),
+      backupOnly
+    );
+    const indexBody = JSON.stringify({ version: 2, exportedAt, days: indexDays });
     await uploadFile(byName.get(INDEX_NAME) ?? null, INDEX_NAME, indexBody, interactive);
     sizeUpdates.push({ name: INDEX_NAME, bytes: indexBody.length });
     tick();
@@ -599,7 +628,7 @@ export async function pushToDrive(interactive = true, onProgress?: DriveProgress
 
     setVersion(exportedAt, auth.email);
     markShardedSeeded();
-    clearDirty();
+    if (ldb.mutationCount() === mutAtExport) clearDirty();
     const onDrive = applyListedSizes(files, sizeUpdates, sizeDeletes);
     storeTotalOnDrive(onDrive.bytes, onDrive.files);
     const dayLabel = groups.size === 1 ? "1 day" : `${groups.size} days`;
@@ -639,6 +668,7 @@ async function pullSharded(
   onProgress?: DriveProgressFn,
   email?: string
 ): Promise<DriveResult> {
+  const mut = ldb.mutationCount();
   const indexId = byName.get(INDEX_NAME);
   if (!indexId) throw new Error("Drive backup looks invalid");
   const index = JSON.parse(await downloadFile(indexId, interactive)) as {
@@ -683,7 +713,15 @@ async function pullSharded(
   };
   const summary = summarizeBackup(payload);
   if (!summary.valid) throw new Error("Drive backup looks invalid");
-  await api.backup.import(payload as unknown as Record<string, unknown>);
+  const imported = await api.backup.import(
+    payload as unknown as Record<string, unknown>,
+    () => ldb.mutationCount() !== mut
+  );
+  if (!imported) {
+    const message = "Local data changed while restoring from Drive — kept the device copy.";
+    recordSync({ ok: false, message });
+    return { ok: false, message };
+  }
   if (remote) setVersion(remote, email);
   markShardedSeeded();
   clearDirty();
@@ -698,6 +736,7 @@ async function importLegacy(
   interactive: boolean,
   email?: string
 ): Promise<DriveResult> {
+  const mut = ldb.mutationCount();
   const text = await downloadFile(legacyId, interactive);
   const payload = JSON.parse(text) as BackupPayload;
   const remote = typeof payload.exportedAt === "string" ? payload.exportedAt : null;
@@ -709,7 +748,15 @@ async function importLegacy(
   }
   const summary = summarizeBackup(payload);
   if (!summary.valid) throw new Error("Drive backup looks invalid");
-  await api.backup.import(payload as unknown as Record<string, unknown>);
+  const imported = await api.backup.import(
+    payload as unknown as Record<string, unknown>,
+    () => ldb.mutationCount() !== mut
+  );
+  if (!imported) {
+    const message = "Local data changed while restoring from Drive — kept the device copy.";
+    recordSync({ ok: false, message });
+    return { ok: false, message };
+  }
   if (remote) setVersion(remote, email);
   clearDirty();
   const message = `Imported ${summary.totalRecords} records from Drive.`;
@@ -743,19 +790,39 @@ export async function pullFromDrive(interactive = true, onProgress?: DriveProgre
 }
 
 /**
- * Two-way sync. Last-write-wins using the backup's exportedAt stamp. The
- * remote copy is never overwritten without proof the local copy is at least
- * as new: if the local version is unknown (fresh install) or older than the
- * remote backup, the remote backup is restored first.
+ * Backup-only. Uploads dirty days (and dirty non-log tables) and never pulls
+ * Drive over the device. Used after a save and on the first app-open of the
+ * day. If more than three dirty days actually differ from Drive, stops and
+ * asks which side to keep; one to three changed days just back up.
+ */
+export async function backupToDrive(
+  interactive = false,
+  onProgress?: DriveProgressFn
+): Promise<DriveResult> {
+  if (!isNative()) return { ok: false, message: "Drive sync works only in the Android app." };
+  try {
+    const auth = await currentAuth(interactive);
+    if (!auth) return { ok: false, message: "Not signed in to Google Drive." };
+    const files = await listAppDataFiles(interactive);
+    const byName = new Map(files.map((f) => [f.name, f.id]));
+    const asked = await askDirtyDayConflict(auth, byName, interactive);
+    if (asked) return asked;
+    return pushToDrive(interactive, onProgress, true);
+  } catch (e) {
+    const message = errorMessage(e);
+    recordSync({ ok: false, message });
+    return { ok: false, message };
+  }
+}
+
+/**
+ * Two-way sync (Sync button, or just after sign-in). Last-write-wins using
+ * the backup's exportedAt stamp, except local dirty flags always win over a
+ * remote stamp — a log just entered is never replaced by Drive. First contact
+ * with an account is still compared and may ask which side to keep.
  *
- * First contact with an account is guarded by a content comparison (see
- * compareLocalAgainstRemote): nothing on either side is overwritten while the
- * two datasets differ — the sync stops with a conflict result and the UI asks
- * which one to keep. The only silent shortcut is when the account has no
- * backup yet, which just backs the device up.
- *
- * `interactive` controls whether a missing/expired session may show the
- * account picker. Auto-sync passes false so it stays completely silent.
+ * Before pushing, more than three dirty days that differ from Drive also
+ * stop and ask; fewer changed days just back up.
  */
 export async function syncWithDrive(interactive = true, onProgress?: DriveProgressFn): Promise<DriveResult> {
   if (!isNative()) return { ok: false, message: "Drive sync works only in the Android app." };
@@ -771,23 +838,19 @@ export async function syncWithDrive(interactive = true, onProgress?: DriveProgre
       const remote = typeof index.exportedAt === "string" ? index.exportedAt : null;
       const local = getVersion(auth.email);
 
-      // First contact with this account while the device already holds data
-      // (account switch, fresh install, or after clearing the app data): never
-      // overwrite either side silently. Compare, and stop with a conflict when
-      // they differ — the UI asks which one to keep.
       if (local === null && (await hasAnyLocalData())) {
         const remoteFp = await fingerprintSharded(byName, interactive);
         const guarded = await guardFirstContact(auth, remoteFp, interactive, onProgress);
         if (guarded) return guarded;
       }
 
-      const remoteNewer = !!remote && (local === null || remote > local);
-      if (!remoteNewer) {
-        const pushed = await pushToDrive(interactive, onProgress);
-        if (!pushed.ok) return pushed;
-        return { ok: true, message: pushed.message };
+      const asked = await askDirtyDayConflict(auth, byName, interactive);
+      if (asked) return asked;
+
+      if (shouldPullRemote(remote, local, hasLocalChanges())) {
+        return pullSharded(interactive, byName, onProgress, auth.email);
       }
-      return pullSharded(interactive, byName, onProgress, auth.email);
+      return pushToDrive(interactive, onProgress);
     }
 
     const legacyId = byName.get(LEGACY_NAME);
@@ -798,9 +861,7 @@ export async function syncWithDrive(interactive = true, onProgress?: DriveProgre
         const guarded = await guardFirstContact(auth, remoteFp, interactive, onProgress);
         if (guarded) return guarded;
       }
-      // One-time migration from the old single-file backup: import it first
-      // when it is newer, then push the sharded format and only then let
-      // pushToDrive remove the legacy file — nothing is lost in between.
+      if (hasLocalChanges()) return pushToDrive(interactive, onProgress);
       await importLegacy(legacyId, interactive, auth.email);
       return pushToDrive(interactive, onProgress);
     }
@@ -866,11 +927,57 @@ async function guardFirstContact(
     ok: false,
     message,
     conflict: {
+      kind: "first-contact",
       remoteEmail: auth.email,
       localRecords: local.records,
       localDays: local.days,
       remoteRecords: remote.records,
       remoteDays: remote.days,
+    },
+  };
+}
+
+async function askDirtyDayConflict(
+  auth: DriveAuth,
+  byName: Map<string, string>,
+  interactive: boolean
+): Promise<DriveResult | null> {
+  const dirty = readDirtyDays();
+  if (dirty.length <= DIRTY_DAY_ASK_THRESHOLD) return null;
+  const localPayload = (await api.backup.export()) as Record<string, unknown>;
+  const logs = Array.isArray(localPayload.dailyLogs) ? localPayload.dailyLogs : [];
+  const localByDate = groupLogsByDate(logs);
+  const remoteByDate = new Map<string, unknown[]>();
+  let remoteRecords = 0;
+  let localRecords = 0;
+  for (const d of dirty) {
+    const localLogs = localByDate.get(d) ?? [];
+    localRecords += localLogs.length;
+    const id = byName.get(dayFileName(d));
+    if (!id) {
+      remoteByDate.set(d, []);
+      continue;
+    }
+    const day = JSON.parse(await downloadFile(id, interactive)) as { logs?: unknown[] };
+    const remoteLogs = Array.isArray(day.logs) ? day.logs : [];
+    remoteByDate.set(d, remoteLogs);
+    remoteRecords += remoteLogs.length;
+  }
+  const divergent = countDivergentDirtyDays(dirty, localByDate, remoteByDate);
+  if (!shouldAskDirtyDayConflict(divergent)) return null;
+  const message = `More than ${DIRTY_DAY_ASK_THRESHOLD} days of local changes differ from Drive — choose which to keep.`;
+  recordSync({ ok: false, message });
+  return {
+    ok: false,
+    message,
+    conflict: {
+      kind: "dirty-days",
+      remoteEmail: auth.email,
+      localRecords,
+      localDays: dirty.length,
+      remoteRecords,
+      remoteDays: dirty.length,
+      divergentDays: divergent,
     },
   };
 }

@@ -1682,8 +1682,9 @@ function DriveSyncSection() {
     setMsg(null);
     try {
       const auth = await signInToDrive();
-      setMsg({ ok: true, text: `Signed in as ${auth.email}.` });
       setEmail(auth.email);
+      const r = await doDriveSync();
+      report(r.ok ? { ...r, message: `Signed in as ${auth.email}. ${r.message}` } : r);
       const total = await refreshDriveTotal();
       if (total) setTotalOnDrive(total);
     } catch (e) {
@@ -1787,10 +1788,10 @@ function DriveSyncSection() {
           )}
           <label className="flex items-center justify-between gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/50 p-3">
             <span className="min-w-0">
-              <span className="block text-sm font-medium text-slate-700">Automatic cloud sync</span>
+              <span className="block text-sm font-medium text-slate-700">Automatic cloud backup</span>
               <span className="block text-xs text-slate-400">
-                Syncs to Drive when you add a new daily log entry and once on the first app open of the
-                day.
+                Backs up new or changed days to Drive when you save an entry, and once on the first
+                app open of the day. Two-way sync (and restore) is Sign in or Sync to Drive.
               </span>
             </span>
             <input
