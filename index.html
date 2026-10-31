@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="google-site-verification" content="zzhEY00Mou_RiWjj_d6b63bsoPjp75KHTmWJmYTwcT8" />
-  <meta name="description" content="S&T Field Logbook — an offline field logbook for railway Signals & Telecommunications staff. Record daily logs, equipment, materials and timings on your device, with optional private Google Drive backup.">
+  <meta name="description" content="S&T Field Logbook — an offline field logbook for railway Signals &amp; Telecommunications staff. Daily logs, muster, Diary and TA Journal, materials and Google Drive backup. Current version 1.7.8.17.">
   <title>S&T Field Logbook — Offline Field Logbook for Railway S&T Staff</title>
   <style>
     body { font-family: system-ui, sans-serif; max-width: 42rem; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; line-height: 1.6; }
@@ -14,37 +14,52 @@
     .tagline { color: #444; margin-top: 0; }
     .card { border: 1px solid #ddd; border-radius: 8px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
     .muted { color: #666; }
+    .ver { font-variant-numeric: tabular-nums; }
   </style>
 </head>
 <body>
   <h1>S&amp;T Field Logbook</h1>
-  <p class="tagline">An offline field logbook for railway Signals &amp; Telecommunications (S&amp;T) department staff.</p>
+  <p class="tagline">An offline field logbook for railway Signals &amp; Telecommunications (S&amp;T) department staff. Current version <strong class="ver">1.7.8.17</strong>.</p>
 
   <h2>What it does</h2>
   <p>S&amp;T Field Logbook helps S&amp;T staff keep their day-to-day records in one place,
   entirely on the device:</p>
   <ul>
-    <li><strong>Daily logs</strong> &mdash; record the day&rsquo;s work, notes and events.</li>
-    <li><strong>Equipment records</strong> &mdash; track S&amp;T equipment, their condition and maintenance.</li>
-    <li><strong>Materials</strong> &mdash; keep a running record of materials and stock.</li>
-    <li><strong>Timings</strong> &mdash; log and manage timings for signalling and interlocking work.</li>
-    <li><strong>Reports</strong> &mdash; generate Word, Excel and PDF documents from your records and share them with whichever app you choose (WhatsApp, email, etc.).</li>
+    <li><strong>Daily logs</strong> &mdash; station, Rest, Leave, CR, NH and Footplate; extra stops and temporary stations; work done, TA claim, tags, photos and PDFs.</li>
+    <li><strong>Reports</strong> &mdash; Monthly, Diary, TA Journal, PCDO, Inspections, Tomorrow&rsquo;s Work, and Muster (attendance sheet, 11th&ndash;10th). PDF, Word and Excel; colour or plain. Auto-generated timings.</li>
+    <li><strong>Materials &amp; notes</strong> &mdash; station stock, notes, and attachments.</li>
+    <li><strong>Reminders</strong> &mdash; pending work, deficiencies, inspections and tag intervals.</li>
   </ul>
 
   <h2>Your data stays with you</h2>
   <p>Everything you enter is stored in the app&rsquo;s private storage on your device.
   No account, analytics, advertising or tracking is required for normal use.</p>
-  <p>Optional <strong>Google Drive backup</strong> can be switched on in Settings. It uses only the
-  private app-data folder in your own Google account, so your records can be restored after a
-  reinstall or on a new device. The app never sees your other Drive files.</p>
+  <p>Optional <strong>Google Drive backup</strong> can be switched on in Settings. Saving and the first open of the day only back up days you changed. Two-way sync runs when you Sign in or tap Sync to Drive. The app uses only the private app-data folder in your own Google account, so your records can be restored after a reinstall. It never sees your other Drive files.</p>
 
   <h2>Download</h2>
   <div class="card">
-    <p>Latest release: <strong>v1.7.6.60</strong></p>
-    <p><a href=".apk-download/index.html">Download the APK and see all past releases &rarr;</a></p>
+    <p>Latest: <strong class="ver">v1.7.8.17</strong> (auto-generated timings)</p>
+    <p><a href=".apk-download/SnTFieldlogbook-v1.7.8.17.apk">Download SnTFieldlogbook-v1.7.8.17.apk</a></p>
+    <p><a href=".apk-download/index.html">All past APKs &rarr;</a></p>
     <p class="muted">Installation: download the APK on your Android phone, open it, and allow
     &ldquo;Install unknown apps&rdquo; for your file manager or browser when prompted.</p>
   </div>
+
+  <h2>Recent updates</h2>
+  <ul>
+    <li><strong class="ver">1.7.8.17</strong> &mdash; Drive no longer overwrites a log you just saved. Saves and the daily open only backup dirty days; Sign in / Sync is two-way. A restore that races a save keeps the device copy.</li>
+    <li><strong class="ver">1.7.8.16</strong> &mdash; Muster AMC / DMC span the station row; multi-movement days print station/station.</li>
+    <li><strong class="ver">1.7.8.15</strong> &mdash; Shorter P / OL band; REST / NH cells merge when stations are on.</li>
+    <li><strong class="ver">1.7.8.14</strong> &mdash; Optional movement-station row under P / OL on the muster.</li>
+    <li><strong class="ver">1.7.8.13</strong> &mdash; Re-editing a Footplate daily log no longer adds a spare movement.</li>
+    <li><strong class="ver">1.7.8.12</strong> &mdash; Writable remarks on Rest / NH / Leave / CR.</li>
+    <li><strong class="ver">1.7.8.11</strong> &mdash; Muster file naming, period label and centred sheet.</li>
+    <li><strong class="ver">1.7.8.10</strong> &mdash; Taller muster sheet with header space above.</li>
+    <li><strong class="ver">1.7.8.9</strong> &mdash; Temporary stations in Search&rsquo;s station filter.</li>
+    <li><strong class="ver">1.7.8.8 &ndash; 1.7.8.6</strong> &mdash; Muster export matches the office sample (landscape, vertical codes, red absence codes).</li>
+    <li><strong class="ver">1.7.8.5</strong> &mdash; Live Diary preview while editing export rows.</li>
+  </ul>
+  <p class="muted">Full timeline: <a href="https://github.com/emdaslam/snt-field-logbook/blob/master/CHANGELOG.md">CHANGELOG.md</a> on GitHub.</p>
 
   <h2>Policies</h2>
   <p><a href=".apk-download/privacy.html">Privacy Policy</a> &middot;
