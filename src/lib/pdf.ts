@@ -17,6 +17,7 @@ import {
   paletteOf,
   type ExportPolish,
 } from "./aiExport";
+import { MIN_NATURE_COL, fitLeftoverWidths } from "./fitLeftover";
 
 const MODERN = paletteOf("modern");
 const GREY: [number, number, number] = [100, 116, 139];
@@ -301,10 +302,6 @@ function liText(el: HTMLElement): string {
 /** Smallest side margin the PDF will use when a table needs more room than the
  *  default margins allow. */
 const MIN_MARGIN = 20;
-
-/** Narrowest the NATURE OF WORK column may go in fit-on-one-page mode — wide
- *  enough to stay readable but well under the ~280pt it otherwise absorbs. */
-const MIN_NATURE_COL = 40;
 
 /**
  * Per-column fit of a table's body cells, measured at the table body font
@@ -1063,52 +1060,32 @@ export function buildPdf(
       // signature block right-aligns to that same edge, so the sheet stays one
       // coherent block instead of the signature overhanging a narrower table.
       // Otherwise (diary / TA journal) fit mode hands the spare room to the
-      // one unpinned column (NATURE OF WORK, index 9): it gets the widest
-      // single line of work text at the current font size instead of the whole
-      // leftover row. That column is never wider than its content (no long
-      // empty strip inside the cell), never wider than the room the fixed
-      // columns leave (no page overflow, the failure the old rigid data-width
-      // attempt caused), and never below MIN_NATURE_COL; spare room spreads
-      // over the fixed columns in proportion, so the table still fills the
-      // printable width — and the fit loop can land on a larger font size,
-      // because a wider column no longer costs a wrapped work-text line.
+      // one unpinned column (NATURE OF WORK). DATE / TRAIN / TIME stay at
+      // content width so they never grow wider than their text.
       if (!opts.polish?.columnWidths) {
         const avail = pageW - 2 * margin;
-        let used = 0;
-        const fixedCols: number[] = [];
+        const pinned: Record<number, number> = {};
         for (const [col, st] of Object.entries(columnStyles)) {
-          if (typeof st.cellWidth === "number") {
-            used += st.cellWidth;
-            fixedCols.push(Number(col));
-          }
+          if (typeof st.cellWidth === "number") pinned[Number(col)] = st.cellWidth;
         }
-        const totalCols = Math.max(0, ...bodyRows.map((r) => r.querySelectorAll("td").length));
-        if (used > 0 && totalCols > 0 && fixedCols.length >= totalCols) {
-          const k = avail / used;
-          for (const col of fixedCols) {
-            const st = columnStyles[col];
-            if (typeof st.cellWidth === "number") st.cellWidth = st.cellWidth * k;
-          }
-        } else if (opts.fitMode && fixedCols.length > 0) {
-          const room = Math.max(avail - used, 0);
-          const content = Math.max(fit[9]?.full ?? 0, hf[9]?.word ?? 0);
-          const cap = Math.max(
-            Math.min(content > 0 ? content : room, room),
-            Math.min(MIN_NATURE_COL, room)
-          );
-          columnStyles[9] = {
-            ...(columnStyles[9] ?? {}),
-            cellWidth: cap,
-          };
-          if (used > 0) {
-            const extra = avail - cap - used;
-            if (extra > 0) {
-              const scale = (used + extra) / used;
-              for (const col of fixedCols) {
-                const st = columnStyles[col];
-                if (typeof st.cellWidth === "number") st.cellWidth = st.cellWidth * scale;
-              }
-            }
+        let colCount = 0;
+        for (const row of headCells) {
+          for (const c of row) colCount = Math.max(colCount, c.colIndex + c.colSpan);
+        }
+        if (!colCount) {
+          colCount = Math.max(0, ...bodyRows.map((r) => r.querySelectorAll("td").length));
+        }
+        const wrapCols: number[] = [];
+        for (let i = 0; i < colCount; i++) {
+          if (pinned[i] == null) wrapCols.push(i);
+        }
+        const wrapCol = wrapCols.length === 1 ? wrapCols[0] : undefined;
+        const allPinned = colCount > 0 && wrapCol == null && Object.keys(pinned).length >= colCount;
+        if (Object.keys(pinned).length > 0 && (allPinned || (opts.fitMode && wrapCol != null))) {
+          const next = fitLeftoverWidths(pinned, allPinned ? undefined : wrapCol, avail);
+          for (const [col, w] of Object.entries(next)) {
+            const i = Number(col);
+            columnStyles[i] = { ...(columnStyles[i] ?? {}), cellWidth: w };
           }
         }
       }

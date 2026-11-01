@@ -3,6 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.20 — 2026-11-01
+
+**Minor: one-page diary columns stay as wide as their text**
+
+- Fit-on-one-page handed leftover table width to DATE / TRAIN / TIME (hardcoded as column 9, which is only NATURE OF WORK on the TA Journal). A dense month like October stretched those columns past their content, squeezed the work text, and shrank the fitted font.
+- Spare room now goes to the real unpinned column (diary col 6, TA col 9). DATE / TRAIN / TIME keep their content width, so the one-page diary matches August / September.
+
 ## 1.7.8.19 — 2026-11-01
 
 **Minor: TA Journal Excel opens in Excel and Google Sheets**
