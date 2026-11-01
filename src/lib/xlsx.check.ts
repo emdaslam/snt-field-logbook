@@ -10,13 +10,29 @@ const xml = new TextDecoder().decode(
   })
 );
 
-// three fonts: normal, bold, one per distinct colour (red)
 assert.match(xml, /<fonts count="3">/);
 assert.match(xml, /<font><b\/>/);
 assert.match(xml, /<font><color rgb="FFFF0000"\/>/);
-// stacked (vertical) text rides on the alignment element, combined with centring
 assert.match(xml, /horizontal="center" vertical="center" textRotation="255"/);
-// the red cell's xf points at the red font (id 2); the stacked-but-black cell keeps font 0
 assert.match(xml, /fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"/);
+
+const kms = "A\nL\nL\n\nA\nR\nE";
+const ta = new TextDecoder().decode(
+  buildXlsx({
+    rows: [
+      ["DATE", "TRAIN", "KMS"],
+      ["01-10-2026", "ROAD", { v: kms, center: true, wrap: true }],
+      ["02-10-2026", "ROAD", ""],
+      ["15-10-2026", "ROAD", ""],
+      ["31-10-2026", "ROAD", ""],
+    ],
+  })
+);
+
+assert.match(ta, /<dimension ref="A1:C5"\/>/);
+assert.match(ta, /01-10-2026/);
+assert.match(ta, /31-10-2026/);
+assert.match(ta, /&#10;/);
+assert.doesNotMatch(ta, /<t[^>]*>[^<]*\n[^<]*<\/t>/);
 
 console.log("xlsx check ok");

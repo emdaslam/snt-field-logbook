@@ -54,7 +54,12 @@ function colLetter(i: number): string {
 }
 
 function esc(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\r\n/g, "&#10;")
+    .replace(/[\n\r]/g, "&#10;");
 }
 
 type CellStyle = { bold?: boolean; center?: boolean; wrap?: boolean; color?: string; stacked?: boolean };
@@ -139,13 +144,17 @@ export function buildXlsx(sheet: XlsxSheet): Uint8Array {
           .join("")}</cols>`
       : "";
 
+  const maxCol = Math.max(colWidths.length, ...rows.map((r) => r.length), 1);
+  const maxRow = Math.max(rows.length, 1);
+  const dim = `A1:${colLetter(maxCol - 1)}${maxRow}`;
+
   const sheetData = rows
-    .map(
-      (row, ri) =>
-        `<row r="${ri + 1}">${row
-          .map((c, ci) => cellXml(`${colLetter(ci)}${ri + 1}`, c, indexOf(cellStyleOf(c))))
-          .join("")}</row>`
-    )
+    .map((row, ri) => {
+      const spanTo = Math.max(row.length, 1);
+      return `<row r="${ri + 1}" spans="1:${spanTo}">${row
+        .map((c, ci) => cellXml(`${colLetter(ci)}${ri + 1}`, c, indexOf(cellStyleOf(c))))
+        .join("")}</row>`;
+    })
     .join("");
 
   const mergeXml =
@@ -161,6 +170,8 @@ export function buildXlsx(sheet: XlsxSheet): Uint8Array {
   const worksheetXml =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n` +
     `<worksheet xmlns="${NS}">` +
+    `<dimension ref="${dim}"/>` +
+    `<sheetViews><sheetView workbookViewId="0"/></sheetViews>` +
     cols +
     `<sheetData>${sheetData}</sheetData>` +
     mergeXml +

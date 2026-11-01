@@ -3,6 +3,12 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.18 — 2026-11-01
+
+**Minor: TA Journal Excel keeps every date**
+
+- The TA Journal Excel file stopped after the first few dates because the KMS note’s line breaks broke the sheet XML. Every TA day in the period is written now.
+
 ## 1.7.8.17 — 2026-10-29
 
 **Minor: Drive no longer overwrites a log you just saved**
