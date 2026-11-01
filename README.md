@@ -2,7 +2,7 @@
 
 Offline-first Android app for Railway S&T (Signalling & Telecom) section staff.
 It runs entirely on-device, so it works with no signal, no internet, and no
-server. Current version: **1.7.8.18** (`in.railway.snt.logbook`).
+server. Current version: **1.7.8.19** (`in.railway.snt.logbook`).
 
 APK downloads: [emdaslam.github.io/snt-field-logbook](https://emdaslam.github.io/snt-field-logbook/)
 
@@ -20,6 +20,7 @@ APK downloads: [emdaslam.github.io/snt-field-logbook](https://emdaslam.github.io
 
 ## Recent updates
 
+- **1.7.8.19** — TA Journal Excel opens in Excel and Google Sheets (certification underline no longer uses a Word tag that Excel strips the sheet for).
 - **1.7.8.18** — TA Journal Excel keeps every date in the period (the KMS note no longer cuts the sheet short).
 - **1.7.8.17** — Drive no longer overwrites a log you just saved. Saves and the daily open only backup dirty days; Sign in / Sync is two-way. A restore that races a save keeps the device copy. More than three differing dirty days asks push vs pull.
 - **1.7.8.16** — Muster AMC / DMC span the station row; multi-movement days print station/station.
@@ -67,7 +68,7 @@ npm run typecheck
 npm run apk:build
 ```
 
-The staged APK is `.apk-download/SnTFieldlogbook-v1.7.8.18.apk`.
+The staged APK is `.apk-download/SnTFieldlogbook-v1.7.8.19.apk`.
 
 ### Signing
 

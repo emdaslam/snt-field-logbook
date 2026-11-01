@@ -55,6 +55,7 @@ function colLetter(i: number): string {
 
 function esc(s: string): string {
   return s
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -122,14 +123,15 @@ function inlineStrXml(text: string, underlineWord?: string): string {
     .filter(([t]) => t.length > 0)
     .map(
       ([t, u]) =>
-        `<r>${u ? `<rPr><u w:val="single"/></rPr>` : ""}<t xml:space="preserve">${esc(t)}</t></r>`
+        `<r>${u ? `<rPr><u val="single"/></rPr>` : ""}<t xml:space="preserve">${esc(t)}</t></r>`
     )
     .join("");
 }
 
 /** Build a single-sheet .xlsx as a STORE-method ZIP of OOXML parts. */
 export function buildXlsx(sheet: XlsxSheet): Uint8Array {
-  const { rows, merges = [], colWidths = [] } = sheet;
+  const { rows, colWidths = [] } = sheet;
+  const merges = (sheet.merges ?? []).filter(([r1, c1, r2, c2]) => r1 !== r2 || c1 !== c2);
 
   const { indexOf, list } = collectStyles(rows);
   const usedBold = list.some((s) => s.bold);

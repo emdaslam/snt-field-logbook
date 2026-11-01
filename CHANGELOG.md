@@ -3,6 +3,12 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.19 — 2026-11-01
+
+**Minor: TA Journal Excel opens in Excel and Google Sheets**
+
+- Excel reported an undeclared prefix on the certification underline (a Word `w:` tag in the sheet) and replaced the whole sheet, so the file looked empty. That tag is SpreadsheetML now. One-cell merges are skipped.
+
 ## 1.7.8.18 — 2026-11-01
 
 **Minor: TA Journal Excel keeps every date**

@@ -35,4 +35,23 @@ assert.match(ta, /31-10-2026/);
 assert.match(ta, /&#10;/);
 assert.doesNotMatch(ta, /<t[^>]*>[^<]*\n[^<]*<\/t>/);
 
+const cert = new TextDecoder().decode(
+  buildXlsx({
+    rows: [
+      ["01-10-2026"],
+      ["15-10-2026"],
+      [{ v: "the employee was absent", underlineWord: "employee" }],
+      ["31-10-2026"],
+    ],
+    merges: [
+      [0, 0, 1, 0],
+      [2, 0, 2, 0],
+    ],
+  })
+);
+assert.match(cert, /<rPr><u val="single"\/><\/rPr>/);
+assert.doesNotMatch(cert, /\bw:/);
+assert.match(cert, /<mergeCells count="1">/);
+assert.match(cert, /31-10-2026/);
+
 console.log("xlsx check ok");
