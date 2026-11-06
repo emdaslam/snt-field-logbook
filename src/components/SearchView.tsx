@@ -234,7 +234,7 @@ export function SearchView({
   };
 
   return (
-    <div className="pb-24 landscape:flex landscape:h-full landscape:min-h-0 landscape:pb-0">
+    <div className="pb-24 landscape:flex landscape:h-full landscape:min-h-0 landscape:flex-1 landscape:overflow-hidden landscape:pb-0">
       <div className="sticky top-0 z-10 space-y-2 bg-slate-100/95 p-3 backdrop-blur landscape:static landscape:w-[22rem] landscape:flex-shrink-0 landscape:overflow-y-auto landscape:border-r landscape:border-slate-200/80">
         <input
           value={q}
@@ -304,7 +304,8 @@ export function SearchView({
           </button>
         </div>
       </div>
-      <div className="space-y-2 p-3 landscape:min-h-0 landscape:flex-1 landscape:overflow-y-auto landscape:grid landscape:grid-cols-2 landscape:gap-2 landscape:space-y-0 landscape:content-start">
+      <div className="landscape:min-h-0 landscape:flex-1 landscape:overflow-y-auto">
+      <div className="space-y-2 p-3 landscape:grid landscape:grid-cols-2 landscape:gap-2 landscape:space-y-0 landscape:content-start">
         <p className="px-1 text-xs font-medium text-slate-400 landscape:col-span-2">{results.length} result{results.length !== 1 ? "s" : ""}</p>
         {results.length === 0 && (
           <p className="rounded-2xl border border-dashed border-slate-300 bg-surface p-8 text-center text-sm text-slate-400 landscape:col-span-2">
@@ -353,6 +354,7 @@ export function SearchView({
             </div>
           </button>
         ))}
+      </div>
       </div>
     </div>
   );

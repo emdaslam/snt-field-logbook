@@ -2,7 +2,7 @@
 
 Offline-first Android app for Railway S&T (Signalling & Telecom) section staff.
 It runs entirely on-device, so it works with no signal, no internet, and no
-server. Current version: **1.7.8.22** (`in.railway.snt.logbook`).
+server. Current version: **1.7.8.23** (`in.railway.snt.logbook`).
 
 APK downloads: [emdaslam.github.io/snt-field-logbook](https://emdaslam.github.io/snt-field-logbook/)
 
@@ -20,6 +20,7 @@ APK downloads: [emdaslam.github.io/snt-field-logbook](https://emdaslam.github.io
 
 ## Recent updates
 
+- **1.7.8.23** — Landscape Search, Notes and Reports scroll; Reports tiles 5 + 5; Logs by Station beside Inspection Schedule.
 - **1.7.8.22** — Landscape layout for every tab, not only Home. Forms and tutorials use the extra width. Portrait unchanged.
 - **1.7.8.21** — Landscape Home: calendar on the left, timeline on the right. Portrait unchanged.
 - **1.7.8.20** — One-page diary columns stay as wide as their text (spare room goes to NATURE OF WORK).

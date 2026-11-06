@@ -259,14 +259,14 @@ export function Settings() {
 
   return (
     <div
-      className="space-y-4 p-4 pb-24 landscape:flex landscape:h-full landscape:min-h-0 landscape:flex-col landscape:space-y-0 landscape:p-0 landscape:pb-0"
+      className="space-y-4 p-4 pb-24 landscape:flex landscape:h-full landscape:min-h-0 landscape:flex-1 landscape:flex-col landscape:overflow-hidden landscape:space-y-0 landscape:p-0 landscape:pb-0"
       style={{ touchAction: "pan-y" }}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
       onTouchCancel={onTouchEnd}
     >
-      <div className="landscape:flex landscape:min-h-0 landscape:flex-1">
+      <div className="landscape:flex landscape:min-h-0 landscape:flex-1 landscape:overflow-hidden">
       <div className="sticky top-0 z-10 -mx-4 bg-slate-100/95 px-3 pb-2 pt-1 backdrop-blur landscape:static landscape:mx-0 landscape:w-[13rem] landscape:flex-shrink-0 landscape:overflow-y-auto landscape:border-r landscape:border-slate-200/80 landscape:px-3 landscape:py-3">
         <div ref={chipsRef} className="flex gap-1 overflow-x-auto rounded-2xl bg-slate-200/70 p-1 ring-1 ring-slate-200/80 landscape:flex-col landscape:overflow-visible">
           {visibleGroups.map((g) => (

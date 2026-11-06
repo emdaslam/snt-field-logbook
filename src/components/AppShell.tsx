@@ -733,7 +733,7 @@ export function AppShell() {
           </div>
         )}
         {view !== "home" && (
-          <div className="min-h-0 flex-1 overflow-y-auto landscape:overflow-hidden">
+          <div className="min-h-0 flex-1 overflow-y-auto landscape:flex landscape:flex-col landscape:overflow-hidden">
             {view === "tasks" && (
               <TaskManager tab={taskTab} setTab={setTaskTab} highlightId={highlightId} clearHighlight={() => setHighlightId(null)} />
             )}

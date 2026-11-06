@@ -61,8 +61,8 @@ export function Notes({ focusNote }: { focusNote?: Note | null }) {
   }
 
   return (
-    <div className="pb-24 landscape:flex landscape:h-full landscape:min-h-0 landscape:flex-col landscape:pb-0">
-      <div className="landscape:flex landscape:min-h-0 landscape:flex-1">
+    <div className="pb-24 landscape:flex landscape:h-full landscape:min-h-0 landscape:flex-1 landscape:flex-col landscape:overflow-hidden landscape:pb-0">
+      <div className="landscape:flex landscape:min-h-0 landscape:flex-1 landscape:overflow-hidden">
       <div className="sticky top-0 z-10 space-y-2 bg-slate-100/95 p-3 backdrop-blur landscape:static landscape:w-44 landscape:flex-shrink-0 landscape:overflow-y-auto landscape:border-r landscape:border-slate-200/80">
         <input
           value={q}
@@ -90,7 +90,8 @@ export function Notes({ focusNote }: { focusNote?: Note | null }) {
         </div>
       </div>
 
-      <div className="space-y-3 p-3 landscape:min-h-0 landscape:flex-1 landscape:overflow-y-auto landscape:grid landscape:grid-cols-2 landscape:gap-3 landscape:space-y-0 landscape:content-start">
+      <div className="landscape:min-h-0 landscape:flex-1 landscape:overflow-y-auto">
+      <div className="space-y-3 p-3 landscape:grid landscape:grid-cols-2 landscape:gap-3 landscape:space-y-0 landscape:content-start">
         <button
           onClick={() => setAdding(true)}
           className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-emerald-400 bg-emerald-50 py-3 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-100 active:scale-[0.98] landscape:col-span-2"
@@ -127,6 +128,7 @@ export function Notes({ focusNote }: { focusNote?: Note | null }) {
         {rest.map((n, i) => (
           <NoteCard key={n.id} note={n} onEdit={setEditing} onPin={togglePin} onOpen={setPreviewAtt} stationName={stationName} refresh={refresh} colorOf={colorOf} query={q} initiallyExpanded={focusId === n.id} index={pinned.length + i} />
         ))}
+      </div>
       </div>
       </div>
 

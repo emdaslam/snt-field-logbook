@@ -153,8 +153,8 @@ export function Reports({
   );
 
   return (
-    <div className="pb-24 landscape:h-full landscape:min-h-0 landscape:overflow-hidden landscape:pb-0">
-    <div className="space-y-4 p-4 landscape:grid landscape:h-full landscape:grid-cols-[minmax(0,1fr)_20rem] landscape:items-start landscape:gap-4 landscape:space-y-0">
+     <div className="pb-24 landscape:flex landscape:h-full landscape:min-h-0 landscape:flex-1 landscape:flex-col landscape:overflow-hidden landscape:pb-0">
+    <div className="space-y-4 p-4 landscape:grid landscape:min-h-0 landscape:flex-1 landscape:grid-cols-[minmax(0,1fr)_20rem] landscape:grid-rows-[minmax(0,1fr)] landscape:gap-4 landscape:space-y-0">
       <div className="space-y-4 landscape:min-h-0 landscape:overflow-y-auto">
       <PeriodPicker period={period} onChange={setPeriod} custom={custom} setCustom={setCustom} />
 
@@ -162,7 +162,7 @@ export function Reports({
         Showing <strong className="text-slate-700">{period.label}</strong> · {fmtDate(period.from)} — {fmtDate(period.to)}
       </p>
 
-      <div className="grid grid-cols-2 gap-3 landscape:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 landscape:grid-cols-5">
         <Stat
           label="Daily Logs"
           value={stats.logs}
@@ -298,9 +298,6 @@ export function Reports({
             })
           }
         />
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 landscape:grid-cols-4">
         <Stat
           label="Deficiencies Pending"
           value={stats.defPending}
@@ -340,9 +337,6 @@ export function Reports({
             })
           }
         />
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 landscape:grid-cols-4">
         <Stat
           label="Planned Pending"
           value={stats.planPending}
@@ -424,6 +418,8 @@ export function Reports({
         </div>
       )}
 
+      {(stats.byStation.length > 0 || schedules.length > 0) && (
+      <div className="space-y-4 landscape:grid landscape:grid-cols-2 landscape:items-start landscape:gap-4 landscape:space-y-0">
       {stats.byStation.length > 0 && (
         <div className="card-rise overflow-hidden rounded-2xl border border-slate-200/80 bg-surface p-4 shadow-sm">
           <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wider text-blue-900">
@@ -516,8 +512,10 @@ export function Reports({
         </div>
       )}
       </div>
+      )}
+      </div>
 
-      <div className="card-rise overflow-hidden rounded-2xl border border-slate-200/80 bg-surface p-4 shadow-sm landscape:sticky landscape:top-0">
+      <div className="card-rise overflow-hidden rounded-2xl border border-slate-200/80 bg-surface p-4 shadow-sm landscape:h-full landscape:min-h-0 landscape:overflow-y-auto">
         <h3 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-blue-900">Generate Reports</h3>
         <div className="flex flex-col gap-2">
           <ExportBtn color="#2563eb" glyph="📄" onClick={() => setTomorrowOpen(true)}>
@@ -578,15 +576,15 @@ function Stat({
     <button
       onClick={onClick}
       disabled={!onClick}
-      className="lift card-rise relative overflow-hidden rounded-2xl border border-slate-200/80 bg-surface p-4 text-left shadow-sm transition enabled:hover:border-blue-300 enabled:hover:shadow-md enabled:active:scale-[0.98]"
+      className="lift card-rise relative overflow-hidden rounded-2xl border border-slate-200/80 bg-surface p-4 text-left shadow-sm transition enabled:hover:border-blue-300 enabled:hover:shadow-md enabled:active:scale-[0.98] landscape:p-3"
     >
       <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: color }} aria-hidden />
-      <p className="pl-1 text-2xl font-bold tracking-tight" style={{ color }}>
+      <p className="pl-1 text-2xl font-bold tracking-tight landscape:text-xl" style={{ color }}>
         {value}
       </p>
       <p className="pl-1 text-xs font-medium text-slate-500">{label}</p>
       {onClick && (
-        <p className="mt-1 flex items-center gap-0.5 pl-1 text-[10px] font-semibold text-blue-500">
+        <p className="mt-1 flex items-center gap-0.5 pl-1 text-[10px] font-semibold text-blue-500 landscape:hidden">
           Tap for details
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
             <path d="m9 18 6-6-6-6" />

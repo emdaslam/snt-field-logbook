@@ -3,6 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.23 — 2026-11-06
+
+**Minor: landscape Search, Notes and Reports actually scroll**
+
+- Landscape Search and Notes put the card grid on a scroller, so logs, deficiencies and note bodies are visible again (Show more / Read full note works). Reports’ left column scrolls; Generate Reports stays a fixed right column.
+- Reports tiles sit 5 + 5 in landscape. Logs by Station and Inspection Schedule sit side by side under them. Portrait is unchanged.
+
 ## 1.7.8.22 — 2026-11-06
 
 **Major: landscape layout for every tab, not only Home**

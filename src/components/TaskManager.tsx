@@ -160,14 +160,14 @@ export function TaskManager({
 
   return (
     <div
-      className="pb-24 landscape:flex landscape:h-full landscape:min-h-0 landscape:flex-col landscape:pb-0"
+      className="pb-24 landscape:flex landscape:h-full landscape:min-h-0 landscape:flex-1 landscape:flex-col landscape:overflow-hidden landscape:pb-0"
       style={{ touchAction: "pan-y" }}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
       onTouchCancel={onTouchEnd}
     >
-      <div className="landscape:flex landscape:min-h-0 landscape:flex-1">
+      <div className="landscape:flex landscape:min-h-0 landscape:flex-1 landscape:overflow-hidden">
       <div className="sticky top-0 z-10 bg-slate-100/95 px-3 pb-2 pt-2 backdrop-blur landscape:static landscape:flex landscape:w-[16rem] landscape:flex-shrink-0 landscape:flex-col landscape:overflow-y-auto landscape:border-r landscape:border-slate-200/80 landscape:px-3 landscape:py-3">
         <div className="flex rounded-2xl bg-slate-200/70 p-1 ring-1 ring-slate-200/80 landscape:flex-col landscape:gap-1">
           {TAB_LIST.map((t) => (
