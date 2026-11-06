@@ -128,11 +128,11 @@ SHA-1:   7B:C9:5F:C1:7F:0F:E4:93:52:1B:48:09:54:46:13:48:4E:73:B7:81
 SHA-256: BC:28:7F:16:8B:BC:41:63:A9:68:D6:AB:5E:F9:85:81:4C:1F:FE:CA:E5:40:B4:46:C1:D4:26:09:C5:93:61:3B
 ```
 
-The keystore itself (2,618 bytes) is the file `debug (1).keystore` / `debug.keystore`
-kept at the repo root (gitignored). Details:
+The keystore itself (2,618 bytes) is `debug.keystore` at the repo root
+(also `.apk-download/debug.keystore`). Details:
 
 ```
-File:        debug (1).keystore  (2,618 bytes)
+File:        debug.keystore  (2,618 bytes)
 Alias:       androiddebugkey
 Store pass:  android
 Key pass:    android
@@ -144,7 +144,7 @@ SHA-256:     BC:28:7F:16:8B:BC:41:63:A9:68:D6:AB:5E:F9:85:81:4C:1F:FE:CA:E5:40:B
 
 **Builds must sign with this exact keystore.** The Gradle debug build signs with
 `~/.android/debug.keystore` by default, so that file must be a copy of this
-keystore (`cp "debug (1).keystore" ~/.android/debug.keystore`). A build signed
+keystore (`cp debug.keystore ~/.android/debug.keystore`). A build signed
 with any other key installs as a separate app (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`)
 and Drive sign-in fails with error 10.
 

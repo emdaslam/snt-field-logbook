@@ -6,6 +6,8 @@ android/app/build/
 android/local.properties
 android/keystore.properties
 *.keystore
+!debug.keystore
+!.apk-download/debug.keystore
 
 # Build artifacts
 .next/
