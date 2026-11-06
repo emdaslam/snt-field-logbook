@@ -2,14 +2,14 @@
 
 Offline-first Android app for Railway S&T (Signalling & Telecom) section staff.
 It runs entirely on-device, so it works with no signal, no internet, and no
-server. Current version: **1.7.8.19** (`in.railway.snt.logbook`).
+server. Current version: **1.7.8.21** (`in.railway.snt.logbook`).
 
 APK downloads: [emdaslam.github.io/snt-field-logbook](https://emdaslam.github.io/snt-field-logbook/)
 
 ## Features
 
 - **Daily log entries** — date, station/movement (Station, Rest, Leave, CR, NH, Footplate), extra stops and temporary stations, work done, TA claim (100/70/30%), tags, photo/PDF attachments, PCDO special works, and disconnection entries.
-- **Calendar + timeline** — month calendar with entry and tag dots, swipe between months, go-to-date picker, tap a day to view its entries.
+- **Calendar + timeline** — month calendar with entry and tag dots, swipe between months, go-to-date picker, tap a day to view its entries. Landscape puts the calendar on the left and the list on the right; portrait stays stacked.
 - **Tags & inspections** — custom tags with per-tag "remind me" intervals and side tracking (monthly/quarterly inspection, joint, maintenance, footplate, point oiling, battery, failures, and more).
 - **Task management** — deficiency tasks (department, station, priority, due date, assignee, status), future planned works, and a "select for tomorrow" workflow.
 - **Reminders** — daily notifications for pending work, due/overdue deficiencies, inspection dues, and tag reminders, plus "no entry today" nags until today's log is recorded.
@@ -20,6 +20,8 @@ APK downloads: [emdaslam.github.io/snt-field-logbook](https://emdaslam.github.io
 
 ## Recent updates
 
+- **1.7.8.21** — Landscape Home: calendar on the left, timeline on the right. Portrait unchanged.
+- **1.7.8.20** — One-page diary columns stay as wide as their text (spare room goes to NATURE OF WORK).
 - **1.7.8.19** — TA Journal Excel opens in Excel and Google Sheets (certification underline no longer uses a Word tag that Excel strips the sheet for).
 - **1.7.8.18** — TA Journal Excel keeps every date in the period (the KMS note no longer cuts the sheet short).
 - **1.7.8.17** — Drive no longer overwrites a log you just saved. Saves and the daily open only backup dirty days; Sign in / Sync is two-way. A restore that races a save keeps the device copy. More than three differing dirty days asks push vs pull.
@@ -68,7 +70,7 @@ npm run typecheck
 npm run apk:build
 ```
 
-The staged APK is `.apk-download/SnTFieldlogbook-v1.7.8.19.apk`.
+The staged APK is `.apk-download/SnTFieldlogbook-v1.7.8.21.apk`.
 
 ### Signing
 

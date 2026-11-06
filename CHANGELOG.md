@@ -3,6 +3,12 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.21 — 2026-11-06
+
+**Major: landscape Home puts the calendar on the left**
+
+- Rotate to landscape and Home splits: the calendar sits in a narrow column on the left, the timeline on the right. Portrait is unchanged (calendar on top, list below). Collapse stays a portrait-only control.
+
 ## 1.7.8.20 — 2026-11-01
 
 **Minor: one-page diary columns stay as wide as their text**

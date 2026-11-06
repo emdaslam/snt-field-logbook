@@ -33,6 +33,18 @@ import type { DailyLog, Attachment, DeficiencyTask, PlannedWork, Note } from "@/
 
 type View = "home" | "tasks" | "search" | "reports" | "notes" | "attachments" | "materials" | "settings";
 
+function useLandscape() {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(orientation: landscape)");
+    const apply = () => setOn(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+  return on;
+}
+
 export function AppShell() {
   const {
     loading,
@@ -66,6 +78,7 @@ export function AppShell() {
     setView(v);
   };
   const [drawer, setDrawer] = useState(false);
+  const landscape = useLandscape();
   const [calCollapsed, setCalCollapsed] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [calCursor, setCalCursor] = useState(() => {
@@ -434,7 +447,7 @@ export function AppShell() {
   }
 
   return (
-    <div className="mx-auto flex h-dvh max-w-md flex-col bg-slate-100 shadow-xl">
+    <div className={`mx-auto flex h-dvh flex-col bg-slate-100 shadow-xl ${landscape && view === "home" ? "max-w-none" : "max-w-md"}`}>
       {/* Header */}
       <header className="relative z-20 flex items-center justify-between bg-gradient-to-r from-blue-950 via-blue-900 to-blue-800 px-3 py-3 text-white shadow-lg shadow-blue-900/30">
         <button onClick={() => setDrawer(true)} className="rounded-xl p-2 transition hover:bg-white/10 active:scale-95" aria-label="Menu">
@@ -662,8 +675,9 @@ export function AppShell() {
                 {myStationsOnly ? `My Stations (${myStationNames.length})` : "All Stations"}
               </button>
             </div>
-            {/* Top half: calendar */}
-            <div className="cal-depth relative z-10 border-b border-slate-200/80 bg-gradient-to-b from-slate-50/50 to-surface">
+            <div className="flex min-h-0 flex-1 flex-col landscape:flex-row">
+            {/* Top half (portrait) / left column (landscape): calendar */}
+            <div className="cal-depth relative z-10 border-b border-slate-200/80 bg-gradient-to-b from-slate-50/50 to-surface landscape:h-full landscape:w-[18.5rem] landscape:flex-shrink-0 landscape:overflow-y-auto landscape:border-b-0 landscape:border-r">
               <Calendar
                 activeDates={activeDates}
                 dateTagColors={dateTagColors}
@@ -674,7 +688,7 @@ export function AppShell() {
                   setFocusedDate(d);
                   if (d) setCalCursor(new Date(Number(d.slice(0, 4)), Number(d.slice(5, 7)) - 1, 1));
                 }}
-                collapsed={calCollapsed}
+                collapsed={calCollapsed && !landscape}
                 cursor={calCursor}
                 setCursor={setCalCursor}
                 onGoToDate={goToDate}
@@ -682,7 +696,7 @@ export function AppShell() {
               />
               <button
                 onClick={() => setCalCollapsed((v) => !v)}
-                className="flex w-full items-center justify-center gap-1 border-t border-slate-100 py-1 text-xs text-slate-400 hover:bg-slate-50"
+                className="flex w-full items-center justify-center gap-1 border-t border-slate-100 py-1 text-xs text-slate-400 hover:bg-slate-50 landscape:hidden"
               >
                 {calCollapsed ? "Expand calendar" : "Collapse calendar"}
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0.28,1)] ${calCollapsed ? "" : "rotate-180"}`}>
@@ -692,11 +706,13 @@ export function AppShell() {
             </div>
             {/* Bottom half: timeline. -mt-1.5 (6px) tucks the scroller's top
                 under the calendar ledge (the depth effect); keep in sync with
-                DEPTH_TUCK in Timeline.tsx, which compensates for it. */}
-            <div className="-mt-1.5 min-h-0 flex-1">
+                DEPTH_TUCK in Timeline.tsx, which compensates for it.
+                Landscape has no ledge, so the tuck and negative margin drop. */}
+            <div className="-mt-1.5 min-h-0 flex-1 landscape:mt-0">
               <Timeline
                 selectedDate={selectedDate}
                 goToSignal={goToSignal}
+                depthTuck={landscape ? 0 : 6}
                 onOpen={(l) => { setDetailLog(l); }}
                 onAddEntry={(iso) => {
                   setSelectedDate(iso);
@@ -712,6 +728,7 @@ export function AppShell() {
                   }
                 }}
               />
+            </div>
             </div>
           </div>
         )}
@@ -750,7 +767,7 @@ export function AppShell() {
         {(view === "home" || view === "tasks") && (
           <button
             onClick={() => setFabOpen(true)}
-            className="fixed bottom-24 right-[max(1rem,calc(50%-13rem))] z-30 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-xl shadow-emerald-600/30 ring-1 ring-white/20 transition hover:scale-105 hover:from-emerald-300 hover:to-emerald-500 active:scale-95"
+            className={`fixed bottom-24 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-xl shadow-emerald-600/30 ring-1 ring-white/20 transition hover:scale-105 hover:from-emerald-300 hover:to-emerald-500 active:scale-95 ${landscape && view === "home" ? "right-4" : "right-[max(1rem,calc(50%-13rem))]"}`}
             aria-label="Quick add"
           >
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">

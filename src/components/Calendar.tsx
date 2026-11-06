@@ -290,7 +290,8 @@ export function Calendar({
 
   return (
     <div className="px-3 pb-1.5 pt-1">
-      {/* Header row */}
+      {/* Header row. Landscape stacks Go-to-date under the month so the
+          narrow left column does not overflow. */}
       <div className="mb-0.5 flex items-center justify-between">
         <button
           onClick={() => goMonth(-1)}
@@ -301,7 +302,7 @@ export function Calendar({
             <path d="m15 18-6-6 6-6" />
           </svg>
         </button>
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 landscape:hidden">
           <span className="text-[14px] font-bold tracking-tight text-blue-900">{monthLabel}</span>
           <GoToDateButton
             initial={focusedDate ?? selectedDate ?? today}
@@ -309,6 +310,7 @@ export function Calendar({
             onGo={(iso) => onGoToDate?.(iso)}
           />
         </div>
+        <span className="hidden text-[14px] font-bold tracking-tight text-blue-900 landscape:inline">{monthLabel}</span>
         <button
           onClick={() => goMonth(1)}
           className="lift flex h-7 w-7 items-center justify-center rounded-full text-blue-800 transition hover:bg-blue-100/80 active:scale-90"
@@ -318,6 +320,13 @@ export function Calendar({
             <path d="m9 18 6-6-6-6" />
           </svg>
         </button>
+      </div>
+      <div className="mb-0.5 hidden justify-center landscape:flex">
+        <GoToDateButton
+          initial={focusedDate ?? selectedDate ?? today}
+          today={today}
+          onGo={(iso) => onGoToDate?.(iso)}
+        />
       </div>
 
       {/* Weekday header */}

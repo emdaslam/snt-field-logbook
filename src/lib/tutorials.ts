@@ -826,6 +826,23 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.8.21",
+    tag: "Landscape Home",
+    subtitle: "Turn the phone and the calendar sits on the left.",
+    slides: [
+      {
+        glyph: "▦",
+        title: "Calendar on the left",
+        body: "In landscape, Home splits: the month calendar sits in a narrow column on the left, and the daily log list fills the rest of the screen on the right.",
+      },
+      {
+        glyph: "▮",
+        title: "Portrait is the same",
+        body: "Hold the phone upright and nothing changes — calendar on top, timeline below, with the collapse bar still there. Collapse is hidden in landscape because the left column already shows the full month.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {

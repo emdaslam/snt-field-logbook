@@ -41,3 +41,10 @@ html[data-theme="neon"] {
     0 10px 18px -6px var(--lift-edge),
     0 3px 6px var(--lift-drop) !important;
 }
+@media (orientation: landscape) {
+  .cal-depth {
+    box-shadow:
+      8px 0 18px -6px var(--lift-edge),
+      3px 0 6px var(--lift-drop) !important;
+  }
+}

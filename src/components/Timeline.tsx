@@ -45,6 +45,7 @@ function buildDateRange(
 export function Timeline({
   selectedDate,
   goToSignal = 0,
+  depthTuck = 6,
   onOpen,
   onAddEntry,
   onVisibleDateChange,
@@ -53,6 +54,9 @@ export function Timeline({
   /** Increments each time the caller explicitly asks to navigate to a date, so
    *  the list re-scrolls even if selectedDate itself did not change. */
   goToSignal?: number;
+  /** Extra pixels the scroller is tucked under the calendar ledge. 6 in
+   *  portrait (-mt-1.5 on the Home wrapper); 0 in landscape (side-by-side). */
+  depthTuck?: number;
   onOpen: (log: DailyLog) => void;
   /** Tapping a date row that has no daily log opens the add form for that date. */
   onAddEntry?: (iso: string) => void;
@@ -128,13 +132,12 @@ export function Timeline({
    * (the Home timeline wrapper uses -mt-1.5 in AppShell, 6px), so the
    * container's own top sits 6px ABOVE the calendar's bottom line; add the
    * tuck back in so the switch lands on the visible line, not on the hidden
-   * container top.
+   * container top. Landscape is side-by-side, so depthTuck is 0.
    */
-  const DEPTH_TUCK = 6; // matches -mt-1.5 on the Home timeline wrapper in AppShell
   function visibleDate(): string | null {
     const container = scrollRef.current;
     if (!container) return null;
-    const line = container.scrollTop + DEPTH_TUCK + 5;
+    const line = container.scrollTop + depthTuck + 5;
     let lo = 0;
     let hi = dates.length - 1;
     let best: string | null = null;
