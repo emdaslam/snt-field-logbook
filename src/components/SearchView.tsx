@@ -234,15 +234,15 @@ export function SearchView({
   };
 
   return (
-    <div className="pb-24">
-      <div className="sticky top-0 z-10 space-y-2 bg-slate-100/95 p-3 backdrop-blur">
+    <div className="pb-24 landscape:flex landscape:h-full landscape:min-h-0 landscape:pb-0">
+      <div className="sticky top-0 z-10 space-y-2 bg-slate-100/95 p-3 backdrop-blur landscape:static landscape:w-[22rem] landscape:flex-shrink-0 landscape:overflow-y-auto landscape:border-r landscape:border-slate-200/80">
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search logs, tasks, notes, materials & planned works…"
           className="w-full rounded-2xl border border-slate-200 bg-surface px-4 py-2.5 text-sm shadow-sm outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
         />
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-2 landscape:grid-cols-2">
           <select className={selCls} value={typeF} onChange={(e) => setTypeF(e.target.value as ResultType | "")}>
             <option value="">All Types</option>
             <option>Log</option>
@@ -304,10 +304,10 @@ export function SearchView({
           </button>
         </div>
       </div>
-      <div className="space-y-2 p-3">
-        <p className="px-1 text-xs font-medium text-slate-400">{results.length} result{results.length !== 1 ? "s" : ""}</p>
+      <div className="space-y-2 p-3 landscape:min-h-0 landscape:flex-1 landscape:overflow-y-auto landscape:grid landscape:grid-cols-2 landscape:gap-2 landscape:space-y-0 landscape:content-start">
+        <p className="px-1 text-xs font-medium text-slate-400 landscape:col-span-2">{results.length} result{results.length !== 1 ? "s" : ""}</p>
         {results.length === 0 && (
-          <p className="rounded-2xl border border-dashed border-slate-300 bg-surface p-8 text-center text-sm text-slate-400">
+          <p className="rounded-2xl border border-dashed border-slate-300 bg-surface p-8 text-center text-sm text-slate-400 landscape:col-span-2">
             Nothing matches those filters.
           </p>
         )}

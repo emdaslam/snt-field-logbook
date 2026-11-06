@@ -3,6 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.22 — 2026-11-06
+
+**Major: landscape layout for every tab, not only Home**
+
+- Rotate to landscape and the whole app uses the extra width: Tasks, Search, Reports, Notes, Attachments, Materials and Settings split like Home (filters / nav on the left, content on the right). Cards sit two or three across. Portrait is unchanged.
+- Forms, export pickers, log detail, onboarding and tutorials grow with the screen instead of staying a phone-width sheet. Quick Add puts the three actions in a row.
+
 ## 1.7.8.21 — 2026-11-06
 
 **Major: landscape Home puts the calendar on the left**

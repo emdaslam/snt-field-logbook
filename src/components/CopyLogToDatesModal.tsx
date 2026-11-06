@@ -81,7 +81,7 @@ export function CopyLogToDatesModal({
   }
 
   return (
-    <Modal open onClose={onClose} title="Copy to dates">
+    <Modal open onClose={onClose} title="Copy to dates" wide>
       <p className="mb-3 text-sm text-slate-600">
         Copies this entry onto each date you pick. Movement, work, timings, tags and
         attachments stay the same; each copy can be edited on its own. The original{" "}

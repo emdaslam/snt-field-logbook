@@ -1768,7 +1768,7 @@ export function DailyLogForm({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={existing ? "Edit Daily Log" : "Add Daily Log"}>
+    <Modal open={open} onClose={onClose} title={existing ? "Edit Daily Log" : "Add Daily Log"} wide>
       <Field label="Date">
         <input type="date" className={inputClass} value={logDate} onChange={(e) => setLogDate(e.target.value)} />
       </Field>
@@ -2999,7 +2999,7 @@ export function DeficiencyForm({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={existing ? "Edit Deficiency Task" : "Add Deficiency Task"}>
+    <Modal open={open} onClose={onClose} title={existing ? "Edit Deficiency Task" : "Add Deficiency Task"} wide>
       <Field label="Deficiency Department">
         <select className={inputClass} value={department} onChange={(e) => setDepartment(e.target.value)}>
           {DEPARTMENTS.map((d) => (
@@ -3121,6 +3121,7 @@ export function PlannedWorkForm({
       open={open}
       onClose={onClose}
       title={convertFrom ? "Convert Deficiency to Planned Work" : existing ? "Edit Planned Work" : "Add Future Planned Work"}
+      wide
     >
       {convertFrom && (
         <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">

@@ -43,8 +43,8 @@ export function FeatureTutorials({ tutorials = TUTORIAL_CATALOG, replay = false,
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-surface shadow-2xl">
-        <div className="bg-blue-900 px-5 pb-5 pt-6 text-white">
+      <div className="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-surface shadow-2xl landscape:max-h-[96dvh] landscape:max-w-3xl landscape:flex-row">
+        <div className="bg-blue-900 px-5 pb-5 pt-6 text-white landscape:flex landscape:w-64 landscape:flex-shrink-0 landscape:flex-col">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h2 className="text-lg font-bold">What&apos;s new in {tutorial.version}</h2>
@@ -68,8 +68,8 @@ export function FeatureTutorials({ tutorials = TUTORIAL_CATALOG, replay = false,
           )}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-5">
-          <div className="mb-5 flex h-40 w-full items-center justify-center rounded-2xl bg-gradient-to-br from-blue-50 to-cyan-50 text-6xl text-blue-900">
+        <div className="min-h-0 flex-1 overflow-y-auto p-5 landscape:min-h-0">
+          <div className="mb-5 flex h-40 w-full items-center justify-center rounded-2xl bg-gradient-to-br from-blue-50 to-cyan-50 text-6xl text-blue-900 landscape:h-24 landscape:text-4xl">
             {s.glyph}
           </div>
           <h4 className="mb-1 text-center text-lg font-bold text-slate-800">{s.title}</h4>

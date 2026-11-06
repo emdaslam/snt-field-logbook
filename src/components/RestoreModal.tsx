@@ -181,7 +181,7 @@ export function RestoreModal({ open, onClose }: { open: boolean; onClose: () => 
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="Paste backup JSON here…"
-        className="h-48 w-full rounded-lg border border-slate-300 bg-slate-50 p-2 font-mono text-[10px] leading-tight text-slate-700"
+        className="h-48 landscape:h-32 w-full rounded-lg border border-slate-300 bg-slate-50 p-2 font-mono text-[10px] leading-tight text-slate-700"
       />
 
       <div className="mt-3 flex items-center justify-between">

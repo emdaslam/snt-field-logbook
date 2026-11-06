@@ -637,7 +637,7 @@ export function Materials({ focusMaterialId }: { focusMaterialId?: number | null
   };
 
   return (
-    <div className="pb-24">
+    <div className="pb-24 landscape:h-full landscape:min-h-0 landscape:overflow-y-auto landscape:pb-0">
       <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 bg-slate-100/95 px-3 py-2.5 backdrop-blur">
         <p className="text-xs text-slate-600">
           <strong className="text-slate-800">{totalMaterials}</strong> material{totalMaterials !== 1 ? "s" : ""} · received{" "}
@@ -703,7 +703,7 @@ export function Materials({ focusMaterialId }: { focusMaterialId?: number | null
       )}
 
       {materials.length === 0 ? (
-        <div className="m-3 rounded-2xl border border-dashed border-slate-300 bg-surface p-8 text-center shadow-sm">
+        <div className="m-3 rounded-2xl border border-dashed border-slate-300 bg-surface p-8 text-center shadow-sm landscape:col-span-2">
           <p className="mb-4 text-sm text-slate-500">
             No materials on the required list yet. Add the materials you need — pick the equipment they
             belong to, the quantity and unit, and the station(s) they belong to — then record how many you
@@ -713,7 +713,7 @@ export function Materials({ focusMaterialId }: { focusMaterialId?: number | null
           <PrimaryButton onClick={() => setMaterialForm({ open: true })}>+ Add Material</PrimaryButton>
         </div>
       ) : (
-        <div className="space-y-3 p-3">
+        <div className="space-y-3 p-3 landscape:grid landscape:grid-cols-2 landscape:gap-3 landscape:space-y-0">
           {stationGroups.map((group, gi) => {
             const open = expandedStation.has(group.stationId);
             return (
@@ -1005,7 +1005,7 @@ function MaterialForm({
     }`;
 
   return (
-    <Modal open onClose={onClose} title={existing ? "Edit Material" : "Add Material"}>
+    <Modal open onClose={onClose} title={existing ? "Edit Material" : "Add Material"} wide>
       <Field label="Material name">
         <input
           className={inputClass}

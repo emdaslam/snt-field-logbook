@@ -223,7 +223,7 @@ export function PcdoExportModal({ open, onClose }: { open: boolean; onClose: () 
         </div>
       )}
 
-      <div className="mb-4 max-h-56 overflow-y-auto rounded-lg border border-slate-200">
+      <div className="mb-4 max-h-56 overflow-y-auto rounded-lg border border-slate-200 landscape:max-h-[50dvh]">
         {previewRows.length === 0 ? (
           <p className="p-4 text-center text-sm text-slate-400">
             No special works recorded in the PCDO section for this period.

@@ -15,8 +15,8 @@ export function Onboarding({ onComplete }: { onComplete: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-surface shadow-2xl">
-        <div className="bg-blue-900 px-5 pb-5 pt-6 text-white">
+      <div className="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-surface shadow-2xl landscape:max-h-[96dvh] landscape:max-w-3xl landscape:flex-row">
+        <div className="bg-blue-900 px-5 pb-5 pt-6 text-white landscape:flex landscape:w-56 landscape:flex-shrink-0 landscape:flex-col">
           <h2 className="text-lg font-bold">Welcome to the Field Logbook</h2>
           <p className="mt-0.5 text-xs text-blue-200">Three quick steps and you&apos;re ready to log.</p>
           <div className="mt-4 flex gap-1.5">
@@ -31,7 +31,7 @@ export function Onboarding({ onComplete }: { onComplete: () => void }) {
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-5">
+        <div className="min-h-0 flex-1 overflow-y-auto p-5 landscape:min-h-0">
           {step === 0 && (
             <StationsStep
               mine={mine}

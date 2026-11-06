@@ -46,7 +46,7 @@ export function StatDetailModal({
           {emptyText}
         </p>
       ) : (
-        <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">
+        <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 landscape:grid landscape:grid-cols-2 landscape:divide-y-0">
           {[...rows]
             .sort((a, b) => a.date.localeCompare(b.date))
             .map((r) => {

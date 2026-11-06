@@ -843,6 +843,23 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.8.22",
+    tag: "Landscape everywhere",
+    subtitle: "Turn the phone and every tab uses the extra width.",
+    slides: [
+      {
+        glyph: "▣",
+        title: "Every tab splits",
+        body: "Landscape is no longer Home-only. Tasks, Search, Reports, Notes, Attachments, Materials and Settings put filters or section chips on the left and the list on the right, with cards two or three across.",
+      },
+      {
+        glyph: "▭",
+        title: "Forms fill the screen",
+        body: "Daily log, tasks, exports, onboarding and tutorials grow with the phone instead of staying a portrait-width sheet. Quick Add shows the three actions in a row. Portrait is unchanged.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {

@@ -153,14 +153,16 @@ export function Reports({
   );
 
   return (
-    <div className="space-y-4 p-4 pb-24">
+    <div className="pb-24 landscape:h-full landscape:min-h-0 landscape:overflow-hidden landscape:pb-0">
+    <div className="space-y-4 p-4 landscape:grid landscape:h-full landscape:grid-cols-[minmax(0,1fr)_20rem] landscape:items-start landscape:gap-4 landscape:space-y-0">
+      <div className="space-y-4 landscape:min-h-0 landscape:overflow-y-auto">
       <PeriodPicker period={period} onChange={setPeriod} custom={custom} setCustom={setCustom} />
 
       <p className="-mt-2 px-1 text-xs text-slate-500">
         Showing <strong className="text-slate-700">{period.label}</strong> · {fmtDate(period.from)} — {fmtDate(period.to)}
       </p>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 landscape:grid-cols-4">
         <Stat
           label="Daily Logs"
           value={stats.logs}
@@ -298,7 +300,7 @@ export function Reports({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 landscape:grid-cols-4">
         <Stat
           label="Deficiencies Pending"
           value={stats.defPending}
@@ -340,7 +342,7 @@ export function Reports({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 landscape:grid-cols-4">
         <Stat
           label="Planned Pending"
           value={stats.planPending}
@@ -386,7 +388,7 @@ export function Reports({
           <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wider text-amber-900">
             Disconnections Breakdown
           </h3>
-          <div className="grid grid-cols-2 gap-2 text-center">
+          <div className="grid grid-cols-2 gap-2 text-center landscape:grid-cols-4">
             <Mini label="Special Work" value={stats.disc.sw} />
             <Mini label="Failure" value={stats.disc.fa} />
             <Mini label="Maintenance" value={stats.disc.mt} />
@@ -513,8 +515,9 @@ export function Reports({
           </ul>
         </div>
       )}
+      </div>
 
-      <div className="card-rise overflow-hidden rounded-2xl border border-slate-200/80 bg-surface p-4 shadow-sm">
+      <div className="card-rise overflow-hidden rounded-2xl border border-slate-200/80 bg-surface p-4 shadow-sm landscape:sticky landscape:top-0">
         <h3 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-blue-900">Generate Reports</h3>
         <div className="flex flex-col gap-2">
           <ExportBtn color="#2563eb" glyph="📄" onClick={() => setTomorrowOpen(true)}>
@@ -539,6 +542,7 @@ export function Reports({
             Export Inspections (monthly / quarterly / maintenance)
           </ExportBtn>
         </div>
+      </div>
       </div>
 
       <TomorrowWorkModal open={tomorrowOpen} onClose={() => setTomorrowOpen(false)} />

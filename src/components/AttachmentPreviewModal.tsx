@@ -219,7 +219,7 @@ function ZoomableImage({ src, alt }: { src: string; alt: string }) {
   return (
     <div
       ref={stageRef}
-      className={`relative h-[70vh] w-full touch-none select-none overflow-hidden rounded-lg ${
+      className={`relative h-[70vh] landscape:h-[calc(100dvh-8rem)] w-full touch-none select-none overflow-hidden rounded-lg ${
         view.s > 1 ? "cursor-grab active:cursor-grabbing" : ""
       }`}
       onPointerDown={onPointerDown}

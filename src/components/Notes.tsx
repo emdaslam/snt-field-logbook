@@ -61,8 +61,9 @@ export function Notes({ focusNote }: { focusNote?: Note | null }) {
   }
 
   return (
-    <div className="pb-24">
-      <div className="sticky top-0 z-10 space-y-2 bg-slate-100/95 p-3 backdrop-blur">
+    <div className="pb-24 landscape:flex landscape:h-full landscape:min-h-0 landscape:flex-col landscape:pb-0">
+      <div className="landscape:flex landscape:min-h-0 landscape:flex-1">
+      <div className="sticky top-0 z-10 space-y-2 bg-slate-100/95 p-3 backdrop-blur landscape:static landscape:w-44 landscape:flex-shrink-0 landscape:overflow-y-auto landscape:border-r landscape:border-slate-200/80">
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -89,10 +90,10 @@ export function Notes({ focusNote }: { focusNote?: Note | null }) {
         </div>
       </div>
 
-      <div className="space-y-3 p-3">
+      <div className="space-y-3 p-3 landscape:min-h-0 landscape:flex-1 landscape:overflow-y-auto landscape:grid landscape:grid-cols-2 landscape:gap-3 landscape:space-y-0 landscape:content-start">
         <button
           onClick={() => setAdding(true)}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-emerald-400 bg-emerald-50 py-3 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-100 active:scale-[0.98]"
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-emerald-400 bg-emerald-50 py-3 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-100 active:scale-[0.98] landscape:col-span-2"
         >
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-white">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
@@ -103,13 +104,13 @@ export function Notes({ focusNote }: { focusNote?: Note | null }) {
         </button>
 
         {filtered.length === 0 && (
-          <p className="rounded-2xl border border-dashed border-slate-300 bg-surface p-8 text-center text-sm text-slate-400">
+          <p className="rounded-2xl border border-dashed border-slate-300 bg-surface p-8 text-center text-sm text-slate-400 landscape:col-span-2">
             No notes yet. Store installation dates, equipment details, contacts or standing instructions here.
           </p>
         )}
 
         {pinned.length > 0 && (
-          <p className="flex items-center gap-1.5 px-1 text-[11px] font-bold uppercase tracking-wider text-amber-700">
+          <p className="flex items-center gap-1.5 px-1 text-[11px] font-bold uppercase tracking-wider text-amber-700 landscape:col-span-2">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
               <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" />
             </svg>
@@ -121,11 +122,12 @@ export function Notes({ focusNote }: { focusNote?: Note | null }) {
         ))}
 
         {pinned.length > 0 && rest.length > 0 && (
-          <p className="px-1 pt-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">Other notes</p>
+          <p className="px-1 pt-1 text-[11px] font-bold uppercase tracking-wider text-slate-400 landscape:col-span-2">Other notes</p>
         )}
         {rest.map((n, i) => (
           <NoteCard key={n.id} note={n} onEdit={setEditing} onPin={togglePin} onOpen={setPreviewAtt} stationName={stationName} refresh={refresh} colorOf={colorOf} query={q} initiallyExpanded={focusId === n.id} index={pinned.length + i} />
         ))}
+      </div>
       </div>
 
       {(adding || editing) && (
@@ -284,7 +286,7 @@ function NoteForm({ existing, onClose }: { existing: Note | null; onClose: () =>
   }
 
   return (
-    <Modal open onClose={onClose} title={existing ? "Edit Note" : "Add Important Note"}>
+    <Modal open onClose={onClose} title={existing ? "Edit Note" : "Add Important Note"} wide>
       <Field label="Title">
         <input
           className={inputClass}

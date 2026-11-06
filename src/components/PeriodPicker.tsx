@@ -53,7 +53,7 @@ export function PeriodPicker({
       </div>
 
       {custom ? (
-        <div className="flex flex-wrap items-end gap-2">
+        <div className="flex flex-wrap items-end gap-2 landscape:grid landscape:grid-cols-2">
           <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
             From
             <input

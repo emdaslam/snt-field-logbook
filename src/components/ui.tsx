@@ -74,9 +74,9 @@ export function Modal({
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center landscape:items-center landscape:p-3" onClick={onClose}>
       <div
-        className={`w-full ${wide ? "sm:max-w-2xl" : "sm:max-w-md"} max-h-[92vh] overflow-y-auto rounded-t-3xl bg-surface shadow-2xl ring-1 ring-black/5 sm:rounded-3xl`}
+        className={`w-full ${wide ? "sm:max-w-2xl landscape:max-w-[min(56rem,96vw)]" : "sm:max-w-md landscape:max-w-lg"} max-h-[92vh] landscape:max-h-[96dvh] overflow-y-auto rounded-t-3xl bg-surface shadow-2xl ring-1 ring-black/5 sm:rounded-3xl landscape:rounded-2xl`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sticky top-0 flex items-center justify-between border-b border-slate-100 bg-surface/95 px-5 py-4 backdrop-blur">

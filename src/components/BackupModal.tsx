@@ -207,7 +207,7 @@ export function BackupModal({ open, onClose }: { open: boolean; onClose: () => v
         readOnly
         value={json}
         onFocus={(e) => e.currentTarget.select()}
-        className="h-48 w-full rounded-lg border border-slate-300 bg-slate-50 p-2 font-mono text-[10px] leading-tight text-slate-700"
+        className="h-48 landscape:h-32 w-full rounded-lg border border-slate-300 bg-slate-50 p-2 font-mono text-[10px] leading-tight text-slate-700"
       />
     </Modal>
   );

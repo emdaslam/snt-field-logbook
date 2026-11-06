@@ -101,8 +101,8 @@ export function AttachmentsView({ onSelect }: { onSelect: (a: Attachment | null)
   ];
 
   return (
-    <div className="pb-24">
-      <div className="sticky top-0 z-10 space-y-2 bg-slate-100/95 p-3 backdrop-blur">
+    <div className="pb-24 landscape:flex landscape:h-full landscape:min-h-0 landscape:pb-0">
+      <div className="sticky top-0 z-10 space-y-2 bg-slate-100/95 p-3 backdrop-blur landscape:static landscape:w-44 landscape:flex-shrink-0 landscape:overflow-y-auto landscape:border-r landscape:border-slate-200/80">
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -127,9 +127,9 @@ export function AttachmentsView({ onSelect }: { onSelect: (a: Attachment | null)
         </div>
       </div>
 
-      <div className="space-y-2 p-3">
+      <div className="space-y-2 p-3 landscape:min-h-0 landscape:flex-1 landscape:overflow-y-auto landscape:grid landscape:grid-cols-3 landscape:gap-2 landscape:space-y-0 landscape:content-start">
         {filtered.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-slate-300 bg-surface p-8 text-center text-sm text-slate-400">
+          <p className="rounded-2xl border border-dashed border-slate-300 bg-surface p-8 text-center text-sm text-slate-400 landscape:col-span-3">
             {items.length === 0
               ? "No attachments yet — add photos or PDFs to a daily log."
               : "Nothing matches those filters."}

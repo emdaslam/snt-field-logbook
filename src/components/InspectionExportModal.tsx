@@ -219,7 +219,7 @@ export function InspectionExportModal({ open, onClose }: { open: boolean; onClos
         )}
       </div>
 
-      <div className="mb-4 max-h-56 overflow-y-auto rounded-lg border border-slate-200">
+      <div className="mb-4 max-h-56 overflow-y-auto rounded-lg border border-slate-200 landscape:max-h-[50dvh]">
         {rows.length === 0 ? (
           <p className="p-4 text-center text-sm text-slate-400">
             No inspections of the selected type(s) recorded in this period.

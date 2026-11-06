@@ -160,20 +160,21 @@ export function TaskManager({
 
   return (
     <div
-      className="pb-24"
+      className="pb-24 landscape:flex landscape:h-full landscape:min-h-0 landscape:flex-col landscape:pb-0"
       style={{ touchAction: "pan-y" }}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
       onTouchCancel={onTouchEnd}
     >
-      <div className="sticky top-0 z-10 bg-slate-100/95 px-3 pb-2 pt-2 backdrop-blur">
-        <div className="flex rounded-2xl bg-slate-200/70 p-1 ring-1 ring-slate-200/80">
+      <div className="landscape:flex landscape:min-h-0 landscape:flex-1">
+      <div className="sticky top-0 z-10 bg-slate-100/95 px-3 pb-2 pt-2 backdrop-blur landscape:static landscape:flex landscape:w-[16rem] landscape:flex-shrink-0 landscape:flex-col landscape:overflow-y-auto landscape:border-r landscape:border-slate-200/80 landscape:px-3 landscape:py-3">
+        <div className="flex rounded-2xl bg-slate-200/70 p-1 ring-1 ring-slate-200/80 landscape:flex-col landscape:gap-1">
           {TAB_LIST.map((t) => (
             <button
               key={t}
               onClick={() => selectTab(t)}
-              className={`flex-1 rounded-xl py-2 text-[13px] font-semibold capitalize transition active:scale-[0.98] ${
+              className={`flex-1 rounded-xl py-2 text-[13px] font-semibold capitalize transition active:scale-[0.98] landscape:flex-none landscape:px-3 landscape:text-left ${
                  tab === t
                    ? "lift bg-surface text-blue-800 ring-1 ring-black/5"
                    : "text-slate-500 hover:text-slate-700"
@@ -183,9 +184,56 @@ export function TaskManager({
             </button>
           ))}
         </div>
+      {(tab === "deficiencies" || tab === "planned") && (
+        <div className="mt-2 hidden flex-col gap-2 landscape:flex">
+          <select
+            value={tab === "deficiencies" ? defDept : planDept}
+            onChange={(e) =>
+              tab === "deficiencies" ? setDefDept(e.target.value) : setPlanDept(e.target.value)
+            }
+            className={`${inputClass} w-full py-1.5 text-xs`}
+          >
+            <option value="">All departments</option>
+            {DEPARTMENTS.map((d) => (
+              <option key={d}>{d}</option>
+            ))}
+          </select>
+          <select
+            value={tab === "deficiencies" ? defStation : planStation}
+            onChange={(e) =>
+              tab === "deficiencies" ? setDefStation(e.target.value) : setPlanStation(e.target.value)
+            }
+            className={`${inputClass} w-full py-1.5 text-xs`}
+          >
+            <option value="">All stations</option>
+            {[...stations]
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+          </select>
+          {(tab === "deficiencies"
+            ? defDept || defStation
+            : planDept || planStation) && (
+            <button
+              onClick={() => {
+                setDefDept("");
+                setDefStation("");
+                setPlanDept("");
+                setPlanStation("");
+              }}
+              className="rounded-full px-2.5 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-50 active:scale-95"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
       </div>
 
-      <div key={tab} className={lastDir === 1 ? "tab-enter-right" : "tab-enter-left"}>
+      <div key={tab} className={`${lastDir === 1 ? "tab-enter-right" : "tab-enter-left"} landscape:min-h-0 landscape:flex-1 landscape:overflow-y-auto`}>
       {myStationsOnly && (
         <div className="mx-3 mt-1 rounded-xl bg-emerald-50 px-3 py-1.5 text-[11px] font-medium text-emerald-800 ring-1 ring-inset ring-emerald-100">
           Showing only your mapped stations:{" "}
@@ -193,7 +241,7 @@ export function TaskManager({
         </div>
       )}
       {(tab === "deficiencies" || tab === "planned") && (
-        <div className="mx-3 mt-2 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-surface p-2.5 shadow-sm">
+        <div className="mx-3 mt-2 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-surface p-2.5 shadow-sm landscape:hidden">
           <select
             value={tab === "deficiencies" ? defDept : planDept}
             onChange={(e) =>
@@ -239,7 +287,7 @@ export function TaskManager({
           )}
         </div>
       )}
-      <div className="space-y-3 p-3">
+      <div className="space-y-3 p-3 landscape:grid landscape:grid-cols-2 landscape:gap-3 landscape:space-y-0">
         {tab === "deficiencies" && (
           <>
             {pendingDef.length === 0 && <Empty text="No pending deficiency tasks" />}
@@ -355,7 +403,7 @@ export function TaskManager({
 
         {tab === "archive" && (
           <>
-            <div className="flex flex-wrap items-end gap-2 rounded-2xl border border-slate-200/80 bg-surface p-3 shadow-sm">
+            <div className="flex flex-wrap items-end gap-2 rounded-2xl border border-slate-200/80 bg-surface p-3 shadow-sm landscape:col-span-2">
               <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                 Station
                 <select
@@ -416,6 +464,7 @@ export function TaskManager({
             ))}
           </>
         )}
+      </div>
       </div>
       </div>
 
@@ -501,7 +550,7 @@ function RowActions({
 
 function Empty({ text }: { text: string }) {
   return (
-    <div className="rounded-2xl border border-dashed border-slate-300 bg-surface p-8 text-center text-sm text-slate-400">
+    <div className="rounded-2xl border border-dashed border-slate-300 bg-surface p-8 text-center text-sm text-slate-400 landscape:col-span-2">
       {text}
     </div>
   );

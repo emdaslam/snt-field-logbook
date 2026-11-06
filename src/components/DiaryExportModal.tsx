@@ -150,7 +150,7 @@ export function DiaryExportModal({
         </div>
       )}
 
-      <div className="mb-3 max-h-56 overflow-y-auto rounded-lg border border-slate-200">
+      <div className="mb-3 max-h-56 overflow-y-auto rounded-lg border border-slate-200 landscape:max-h-[60dvh]">
         {(isTa ? taRows : own).length === 0 ? (
           <p className="p-4 text-center text-sm text-slate-400">
             No {isTa ? "TA" : "diary"} entries in this period.

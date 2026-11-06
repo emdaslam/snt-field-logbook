@@ -259,22 +259,23 @@ export function Settings() {
 
   return (
     <div
-      className="space-y-4 p-4 pb-24"
+      className="space-y-4 p-4 pb-24 landscape:flex landscape:h-full landscape:min-h-0 landscape:flex-col landscape:space-y-0 landscape:p-0 landscape:pb-0"
       style={{ touchAction: "pan-y" }}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
       onTouchCancel={onTouchEnd}
     >
-      <div className="sticky top-0 z-10 -mx-4 bg-slate-100/95 px-3 pb-2 pt-1 backdrop-blur">
-        <div ref={chipsRef} className="flex gap-1 overflow-x-auto rounded-2xl bg-slate-200/70 p-1 ring-1 ring-slate-200/80">
+      <div className="landscape:flex landscape:min-h-0 landscape:flex-1">
+      <div className="sticky top-0 z-10 -mx-4 bg-slate-100/95 px-3 pb-2 pt-1 backdrop-blur landscape:static landscape:mx-0 landscape:w-[13rem] landscape:flex-shrink-0 landscape:overflow-y-auto landscape:border-r landscape:border-slate-200/80 landscape:px-3 landscape:py-3">
+        <div ref={chipsRef} className="flex gap-1 overflow-x-auto rounded-2xl bg-slate-200/70 p-1 ring-1 ring-slate-200/80 landscape:flex-col landscape:overflow-visible">
           {visibleGroups.map((g) => (
             <button
               key={g.id}
               type="button"
               data-group={g.id}
               onClick={() => selectGroup(g.id)}
-              className={`flex-shrink-0 whitespace-nowrap rounded-xl px-3 py-2 text-[13px] font-semibold transition active:scale-[0.98] ${
+              className={`flex-shrink-0 whitespace-nowrap rounded-xl px-3 py-2 text-[13px] font-semibold transition active:scale-[0.98] landscape:w-full landscape:text-left ${
                  group === g.id
                    ? "lift bg-surface text-blue-800 ring-1 ring-black/5"
                    : "text-slate-500 hover:text-slate-700"
@@ -288,7 +289,7 @@ export function Settings() {
 
       <div
         key={group}
-        className={`space-y-4 ${lastDir === 1 ? "tab-enter-right" : "tab-enter-left"}`}
+        className={`space-y-4 ${lastDir === 1 ? "tab-enter-right" : "tab-enter-left"} landscape:min-h-0 landscape:flex-1 landscape:overflow-y-auto landscape:p-4`}
       >
       {group === "account" && (
         <>
@@ -807,7 +808,7 @@ export function Settings() {
       {/* Appearance */}
       <Section title="Appearance" accent="#4f46e5">
         <p className="mb-2 text-sm font-medium text-slate-600">Theme</p>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2 landscape:grid-cols-4">
           {THEMES.map((t) => (
             <button
               key={t}
@@ -823,7 +824,7 @@ export function Settings() {
           ))}
         </div>
         <p className="mb-2 text-sm font-medium text-slate-600">Font style</p>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2 landscape:grid-cols-4">
           {FONT_FAMILIES.map((f) => (
             <button
               key={f}
@@ -1054,6 +1055,7 @@ export function Settings() {
       )}
 
       </div>
+      </div>
 
       {(editStaff || addStaff) && (
         <StaffEditor
@@ -1170,7 +1172,7 @@ function StaffEditor({ existing, onClose }: { existing: Staff | null; onClose: (
   }
 
   return (
-    <Modal open onClose={onClose} title={existing ? "Edit Staff" : "Add Staff"}>
+    <Modal open onClose={onClose} title={existing ? "Edit Staff" : "Add Staff"} wide>
       <Field label="Name">
         <input className={inputClass} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
       </Field>

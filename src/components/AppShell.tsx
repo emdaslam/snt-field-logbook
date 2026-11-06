@@ -447,7 +447,7 @@ export function AppShell() {
   }
 
   return (
-    <div className={`mx-auto flex h-dvh flex-col bg-slate-100 shadow-xl ${landscape && view === "home" ? "max-w-none" : "max-w-md"}`}>
+    <div className={`mx-auto flex h-dvh flex-col bg-slate-100 shadow-xl ${landscape ? "max-w-none" : "max-w-md"}`}>
       {/* Header */}
       <header className="relative z-20 flex items-center justify-between bg-gradient-to-r from-blue-950 via-blue-900 to-blue-800 px-3 py-3 text-white shadow-lg shadow-blue-900/30">
         <button onClick={() => setDrawer(true)} className="rounded-xl p-2 transition hover:bg-white/10 active:scale-95" aria-label="Menu">
@@ -473,7 +473,7 @@ export function AppShell() {
             {notifOpen && (
               <div
                 ref={notifPanelRef}
-                className="fixed inset-x-3 top-14 z-30 mx-auto flex max-h-[min(70dvh,28rem)] w-auto max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/70 bg-surface/95 text-slate-800 shadow-2xl shadow-slate-900/20 backdrop-blur"
+                className="fixed inset-x-3 top-14 z-30 mx-auto flex max-h-[min(70dvh,28rem)] w-auto max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/70 bg-surface/95 text-slate-800 shadow-2xl shadow-slate-900/20 backdrop-blur landscape:inset-x-auto landscape:right-3 landscape:mx-0 landscape:w-[min(28rem,calc(100vw-1.5rem))]"
               >
                 <div className="flex flex-shrink-0 items-center justify-between px-3 pb-1.5 pt-2.5">
                   <p className="text-[11px] font-bold uppercase tracking-wider text-blue-900">Alerts</p>
@@ -733,7 +733,7 @@ export function AppShell() {
           </div>
         )}
         {view !== "home" && (
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto landscape:overflow-hidden">
             {view === "tasks" && (
               <TaskManager tab={taskTab} setTab={setTaskTab} highlightId={highlightId} clearHighlight={() => setHighlightId(null)} />
             )}
@@ -767,7 +767,7 @@ export function AppShell() {
         {(view === "home" || view === "tasks") && (
           <button
             onClick={() => setFabOpen(true)}
-            className={`fixed bottom-24 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-xl shadow-emerald-600/30 ring-1 ring-white/20 transition hover:scale-105 hover:from-emerald-300 hover:to-emerald-500 active:scale-95 ${landscape && view === "home" ? "right-4" : "right-[max(1rem,calc(50%-13rem))]"}`}
+            className={`fixed bottom-24 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-xl shadow-emerald-600/30 ring-1 ring-white/20 transition hover:scale-105 hover:from-emerald-300 hover:to-emerald-500 active:scale-95 ${landscape ? "right-4" : "right-[max(1rem,calc(50%-13rem))]"}`}
             aria-label="Quick add"
           >
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -853,11 +853,11 @@ export function AppShell() {
 
       {/* FAB sheet */}
       {fabOpen && (
-        <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/50 backdrop-blur-[2px]" onClick={() => setFabOpen(false)}>
-          <div className="w-full max-w-md rounded-t-3xl bg-surface p-4 pb-8 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/50 backdrop-blur-[2px] landscape:items-center" onClick={() => setFabOpen(false)}>
+          <div className="w-full max-w-md rounded-t-3xl bg-surface p-4 pb-8 shadow-2xl landscape:max-w-lg landscape:rounded-2xl landscape:pb-4" onClick={(e) => e.stopPropagation()}>
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-300" />
             <h3 className="mb-3 text-center text-sm font-bold tracking-tight text-blue-900">Quick Add</h3>
-            <div className="space-y-2">
+            <div className="space-y-2 landscape:grid landscape:grid-cols-3 landscape:gap-2 landscape:space-y-0">
               <SheetBtn label="Add Daily Log" icon={<IconLog />} color="#2563eb" onClick={() => { setFabOpen(false); setLogForm(true); }} />
               <SheetBtn label="Add Deficiency Task" icon={<IconWrench />} color="#b45309" onClick={() => { setFabOpen(false); setDefForm(true); }} />
               <SheetBtn label="Add Future Planned Work" icon={<IconCalendar />} color="#059669" onClick={() => { setFabOpen(false); setPlanForm(true); }} />
