@@ -3,6 +3,12 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.24 — 2026-11-09
+
+**Minor: thicker table borders on every export**
+
+- PDF, Word and Excel tables (Diary, TA Journal, Muster, PCDO, inspections, materials and the rest) draw a heavier grid so rows and columns stay readable in print.
+
 ## 1.7.8.23 — 2026-11-06
 
 **Minor: landscape Search, Notes and Reports actually scroll**

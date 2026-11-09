@@ -14,7 +14,8 @@ assert.match(xml, /<fonts count="3">/);
 assert.match(xml, /<font><b\/>/);
 assert.match(xml, /<font><color rgb="FFFF0000"\/>/);
 assert.match(xml, /horizontal="center" vertical="center" textRotation="255"/);
-assert.match(xml, /fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"/);
+assert.match(xml, /<left style="medium">/);
+assert.match(xml, /fontId="2" fillId="0" borderId="1" xfId="0" applyBorder="1" applyFont="1" applyAlignment="1"/);
 
 const kms = "A\nL\nL\n\nA\nR\nE";
 const ta = new TextDecoder().decode(

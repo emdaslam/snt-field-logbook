@@ -233,7 +233,7 @@ export function buildXlsx(sheet: XlsxSheet): Uint8Array {
         if (s.stacked) align.push('textRotation="255"');
         const alignment = align.length ? `<alignment ${align.join(" ")}/>` : "";
         return (
-          `<xf numFmtId="0" fontId="${fontId}" fillId="0" borderId="0" xfId="0"` +
+          `<xf numFmtId="0" fontId="${fontId}" fillId="0" borderId="1" xfId="0" applyBorder="1"` +
           (s.bold || s.color ? ` applyFont="1"` : "") +
           (align.length ? ` applyAlignment="1"` : "") +
           `>${alignment}</xf>`
@@ -249,7 +249,16 @@ export function buildXlsx(sheet: XlsxSheet): Uint8Array {
     `<fill><patternFill patternType="none"/></fill>` +
     `<fill><patternFill patternType="gray125"/></fill>` +
     `</fills>` +
-    `<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>` +
+    `<borders count="2">` +
+    `<border><left/><right/><top/><bottom/><diagonal/></border>` +
+    `<border>` +
+    `<left style="medium"><color rgb="FF000000"/></left>` +
+    `<right style="medium"><color rgb="FF000000"/></right>` +
+    `<top style="medium"><color rgb="FF000000"/></top>` +
+    `<bottom style="medium"><color rgb="FF000000"/></bottom>` +
+    `<diagonal/>` +
+    `</border>` +
+    `</borders>` +
     `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
     cellXfs +
     `<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>` +

@@ -105,7 +105,7 @@ type VtextNote = { colIndex: number; text: string };
 // Body-cell border width in jsPDF AutoTable's "grid" theme (see getTheme in
 // jspdf-autotable). Kept here so a vtext note column can drop its horizontal
 // borders while its vertical frame matches the neighbouring cells.
-const GRID_LINE_WIDTH = 0.1;
+const GRID_LINE_WIDTH = 0.5;
 const NOTE_CELL_LINE_WIDTH = { top: 0, bottom: 0, left: GRID_LINE_WIDTH, right: GRID_LINE_WIDTH } as const;
 
 function parseTableBody(trs: Element[]): { body: PdfCell[][]; notes: VtextNote[] } {
@@ -1210,12 +1210,15 @@ export function buildPdf(
           overflow: "linebreak",
           textColor: [15, 23, 42],
           lineColor: plain ? INK : exportPal.line,
+          ...(opts.polish && opts.polish.borders === "none" ? {} : { lineWidth: GRID_LINE_WIDTH }),
         },
         headStyles: {
           fillColor: HEAD_FILL,
           textColor: HEAD_TXT,
           fontStyle: "bold",
-          ...(plain ? { lineWidth: 0.1, lineColor: INK } : {}),
+          ...(opts.polish && opts.polish.borders === "none"
+            ? {}
+            : { lineWidth: GRID_LINE_WIDTH, ...(plain ? { lineColor: INK } : {}) }),
         },
           ...(plain
             ? {}

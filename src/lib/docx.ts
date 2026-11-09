@@ -344,7 +344,7 @@ function buildTable(html: string, plain = false, pal: PaletteColors | null = nul
     ? ["top", "left", "bottom", "right"]
     : ["top", "left", "bottom", "right", "insideH", "insideV"];
   const borders = borderSides
-    .map((b) => `<w:${b} w:val="single" w:sz="4" w:space="0" w:color="${borderColor}"/>`)
+    .map((b) => `<w:${b} w:val="single" w:sz="12" w:space="0" w:color="${borderColor}"/>`)
     .join("");
   return (
     `<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/>` +
