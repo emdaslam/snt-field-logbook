@@ -30,6 +30,10 @@ export function LogDetailModal({
   if (!log) return null;
 
   const pcdoBundles = pcdoEntriesOf(log);
+  const fpRides = footplateRidesOf(log);
+  const hasFpDetails =
+    fpRides.some((r) => r.day || r.night) ||
+    Boolean(log.footplateUp?.trainNo || log.footplateDown?.trainNo);
   const shared = isSharedLog(log);
 
   return (
@@ -85,6 +89,29 @@ export function LogDetailModal({
           ).length > 0 && (
             <JourneySummary log={log} stationName={stationName} />
           )}
+          {hasFpDetails && (
+            <div className="mb-3 rounded-lg border border-violet-200 bg-violet-50 p-3">
+              <p className="mb-1 text-xs font-bold uppercase tracking-wide text-violet-700">
+                Footplate details
+              </p>
+              {formatFootplateSummary(log) && (
+                <p className="text-sm text-violet-950">
+                  {formatFootplateSummary(log)} footplate
+                </p>
+              )}
+              {fpRides.length > 1
+                ? fpRides.map((ride, i) => (
+                    <div key={i} className="mt-1">
+                      <p className="text-xs font-medium text-violet-800">Ride {i + 1}</p>
+                      <FootplateDetailRows
+                        log={{ footplateDay: ride.day, footplateNight: ride.night }}
+                        rowClass="mt-1 text-xs text-violet-800"
+                      />
+                    </div>
+                  ))
+                : <FootplateDetailRows log={log} rowClass="mt-1 text-xs text-violet-800" />}
+            </div>
+          )}
           <Row
             label={isSpecialMovement(log) ? "Remarks" : "Work Done"}
             value={log.workDone}
@@ -117,21 +144,6 @@ export function LogDetailModal({
                   ? ` · ${log.inspectionKind === "joint" ? jointPeriodOf(log.inspectionPeriodicity) : log.inspectionPeriodicity}`
                   : ""}
               </p>
-              {log.footplateShift && (
-                <p className="mt-1 text-sm text-sky-950">
-                  {formatFootplateSummary(log)} footplate
-                </p>
-              )}
-              {log.inspectionKind === "footplate" && footplateRidesOf(log).length > 1
-                ? footplateRidesOf(log).map((ride, i) => (
-                    <div key={i} className="mt-1">
-                      <p className="text-xs font-medium text-sky-800">Ride {i + 1}</p>
-                      <FootplateDetailRows
-                        log={{ footplateDay: ride.day, footplateNight: ride.night }}
-                      />
-                    </div>
-                  ))
-                : <FootplateDetailRows log={log} />}
               <p className="mt-0.5 text-xs text-sky-700">
                 Next due{" "}
                 {addDays(

@@ -3,6 +3,14 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.25 — 2026-11-12
+
+**Minor: drag-to-reorder export legs; footplate details kept separate from inspections**
+
+- "Edit the rows" legs get a three-line drag handle — hold it and move the leg up or down to reorder the Diary / TA export rows (the first leg still feeds the outbound timings, the last the return).
+- The daily log view now always shows a separate **Footplate details** section on footplate days — Day / Night shift, direction and the full train / engine / LP / ALP / TMR / remarks rows for every ride.
+- Monthly (and other) inspection boxes no longer embed the footplate ride details; they keep only their own fields (station, towards, joint department, periodicity, next due).
+
 ## 1.7.8.24 — 2026-11-09
 
 **Minor: thicker table borders on every export**

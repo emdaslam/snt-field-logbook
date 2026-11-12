@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useData } from "./DataProvider";
 import { useBackClose } from "@/lib/backButton";
 import { Modal, Field, inputClass, Chip, PrimaryButton } from "./ui";
-import { api, toISODate, fmtDate, pcdoEntriesOf, footplateTrainHops, footplateTrainsInRideOrder } from "@/lib/api";
+import { api, toISODate, fmtDate, pcdoEntriesOf, footplateTrainHops, footplateTrainsInRideOrder, moveLeg } from "@/lib/api";
 import {
   DEPARTMENTS,
   PRIORITIES,
@@ -489,18 +489,28 @@ function withTrainIfBothTimesDashed(leg: JourneyLeg): JourneyLeg {
 /** One editable journey leg in the custom-export-rows editor. */
 function JourneyLegRow({
   leg,
+  index,
+  dragging,
   stationsList,
   hqName,
   onChange,
   onRemove,
   canRemove,
+  onHandleDown,
+  onHandleMove,
+  onHandleEnd,
 }: {
   leg: JourneyLeg;
+  index: number;
+  dragging: boolean;
   stationsList: Array<{ id?: number; name: string; code: string }>;
   hqName: string;
   onChange: (l: JourneyLeg) => void;
   onRemove: () => void;
   canRemove: boolean;
+  onHandleDown: (e: React.PointerEvent) => void;
+  onHandleMove: (e: React.PointerEvent) => void;
+  onHandleEnd: () => void;
 }) {
   const [showOtherFrom, setShowOtherFrom] = useState(
     leg.from !== "" &&
@@ -513,9 +523,35 @@ function JourneyLegRow({
       leg.to !== hqName
   );
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3">
+    <div
+      className={`rounded-lg border bg-white p-3 ${
+        dragging ? "border-sky-400 ring-2 ring-sky-200" : "border-slate-200"
+      }`}
+    >
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-xs font-semibold text-slate-500">Leg</span>
+        <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+          <span
+            role="button"
+            aria-label={`Hold and drag to move leg ${index + 1}`}
+            className={`-m-1 cursor-grab touch-none select-none rounded p-1 active:cursor-grabbing ${
+              dragging ? "text-sky-600" : "text-slate-400 hover:text-slate-600"
+            }`}
+            onPointerDown={onHandleDown}
+            onPointerMove={onHandleMove}
+            onPointerUp={onHandleEnd}
+            onPointerCancel={onHandleEnd}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path
+                d="M2.5 4h11M2.5 8h11M2.5 12h11"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+              />
+            </svg>
+          </span>
+          Leg {index + 1}
+        </span>
         {canRemove && (
           <button
             type="button"
@@ -1306,6 +1342,43 @@ export function DailyLogForm({
   // While the user entered row editing via "Edit the rows", the native back
   // key cancels it instead of closing the whole form
   useBackClose(editRowsTapped && editExportRows, cancelRowEdit);
+
+  // Hold-and-drag reordering of the export legs (three-line handle on each row).
+  // The ref carries the live drag index; the state only drives the highlight.
+  const [dragLegIndex, setDragLegIndex] = useState<number | null>(null);
+  const dragLegIndexRef = useRef<number | null>(null);
+  const legsEditorRef = useRef<HTMLDivElement | null>(null);
+  const startLegDrag = (i: number, e: React.PointerEvent) => {
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    dragLegIndexRef.current = i;
+    setDragLegIndex(i);
+  };
+  const moveLegDrag = (e: React.PointerEvent) => {
+    const from = dragLegIndexRef.current;
+    const rows = legsEditorRef.current
+      ? (Array.from(legsEditorRef.current.children) as HTMLElement[])
+      : [];
+    if (from === null || rows.length < 2) return;
+    let target = rows.findIndex((row) => {
+      const r = row.getBoundingClientRect();
+      return e.clientY >= r.top && e.clientY < r.bottom;
+    });
+    if (target < 0) {
+      const first = rows[0].getBoundingClientRect();
+      const last = rows[rows.length - 1].getBoundingClientRect();
+      if (e.clientY < first.top) target = 0;
+      else if (e.clientY >= last.bottom) target = rows.length - 1;
+    }
+    if (target < 0 || target === from) return;
+    setJourneyLegs((prev) => moveLeg(prev, from, target));
+    dragLegIndexRef.current = target;
+    setDragLegIndex(target);
+  };
+  const endLegDrag = () => {
+    dragLegIndexRef.current = null;
+    setDragLegIndex(null);
+  };
   // Saved custom rows are authoritative on open: the first run of this
   // effect would rebuild them from the chain + ride data and clobber
   // edited or removed legs/times. Skip that first run when the entry
@@ -2204,11 +2277,13 @@ export function DailyLogForm({
                   the Diary / TA instead of a clock time. Use &quot;Add another
                   movement&quot; in Station / Movement above to add another stop.
                 </p>
-                <div className="space-y-2">
+                <div className="space-y-2" ref={legsEditorRef}>
                   {journeyLegs.map((leg, i) => (
                     <JourneyLegRow
                       key={i}
                       leg={leg}
+                      index={i}
+                      dragging={dragLegIndex === i}
                       stationsList={stations.map((s) => ({ id: s.id, name: s.name, code: s.code || "" }))}
                       hqName={hqName}
                       onChange={(updated) =>
@@ -2216,6 +2291,9 @@ export function DailyLogForm({
                       }
                       onRemove={() => setJourneyLegs((prev) => prev.filter((_, idx) => idx !== i))}
                       canRemove={journeyLegs.length > 1}
+                      onHandleDown={(e) => startLegDrag(i, e)}
+                      onHandleMove={moveLegDrag}
+                      onHandleEnd={endLegDrag}
                     />
                   ))}
                 </div>

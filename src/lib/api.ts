@@ -1098,6 +1098,15 @@ export function footplateTrainList(l: {
   return parts.join(", ");
 }
 
+/** Move one journey leg to a new index — drag-and-drop reorder in the row editor. */
+export function moveLeg<T>(list: T[], from: number, to: number): T[] {
+  if (from === to || from < 0 || from >= list.length) return list;
+  const next = list.slice();
+  const [moved] = next.splice(from, 1);
+  next.splice(Math.max(0, Math.min(to, next.length)), 0, moved);
+  return next;
+}
+
 /** All Footplate rides on a log — `footplateJourneys` when present, else the first-ride columns. */
 export function footplateRidesOf(l: {
   footplateJourneys?: FootplateRide[] | null;
