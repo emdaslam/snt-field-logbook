@@ -541,7 +541,9 @@ function JourneyLegRow({
     el.style.transition = "none";
     el.style.transform = `translateY(${dy}px)`;
     requestAnimationFrame(() => {
-      el.style.transition = "transform 180ms ease-out";
+      // Mid drag-follow the raw pointer offset must stay untouched.
+      if (el.dataset.legDragging) return;
+      el.style.transition = "transform 240ms ease-out";
       el.style.transform = "";
     });
   });
@@ -549,7 +551,9 @@ function JourneyLegRow({
     <div
       ref={rowRef}
       className={`rounded-lg border bg-white p-3 ${
-        dragging ? "border-sky-400 shadow-lg ring-2 ring-sky-200" : "border-slate-200"
+        dragging
+          ? "relative z-10 border-sky-400 shadow-lg ring-2 ring-sky-200"
+          : "border-slate-200"
       }`}
     >
       <div className="mb-2 flex items-center justify-between">
@@ -1425,14 +1429,30 @@ export function DailyLogForm({
   // key cancels it instead of closing the whole form
   useBackClose(editRowsTapped && editExportRows, cancelRowEdit);
 
-  // Hold-and-drag reordering of the export legs (three-line handle on each row).
-  // The ref carries the live drag index; the state only drives the highlight.
+  // Hold-and-drag reordering of the export legs (three-line handle on each
+  // row). The dragged card follows the finger 1:1 via a raw transform; the
+  // ref carries the live drag index, the state only drives the highlight.
   const [dragLegIndex, setDragLegIndex] = useState<number | null>(null);
   const dragLegIndexRef = useRef<number | null>(null);
   const legsEditorRef = useRef<HTMLDivElement | null>(null);
+  // Grab offset plus the dragged card's layout position at drag start. Slot
+  // layout never moves mid-drag (transforms don't affect offsetTop), so every
+  // slot's viewport top stays derivable from these two numbers.
+  const dragGrabRef = useRef(0);
+  const dragBaseTopRef = useRef(0);
+  const dragBaseOffsetRef = useRef(0);
   const startLegDrag = (i: number, e: React.PointerEvent) => {
     e.preventDefault();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    const node = legsEditorRef.current?.children[i] as HTMLElement | undefined;
+    if (node) {
+      node.dataset.legDragging = "1";
+      node.style.transition = "none";
+      node.style.transform = "";
+      dragBaseTopRef.current = node.getBoundingClientRect().top;
+      dragBaseOffsetRef.current = node.offsetTop;
+      dragGrabRef.current = e.clientY - dragBaseTopRef.current;
+    }
     dragLegIndexRef.current = i;
     setDragLegIndex(i);
   };
@@ -1442,23 +1462,57 @@ export function DailyLogForm({
       ? (Array.from(legsEditorRef.current.children) as HTMLElement[])
       : [];
     if (from === null || rows.length < 2) return;
-    let target = rows.findIndex((row) => {
-      const r = row.getBoundingClientRect();
-      return e.clientY >= r.top && e.clientY < r.bottom;
-    });
-    if (target < 0) {
-      const first = rows[0].getBoundingClientRect();
-      const last = rows[rows.length - 1].getBoundingClientRect();
-      if (e.clientY < first.top) target = 0;
-      else if (e.clientY >= last.bottom) target = rows.length - 1;
+    const node = rows[from];
+    const slotTop = (el: HTMLElement) =>
+      dragBaseTopRef.current + (el.offsetTop - dragBaseOffsetRef.current);
+    const cardTop = e.clientY - dragGrabRef.current;
+    node.style.transform = `translateY(${cardTop - slotTop(node)}px)`;
+    // Swap only once more than half of the neighbour has slid under the
+    // dragged card — the card itself keeps tracking the finger throughout.
+    const movingDown = cardTop > slotTop(node);
+    let target = from;
+    if (
+      movingDown &&
+      from < rows.length - 1 &&
+      cardTop + node.offsetHeight - slotTop(rows[from + 1]) > rows[from + 1].offsetHeight / 2
+    ) {
+      target = from + 1;
+    } else if (
+      !movingDown &&
+      from > 0 &&
+      slotTop(rows[from - 1]) + rows[from - 1].offsetHeight - cardTop >
+        rows[from - 1].offsetHeight / 2
+    ) {
+      target = from - 1;
     }
-    if (target < 0 || target === from) return;
+    if (target === from) return;
+    // Hand the follow transform to the node that hosts the dragged leg after
+    // the swap; the displaced node falls back to its own FLIP slide.
+    delete node.dataset.legDragging;
+    node.style.transform = "";
+    const next = rows[target];
+    next.dataset.legDragging = "1";
+    next.style.transition = "none";
+    next.style.transform = `translateY(${cardTop - slotTop(next)}px)`;
     setJourneyLegs((prev) => moveLeg(prev, from, target));
     dragLegIndexRef.current = target;
     setDragLegIndex(target);
   };
   const endLegDrag = () => {
+    const idx = dragLegIndexRef.current;
     dragLegIndexRef.current = null;
+    if (idx !== null) {
+      const node = legsEditorRef.current?.children[idx] as HTMLElement | undefined;
+      const legObj = journeyLegs[idx];
+      if (node && legObj) {
+        delete node.dataset.legDragging;
+        // Snapshot the dragged visual position so the row FLIP settles the
+        // card into its slot smoothly instead of snapping.
+        legPrevTops.set(legObj, node.getBoundingClientRect().top);
+        node.style.transition = "none";
+        node.style.transform = "";
+      }
+    }
     setDragLegIndex(null);
   };
   // Saved custom rows are authoritative on open: the first run of this

@@ -3,6 +3,12 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.27 — 2026-11-12
+
+**Minor: leg drag now follows the finger**
+
+- Dragging a leg by its three-line handle now carries the card along with the touch 1:1; the neighbouring row slides aside (smoothly, not snappily) only once more than half of it has passed under the dragged card, and the card settles into its slot smoothly on release.
+
 ## 1.7.8.26 — 2026-11-12
 
 **Minor: temporary-station suggestions, temp stations in row editor, smooth leg drag**
