@@ -967,6 +967,36 @@ export function tempStationNames(
   return out.sort((a, b) => a.localeCompare(b));
 }
 
+/** Google-style shortlist for the "Temporary station…" inputs: previously used
+ *  names matching the typed text (an exact match is hidden — it is already the
+ *  value), capped at `cap` entries. Empty typed text offers the whole history. */
+export function tempStationSuggestions(all: string[], typed: string, cap = 6): string[] {
+  const q = typed.trim().toLowerCase();
+  return all
+    .filter((s) => (!q || s.toLowerCase().includes(q)) && s.toLowerCase() !== q)
+    .slice(0, cap);
+}
+
+/** From / To options for the row editor: the saved stations plus any temporary
+ *  station names this log's movement chain uses (deduped, order preserved). */
+export function legStationOptions(
+  stations: { id?: number; name: string; code?: string | null }[],
+  chainNames: string[]
+): { id?: number; name: string; code: string }[] {
+  const opts: { id?: number; name: string; code: string }[] = stations.map((s) => ({
+    id: s.id,
+    name: s.name,
+    code: s.code || "",
+  }));
+  // Chain values are names or codes (the pickers store the code when one exists)
+  const known = new Set(opts.flatMap((o) => [o.name, o.code].filter(Boolean)));
+  for (const raw of chainNames) {
+    const n = raw.trim();
+    if (n && !known.has(n) && !opts.some((o) => o.name === n)) opts.push({ name: n, code: "" });
+  }
+  return opts;
+}
+
 /** True when a daily log is a claimable TA day: a movement away from HQ to a
  *  station fixed above 8 km, a typed temporary station (treated as above 8 km),
  *  or a variable station where the log confirms the work was done at/after its

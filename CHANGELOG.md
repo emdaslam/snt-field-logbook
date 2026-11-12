@@ -3,6 +3,14 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.26 — 2026-11-12
+
+**Minor: temporary-station suggestions, temp stations in row editor, smooth leg drag**
+
+- "Temporary station…" boxes (primary movement and extra stops) now suggest the temporary station names you typed on earlier logs — pick one from the list or keep typing a new name.
+- With "Edit the rows" on, the log's temporary stations appear in every leg's From / To dropdown alongside the saved stations.
+- Dragging a leg by its three-line handle now slides the rows smoothly (and lifts the dragged card), so the reorder is visible.
+
 ## 1.7.8.25 — 2026-11-12
 
 **Minor: drag-to-reorder export legs; footplate details kept separate from inspections**

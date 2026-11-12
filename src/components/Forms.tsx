@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useData } from "./DataProvider";
 import { useBackClose } from "@/lib/backButton";
 import { Modal, Field, inputClass, Chip, PrimaryButton } from "./ui";
-import { api, toISODate, fmtDate, pcdoEntriesOf, footplateTrainHops, footplateTrainsInRideOrder, moveLeg } from "@/lib/api";
+import { api, toISODate, fmtDate, pcdoEntriesOf, footplateTrainHops, footplateTrainsInRideOrder, moveLeg, tempStationNames, tempStationSuggestions, legStationOptions } from "@/lib/api";
 import {
   DEPARTMENTS,
   PRIORITIES,
@@ -486,6 +486,10 @@ function withTrainIfBothTimesDashed(leg: JourneyLeg): JourneyLeg {
   return { ...leg, mode: "train", trainNo: "---" };
 }
 
+/** Previous vertical position of each leg card, keyed by the leg object —
+ *  powers the slide animation when the drag handle reorders rows. */
+const legPrevTops = new WeakMap<object, number>();
+
 /** One editable journey leg in the custom-export-rows editor. */
 function JourneyLegRow({
   leg,
@@ -522,10 +526,30 @@ function JourneyLegRow({
       !stationsList.some((s) => s.name === leg.to || s.code === leg.to) &&
       leg.to !== hqName
   );
+  const rowRef = useRef<HTMLDivElement>(null);
+  // FLIP: after every render, slide the card from where this leg object used
+  // to sit to where it sits now (the drag handle swaps positions live).
+  useLayoutEffect(() => {
+    const el = rowRef.current;
+    if (!el) return;
+    const top = el.getBoundingClientRect().top;
+    const prevTop = legPrevTops.get(leg);
+    legPrevTops.set(leg, top);
+    if (prevTop === undefined) return;
+    const dy = prevTop - top;
+    if (Math.abs(dy) < 1) return;
+    el.style.transition = "none";
+    el.style.transform = `translateY(${dy}px)`;
+    requestAnimationFrame(() => {
+      el.style.transition = "transform 180ms ease-out";
+      el.style.transform = "";
+    });
+  });
   return (
     <div
+      ref={rowRef}
       className={`rounded-lg border bg-white p-3 ${
-        dragging ? "border-sky-400 ring-2 ring-sky-200" : "border-slate-200"
+        dragging ? "border-sky-400 shadow-lg ring-2 ring-sky-200" : "border-slate-200"
       }`}
     >
       <div className="mb-2 flex items-center justify-between">
@@ -729,6 +753,61 @@ function JourneyLegRow({
 }
 
 /**
+ * Typed "Temporary station…" entry with Google-style suggestions of the
+ * temporary station names used on earlier logs. Typing a new name still wins —
+ * the suggestions only ever fill the box, they never restrict it.
+ */
+function TempStationInput({
+  value,
+  onChange,
+  suggestions,
+  autoFocus,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  suggestions: string[];
+  autoFocus?: boolean;
+}) {
+  const [focused, setFocused] = useState(false);
+  const matches = tempStationSuggestions(suggestions, value);
+  return (
+    <div className="relative">
+      <input
+        type="text"
+        className={inputClass}
+        value={value}
+        placeholder="Type the station name — not saved to the stations list"
+        autoFocus={autoFocus}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {focused && matches.length > 0 && (
+        <div className="absolute inset-x-0 top-full z-20 mt-0.5 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
+          <p className="border-b border-slate-100 bg-slate-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+            Previously used
+          </p>
+          {matches.map((name) => (
+            <button
+              key={name}
+              type="button"
+              className="block w-full px-3 py-1.5 text-left text-sm text-slate-700 hover:bg-sky-50"
+              onMouseDown={(e) => {
+                // Keep the input focused so the list re-filters instead of flashing away.
+                e.preventDefault();
+                onChange(name);
+              }}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
  * "Towards which side?" picker. A station's two remembered sides (its saved
  * pair, seeded from the two most recently used sides) are shown as quick
  * options alongside "Both sides" and "Pick another station…". Picking a
@@ -881,6 +960,9 @@ export function DailyLogForm({
   initialDate?: string;
 }) {
   const { tags, stations, logs, refresh, currentUser, autoSync } = useData();
+  // Temporary station names typed on earlier logs — the suggestion pool for
+  // every "Temporary station…" box on this form.
+  const previousTempStations = useMemo(() => tempStationNames(logs, stations), [logs, stations]);
   const [logDate, setLogDate] = useState(existing?.logDate ?? initialDate ?? toISODate(new Date()));
   const [movement, setMovement] = useState(existing?.stationMovement ?? "");
   const [timeDep, setTimeDep] = useState(existing?.timeDep ?? (!AUTO_TIMINGS ? "08:00" : ""));
@@ -1405,6 +1487,14 @@ export function DailyLogForm({
       .map((n) => stations.find((s) => s.name === n))
       .filter((s): s is (typeof stations)[number] => Boolean(s));
   })();
+  // From / To picks in the row editor: saved stations plus the temporary
+  // stations this log's movement chain uses.
+  const legStationChoices = legStationOptions(
+    stations,
+    [movementKind === "station" ? movement : "", ...extraMovements].filter(
+      (m) => m && m !== FOOTPLATE_SLOT && m !== TEMP_STATION
+    )
+  );
   const taggedStationId =
     (inspectionStationOverride && chainStations.some((s) => s.id === inspectionStationOverride)
       ? inspectionStationOverride
@@ -1889,14 +1979,11 @@ export function DailyLogForm({
         </div>
         {movementKind === "station" && (tempPrimary || isTempStationName(movement, stations)) && (
           <div className="mt-2">
-            <input
-              type="text"
-              className={inputClass}
+            <TempStationInput
               value={movement}
-              placeholder="Type the station name — not saved to the stations list"
               autoFocus={!movement.trim()}
-              onChange={(e) => {
-                const v = e.target.value;
+              suggestions={previousTempStations}
+              onChange={(v) => {
                 if (stations.some((s) => s.name === v)) {
                   selectMovement(v);
                   return;
@@ -2024,12 +2111,10 @@ export function DailyLogForm({
                   </button>
                 </div>
                 {(m === TEMP_STATION || isTempStationName(m, stations)) && (
-                  <input
-                    type="text"
-                    className={inputClass}
+                  <TempStationInput
                     value={m === TEMP_STATION ? "" : m}
-                    placeholder="Type the station name — not saved to the stations list"
-                    onChange={(e) => changeExtraMovement(i, e.target.value)}
+                    suggestions={previousTempStations}
+                    onChange={(v) => changeExtraMovement(i, v)}
                   />
                 )}
               </div>
@@ -2284,7 +2369,7 @@ export function DailyLogForm({
                       leg={leg}
                       index={i}
                       dragging={dragLegIndex === i}
-                      stationsList={stations.map((s) => ({ id: s.id, name: s.name, code: s.code || "" }))}
+                      stationsList={legStationChoices}
                       hqName={hqName}
                       onChange={(updated) =>
                         setJourneyLegs((prev) => prev.map((l, idx) => (idx === i ? updated : l)))
