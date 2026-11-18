@@ -17,7 +17,15 @@ import {
   emptyPcdoEntry,
   type PcdoEntry,
   type CounterReset,
+  type Priority,
 } from "@/lib/types";
+import {
+  escalatedPriority,
+  repeatBadge,
+  titleSuggestions,
+  REPEAT_NORMAL_FLOOR,
+  REPEAT_URGENT_FLOOR,
+} from "@/lib/repeatPriority";
 import { AUTO_TIMINGS } from "@/lib/timingsMode";
 import { tripTimes, journeyTrainTimes } from "@/lib/travel";
 import { loadTaGenConfig, type TaRateKey } from "@/lib/taGenConfig";
@@ -3183,17 +3191,45 @@ export function DeficiencyForm({
    * log entry; the user can still change it. Ignored when `existing` is set. */
   defaultStationId?: number | null;
 }) {
-  const { stations, staff, refresh, autoSync } = useData();
+  const { stations, staff, deficiencies, refresh, autoSync } = useData();
   const [department, setDepartment] = useState(existing?.department ?? "Signalling");
   const [stationId, setStationId] = useState<number | null>(existing?.stationId ?? defaultStationId ?? null);
   const [title, setTitle] = useState(existing?.title ?? "");
   const [description, setDescription] = useState(existing?.description ?? "");
-  const [priority, setPriority] = useState(existing?.priority ?? "Normal");
+  // `priority` is what the row will carry; `basePriority` is what the user
+  // last chose manually. Repeating a deficiency raises the floor on top of
+  // the base (never weakens it) — see escalatedPriority().
+  const [priority, setPriority] = useState<Priority>((existing?.priority as Priority | undefined) ?? "Normal");
+  const [basePriority, setBasePriority] = useState<Priority>((existing?.priority as Priority | undefined) ?? "Normal");
+  // How many later rounds this same deficiency has been recorded in again.
+  const [repeatCount, setRepeatCount] = useState(existing?.repeatCount ?? 0);
   const [dueDate, setDueDate] = useState(existing?.dueDate ?? "");
   const [attachments, setAttachments] = useState<Attachment[]>(existing?.attachments ?? []);
   const [saving, setSaving] = useState(false);
 
   const mappedStaff = staff.find((s) => stationId != null && s.stationIds.includes(stationId));
+
+  // Earlier entries (excluding the one being edited), most recent first.
+  const earlierDefs = deficiencies.filter((d) => d.id !== existing?.id);
+  const suggestedTitles = titleSuggestions(title.trim(), earlierDefs.map((d) => d.title));
+
+  /** Record-again counter change: priority follows the repeat floor. */
+  const setRepeats = (n: number) => {
+    const v = Math.max(0, n);
+    setRepeatCount(v);
+    setPriority(escalatedPriority(basePriority, v));
+  };
+
+  /** Picked an earlier title: copy it in and count one more repeat of it. */
+  const pickEarlier = (t: string) => {
+    const prev = earlierDefs.find((d) => d.title === t);
+    setTitle(t);
+    const next = (prev?.repeatCount ?? 0) + 1;
+    const p = (prev?.priority as Priority | undefined) ?? "Normal";
+    setBasePriority(p);
+    setRepeatCount(next);
+    setPriority(escalatedPriority(p, next));
+  };
 
   async function save() {
     setSaving(true);
@@ -3204,6 +3240,7 @@ export function DeficiencyForm({
       title,
       description,
       priority,
+      repeatCount,
       dueDate: dueDate || null,
       attachments,
     };
@@ -3246,20 +3283,74 @@ export function DeficiencyForm({
       <Field label="Task Title">
         <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} />
       </Field>
+      {suggestedTitles.length > 0 && (
+        <div className="-mt-2 mb-2 overflow-hidden rounded-xl border border-blue-200 bg-blue-50/60">
+          <p className="px-2.5 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-blue-800">
+            Entered earlier — tap to record this one again
+          </p>
+          {suggestedTitles.map((t) => {
+            const prev = earlierDefs.find((d) => d.title === t);
+            return (
+              <button
+                key={t}
+                type="button"
+                onClick={() => pickEarlier(t)}
+                className="block w-full px-2.5 py-1.5 text-left text-sm text-slate-700 transition hover:bg-blue-100 active:bg-blue-100"
+              >
+                <span className="font-medium">{t}</span>
+                <span className="ml-1.5 text-xs text-slate-500">
+                  {prev && <>· {stations.find((s) => s.id === prev.stationId)?.name ?? "—"}</>}
+                  {prev?.repeatCount ? ` · ×${prev.repeatCount}` : ""}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
       <Field label="Description">
         <textarea className={inputClass} rows={3} value={description ?? ""} onChange={(e) => setDescription(e.target.value)} />
+      </Field>
+      <Field label="Recorded Again">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setRepeats(repeatCount - 1)}
+            className="h-9 w-9 flex-shrink-0 rounded-lg border border-slate-300 text-lg leading-none text-slate-600 active:scale-95"
+            aria-label="One repeat fewer"
+          >
+            −
+          </button>
+          <span className={`w-10 text-center text-sm font-semibold ${repeatCount > 0 ? "text-amber-700" : "text-slate-500"}`}>
+            {repeatCount === 0 ? "New" : `×${repeatCount}`}
+          </span>
+          <button
+            type="button"
+            onClick={() => setRepeats(repeatCount + 1)}
+            className="h-9 w-9 flex-shrink-0 rounded-lg border border-amber-400 bg-amber-50 text-lg leading-none text-amber-700 active:scale-95"
+            aria-label="One repeat more"
+          >
+            +
+          </button>
+          <span className="text-xs leading-snug text-slate-500">
+            Same deficiency again in a later round? {REPEAT_NORMAL_FLOOR}+ repeats mean at least Normal,{" "}
+            {REPEAT_URGENT_FLOOR}+ mean Urgent.
+          </span>
+        </div>
       </Field>
       <Field label="Priority">
         <div className="flex gap-2">
           {PRIORITIES.map((p) => (
             <button
               key={p}
-              onClick={() => setPriority(p)}
+              onClick={() => {
+                setPriority(p);
+                setBasePriority(p);
+              }}
               className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium ${
                 priority === p ? "border-blue-600 bg-blue-50 text-blue-800" : "border-slate-300 text-slate-600"
               }`}
             >
-              {p}
+              {p}{p === priority ? repeatBadge(repeatCount) : ""}
             </button>
           ))}
         </div>

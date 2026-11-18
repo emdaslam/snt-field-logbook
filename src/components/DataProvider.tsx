@@ -33,6 +33,7 @@ import { isNative, scheduleDailyReminders } from "@/lib/native";
 import { driveStatus, syncWithDrive, backupToDrive, replaceDriveBackup, pullFromDrive, type DriveResult, type DriveProgress, type DriveConflictInfo } from "@/lib/drive";
 import { lowStockAlerts, qtyWithUnit } from "@/lib/stock";
 import { sortNotifications } from "@/lib/notificationOrder";
+import { repeatBadge } from "@/lib/repeatPriority";
 import { DriveConflictModal } from "./DriveConflictModal";
 import type {
   Station,
@@ -632,7 +633,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
         const overdue = dd < today;
         notes.push({
           id: "def-" + d.id,
-          title: d.title,
+          // Priority (and repeat count, when it is a repeat) leads the title so
+          // the notification panel itself shows how hot the item is.
+          title: `[${d.priority}${repeatBadge(d.repeatCount)}] ${d.title}`,
           detail:
             (overdue ? `Overdue (due ${d.dueDate})` : `Due soon (${d.dueDate})`) +
             ` · ${stationNameFor(d.stationId)}`,
@@ -763,7 +766,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isNative()) return;
     scheduleDailyReminders(
-      notifications.map((n) => ({ kind: n.kind, title: n.title, detail: n.detail })),
+      notifications.map((n) => ({ kind: n.kind, title: n.title, detail: n.detail, priority: n.priority })),
       { noEntryToday: !hasEntryToday }
     );
   }, [notifications, hasEntryToday]);

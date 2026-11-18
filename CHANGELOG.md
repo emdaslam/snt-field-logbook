@@ -3,6 +3,15 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.28 — 2026-11-18
+
+**Minor: repeated deficiencies count up and raise priority (shown in notifications)**
+
+- When the same deficiency turns up again in the next maintenance / monthly round, record it with one tap: the task list has a "+1 Repeated" action on every pending deficiency, and the Add Deficiency form suggests similar titles entered earlier — tapping one copies it in and adds the repeat. A "Recorded Again" stepper (+/−) sits in the form too.
+- The repeat count shows as "×N" wherever the priority appears (task list, Tomorrow's Work, Search, reports, monthly-report export).
+- Priority rises with repeats automatically: 2+ repeats mean at least Normal, 3+ mean Urgent (manual choice is never weakened).
+- Notifications now lead with the priority — "[Urgent ×3] Title" — and the daily Android notification title shows the urgent count, e.g. "S&T Field Logbook — 5 pending (2 urgent)".
+
 ## 1.7.8.27 — 2026-11-12
 
 **Minor: leg drag now follows the finger**

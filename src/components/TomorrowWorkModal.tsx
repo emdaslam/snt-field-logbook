@@ -6,6 +6,7 @@ import { Modal, Chip, PrimaryButton } from "./ui";
 import { exportTomorrowsWork } from "./exports";
 import { api, fmtDate, toISODate } from "@/lib/api";
 import { PRIORITY_COLORS, DEPARTMENT_COLORS } from "@/lib/types";
+import { repeatBadge } from "@/lib/repeatPriority";
 
 export function TomorrowWorkModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { deficiencies, planned, stations, stationName, refresh, autoSync } = useData();
@@ -170,7 +171,7 @@ export function TomorrowWorkModal({ open, onClose }: { open: boolean; onClose: (
               <p className="text-sm font-medium text-slate-800">{d.title}</p>
               <div className="mt-1 flex flex-wrap gap-1.5">
                 <Chip label={d.department} color={DEPARTMENT_COLORS[d.department] ?? "#2563eb"} />
-                <Chip label={d.priority} color={PRIORITY_COLORS[d.priority] ?? "#2563eb"} />
+                <Chip label={d.priority + repeatBadge(d.repeatCount)} color={PRIORITY_COLORS[d.priority] ?? "#2563eb"} />
                 <Chip label={stationName(d.stationId)} color="#0e7490" />
                 {d.dueDate && <Chip label={"Due " + fmtDate(d.dueDate)} color="#b45309" />}
               </div>

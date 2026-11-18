@@ -185,6 +185,10 @@ export const deficiencyTasks = pgTable("deficiency_tasks", {
   title: varchar("title", { length: 300 }).notNull(),
   description: text("description"),
   priority: varchar("priority", { length: 20 }).default("Normal").notNull(),
+  /** How many later rounds the same deficiency was recorded again in (0 =
+   *  fresh); raised by the +1 Repeated control. Feeds the repeat-priority
+   *  escalation in src/lib/repeatPriority.ts. */
+  repeatCount: integer("repeat_count").default(0).notNull(),
   dueDate: date("due_date"),
   assignedStaffId: integer("assigned_staff_id"),
   status: varchar("status", { length: 20 }).default("Pending").notNull(),

@@ -215,7 +215,12 @@ export const api = {
   },
 
   deficiencies: {
-    list: async () => desc(await ldb.readTable<DeficiencyTask>("deficiencyTasks"), "createdAt"),
+    list: async () => {
+      const rows = await ldb.readTable<DeficiencyTask>("deficiencyTasks");
+      // Rows saved before repeats existed lack the counter — normalise so
+      // callers can do arithmetic on it directly.
+      return desc(rows.map((d) => ({ ...d, repeatCount: d.repeatCount ?? 0 })), "createdAt");
+    },
     create: async (b: Partial<DeficiencyTask>) => {
       markDataDirty();
       return ldb.insert("deficiencyTasks", {
@@ -224,6 +229,7 @@ export const api = {
         title: b.title ?? "",
         description: b.description ?? null,
         priority: b.priority ?? "Normal",
+        repeatCount: b.repeatCount ?? 0,
         dueDate: b.dueDate || null,
         assignedStaffId: await staffForStation(b.stationId ?? null),
         status: b.status ?? "Pending",
@@ -243,6 +249,7 @@ export const api = {
       if (b.title !== undefined) patch.title = b.title;
       if (b.description !== undefined) patch.description = b.description;
       if (b.priority !== undefined) patch.priority = b.priority;
+      if (b.repeatCount !== undefined) patch.repeatCount = b.repeatCount;
       if (b.dueDate !== undefined) patch.dueDate = b.dueDate || null;
       if (b.selectedForTomorrow !== undefined) patch.selectedForTomorrow = b.selectedForTomorrow;
       if (b.attachments !== undefined) patch.attachments = b.attachments;

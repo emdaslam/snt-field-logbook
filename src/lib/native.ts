@@ -14,6 +14,7 @@ export type ReminderItem = {
   kind: "planned" | "due" | "inspection" | "tag" | "stock";
   title: string;
   detail: string;
+  priority?: string;
 };
 
 const REMINDER_IDS = [1, 2, 3, 4];
@@ -60,8 +61,10 @@ export async function scheduleDailyReminders(
       if (items.length > 8) lines.push(`…and ${items.length - 8} more`);
       const body = lines.join("\n");
 
+      // Surface urgency in the notification tray title itself.
+      const urgentCount = items.filter((i) => i.priority === "Urgent").length;
       const base = {
-        title: `S&T Field Logbook — ${items.length} pending`,
+        title: `S&T Field Logbook — ${items.length} pending` + (urgentCount > 0 ? ` (${urgentCount} urgent)` : ""),
         body,
         sound: "default",
         // White bell = status-bar small icon (must be monochrome). The app logo

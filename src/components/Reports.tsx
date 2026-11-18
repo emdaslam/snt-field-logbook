@@ -12,6 +12,7 @@ import { getPcdoPeriod } from "@/lib/pcdo";
 import { useBackClose } from "@/lib/backButton";
 import { fmtDate, pcdoEntriesOf, pcdoWorkEntries, counterResetsOf, counterResetTotal, isTaClaimable, logStationNames } from "@/lib/api";
 import { isSpecialMovement } from "@/lib/types";
+import { repeatBadge } from "@/lib/repeatPriority";
 import { StatDetailModal, type StatRow } from "./StatDetailModal";
 import { computeAllSchedules, expandInspectionRecords, INSPECTION_RULES, isGenericSideLabel, sideAskingKinds, tagReminderConfigs, cap } from "@/lib/inspections";
 import type { DailyLog, DeficiencyTask, PlannedWork } from "@/db/schema";
@@ -312,7 +313,7 @@ export function Reports({
                   date: d.dueDate || String(d.createdAt).slice(0, 10),
                   title: d.title,
                   sub: `${d.department} · ${stationName(d.stationId)}`,
-                  badge: d.priority,
+                  badge: d.priority + repeatBadge(d.repeatCount),
                   defId: d.id,
                 })),
             })

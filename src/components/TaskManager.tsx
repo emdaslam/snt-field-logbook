@@ -6,6 +6,7 @@ import { useBackClose } from "@/lib/backButton";
 import { Chip, inputClass } from "./ui";
 import { api, fmtDate, toISODate } from "@/lib/api";
 import { PRIORITY_COLORS, DEPARTMENT_COLORS, DEPARTMENTS } from "@/lib/types";
+import { escalatedPriority, repeatBadge } from "@/lib/repeatPriority";
 import { DeficiencyForm, PlannedWorkForm } from "./Forms";
 import { AttachmentPreviewModal } from "./AttachmentPreviewModal";
 import type { Attachment, DeficiencyTask, PlannedWork } from "@/db/schema";
@@ -138,6 +139,19 @@ export function TaskManager({
   async function toggleTomorrow(kind: "def" | "plan", id: number, val: boolean) {
     if (kind === "def") await api.deficiencies.update({ id, selectedForTomorrow: val });
     else await api.planned.update({ id, selectedForTomorrow: val });
+    void autoSync();
+    await refresh();
+  }
+
+  /** Same deficiency turned up again this round: +1 repeat, priority follows
+   *  the repeat floor (2+ Normal, 3+ Urgent). */
+  async function bumpRepeat(d: DeficiencyTask) {
+    const count = (d.repeatCount ?? 0) + 1;
+    await api.deficiencies.update({
+      id: d.id,
+      repeatCount: count,
+      priority: escalatedPriority((d.priority as "Urgent" | "Normal" | "Later") ?? "Normal", count),
+    });
     void autoSync();
     await refresh();
   }
@@ -316,7 +330,7 @@ export function TaskManager({
                     {d.description && <p className="entry-text-sm mt-0.5 text-sm leading-snug text-slate-500">{d.description}</p>}
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
                       <Chip label={d.department} color={DEPARTMENT_COLORS[d.department] ?? "#2563eb"} />
-                      <Chip label={d.priority} color={PRIORITY_COLORS[d.priority] ?? "#2563eb"} />
+                      <Chip label={d.priority + repeatBadge(d.repeatCount)} color={PRIORITY_COLORS[d.priority] ?? "#2563eb"} />
                       <Chip label={stationName(d.stationId)} color="#0e7490" />
                       {d.dueDate && <Chip label={"Due " + fmtDate(d.dueDate)} color="#b45309" />}
                     </div>
@@ -328,6 +342,8 @@ export function TaskManager({
                   onEdit={() => setEditDef(d)}
                   onConvert={() => setConvertDef(d)}
                   onComplete={() => toggleStatus("def", d.id, d.status)}
+                  onPlus={() => bumpRepeat(d)}
+                  plusTitle="Recorded again this round (+1 repeat, raises priority)"
                   onDelete={async () => {
                     if (confirm("Delete task?")) {
                       await api.deficiencies.remove(d.id);
@@ -522,14 +538,24 @@ function RowActions({
   onConvert,
   onComplete,
   onDelete,
+  onPlus,
+  plusTitle,
 }: {
   onEdit: () => void;
   onConvert?: () => void;
   onComplete: () => void;
   onDelete: () => void;
+  /** Optional "+1" action (record the same thing again); shown first when set. */
+  onPlus?: () => void;
+  plusTitle?: string;
 }) {
   return (
     <div className="mt-2.5 flex flex-wrap gap-1.5 border-t border-slate-100 pt-2.5">
+      {onPlus && (
+        <button onClick={onPlus} title={plusTitle} className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-100 transition hover:bg-amber-100 active:scale-95">
+          +1 Repeated
+        </button>
+      )}
       <button onClick={onComplete} className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-100 transition hover:bg-emerald-100 active:scale-95">
         Mark Complete
       </button>

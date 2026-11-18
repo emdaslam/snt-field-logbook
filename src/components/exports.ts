@@ -9,6 +9,7 @@ import { AUTO_TIMINGS } from "@/lib/timingsMode";
 import { tripTimes, journeyTrainTimes, type TripTimes } from "@/lib/travel";
 import { loadTaGenConfig, type TaGenWindow, type TaRateKey } from "@/lib/taGenConfig";
 import { effectiveRequirement } from "@/lib/stock";
+import { repeatBadge } from "@/lib/repeatPriority";
 import type { XlsxCell, XlsxSheet, XlsxMerge } from "@/lib/xlsx";
 import type {
   DeficiencyTask,
@@ -1656,7 +1657,7 @@ export function exportMonthly(
         body += `<h3>${esc(station)} (${items.length})</h3>`;
         body += `<table><tr><th>Title</th><th>Dept</th><th>Priority</th><th>Due</th><th>Status</th></tr>`;
         for (const d of items) {
-          body += `<tr><td>${esc(d.title)}</td><td>${esc(d.department)}</td><td>${esc(d.priority)}</td><td data-valign="middle">${d.dueDate ? fmtDate(d.dueDate) : "-"}</td><td>${esc(d.status)}</td></tr>`;
+          body += `<tr><td>${esc(d.title)}</td><td>${esc(d.department)}</td><td>${esc(d.priority + repeatBadge(d.repeatCount))}</td><td data-valign="middle">${d.dueDate ? fmtDate(d.dueDate) : "-"}</td><td>${esc(d.status)}</td></tr>`;
         }
         body += `</table>`;
       }

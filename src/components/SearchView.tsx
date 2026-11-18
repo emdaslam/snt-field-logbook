@@ -6,6 +6,7 @@ import { Chip, Highlight, inputClass } from "./ui";
 import { api, fmtDate, logStationNames, tempStationNames } from "@/lib/api";
 import { isFootplateLog } from "@/lib/movements";
 import { DEPARTMENTS, PRIORITIES, STATUSES, DEPARTMENT_COLORS, PRIORITY_COLORS, isSpecialMovement } from "@/lib/types";
+import { repeatBadge } from "@/lib/repeatPriority";
 import type { DailyLog, DeficiencyTask, PlannedWork, Note, Material, MaterialReceipt, MaterialUsage, MaterialTransfer, MaterialStation } from "@/db/schema";
 
 type ResultType = "Log" | "Deficiency" | "Planned Work" | "Note" | "Material";
@@ -127,7 +128,7 @@ export function SearchView({
           sub: d.description || "",
           chips: [
             { label: d.department, color: DEPARTMENT_COLORS[d.department] ?? "#2563eb" },
-            { label: d.priority, color: PRIORITY_COLORS[d.priority] ?? "#2563eb" },
+            { label: d.priority + repeatBadge(d.repeatCount), color: PRIORITY_COLORS[d.priority] ?? "#2563eb" },
             { label: d.status, color: d.status === "Completed" ? "#059669" : "#b45309" },
           ],
           date: d.dueDate ?? "",
