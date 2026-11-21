@@ -14,6 +14,7 @@ const SETTINGS_KEYS = [
   "snt.myStationsOnly",
   "snt.autoDriveSync",
   "snt.exportFormat",
+  "snt.certMeta",
   "snt.aiExport.enabled",
   "snt.aiExport.baseUrl",
   "snt.aiExport.apiKey",

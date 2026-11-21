@@ -6,6 +6,7 @@ import { TomorrowWorkModal } from "./TomorrowWorkModal";
 import { PcdoExportModal } from "./PcdoExportModal";
 import { DiaryExportModal } from "./DiaryExportModal";
 import { InspectionExportModal } from "./InspectionExportModal";
+import { CertificateExportModal } from "./CertificateExportModal";
 import { MusterExportModal } from "./MusterExportModal";
 import { PeriodPicker, monthPeriod, type Period } from "./PeriodPicker";
 import { getPcdoPeriod } from "@/lib/pcdo";
@@ -38,6 +39,7 @@ export function Reports({
   const [diaryOpen, setDiaryOpen] = useState(false);
   const [taOpen, setTaOpen] = useState(false);
   const [inspOpen, setInspOpen] = useState(false);
+  const [certOpen, setCertOpen] = useState(false);
   const [musterOpen, setMusterOpen] = useState(false);
   const [period, setPeriod] = useState<Period>(() => monthPeriod(0));
   const [custom, setCustom] = useState(false);
@@ -54,12 +56,13 @@ export function Reports({
   }, [drillCloseRef]);
 
   // The native back key closes these export modals instead of navigating away
-  useBackClose(tomorrowOpen || pcdoOpen || diaryOpen || taOpen || inspOpen, () => {
+  useBackClose(tomorrowOpen || pcdoOpen || diaryOpen || taOpen || inspOpen || certOpen, () => {
     if (tomorrowOpen) setTomorrowOpen(false);
     else if (pcdoOpen) setPcdoOpen(false);
     else if (diaryOpen) setDiaryOpen(false);
     else if (taOpen) setTaOpen(false);
-    else setInspOpen(false);
+    else if (inspOpen) setInspOpen(false);
+    else setCertOpen(false);
   });
 
   function openRow(row: StatRow) {
@@ -540,6 +543,9 @@ export function Reports({
           <ExportBtn color="#0284c7" glyph="🔁" onClick={() => setInspOpen(true)}>
             Export Inspections (monthly / quarterly / maintenance)
           </ExportBtn>
+          <ExportBtn color="#b91c1c" glyph="🏛️" onClick={() => setCertOpen(true)}>
+            Official Monthly Formats (IC / Foot Plate)
+          </ExportBtn>
         </div>
       </div>
       </div>
@@ -549,6 +555,7 @@ export function Reports({
       <DiaryExportModal open={diaryOpen} onClose={() => setDiaryOpen(false)} initialMode="diary" />
       <DiaryExportModal open={taOpen} onClose={() => setTaOpen(false)} initialMode="ta" />
       <InspectionExportModal open={inspOpen} onClose={() => setInspOpen(false)} />
+      <CertificateExportModal open={certOpen} onClose={() => setCertOpen(false)} />
       <MusterExportModal open={musterOpen} onClose={() => setMusterOpen(false)} />
       <StatDetailModal
         open={Boolean(drill)}

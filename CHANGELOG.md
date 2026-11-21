@@ -3,6 +3,17 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.29 — 2026-11-21
+
+**Major: official monthly formats — IC certificate (Form S&T./IC.3.3) and Foot Plate observation (Annexure 3-A2)**
+
+- Generate Reports has a new "Official Monthly Formats (IC / Foot Plate)" export producing the two office forms from the uploaded PDF samples, A4 landscape.
+- IC Certificate: one table row per inspected station — dates visited, nature + time spent (\u22644 / >4 / >8 / >16 Hrs), gear type, condition, the month's repair items gathered from every daily log touching that station (each with its own date), and a "Repairs Required" footer built automatically from the open Signalling deficiencies at those stations.
+- Monthly-inspection entries gain four certificate columns: Time spent, Condition, Gear type (pre-filled with "All Signaling & Interlocking Equipment") and Repairs required.
+- Foot Plate Forms: one RECORD OF OBSERVATION per shift per trip — general items (a)–(w), signalling items (a)–(n), the station-wise signal visibility matrix (Distant / Home / Starter / Adv. Starter slots against YY / G / Y / R lamps, visibility grade, LED brightness, interference), train-running items (a)–(h) and the two free-text closing items, all headed with the trip's date, train, engine, loco pilot, ALP and guard.
+- Observation sheets pre-fill every answer from your previous footplate trip, so only deviations need editing; each answer stays freely editable.
+- The TO / Through-SSE / Section lines (one-time) are asked inside the export modal and remembered; railway, division, name and designation come from your profile.
+
 ## 1.7.8.28 — 2026-11-18
 
 **Minor: repeated deficiencies count up and raise priority (shown in notifications)**

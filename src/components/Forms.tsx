@@ -55,11 +55,31 @@ import type {
   DailyLog,
   DeficiencyTask,
   PlannedWork,
+  Station,
   FootplateBlock,
   FootplateJourneyTrain,
   FootplateRide,
   JourneyLeg,
 } from "@/db/schema";
+import {
+  CONDITIONS,
+  DEFAULT_GEAR_TYPE,
+  GENERAL_ITEMS,
+  HOURS_BANDS,
+  MATRIX_LAMPS,
+  MATRIX_SLOTS,
+  SIGNALLING_ITEMS,
+  RUNNING_ITEMS,
+  SLOT_LABEL,
+  emptyShiftForm,
+  latestFootplateObs,
+  normalizeObs,
+  prefillFromLast,
+  type GearCondition,
+  type MatrixSlot,
+  type ObsMatrixStation,
+  type ObsShiftForm,
+} from "@/lib/certificate";
 
 /** Sentinel value stored in `extraMovements` to represent a Footplate journey
  *  in the movement chain. A real station name is a string; this marker is used
@@ -1224,6 +1244,32 @@ export function DailyLogForm({
   const [fpNight, setFpNight] = useState(
     (existing?.footplateShift ?? "").split(",").map((s) => s.trim()).includes("Night")
   );
+
+  // ── Official print fields ────────────────────────────────────────────────
+  // Form S&T./IC.3.3 columns driven by the monthly-inspection entry itself.
+  const [certHours, setCertHours] = useState(existing?.certHours ?? "");
+  const [certCondition, setCertCondition] = useState<GearCondition>(
+    (existing?.certCondition as GearCondition) ?? "Satisfactory"
+  );
+  const [certGear, setCertGear] = useState(existing?.certGear ?? DEFAULT_GEAR_TYPE);
+  const [certRepairsReq, setCertRepairsReq] = useState(existing?.certRepairsReq ?? "");
+
+  // Annexure 3-A2 observation sheets (one per shift). A brand-new footplate
+  // entry inherits the previous trip's answers so only deviations need touch;
+  // editing keeps the entry's own sheets.
+  const initObsShift = (sh: "day" | "night"): ObsShiftForm => {
+    const own = normalizeObs(existing?.footplateObs);
+    if (own[sh]) return own[sh]!;
+    const last = latestFootplateObs(logs.filter((l) => l.id !== existing?.id));
+    if (last) {
+      const cloned = normalizeObs(prefillFromLast(last));
+      if (cloned[sh]) return cloned[sh]!;
+    }
+    return emptyShiftForm();
+  };
+  const [obsDay, setObsDay] = useState<ObsShiftForm>(() => initObsShift("day"));
+  const [obsNight, setObsNight] = useState<ObsShiftForm>(() => initObsShift("night"));
+
   const emptyFp: FootplateJourneyTrain = {
     trainNo: "",
     engineNo: "",
@@ -1903,6 +1949,20 @@ export function DailyLogForm({
           ? inspectionTowardsId
           : null,
       inspectionSide: inspectionKind && inspectionSide === "Both" ? "Both" : null,
+      certHours: inspectionKind === "monthly" ? certHours || null : null,
+      certCondition: inspectionKind === "monthly" ? certCondition : null,
+      certGear: inspectionKind === "monthly" ? certGear.trim() || null : null,
+      certRepairsReq: inspectionKind === "monthly" ? certRepairsReq.trim() || null : null,
+      // Journey-mode footplate entries save both shift sheets (spec-skipping
+      // keeps unworked shifts out of the print); selective mode follows the
+      // Day/Night toggles.
+      footplateObs:
+        inspectionKind === "footplate"
+          ? {
+              day: (movementKind === "footplate" || fpDay) ? obsDay : null,
+              night: (movementKind === "footplate" || fpNight) ? obsNight : null,
+            }
+          : null,
       inspectionJointDept: inspectionKind === "joint" ? jointDept || null : null,
       inspectionPeriodicity:
         fpInChain || (inspectionKind && PERIODIC_KINDS.includes(inspectionKind)) ? periodicity : null,
@@ -3004,6 +3064,60 @@ export function DailyLogForm({
             </div>
           )}
 
+          {inspectionKind === "monthly" && (
+            <div className="mt-3 rounded-lg border border-slate-200 bg-white/80 p-2.5">
+              <p className="mb-2 text-xs font-semibold text-slate-700">
+                Certificate (Form S&amp;T./IC.3.3) columns
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block">
+                  <span className="mb-1 block text-[11px] font-medium text-slate-600">Time spent</span>
+                  <select
+                    className={`${inputClass} py-1.5 text-sm`}
+                    value={certHours}
+                    onChange={(e) => setCertHours(e.target.value)}
+                  >
+                    <option value="">—</option>
+                    {HOURS_BANDS.map((hb) => (
+                      <option key={hb} value={hb}>{hb}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-[11px] font-medium text-slate-600">Condition</span>
+                  <select
+                    className={`${inputClass} py-1.5 text-sm`}
+                    value={certCondition}
+                    onChange={(e) => setCertCondition(e.target.value as GearCondition)}
+                  >
+                    {CONDITIONS.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <label className="mt-2 block">
+                <span className="mb-1 block text-[11px] font-medium text-slate-600">Gear type covered</span>
+                <input
+                  className={`${inputClass} py-1.5 text-sm`}
+                  value={certGear}
+                  onChange={(e) => setCertGear(e.target.value)}
+                />
+              </label>
+              <label className="mt-2 block">
+                <span className="mb-1 block text-[11px] font-medium text-slate-600">
+                  Repairs required <span className="text-slate-400">(blank prints —)</span>
+                </span>
+                <input
+                  className={`${inputClass} py-1.5 text-sm`}
+                  value={certRepairsReq}
+                  placeholder="----"
+                  onChange={(e) => setCertRepairsReq(e.target.value)}
+                />
+              </label>
+            </div>
+          )}
+
           {PERIODIC_KINDS.includes(inspectionKind) && (
             <label className="mt-2 block">
               <span className="mb-1 block text-xs font-medium text-slate-700">Periodicity</span>
@@ -3095,6 +3209,19 @@ export function DailyLogForm({
               )}
             </>
           )}
+
+          {inspectionKind === "footplate" &&
+            (movementKind === "footplate" || fpDay || fpNight) && (
+              <ObsSheetsEditor
+                dayActive={movementKind === "footplate" || fpDay}
+                nightActive={movementKind === "footplate" || fpNight}
+                day={obsDay}
+                setDay={setObsDay}
+                night={obsNight}
+                setNight={setObsNight}
+                stations={stations}
+              />
+            )}
 
           {inspectionKind === "joint" && (
             <label className="mt-2 block">
@@ -3824,6 +3951,289 @@ function UpWayPicker({
           Up: {otherEndName} → {boardingName}
         </button>
       </div>
+    </div>
+  );
+}
+
+/* ── Annexure 3-A2 foot plate observation editors ─────────────────────── */
+
+type ObsListItem = { key: string; code: string; label: string; def: string };
+
+function ObsChecklist({
+  title,
+  items,
+  values,
+  onChange,
+}: {
+  title: string;
+  items: ObsListItem[];
+  values: Record<string, string>;
+  onChange: (key: string, v: string) => void;
+}) {
+  return (
+    <div>
+      <p className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">{title}</p>
+      <div className="space-y-1">
+        {items.map((it) => (
+          <label key={it.key} className="flex items-center gap-2">
+            <span className="w-44 flex-shrink-0 text-[11px] leading-tight text-slate-600">
+              {it.code} {it.label}
+            </span>
+            <input
+              className={`${inputClass} py-1 text-xs`}
+              value={values[it.key] ?? ""}
+              onChange={(e) => onChange(it.key, e.target.value)}
+            />
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const OBS_VISIBILITY = ["Good", "Adequate", "Insufficient"];
+const OBS_LED = ["Excellent", "Very Good", "Good", "Out of focus"];
+
+function ObsMatrixEditor({
+  value,
+  onChange,
+  stations,
+}: {
+  value: ObsMatrixStation[];
+  onChange: (v: ObsMatrixStation[]) => void;
+  stations: Station[];
+}) {
+  const remaining = stations.filter((s) => !value.some((m) => m.stationId === s.id));
+  const addStation = (idStr: string) => {
+    if (!idStr) return;
+    const s = stations.find((x) => x.id === Number(idStr));
+    if (!s) return;
+    onChange([
+      ...value,
+      { stationId: s.id, stationName: s.name, lamps: {}, visibility: "Good", led: "Very Good", interference: false },
+    ]);
+  };
+  const patch = (i: number, p: Partial<ObsMatrixStation>) =>
+    onChange(value.map((m, j) => (j === i ? { ...m, ...p } : m)));
+  const toggleLamp = (i: number, slot: MatrixSlot, lamp: string) =>
+    patch(i, {
+      lamps: {
+        ...value[i].lamps,
+        [slot]: value[i].lamps[slot]?.includes(lamp)
+          ? value[i].lamps[slot]!.filter((l) => l !== lamp)
+          : [...(value[i].lamps[slot] ?? []), lamp],
+      },
+    });
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <p className="flex-1 text-xs font-bold uppercase tracking-wide text-slate-500">
+          Station visibility matrix
+        </p>
+        <select
+          className={`${inputClass} w-40 py-1 text-xs`}
+          value=""
+          onChange={(e) => addStation(e.target.value)}
+        >
+          <option value="">+ Add station</option>
+          {remaining.map((s) => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
+      </div>
+      {value.length === 0 && (
+        <p className="text-[11px] text-slate-400">
+          Optional — tick the lamps seen at each station for the printed matrix.
+        </p>
+      )}
+      {value.map((st, i) => (
+        <div key={`${st.stationId}-${i}`} className="rounded-lg border border-slate-200 p-2">
+          <div className="mb-1.5 flex items-center justify-between">
+            <p className="text-xs font-semibold text-slate-800">{st.stationName}</p>
+            <button
+              type="button"
+              className="text-[11px] font-medium text-red-500"
+              onClick={() => onChange(value.filter((_, j) => j !== i))}
+            >
+              Remove
+            </button>
+          </div>
+          <div className="space-y-1">
+            {MATRIX_SLOTS.map((slot) => (
+              <div key={slot} className="flex items-center gap-1.5">
+                <span className="w-20 flex-shrink-0 text-[10px] text-slate-500">{SLOT_LABEL[slot]}</span>
+                {MATRIX_LAMPS.map((lamp) => (
+                  <button
+                    key={lamp}
+                    type="button"
+                    onClick={() => toggleLamp(i, slot, lamp)}
+                    className={`h-6 w-9 rounded border text-[10px] font-semibold ${
+                      st.lamps[slot]?.includes(lamp)
+                        ? "border-emerald-600 bg-emerald-50 text-emerald-700"
+                        : "border-slate-300 text-slate-400"
+                    }`}
+                  >
+                    {lamp}
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+          <div className="mt-1.5 grid grid-cols-3 gap-1.5">
+            <select
+              className={`${inputClass} py-1 text-[11px]`}
+              value={st.visibility}
+              onChange={(e) => patch(i, { visibility: e.target.value })}
+            >
+              {OBS_VISIBILITY.map((v) => (<option key={v} value={v}>Vis: {v}</option>))}
+            </select>
+            <select
+              className={`${inputClass} py-1 text-[11px]`}
+              value={st.led}
+              onChange={(e) => patch(i, { led: e.target.value })}
+            >
+              {OBS_LED.map((v) => (<option key={v} value={v}>LED: {v}</option>))}
+            </select>
+            <button
+              type="button"
+              onClick={() => patch(i, { interference: !st.interference })}
+              className={`rounded-lg border py-1 text-[11px] font-medium ${
+                st.interference
+                  ? "border-amber-500 bg-amber-50 text-amber-700"
+                  : "border-slate-300 text-slate-500"
+              }`}
+            >
+              Interference: {st.interference ? "YES" : "NO"}
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ObsSheetsEditor({
+  dayActive,
+  nightActive,
+  day,
+  setDay,
+  night,
+  setNight,
+  stations,
+}: {
+  dayActive: boolean;
+  nightActive: boolean;
+  day: ObsShiftForm;
+  setDay: (v: ObsShiftForm) => void;
+  night: ObsShiftForm;
+  setNight: (v: ObsShiftForm) => void;
+  stations: Station[];
+}) {
+  const tabs = [
+    ...(dayActive ? (["day"] as const) : []),
+    ...(nightActive ? (["night"] as const) : []),
+  ];
+  const [tab, setTab] = useState<"day" | "night">(tabs[0] ?? "day");
+  const [open, setOpen] = useState(false);
+  const active = tab === "day" ? day : night;
+  const setActive = tab === "day" ? setDay : setNight;
+  const ans = (patch: Partial<Record<"general" | "signalling" | "running", Record<string, string>>>) =>
+    setActive({
+      ...active,
+      ...patch,
+    });
+
+  return (
+    <div className="mt-2 rounded-lg border border-indigo-200 bg-indigo-50/60 p-2.5">
+      <button
+        type="button"
+        className="flex w-full items-center justify-between text-left"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className="text-xs font-semibold text-indigo-900">
+          Observation sheet (Annexure 3-A2){open ? " ▲" : " ▼"}
+        </span>
+        <span className="text-[10px] text-indigo-500">
+          {open ? "hide" : "defaults prefilled from last trip"}
+        </span>
+      </button>
+      {open && (
+        <div className="mt-2 space-y-3">
+          {tabs.length > 1 && (
+            <div className="flex gap-2">
+              {tabs.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setTab(t)}
+                  className={`flex-1 rounded-lg border px-2 py-1.5 text-xs font-medium capitalize ${
+                    tab === t ? "border-indigo-500 bg-indigo-50 text-indigo-800" : "border-slate-300 text-slate-500"
+                  }`}
+                >
+                  {t === "day" ? "☀ Day sheet" : "🌙 Night sheet"}
+                </button>
+              ))}
+            </div>
+          )}
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-medium text-slate-600">
+              Train load <span className="text-slate-400">(printed after the train no.)</span>
+            </span>
+            <input
+              className={`${inputClass} py-1 text-xs`}
+              value={active.trainLoad}
+              placeholder="e.g. 8 COACHES"
+              onChange={(e) => setActive({ ...active, trainLoad: e.target.value })}
+            />
+          </label>
+          <ObsChecklist
+            title="General items"
+            items={GENERAL_ITEMS}
+            values={active.general}
+            onChange={(k, v) => ans({ general: { ...active.general, [k]: v } })}
+          />
+          <ObsChecklist
+            title="Signalling items"
+            items={SIGNALLING_ITEMS}
+            values={active.signalling}
+            onChange={(k, v) => ans({ signalling: { ...active.signalling, [k]: v } })}
+          />
+          <ObsMatrixEditor
+            value={active.matrix}
+            onChange={(matrix) => setActive({ ...active, matrix })}
+            stations={stations}
+          />
+          <ObsChecklist
+            title="Train running items"
+            items={RUNNING_ITEMS}
+            values={active.running}
+            onChange={(k, v) => ans({ running: { ...active.running, [k]: v } })}
+          />
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-medium text-slate-600">
+              1. Important observation &amp; action proposed
+            </span>
+            <textarea
+              className={`${inputClass} text-xs`}
+              rows={2}
+              value={active.observation}
+              onChange={(e) => setActive({ ...active, observation: e.target.value })}
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-medium text-slate-600">
+              2. Assistance required (whom &amp; purpose)
+            </span>
+            <textarea
+              className={`${inputClass} text-xs`}
+              rows={2}
+              value={active.assistance}
+              onChange={(e) => setActive({ ...active, assistance: e.target.value })}
+            />
+          </label>
+        </div>
+      )}
     </div>
   );
 }

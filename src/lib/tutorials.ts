@@ -860,6 +860,38 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.8.29",
+    tag: "Official monthly formats",
+    subtitle: "The IC certificate and foot plate observation sheet now print themselves.",
+    slides: [
+      {
+        glyph: "◈",
+        title: "Two office forms, one export",
+        body: "Reports → “Official Monthly Formats (IC / Foot Plate)” prints the Form S&T./IC.3.3 inspection & testing certificate and the Annexure 3-A2 foot plate observation, A4 landscape, matching the office samples.",
+      },
+      {
+        glyph: "⊞",
+        title: "Certificate fills itself",
+        body: "One row per inspected station: your monthly entries give the dates, time spent and condition; every daily log touching that station during the month supplies the dated “repairs done” items; open Signalling deficiencies become the “Repairs Required” footer.",
+      },
+      {
+        glyph: "☄",
+        title: "Four columns on the monthly entry",
+        body: "When you tag a monthly inspection, the entry form asks Time spent (≤4 / >4 / >8 / >16 Hrs), Condition, the gear covered and Repairs required — exactly the certificate's columns.",
+      },
+      {
+        glyph: "◕",
+        title: "Observation sheet remembers",
+        body: "Each footplate trip carries a Day and Night observation sheet — general, signalling, train-running checklists plus the station visibility matrix. Answers pre-fill from your previous trip, so you only correct what changed.",
+      },
+      {
+        glyph: "✉",
+        title: "One-time address lines",
+        body: "Inside the export modal, set the TO (Sr DSTE…) and Through (SSE…) lines and the section once — they are remembered. Railway, division, name and designation come from your profile.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {

@@ -10,6 +10,13 @@ import { tripTimes, journeyTrainTimes, type TripTimes } from "@/lib/travel";
 import { loadTaGenConfig, type TaGenWindow, type TaRateKey } from "@/lib/taGenConfig";
 import { effectiveRequirement } from "@/lib/stock";
 import { repeatBadge } from "@/lib/repeatPriority";
+import {
+  buildCertificateModel,
+  certificateHtml,
+  footplateFormHtml,
+  footplateFormSpecs,
+  type CertExtra,
+} from "@/lib/certificate";
 import type { XlsxCell, XlsxSheet, XlsxMerge } from "@/lib/xlsx";
 import type {
   DeficiencyTask,
@@ -2235,6 +2242,61 @@ export function exportMuster(
     orientation: "landscape",
     fitStart: 14,
     filename,
+    onComplete,
+  });
+}
+
+/* ── Official monthly formats ─────────────────────────────────────────── */
+
+/**
+ * Form S&T./IC.3.3 — monthly inspection & testing certificate, A4 landscape.
+ * `included` are the month's monthly-inspection logs driving the table rows;
+ * `allMonthLogs` feeds the per-station "repairs done" roll-up.
+ */
+export function exportCertificate(
+  period: { from: string; label: string },
+  included: DailyLog[],
+  allMonthLogs: DailyLog[],
+  stations: Station[],
+  deficiencies: DeficiencyTask[],
+  staff: Staff | null,
+  extra: CertExtra,
+  onComplete?: () => void
+) {
+  const yearMonth = period.from.slice(0, 7);
+  const model = buildCertificateModel({
+    included,
+    allMonthLogs,
+    stations,
+    deficiencies,
+    staff,
+    extra,
+    yearMonth,
+  });
+  exportDocument(`IC Certificate ${period.label}`, certificateHtml(model), "certificate", undefined, {
+    orientation: "landscape",
+    onComplete,
+  });
+}
+
+/** Annexure 3-A2 — one foot plate observation form per shift per trip. */
+export function exportFootplateForms(
+  period: { from: string; label: string },
+  selected: DailyLog[],
+  staff: Staff | null,
+  extra: CertExtra,
+  onComplete?: () => void
+) {
+  const yearMonth = period.from.slice(0, 7);
+  const railway = staff?.railwayZone || "South Coast Railway";
+  const forwarded = extra.addressedTo;
+  const sse = extra.throughLine;
+  const body = selected
+    .flatMap((l) => footplateFormSpecs(l, staff, extra))
+    .map((spec) => footplateFormHtml(spec, railway, yearMonth, forwarded, sse))
+    .join(`<div class="page-break"></div>`);
+  exportDocument(`Foot Plate Observation ${period.label}`, body, "footplate", undefined, {
+    orientation: "landscape",
     onComplete,
   });
 }

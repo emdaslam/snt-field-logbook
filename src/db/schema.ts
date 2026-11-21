@@ -147,6 +147,21 @@ export const dailyLogs = pgTable("daily_logs", {
   // "__footplate__" sentinel). Empty when the entry is a single movement.
   extraStops: jsonb("extra_stops").$type<string[]>().default([]).notNull(),
   inspectionSide: varchar("inspection_side", { length: 160 }),
+  // ── Official Form S&T./IC.3.3 (inspection & testing certificate) fields —
+  // per monthly-inspection entry. Null on legacy rows (print as office
+  // defaults: highest band blank / Satisfactory / constant gear / "----").
+  // Time actually spent with the inspected gear, printed in the "Nature of
+  // inspection and time spent" column ("\u22644 Hrs" | ">4 Hrs" | ">8 Hrs" | ">16 Hrs").
+  certHours: varchar("cert_hours", { length: 10 }),
+  // Outcome of the round (Satisfactory / Unsatisfactory)
+  certCondition: varchar("cert_condition", { length: 20 }),
+  // Gear type covered — defaults to "All Signaling & Interlocking Equipment"
+  certGear: varchar("cert_gear", { length: 80 }),
+  // Free text for the row's "Repairs Required" cell (blank prints "----")
+  certRepairsReq: text("cert_repairs_req"),
+  // Annexure 3-A2 foot plate observation sheets (day/night checklists +
+  // station visibility matrix). Null = the trip predates the feature.
+  footplateObs: jsonb("footplate_obs").$type<FootplateObs | null>(),
   // Author of this log — private data is only visible to its owner
   ownerStaffId: integer("owner_staff_id"),
   // PCDO — special works reported in the monthly PCDO return.
@@ -309,6 +324,13 @@ export type FootplateRide = {
   night: FootplateBlock | null;
   upFromBoarding?: boolean | null;
 };
+
+/** One shift of the Annexure 3-A2 foot plate observation (checklists +
+ *  station visibility matrix). Defined in src/lib/certificate.ts and kept as
+ *  a structural import here to avoid a db→lib cycle; see that file for the
+ *  full shape docs. */
+export type ObsShiftForm = import("@/lib/certificate").ObsShiftForm;
+export type FootplateObs = import("@/lib/certificate").FootplateObs;
 
 export type Attachment = {
   name: string;
