@@ -3,6 +3,15 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.36 — 2026-11-23
+
+**Minor: PCDO PDF upload feeds the IC certificate's "Repairs done" column; unconditional Forwarded/SSE closing**
+
+- The IC Certificate export (Official Monthly Formats → IC Certificate) gains a PCDO PDF uploader. Attach the office PCDO return (e.g. "JMDG PCDO FEB-26.pdf") and the works printed in its Highlights, Signalling-works and Engineering-works sections — all three — fill the "Repairs done during the Month" column, station-matched against your register (name or code), each station's items sorted by the date the work was carried out (ascending), duplicates across sections dropped.
+- While a PCDO PDF is attached the column is fed only from that PDF (the daily-log work-done roll-up is not mixed in); stations absent from the PDF print "----". Detach the PDF ("Remove") to return to the log-fed column.
+- The modal summarises the harvest per station and warns about station labels from the PDF that match nothing in your register (those works are left off until the station/code is added).
+- Both official forms now always print the countersign closing — the IC certificate and the foot plate form print "Forwarded to …" (falling back to "Sr. DSTE/M/<division>" when the Details were left empty) and the SSE office designation below it, so the closing can never silently vanish.
+
 ## 1.7.8.35 — 2026-11-23
 
 **Minor: foot plate form — one bold heading block, bold boxed answers, vertically centred cells, sample signature close**

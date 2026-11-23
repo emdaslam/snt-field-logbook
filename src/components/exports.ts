@@ -17,6 +17,7 @@ import {
   footplateFormSpecs,
   type CertExtra,
 } from "@/lib/certificate";
+import type { PcdoItem } from "@/lib/pcdo-pdf";
 import type { XlsxCell, XlsxSheet, XlsxMerge } from "@/lib/xlsx";
 import type {
   DeficiencyTask,
@@ -2261,7 +2262,8 @@ export function exportCertificate(
   deficiencies: DeficiencyTask[],
   staff: Staff | null,
   extra: CertExtra,
-  onComplete?: () => void
+  onComplete?: () => void,
+  pcdoRepairs?: { station: string; items: PcdoItem[] }[]
 ) {
   const yearMonth = period.from.slice(0, 7);
   const model = buildCertificateModel({
@@ -2272,6 +2274,7 @@ export function exportCertificate(
     staff,
     extra,
     yearMonth,
+    pcdoRepairs,
   });
   exportDocument(`IC Certificate ${period.label}`, certificateHtml(model), "certificate", undefined, {
     orientation: "landscape",
@@ -2291,7 +2294,9 @@ export function exportFootplateForms(
 ) {
   const yearMonth = period.from.slice(0, 7);
   const railway = staff?.railwayZone || "South Coast Railway";
-  const forwarded = extra.addressedTo;
+  // The Forwarded line always prints; when no Details were entered fall back
+  // to the standard addressing ("Sr. DSTE/M/" + division).
+  const forwarded = extra.addressedTo || `Sr. DSTE/M/${staff?.railwayDivision || "Division"}`;
   const sse = extra.throughLine;
   const body = selected
     .flatMap((l) => footplateFormSpecs(l, staff, extra, stations))

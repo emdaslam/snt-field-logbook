@@ -7,6 +7,7 @@
 
 import type { DailyLog, DeficiencyTask, Station, Staff } from "@/db/schema";
 import { footplateRidesOf } from "@/lib/api";
+import type { PcdoItem } from "@/lib/pcdo-pdf";
 
 /** Extra header lines the official formats need that the staff profile does
  *  not carry. Persisted as one JSON blob under "snt.certMeta". */
@@ -143,8 +144,12 @@ export function buildCertificateModel(args: {
   staff?: Staff | null;
   extra: CertExtra;
   yearMonth: string;
+  /** When set (a PCDO PDF was attached and parsed), the "Repairs done"
+   *  column comes ONLY from here — the log-derived narratives are ignored
+   *  entirely. Keyed by matched app-station name. */
+  pcdoRepairs?: { station: string; items: PcdoItem[] }[];
 }): CertModel {
-  const { included, allMonthLogs, stations, deficiencies, staff, extra, yearMonth } = args;
+  const { included, allMonthLogs, stations, deficiencies, staff, extra, yearMonth, pcdoRepairs } = args;
   const nameOf = (id: number | null) => stations.find((s) => s.id === id)?.name ?? "";
 
   const orderedStations: string[] = [];
@@ -173,6 +178,15 @@ export function buildCertificateModel(args: {
     }
     items.sort((a, b) => a.date.localeCompare(b.date));
 
+    let repairsDone = items;
+    if (pcdoRepairs) {
+      // PDF attached — its works are the sole source, oldest first.
+      const fromPdf = pcdoRepairs.find((p) => p.station === station)?.items ?? [];
+      repairsDone = fromPdf
+        .map((it) => ({ date: it.dateIso ?? "", text: it.text }))
+        .sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"));
+    }
+
     return {
       station,
       dates: atStation.map((l) => l.logDate),
@@ -180,7 +194,7 @@ export function buildCertificateModel(args: {
       hours,
       gear,
       condition,
-      repairsDone: items,
+      repairsDone,
       repairsRequired,
     };
   });
@@ -303,7 +317,7 @@ export function certificateHtml(m: CertModel): string {
     h += `<td>${
       r.repairsDone.length
         ? r.repairsDone
-            .map((it, i) => `${i + 1}) ${hEsc(it.text)} (${ddmmyyyy(it.date)})`)
+            .map((it, i) => `${i + 1}) ${hEsc(it.text)}${it.date ? ` (${ddmmyyyy(it.date)})` : ""}`)
             .join("\n")
         : "----"
     }</td>`;
@@ -319,9 +333,11 @@ export function certificateHtml(m: CertModel): string {
     });
   }
 
-  if (m.jeLine) h += `<p class="sig"><strong>${hEsc(m.jeLine)}</strong></p>`;
-  if (m.addressedTo) h += `<p class="fwd">Forwarded to ${hEsc(m.addressedTo)}</p>`;
-  if (m.throughLine) h += `<p class="sig"><strong>${hEsc(m.throughLine)}</strong></p>`;
+  // Closing block always prints — the countersign trio may not silently
+  // vanish when the Details fields were left empty.
+  if (m.jeLine) h += `<p class="right" data-space-top="26"><strong>${hEsc(m.jeLine)}</strong></p>`;
+  h += `<p data-left="24">Forwarded to ${hEsc(m.addressedTo || `Sr. DSTE/M/${m.division || "Division"}`)}</p>`;
+  if (m.throughLine) h += `<p data-left="24" data-space-top="20"><strong>${hEsc(m.throughLine)}</strong></p>`;
   return h;
 }
 
@@ -704,8 +720,10 @@ export function footplateFormHtml(spec: FootPlateFormSpec, railway: string, year
   // Closing block like the office sample: signing room above the right-hand
   // designation, the forwarding endorsement at the left one line lower, and
   // after a further gap the SSE's office designation to counter-sign over.
+  // The forwarding line always prints (falls back to the addressing default)
+  // so the countersign block can never silently disappear.
   h += `<p class="right" data-space-top="34"><strong>${hEsc(spec.designation)}</strong></p>`;
-  if (forwardedTo) h += `<p data-left="24">Forwarded to ${hEsc(forwardedTo)}</p>`;
+  h += `<p data-left="24">Forwarded to ${hEsc(forwardedTo || "Sr. DSTE/M/Division")}</p>`;
   if (sseLine) h += `<p data-left="24" data-space-top="30"><strong>${hEsc(sseLine)}</strong></p>`;
   return h;
 }

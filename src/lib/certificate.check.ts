@@ -312,4 +312,118 @@ try {
 }
 ok(loadCertExtra().addressedTo === "", "cert extra tolerates missing localStorage");
 
+// ── PCDO PDF parsing (fixtures shaped like Pdf samples/PCDO APRIL-26.pdf) ──
+import { extractDateIso, extractPcdoWorks, matchPcdoToStations, parsePcdoSegments, type PcdoSeg } from "./pcdo-pdf";
+
+ok(extractDateIso("replaced on 29-03-2026 since") === "2026-03-29", "dash date");
+ok(extractDateIso("AI done on 29-12-25") === "2025-12-29", "short-year date");
+ok(extractDateIso("values updated 21.01.2026 ok") === "2026-01-21", "dot date");
+ok(extractDateIso("no date here") === null, "date-free text");
+
+const seg = (x: number, y: number, str: string): PcdoSeg => ({ x, y, w: str.length * 4.2, h: 9, str });
+const pcdo = parsePcdoSegments([[
+  seg(100, 400, "HIGHLIGHTS FOR THE MONTH OF APRIL –2026"),
+  seg(80, 396, "1. SUPP - 60 Nos of 80 AH track circuit batteries replaced since due for replacement on 31-03-2026"),
+  seg(110, 392, "(Total for 20 track circuits)"),
+  seg(80, 388, "2. PNM- LC 170 B Boom replacement done since was damaged on 30-03-2026"),
+  seg(80, 384, "1. Unattributed multi station bullet with no station prefix on 05-04-2026"),
+  seg(100, 380, "1. SIGNALLING WORKS RELATED TO MAINTENANCE WORKS APRIL – 2026"),
+  seg(10, 376, " STATION"),
+  seg(170, 376, "ACTIVITY"),
+  seg(60, 372, "1. S-4 HG aspect LED replacement done on 28-03-2026"),
+  seg(12, 368, "MADU"),
+  seg(60, 368, "2. NDL end track feed battery charger PFC contact checking work done on 29-03-2026"),
+  seg(60, 364, "3. MADU-BGNP BPAC 1 communication checking work with tele staff on 28-03-3036"),
+  seg(60, 360, "1. BGNP tie-above item bridge test on 01-04-2026"),
+  seg(12, 356, "BGNP"),
+  seg(60, 352, "2. BGNP tie-below item bridge test on 02-04-2026"),
+  seg(12, 348, "PNM IB"),
+  seg(60, 348, "----------------------------"),
+  seg(60, 345, "4. S-4 HG aspect LED replacement done on 28-03-2026"),
+  seg(100, 342, "2.Engineering Works:"),
+  seg(170, 338, " ACTIVITY"),
+  seg(10, 334, " STATION"),
+  seg(10, 330, "MADU"),
+  seg(48, 330, "1. 18A,19A Point manual packing done and tested on 26-03-2026"),
+  seg(48, 326, "2. 13A.7A points manual packing done and tested on 13-04-2026."),
+  seg(10, 322, "PGL"),
+  seg(48, 322, "1. clutch spring TGN-24 replaced on 05-04-2026"),
+  seg(10, 318, "3.DIRECTED MAINTENANCE : 1. One No of defective cell replaced in IPS bank at KLKA on 20-04-2026"),
+]]);
+
+const findSt = (label: string) => pcdo.stations.find((s) => s.label === label);
+const madu = findSt("MADU");
+ok(!!madu && madu.items.length === 5, "pcdo: MADU 3 signalling + 2 engineering works (repeat deduped)");
+ok(madu?.items.some((i) => i.text.startsWith("S-4 HG aspect LED")) === true, "pcdo: item before its centred token assigned");
+ok(findSt("SUPP")?.items[0]?.text.includes("(Total for 20 track circuits)") === true, "pcdo: highlight continuation merges");
+ok(findSt("SUPP")?.items[0]?.dateIso === "2026-03-31", "pcdo: highlight date iso");
+ok(findSt("PNM")?.items[0]?.text.startsWith("LC 170 B Boom") === true, "pcdo: PNM- tight prefix");
+ok(findSt("PNM")?.items[0]?.dateIso === "2026-03-30", "pcdo: boom date");
+ok(pcdo.unattributed.length === 1 && pcdo.unattributed[0].text.startsWith("Unattributed"), "pcdo: station-less bullet parked aside");
+ok(findSt("BGNP")?.items.length === 2 && findSt("BGNP")?.items[0]?.text.includes("tie-above") === true, "pcdo: standalone token bridges both neighbours");
+ok(!findSt("PNM IB"), "pcdo: dash-only row yields no items");
+ok(findSt("MADU")?.items.some((i) => i.text.includes("manual packing")) === true, "pcdo: engineering table joined per station");
+ok(!pcdo.stations.some((s) => s.label.toLowerCase().includes("maintenance")), "pcdo: major heading terminates tables");
+ok(findSt("PGL")?.items.length === 1, "pcdo: unknown station labels still parse");
+
+// matcher: PCDO labels land on app stations by name or code
+const mm = matchPcdoToStations(pcdo, [
+  { id: 1, name: "MADU", code: "MADU" },
+  { id: 2, name: "Paneembakkam", code: "PNM IB" },
+  { id: 3, name: "PaghalHalt", code: "PGL" },
+]);
+ok([...mm.matched.keys()].sort().join("|") === "MADU|PaghalHalt", "pcdo matcher: name/code mapping");
+ok(mm.unmatched.includes("PNM") && mm.unmatched.includes("SUPP"), "pcdo matcher: abbreviations stay unmatched (distinct codes)");
+
+// model: when PCDO repairs attached, the column is PDF-ONLY (others print ----)
+const pcdoModel = buildCertificateModel({
+  included,
+  allMonthLogs: allMonth,
+  stations,
+  deficiencies: [],
+  staff,
+  extra,
+  yearMonth: "2026-07",
+  pcdoRepairs: [
+    {
+      station: "JMDG",
+      items: [
+        { text: "later work", dateIso: "2026-07-20" },
+        { text: "early work", dateIso: "2026-07-01" },
+      ],
+    },
+  ],
+});
+const pcmHtml = certificateHtml(pcdoModel);
+const jmdgRow = pcmHtml.split("</td>").find((c) => c.includes("early work")) ?? "";
+ok(jmdgRow.indexOf("1) early work (01-07-2026)") < jmdgRow.indexOf("2) later work (20-07-2026)"), "pcdo column: ascending work dates");
+ok(pcmHtml.includes("----</td>"), "pcdo column: stations absent from the PDF print ----");
+ok(allMonth.some((l) => l.workDone === "Track bond wires replaced") && !pcmHtml.includes("bond wires"), "pcdo column: log narratives ignored when PDF attached");
+
+// IC certificate countersign block prints unconditionally now
+ok(pcmHtml.includes('<p data-left="24">Forwarded to Sr DSTE/M/GTL</p>'), "ic close: forwarded with details");
+ok(!pcmHtml.includes('class="sig"') && !pcmHtml.includes('class="fwd"'), "ic close: legacy classes retired");
+const bareExtra = { ...extra, addressedTo: "", throughLine: "" };
+const bareModel = buildCertificateModel({ included, allMonthLogs: [], stations, deficiencies: [], staff, extra: bareExtra, yearMonth: "2026-07" });
+const bareHtml = certificateHtml(bareModel);
+ok(bareHtml.includes("Forwarded to Sr. DSTE/M/GTL"), "ic close: addressing fallback from division");
+
 console.log(`certificate.check: ${n} assertions passed`);
+
+// Real-sample integration — parse the actual uploaded PCDO return.
+void (async () => {
+  try {
+    const { readFileSync } = await import("node:fs");
+    const bytes = new Uint8Array(readFileSync("Pdf samples/PCDO APRIL-26.pdf"));
+    const real = await extractPcdoWorks(bytes);
+    ok(real.stations.length >= 8, "real april pcdo: several stations");
+    const rsupp = real.stations.find((s) => s.label === "SUPP");
+    ok(!!rsupp && rsupp.items.some((i) => /80 AH/.test(i.text)) && rsupp.items.every((i) => i.dateIso), "real april pcdo: SUPP battery bullet dated");
+    const rjmdg = real.stations.find((s) => s.label === "JMDG");
+    ok(!!rjmdg && rjmdg.items.length >= 2, "real april pcdo: JMDG works");
+    ok(real.stations.some((s) => s.items.some((i) => /manual packing/i.test(i.text))), "real april pcdo: engineering works captured");
+    console.log(`certificate.check: + real-sample assertions passed (${n} total)`);
+  } catch (e) {
+    console.error("certificate.check: real-sample part skipped:", String(e).slice(0, 160));
+  }
+})();

@@ -14,6 +14,7 @@ import {
   type CertExtra,
 } from "@/lib/certificate";
 import { footplateRidesOf, fmtDate } from "@/lib/api";
+import { extractPcdoWorks, matchPcdoToStations, type PcdoItem } from "@/lib/pcdo-pdf";
 
 /** Export the two official monthly formats:
  *  - IC Certificate (Form S&T./IC.3.3) for the month's monthly inspections
@@ -29,6 +30,36 @@ export function CertificateExportModal({ open, onClose }: { open: boolean; onClo
   const [extra, setExtra] = useState<CertExtra>(() => loadCertExtra());
   // Footplate trips start all-selected; unchecked ids land here.
   const [deselected, setDeselected] = useState<Set<number>>(new Set());
+  // Attached PCDO PDF (parsed): works feed the "Repairs done" column.
+  const [pcdo, setPcdo] = useState<
+    { name: string; matched: { station: string; items: PcdoItem[] }[]; unmatched: string[] } | null
+  >(null);
+  const [pcdoBusy, setPcdoBusy] = useState(false);
+  const [pcdoErr, setPcdoErr] = useState("");
+
+  const onPcdoFile = async (f: File | null) => {
+    setPcdoErr("");
+    setPcdo(null);
+    if (!f) return;
+    setPcdoBusy(true);
+    try {
+      const bytes = new Uint8Array(await f.arrayBuffer());
+      const res = await extractPcdoWorks(bytes);
+      const { matched, unmatched } = matchPcdoToStations(res, stations);
+      const arr = [...matched].map(([station, items]) => ({ station, items }));
+      if (!arr.length) {
+        setPcdoErr(
+          "No works recognised in this PDF. Is it a PCDO return with Highlights / Signalling / Engineering sections (not a scan)?"
+        );
+      } else {
+        setPcdo({ name: f.name, matched: arr, unmatched });
+      }
+    } catch (e) {
+      setPcdoErr("Could not read this PDF: " + String(e));
+    } finally {
+      setPcdoBusy(false);
+    }
+  };
 
   const monthLogs = useMemo(
     () =>
@@ -59,6 +90,7 @@ export function CertificateExportModal({ open, onClose }: { open: boolean; onClo
         staff: currentUser,
         extra,
         yearMonth: period.from.slice(0, 7),
+        pcdoRepairs: pcdo?.matched,
       });
       return {
         ok: model.rows.length > 0,
@@ -85,7 +117,7 @@ export function CertificateExportModal({ open, onClose }: { open: boolean; onClo
           } · ${matrixTickCount(s.form)} lamp tick${matrixTickCount(s.form) !== 1 ? "s" : ""}`
       ),
     };
-  }, [mode, included, monthLogs, stations, deficiencies, currentUser, extra, selectedTrips, period.from]);
+  }, [mode, included, monthLogs, stations, deficiencies, currentUser, extra, selectedTrips, period.from, pcdo]);
 
   const missingMeta = !extra.addressedTo.trim() || !extra.throughLine.trim();
 
@@ -188,6 +220,67 @@ export function CertificateExportModal({ open, onClose }: { open: boolean; onClo
         </p>
       )}
 
+      {mode === "ic" && (
+        <div className="mb-3 rounded-lg border border-slate-200 p-2.5">
+          <div className="mb-1 flex items-center justify-between">
+            <p className="text-[13px] font-semibold text-slate-700">
+              PCDO PDF — &ldquo;Repairs done&rdquo; source
+            </p>
+            {pcdo && (
+              <button
+                type="button"
+                onClick={() => setPcdo(null)}
+                className="text-xs font-medium text-red-600 underline"
+              >
+                Remove
+              </button>
+            )}
+          </div>
+          <p className="mb-2 text-[11px] leading-snug text-slate-500">
+            Optional. Upload the office PCDO return for the month — its works
+            (Highlights / Signalling / Engineering sections) fill the
+            &ldquo;Repairs done during the Month&rdquo; column in ascending
+            work-date order, replacing the daily-notes roll-up.
+          </p>
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-sky-300 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-800 active:bg-sky-100">
+            <input
+              type="file"
+              accept="application/pdf,.pdf"
+              className="sr-only"
+              disabled={pcdoBusy}
+              onChange={(e) => {
+                void onPcdoFile(e.target.files?.[0] ?? null);
+                e.currentTarget.value = "";
+              }}
+            />
+            {pcdoBusy ? "Reading PDF…" : pcdo ? "Replace PDF" : "Choose PCDO PDF…"}
+          </label>
+          {pcdo && (
+            <div className="mt-2">
+              <p className="truncate text-[11px] font-medium text-slate-600">{pcdo.name}</p>
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {pcdo.matched.map((m) => (
+                  <span
+                    key={m.station}
+                    className="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-semibold text-sky-900"
+                  >
+                    {m.station} · {m.items.length}
+                  </span>
+                ))}
+              </div>
+              {pcdo.unmatched.length > 0 && (
+                <p className="mt-1.5 rounded-md bg-amber-50 p-1.5 text-[11px] leading-snug text-amber-800">
+                  Works listed under labels that match no station of yours are
+                  left off: {pcdo.unmatched.join(", ")}. Add the station (or
+                  check its code spelling) to include them.
+                </p>
+              )}
+            </div>
+          )}
+          {pcdoErr && <p className="mt-2 text-[11px] leading-snug text-red-600">{pcdoErr}</p>}
+        </div>
+      )}
+
       <button
         type="button"
         className="mb-2 text-xs font-semibold text-blue-700"
@@ -277,7 +370,8 @@ export function CertificateExportModal({ open, onClose }: { open: boolean; onClo
                 deficiencies,
                 currentUser,
                 extra,
-                onClose
+                onClose,
+                pcdo?.matched
               );
             } else {
               exportFootplateForms(period, selectedTrips, currentUser, extra, stations, onClose);
