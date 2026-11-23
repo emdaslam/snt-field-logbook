@@ -347,6 +347,14 @@ export const SLOT_LABEL: Record<MatrixSlot, string> = {
 };
 export const MATRIX_LAMPS = ["YY", "G", "Y", "R"] as const;
 
+/** Stations per printed bank of the visibility grid (the sample prints five
+ *  station groups per table and repeats the grid for further stations). */
+export const MATRIX_BANK = 5;
+/** Option rows of the Visibility / LED brightness groups — a station's
+ *  stored grade is ticked across its four signal columns like the sample. */
+export const OBS_VIS_OPTIONS = ["Good", "Adequate", "Insufficient"] as const;
+export const OBS_LED_OPTIONS = ["Excellent", "Very Good", "Good", "Out of focus"] as const;
+
 export type ObsMatrixStation = {
   stationId: number | null;
   stationName: string;
@@ -495,11 +503,15 @@ export type FootPlateFormSpec = {
 };
 
 /** Expand a footplate log into per-shift form specs (skips shifts the trip
- *  did not run and shifts with neither train nor answers). */
+ *  did not run and shifts with neither train nor answers). When the stored
+ *  observation has no visibility matrix yet, rows for the journey's endpoint
+ *  stations are seeded from `stations` so the printed form always carries the
+ *  station-wise grid. */
 export function footplateFormSpecs(
   l: DailyLog,
   staff?: Staff | null,
-  extra?: CertExtra
+  extra?: CertExtra,
+  stations?: { id: number; name: string }[]
 ): FootPlateFormSpec[] {
   const obs = normalizeObs(l.footplateObs);
   const rides = footplateRidesOf(l);
@@ -513,6 +525,30 @@ export function footplateFormSpecs(
     return block?.up ?? block?.down ?? null;
   };
   const section = [staff?.railwayDivision, extra?.sectionCode].filter(Boolean).join(", ");
+
+  // Endpoint stations of every ride in the entry — the seed rows for a form
+  // whose visibility matrix was never filled in.
+  const seededMatrix: ObsMatrixStation[] = (() => {
+    if (!stations?.length) return [];
+    const ids: number[] = [];
+    for (const r of rides) {
+      for (const id of [r.boardingStationId, r.otherEndStationId]) {
+        if (typeof id === "number" && !ids.includes(id)) ids.push(id);
+      }
+    }
+    return ids
+      .map((id) => ({
+        stationId: id,
+        stationName: stations.find((s) => s.id === id)?.name ?? "",
+        lamps: {},
+        visibility: "Good",
+        led: "Very Good",
+        interference: false,
+      }))
+      .filter((r) => r.stationName);
+  })();
+  const withMatrix = (form: ObsShiftForm): ObsShiftForm =>
+    form.matrix.length > 0 ? form : { ...form, matrix: seededMatrix };
 
   const specs: FootPlateFormSpec[] = [];
   for (const shift of ["day", "night"] as const) {
@@ -531,7 +567,7 @@ export function footplateFormSpecs(
       lpName: det?.lpName ?? "",
       alpName: det?.alpName ?? "",
       guardName: det?.tmrName ?? "",
-      form,
+      form: withMatrix(form),
     });
   }
   // A selected trip whose sheets were never filled still prints one DAY form
@@ -550,7 +586,7 @@ export function footplateFormSpecs(
       lpName: det?.lpName ?? "",
       alpName: det?.alpName ?? "",
       guardName: det?.tmrName ?? "",
-      form: emptyShiftForm(),
+      form: { ...emptyShiftForm(), matrix: seededMatrix },
     });
   }
   return specs;
@@ -575,69 +611,92 @@ export function footplateFormHtml(spec: FootPlateFormSpec, railway: string, year
     `<tr><td>Division &amp; Section</td><td>${hEsc(spec.divisionSection)}</td></tr>` +
     `<tr><td>DAY/NIGHT</td><td>${spec.shift}</td></tr></tbody></table>`;
 
-  h += `<h3>GENERAL ITEMS</h3><table class="chk-table"><tbody>`;
-  const headPairs: [string, string, boolean][] = [
-    ["(a) Date", ddmmyyyy(spec.dateIso), true],
-    ["(b) Division, Section", f.general["g_b"] ?? spec.divisionSection, true],
-    ["(c) Train No, Load", [spec.trainNo, f.trainLoad].filter(Boolean).join(", "), true],
-    ["(d) Engine No, Parent Shed/Depot", spec.engineNo, true],
-    ["(e) Loco pilot Name", spec.lpName, true],
-    ["(f) Asst. Loco Pilot Name", spec.alpName || f.general["g_f"] || "-----------", true],
-    ["(g) Guard's Name", spec.guardName, true],
+  // Checklist sections print in the sample's two-column arrangement: the
+  // first half of the items down the left, the rest beside them on the right,
+  // paired row by row. Every item prints (even with a blank value) so the
+  // grid keeps its row order — (a) always faces (m).
+  const pv = (k: string, v: string): [string, string] => [hEsc(k), hEsc(v)];
+  const twoColTable = (title: string, pairs: [string, string][]): string => {
+    const half = Math.ceil(pairs.length / 2);
+    let t = `<h3>${title}</h3><table class="chk-table"><tbody>`;
+    for (let i = 0; i < half; i++) {
+      const [rk, rv] = pairs[half + i] ?? ["", ""];
+      t += `<tr><td>${pairs[i][0]}</td><td>${pairs[i][1]}</td><td>${rk}</td><td>${rv}</td></tr>`;
+    }
+    return t + `</tbody></table>`;
+  };
+  const gv = (k: string): string => f.general[k] ?? "";
+  const generalPairs: [string, string][] = [
+    pv("(a) Date", ddmmyyyy(spec.dateIso)),
+    pv("(b) Division, Section", gv("g_b") || spec.divisionSection),
+    pv("(c) Train No, Load", [spec.trainNo, f.trainLoad].filter(Boolean).join(", ")),
+    pv("(d) Engine No, Parent Shed/Depot", spec.engineNo),
+    pv("(e) Loco pilot Name", spec.lpName),
+    pv("(f) Asst. Loco Pilot Name", spec.alpName || gv("g_f") || "-----------"),
+    pv("(g) Guard's Name", spec.guardName),
+    ...GENERAL_ITEMS
+      .filter((it) => it.key !== "g_c_load" && it.key !== "g_f")
+      .map((it) => pv(`${it.code} ${it.label}`, gv(it.key))),
   ];
-  for (const [k, v] of headPairs) {
-    h += `<tr><td>${hEsc(k)}</td><td>${hEsc(v) || "&mdash;"}</td></tr>`;
-  }
-  for (const it of GENERAL_ITEMS) {
-    const v = f.general[it.key];
-    if (v == null || v === "" || v === "-----------") continue;
-    h += `<tr><td>${hEsc(it.code)} ${hEsc(it.label)}</td><td>${hEsc(v)}</td></tr>`;
-  }
-  h += `</tbody></table>`;
 
-  h += `<h3>SIGNALLING ITEMS</h3><table class="chk-table"><tbody>`;
-  for (const it of SIGNALLING_ITEMS) {
-    const v = f.signalling[it.key];
-    if (v == null || v === "") continue;
-    h += `<tr><td>${hEsc(it.code)} ${hEsc(it.label)}</td><td>${hEsc(v)}</td></tr>`;
-  }
-  h += `</tbody></table>`;
+  h += twoColTable(
+    "GENERAL ITEMS",
+    generalPairs
+  );
+  h += twoColTable(
+    "SIGNALLING ITEMS",
+    SIGNALLING_ITEMS.map((it) => pv(`${it.code} ${it.label}`, f.signalling[it.key] ?? ""))
+  );
 
-  if (f.matrix.length > 0) {
-    h += `<h3>Station wise signal visibility details</h3><table class="matrix-table"><thead><tr><th>Lamp</th>`;
-    for (const st of f.matrix) h += `<th colspan="4">${hEsc(st.stationName)}</th>`;
-    h += `</tr><tr><th></th>`;
-    for (const _s of f.matrix) {
-      for (const sl of MATRIX_SLOTS) h += `<th>${sl}</th>`;
+  // Station-wise visibility grid, laid out like the sample: a rotated stub
+  // column groups the option rows (Signal Lamp / Visibility / LED), each
+  // station gets four sub-columns (D/H/S/AD), and the stored answer shows as
+  // a √ in every sub-cell of that station. More stations than one bank holds
+  // repeat the grid beneath.
+  // data-font routes the √ through the embedded TTF — the standard Helvetica
+  // the walker falls back to has no radical glyph (• happens to survive via
+  // WinAnsi; √ does not).
+  const tick = (cond: boolean) => `<td data-font="rupee" data-align="center">${cond ? "\u221A" : ""}</td>`;
+  const optionRow = (bank: ObsMatrixStation[], label: string, opts: readonly string[], hit: (s: ObsMatrixStation, opt: string) => boolean): string => {
+    let t = "";
+    opts.forEach((opt, oi) => {
+      t += `<tr>${oi === 0 ? `<td class="vtext" rowspan="${opts.length}">${hEsc(label)}</td>` : ""}<td>${hEsc(opt)}</td>`;
+      for (const s of bank) {
+        for (let c = 0; c < MATRIX_SLOTS.length; c++) t += tick(hit(s, opt));
+      }
+      t += `</tr>`;
+    });
+    return t;
+  };
+  h += twoColTable(
+    "TRAIN RUNNING ITEMS",
+    RUNNING_ITEMS.map((it) => pv(`${it.code} ${it.label}`, f.running[it.key] ?? ""))
+  );
+
+  for (let b = 0; b < f.matrix.length; b += MATRIX_BANK) {
+    const bank = f.matrix.slice(b, b + MATRIX_BANK);
+    const contd = b > 0 ? " (contd.)" : "";
+    h += `<h3>Station wise signal visibility Details${contd}</h3>`;
+    h += `<table class="matrix-table"><thead><tr><th data-width="46"></th><th></th>`;
+    for (const s of bank) h += `<th colspan="${MATRIX_SLOTS.length}" data-align="center">${hEsc(s.stationName)}</th>`;
+    h += `</tr><tr><th data-width="46"></th><th data-width="58"></th>`;
+    for (const _s of bank) {
+      for (const sl of MATRIX_SLOTS) h += `<th data-align="center">${sl}</th>`;
     }
     h += `</tr></thead><tbody>`;
-    for (const lamp of MATRIX_LAMPS) {
-      h += `<tr><td>${lamp}</td>`;
-      for (const st of f.matrix) {
-        for (const sl of MATRIX_SLOTS) {
-          h += `<td class="center">${st.lamps[sl]?.includes(lamp) ? "•" : ""}</td>`;
-        }
+    MATRIX_LAMPS.forEach((lamp, li) => {
+      h += `<tr>${li === 0 ? `<td class="vtext" rowspan="${MATRIX_LAMPS.length}">Signal Lamp</td>` : ""}<td>${hEsc(lamp)}</td>`;
+      for (const s of bank) {
+        for (const sl of MATRIX_SLOTS) h += tick(Boolean(s.lamps[sl]?.includes(lamp)));
       }
       h += `</tr>`;
-    }
-    const gradeRow = (label: string, pick: (s: ObsMatrixStation) => string) => {
-      h += `<tr><td>${label}</td>`;
-      for (const _st of f.matrix) h += `<td class="center small" colspan="4">${hEsc(pick(_st))}</td>`;
-      h += `</tr>`;
-    };
-    gradeRow("Visibility", (s) => s.visibility);
-    gradeRow("LED brightness", (s) => s.led);
-    gradeRow("Interference (fixed light / trees)", (s) => (s.interference ? "YES" : "NO"));
-    h += `</tbody></table>`;
+    });
+    h += optionRow(bank, "Visibility", [...OBS_VIS_OPTIONS, "Reason (Code)"], (s, opt) => s.visibility === opt);
+    h += optionRow(bank, "LED brightness", OBS_LED_OPTIONS, (s, opt) => s.led === opt);
+    h += `<tr><td colspan="2">Interference from fixed light / Tree branches / other structures</td>`;
+    for (const s of bank) h += `<td colspan="${MATRIX_SLOTS.length}" data-align="center">${s.interference ? "YES" : "NO"}</td>`;
+    h += `</tr></tbody></table>`;
   }
-
-  h += `<h3>TRAIN RUNNING ITEMS</h3><table class="chk-table"><tbody>`;
-  for (const it of RUNNING_ITEMS) {
-    const v = f.running[it.key];
-    if (v == null || v === "") continue;
-    h += `<tr><td>${hEsc(it.code)} ${hEsc(it.label)}</td><td>${hEsc(v)}</td></tr>`;
-  }
-  h += `</tbody></table>`;
 
   h += `<table class="obs-table"><tbody>` +
     `<tr><td>1. Important item of observation on signalling &amp; action proposed (within own competency &amp; time frame)</td><td>${hLines(f.observation, "______")}</td></tr>` +

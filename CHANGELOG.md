@@ -3,6 +3,16 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.31 — 2026-11-23
+
+**Minor: Foot Plate form now matches the office sample layout**
+
+- The station-wise signal visibility grid now prints in the sample's shape: a rotated left stub groups the option rows (Signal Lamp / Visibility / LED brightness), every station gets four sub-columns (Distant / Home / Starter / Adv. Starter), and answers show as a √ in each sub-cell of the station — lamp rows first, then Good / Adequate / Insufficient / Reason (Code), then Excellent / Very Good / Good / Out of focus, with the interference YES/NO row closing the grid.
+- Trips whose observation sheet had no visibility grid yet get one printed automatically from the journey's endpoint stations — the grid can no longer go missing because "+ Add station" was never pressed.
+- General, Signalling and Train-running checklists print in the sample's two-column arrangement — (a) faces (m), (a)–(d) face (e)–(h) — instead of one long single column.
+- Section order now matches the sample exactly: General items, Signalling items, Train running items, then the visibility grid.
+- Export footplate forms with more than five stations and the grid repeats in banks of five (marked "contd.") so columns stay readable instead of collapsing into hairline slivers.
+
 ## 1.7.8.30 — 2026-11-23
 
 **Minor: fixes to the official monthly formats export (follow-up to 1.7.8.29)**

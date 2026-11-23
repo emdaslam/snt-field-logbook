@@ -210,6 +210,44 @@ ok(fh.includes("AVAILABLE"), "fp default answers survive");
 ok(!fh.includes("&amp;#" ), "no stray entities");
 ok(!fh.includes("<div"), "fp html walker-flat (no wrapper divs)");
 
+// checklist sections print as the sample's two-column grid: (a) faces (m)
+ok(fh.includes("(a) Date"), "fp general (a) present");
+ok(fh.includes("(m) Weather"), "fp general (m) present");
+ok(fh.includes("(l) Mobile phone switched off during running"), "fp general (l) present");
+ok(fh.includes("(h) Signals out of use"), "fp signalling (h) present");
+ok(fh.includes("(n) Loco pilot feedback"), "fp signalling (n) present");
+const chkRows = fh.match(/<tr><td>/g)?.length ?? 0;
+ok(chkRows >= 12 + 7 + 4, "two-column items keep row counts");
+
+// matrix auto-seeds from the journey endpoints when the sheet has none
+const seeded = footplateFormSpecs(trip, staff, extra, [
+  { id: 1, name: "KLKA" }, { id: 2, name: "YA" }, { id: 3, name: "JMDG" },
+]);
+ok(seeded[0].form.matrix.length === 2, "empty matrix seeded from ride endpoints");
+ok(seeded[0].form.matrix[0].stationName === "KLKA" && seeded[0].form.matrix[1].stationName === "YA", "seed rows carry names");
+const sh = footplateFormHtml(seeded[0], staff.railwayZone ?? "", "2026-07", extra.addressedTo, extra.throughLine);
+// visibility grid mirrors the sample: stub groups, option rows, √ ticks
+ok(sh.includes(">Station wise signal visibility Details<"), "grid heading matches sample casing");
+ok(sh.includes('class="vtext" rowspan="4">Signal Lamp'), "lamp stub group");
+ok(sh.includes('class="vtext" rowspan="4">Visibility'), "visibility stub group");
+ok(sh.includes('class="vtext" rowspan="4">LED brightness'), "led stub group");
+ok(sh.includes("Reason (Code)"), "reason row present");
+ok(sh.includes("<td data-font=\"rupee\" data-align=\"center\">\u221A</td>"), "ticked cells routed through TTF font");
+ok(!sh.includes("•"), "old bullet rows gone");
+ok(sh.includes(">KLKA<") && sh.includes(">YA<"), "seeded stations print as banks");
+// banks cap at five stations and continue on the next table
+const many = Array.from({ length: 12 }, (_, i) => ({
+  stationId: i + 100, stationName: `ST${i}`, lamps: { D: ["YY"] } as never,
+  visibility: "Adequate", led: "Excellent", interference: true,
+}));
+const bankedHtml = footplateFormHtml(
+  { ...specs[0], form: { ...specs[0].form, matrix: many } },
+  "", "2026-07", "", ""
+);
+ok((bankedHtml.match(/matrix-table/g) ?? []).length === 3, "12 stations bank into three tables of 5/5/2");
+ok(bankedHtml.includes("(contd.)"), "later banks marked contd.");
+ok((bankedHtml.match(/\u221A/g) ?? []).length > 40, "banked grid carries ticks");
+
 // a night-only-answered log with no night train still prints the sheet
 const nightTrip = log({
   id: 61,

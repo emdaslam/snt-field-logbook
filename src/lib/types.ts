@@ -331,5 +331,5 @@ export function variableKmText(km: number | string | null | undefined): string |
 }
 
 /** App version shown in Settings → About. Bump alongside android/app/build.gradle. */
-export const APP_VERSION_BASE = "1.7.8.30";
+export const APP_VERSION_BASE = "1.7.8.31";
 export const APP_VERSION = APP_VERSION_BASE;

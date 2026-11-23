@@ -2279,12 +2279,14 @@ export function exportCertificate(
   });
 }
 
-/** Annexure 3-A2 — one foot plate observation form per shift per trip. */
+/** Annexure 3-A2 — one foot plate observation form per shift per trip.
+ *  `stations` seeds the visibility grid for trips whose sheet has none. */
 export function exportFootplateForms(
   period: { from: string; label: string },
   selected: DailyLog[],
   staff: Staff | null,
   extra: CertExtra,
+  stations: { id: number; name: string }[],
   onComplete?: () => void
 ) {
   const yearMonth = period.from.slice(0, 7);
@@ -2292,7 +2294,7 @@ export function exportFootplateForms(
   const forwarded = extra.addressedTo;
   const sse = extra.throughLine;
   const body = selected
-    .flatMap((l) => footplateFormSpecs(l, staff, extra))
+    .flatMap((l) => footplateFormSpecs(l, staff, extra, stations))
     .map((spec) => footplateFormHtml(spec, railway, yearMonth, forwarded, sse))
     .join(`<div class="page-break"></div>`);
   exportDocument(`Foot Plate Observation ${period.label}`, body, "footplate", undefined, {

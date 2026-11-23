@@ -266,7 +266,7 @@ export function CertificateExportModal({ open, onClose }: { open: boolean; onClo
                 onClose
               );
             } else {
-              exportFootplateForms(period, selectedTrips, currentUser, extra, onClose);
+              exportFootplateForms(period, selectedTrips, currentUser, extra, stations, onClose);
             }
           }}
         >

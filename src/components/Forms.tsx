@@ -68,6 +68,8 @@ import {
   HOURS_BANDS,
   MATRIX_LAMPS,
   MATRIX_SLOTS,
+  OBS_LED_OPTIONS,
+  OBS_VIS_OPTIONS,
   SIGNALLING_ITEMS,
   RUNNING_ITEMS,
   SLOT_LABEL,
@@ -3991,8 +3993,8 @@ function ObsChecklist({
   );
 }
 
-const OBS_VISIBILITY = ["Good", "Adequate", "Insufficient"];
-const OBS_LED = ["Excellent", "Very Good", "Good", "Out of focus"];
+// OBS_VIS_OPTIONS / OBS_LED_OPTIONS live in certificate.ts next to the print
+// builder — the selects and the printed √ ticks must use the same spellings.
 
 function ObsMatrixEditor({
   value,
@@ -4086,14 +4088,14 @@ function ObsMatrixEditor({
               value={st.visibility}
               onChange={(e) => patch(i, { visibility: e.target.value })}
             >
-              {OBS_VISIBILITY.map((v) => (<option key={v} value={v}>Vis: {v}</option>))}
+              {OBS_VIS_OPTIONS.map((v) => (<option key={v} value={v}>Vis: {v}</option>))}
             </select>
             <select
               className={`${inputClass} py-1 text-[11px]`}
               value={st.led}
               onChange={(e) => patch(i, { led: e.target.value })}
             >
-              {OBS_LED.map((v) => (<option key={v} value={v}>LED: {v}</option>))}
+              {OBS_LED_OPTIONS.map((v) => (<option key={v} value={v}>LED: {v}</option>))}
             </select>
             <button
               type="button"
