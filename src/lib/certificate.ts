@@ -362,6 +362,10 @@ export type ObsMatrixStation = {
   visibility: string;
   led: string;
   interference: boolean;
+  /** Via station — passed on the way, assessed for lamp discs only. Prints
+   *  with blank Visibility / LED / interference cells and, like every row,
+   *  in the order it was added (left to right on the printed grid). */
+  via?: boolean;
 };
 
 export type ObsShiftForm = {
@@ -684,7 +688,11 @@ export function footplateFormHtml(spec: FootPlateFormSpec, railway: string, year
     h += optionRow(bank, "Visibility", [...OBS_VIS_OPTIONS, "Reason (Code)"], (s, opt) => s.visibility === opt);
     h += optionRow(bank, "LED brightness", OBS_LED_OPTIONS, (s, opt) => s.led === opt);
     h += `<tr><td colspan="2">Interference from fixed light / Tree branches / other structures</td>`;
-    for (const s of bank) h += `<td colspan="${MATRIX_SLOTS.length}" data-align="center">${s.interference ? "YES" : "NO"}</td>`;
+    for (const s of bank) {
+      h += `<td colspan="${MATRIX_SLOTS.length}" data-align="center">${
+        s.via ? "" : s.interference ? "YES" : "NO"
+      }</td>`;
+    }
     h += `</tr></tbody></table>`;
   }
 

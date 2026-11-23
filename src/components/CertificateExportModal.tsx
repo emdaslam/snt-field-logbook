@@ -257,10 +257,10 @@ export function CertificateExportModal({ open, onClose }: { open: boolean; onClo
           }) && (
             <p className="mt-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-[11px] leading-snug text-amber-800">
               Lamp tick rows are blank. Ticks come from the trip entry: open it →
-              Footplate observation → Station visibility matrix → tap the YY/G/Y/R
-              buttons under Distant / Home / Starter / Adv. Starter; they print as
-              √. Stations are pre-listed automatically — or leave blank and tick
-              with a pen on the printed sheet.
+              Observation sheet (Annexure 3-A2) → Station visibility matrix →
+              tap the YY/G/Y/R buttons under Distant / Home / Starter / Adv.
+              Starter; they print as √. Stations are pre-listed automatically —
+              or leave blank and tick with a pen on the printed sheet.
             </p>
           )}
       </div>

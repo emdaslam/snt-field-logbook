@@ -1955,11 +1955,12 @@ export function DailyLogForm({
       certCondition: inspectionKind === "monthly" ? certCondition : null,
       certGear: inspectionKind === "monthly" ? certGear.trim() || null : null,
       certRepairsReq: inspectionKind === "monthly" ? certRepairsReq.trim() || null : null,
-      // Journey-mode footplate entries save both shift sheets (spec-skipping
-      // keeps unworked shifts out of the print); selective mode follows the
-      // Day/Night toggles.
+      // Journey-mode footplate rides carry shift sheets whatever the entry's
+      // inspection kind — a monthly day with an "also footplate" ride is
+      // printed by the Annexure export, so its sheets must save too
+      // (spec-skipping keeps unworked shifts out of the print).
       footplateObs:
-        inspectionKind === "footplate"
+        movementKind === "footplate" || fpDay || fpNight
           ? {
               day: (movementKind === "footplate" || fpDay) ? obsDay : null,
               night: (movementKind === "footplate" || fpNight) ? obsNight : null,
@@ -3212,8 +3213,10 @@ export function DailyLogForm({
             </>
           )}
 
-          {inspectionKind === "footplate" &&
-            (movementKind === "footplate" || fpDay || fpNight) && (
+          {/* Sheet mounts on ride presence, not on the entry kind — a monthly
+              day that also ran a footplate ride prints in the Annexure export
+              and must expose its tick UI here. */}
+          {(movementKind === "footplate" || fpDay || fpNight) && (
               <ObsSheetsEditor
                 dayActive={movementKind === "footplate" || fpDay}
                 nightActive={movementKind === "footplate" || fpNight}
@@ -4006,13 +4009,17 @@ function ObsMatrixEditor({
   stations: Station[];
 }) {
   const remaining = stations.filter((s) => !value.some((m) => m.stationId === s.id));
-  const addStation = (idStr: string) => {
+  const addStation = (idStr: string, via: boolean) => {
     if (!idStr) return;
     const s = stations.find((x) => x.id === Number(idStr));
     if (!s) return;
+    // Rows print in array order — first added is left-most in the exported
+    // grid. Regular stations get grade dropdowns; via stations only discs.
     onChange([
       ...value,
-      { stationId: s.id, stationName: s.name, lamps: {}, visibility: "Good", led: "Very Good", interference: false },
+      via
+        ? { stationId: s.id, stationName: s.name, lamps: {}, visibility: "", led: "", interference: false, via: true }
+        : { stationId: s.id, stationName: s.name, lamps: {}, visibility: "Good", led: "Very Good", interference: false },
     ]);
   };
   const patch = (i: number, p: Partial<ObsMatrixStation>) =>
@@ -4034,27 +4041,42 @@ function ObsMatrixEditor({
           Station visibility matrix
         </p>
         <select
-          className={`${inputClass} w-40 py-1 text-xs`}
+          className={`${inputClass} w-36 py-1 text-xs`}
           value=""
-          onChange={(e) => addStation(e.target.value)}
+          onChange={(e) => addStation(e.target.value, false)}
         >
           <option value="">+ Add station</option>
           {remaining.map((s) => (
             <option key={s.id} value={s.id}>{s.name}</option>
           ))}
         </select>
+        <select
+          className={`${inputClass} w-40 py-1 text-xs`}
+          value=""
+          onChange={(e) => addStation(e.target.value, true)}
+        >
+          <option value="">+ Add via station</option>
+          {remaining.map((s) => (
+            <option key={`v-${s.id}`} value={s.id}>{s.name}</option>
+          ))}
+        </select>
       </div>
       {value.length === 0 && (
         <p className="text-[11px] text-slate-400">
-          Stations pre-fill the printed PDF automatically. Add them here and tap the
-          lamp buttons (YY/G/Y/R) to record which aspects showed each colour —
-          they print as √ ticks in the visibility grid.
+          Add the stations of the run in order — they print left to right
+          exactly as listed here. Regular stations get visibility / LED grades
+          too; via stations ask only for the discs. Tap the lamp buttons
+          (YY/G/Y/R) to record which aspects showed each colour — they print
+          as √ ticks.
         </p>
       )}
       {value.map((st, i) => (
         <div key={`${st.stationId}-${i}`} className="rounded-lg border border-slate-200 p-2">
           <div className="mb-1.5 flex items-center justify-between">
-            <p className="text-xs font-semibold text-slate-800">{st.stationName}</p>
+            <p className="text-xs font-semibold text-slate-800">
+              {st.stationName}
+              {st.via && <span className="ml-1.5 text-[10px] font-normal text-slate-400">via · discs only</span>}
+            </p>
             <button
               type="button"
               className="text-[11px] font-medium text-red-500"
@@ -4084,33 +4106,35 @@ function ObsMatrixEditor({
               </div>
             ))}
           </div>
-          <div className="mt-1.5 grid grid-cols-3 gap-1.5">
-            <select
-              className={`${inputClass} py-1 text-[11px]`}
-              value={st.visibility}
-              onChange={(e) => patch(i, { visibility: e.target.value })}
-            >
-              {OBS_VIS_OPTIONS.map((v) => (<option key={v} value={v}>Vis: {v}</option>))}
-            </select>
-            <select
-              className={`${inputClass} py-1 text-[11px]`}
-              value={st.led}
-              onChange={(e) => patch(i, { led: e.target.value })}
-            >
-              {OBS_LED_OPTIONS.map((v) => (<option key={v} value={v}>LED: {v}</option>))}
-            </select>
-            <button
-              type="button"
-              onClick={() => patch(i, { interference: !st.interference })}
-              className={`rounded-lg border py-1 text-[11px] font-medium ${
-                st.interference
-                  ? "border-amber-500 bg-amber-50 text-amber-700"
-                  : "border-slate-300 text-slate-500"
-              }`}
-            >
-              Interference: {st.interference ? "YES" : "NO"}
-            </button>
-          </div>
+          {!st.via && (
+            <div className="mt-1.5 grid grid-cols-3 gap-1.5">
+              <select
+                className={`${inputClass} py-1 text-[11px]`}
+                value={st.visibility}
+                onChange={(e) => patch(i, { visibility: e.target.value })}
+              >
+                {OBS_VIS_OPTIONS.map((v) => (<option key={v} value={v}>Vis: {v}</option>))}
+              </select>
+              <select
+                className={`${inputClass} py-1 text-[11px]`}
+                value={st.led}
+                onChange={(e) => patch(i, { led: e.target.value })}
+              >
+                {OBS_LED_OPTIONS.map((v) => (<option key={v} value={v}>LED: {v}</option>))}
+              </select>
+              <button
+                type="button"
+                onClick={() => patch(i, { interference: !st.interference })}
+                className={`rounded-lg border py-1 text-[11px] font-medium ${
+                  st.interference
+                    ? "border-amber-500 bg-amber-50 text-amber-700"
+                    : "border-slate-300 text-slate-500"
+                }`}
+              >
+                Interference: {st.interference ? "YES" : "NO"}
+              </button>
+            </div>
+          )}
         </div>
       ))}
     </div>

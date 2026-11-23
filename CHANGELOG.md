@@ -3,6 +3,14 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.33 — 2026-11-23
+
+**Minor: via stations in the footplate grid — added-order printing, discs-only rows**
+
+- The Station visibility matrix gains an "+ Add via station" picker: pick the intermediate stations the run passes, in run order — the exported grid prints them left to right in exactly that order (first added = left-most).
+- Via station rows ask only for the discs — the YY/G/Y/R buttons under Distant / Home / Starter / Adv. Starter. Visibility / LED grades and interference stay blank for them on the print; regular stations keep the full set.
+- Entries of any inspection kind that carry a footplate ride (e.g. a monthly inspection day that also ran a footplate) now show the Observation sheet (Annexure 3-A2) in the entry form and save its ticks — previously only entries whose kind was "footplate" exposed it, which is why the lamp-tick UI was impossible to find.
+
 ## 1.7.8.32 — 2026-11-23
 
 **Minor: foot plate visibility grid now lists every section station and explains lamp ticking**

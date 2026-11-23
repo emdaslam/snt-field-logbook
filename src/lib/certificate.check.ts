@@ -21,6 +21,7 @@ import {
   pendingDeficiencyTitles,
   loadCertExtra,
   type FootplateObs,
+  type ObsShiftForm,
 } from "./certificate";
 import type { DailyLog, DeficiencyTask, Station, Staff } from "@/db/schema";
 
@@ -235,6 +236,20 @@ ok(sh.includes("Reason (Code)"), "reason row present");
 ok(sh.includes("<td data-font=\"rupee\" data-align=\"center\">\u221A</td>"), "ticked cells routed through TTF font");
 ok(!sh.includes("•"), "old bullet rows gone");
 ok(sh.includes(">KLKA<") && sh.includes(">YA<"), "seeded stations print as banks");
+
+// via stations: printed in added order, grades/interference left blank
+const ordered = footplateFormSpecs(trip, staff, extra, []);
+const viaForm: ObsShiftForm = {
+  ...specs[0].form,
+  matrix: [
+    { stationId: 2, stationName: "ZZB", lamps: { D: ["YY"] }, visibility: "", led: "", interference: false, via: true },
+    { stationId: 1, stationName: "AAB", lamps: {}, visibility: "Good", led: "Very Good", interference: true },
+  ],
+};
+const oh = footplateFormHtml({ ...specs[0], form: viaForm }, "", "2026-07", "", "");
+ok(oh.indexOf(">ZZB<") < oh.indexOf(">AAB<"), "grid order = added order, left to right");
+ok(oh.includes('data-align="center"></td>'), "via station leaves interference cell blank");
+ok(oh.includes(">AAB<") , "regular station intact beside via");
 // banks cap at five stations and continue on the next table
 const many = Array.from({ length: 12 }, (_, i) => ({
   stationId: i + 100, stationName: `ST${i}`, lamps: { D: ["YY"] } as never,
