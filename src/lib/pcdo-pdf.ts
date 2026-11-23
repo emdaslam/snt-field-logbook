@@ -42,13 +42,16 @@ const JUNK = /^(\*+|-{3,}|nil|Digitally signed.*|Date: ?\d{4}[.\d].*)$/i;
  *  capitals (works sentences go lowercase after their cap acronyms) and is
  *  short (two-ish words before any colon). */
 function isMajorHeading(text: string): boolean {
-  const m = text.match(/^\s*=?\s*\d{1,2}\s*\.\s*(.{0,70})$/);
+  // Colon-anchored heading grammar ("3.DIRECTED MAINTENANCE :", "2.Engineering
+  // Works:") — judging the tail-70 chars failed when the heading carried an
+  // embedded numbered item (sep-26: the whole directive block rode along).
+  const m = text.match(/^\s*=?\s*\d{1,2}\s*\.\s*([^:]{4,60}):/);
   if (!m) return false;
-  const frag = m[1].split(":")[0];
+  const frag = m[1];
   const letters = frag.replace(/[^A-Za-z]/g, "");
   if (letters.length < 6) return false;
   const caps = letters.replace(/[^A-Z]/g, "").length / letters.length;
-  return caps >= 0.75 && frag.trim().split(/\s+/).length <= 3;
+  return caps >= 0.75 && frag.trim().split(/\s+/).length <= 4;
 }
 
 /** Station token validity: caps-dominant short label ("MADU", "NDL - PNM BI",
@@ -137,6 +140,10 @@ type Ev = { kind: "tok"; label: string; y: number } | { kind: "act"; text: strin
  * y-ordered within the page), → PCDO works per station. Public for the
  * self-check (synthetic fixtures without a real PDF).
  */
+/** Observation tap (probes/self-check): labels + y of the last finalized
+ *  station table's tokens, and every activity with its resolved label. */
+export const pcdoLastEvents: { kind: "tok" | "act"; label?: string; y: number; text?: string }[] = [];
+
 export function parsePcdoSegments(pages: PcdoSeg[][]): PcdoParseResult {
   const res: PcdoParseResult = { stations: [], unattributed: [] };
 
@@ -171,65 +178,58 @@ export function parsePcdoSegments(pages: PcdoSeg[][]): PcdoParseResult {
 
   const finalizeTable = () => {
     flushTok();
-    // Band assignment: initial nearest-token by y, then refine each boundary
-    // between adjacent tokens to the midpoint of the innermost activities on
-    // either side (Word row-span cells centre the token, so distance alone
-    // mis-slips border items to a tall neighbouring block — oct-26 SUPP→JMDG).
+    // Band assignment. Item numbering restarts at 1 in every station block
+    // (Word tables renumber per row-span group), so a "1." act after any
+    // numbered act opens the next block; the block's own token row — centred
+    // vertically inside its span — lies within the block's y-range. Distance
+    // midpoints alone mis-slip border items to a tall neighbour (oct-26
+    // SUPP→JMDG) and stall under centred-label poisoning (sep-26), so runs
+    // are primary and a plain nearest-separator is only the fallback.
     const tokAt = evs.map((e, i) => (e.kind === "tok" ? i : -1)).filter((i) => i >= 0);
+    const tokYs = tokAt.map((i) => (evs[i] as { y: number }).y);
     const acts = evs.filter((e): e is { kind: "act"; text: string; y: number } => e.kind === "act");
     const byTok = new Map<string, string[]>();
     if (tokAt.length && acts.length) {
-      const tokYs = tokAt.map((i) => (evs[i] as { y: number }).y);
-      // Wrapped-line continuation rows inherit the preceding item's station:
-      // they hug their parent within ~1.6 row pitches, while block-distance to
-      // a short neighbouring block can be far smaller (oct-26 SJMA wrap → NOSM).
       const sorted = [...acts].sort((a, b) => b.y - a.y);
-      const diffs = sorted.slice(1).map((a, i) => sorted[i].y - a.y).filter((d) => d > 0).sort((a, b) => a - b);
-      const pitch = diffs[Math.floor(diffs.length / 2)] ?? 12;
-      const inherited: (number | null)[] = sorted.map(() => null);
-      for (let i = 1; i < sorted.length; i++) {
-        if (!NUM_ITEM.test(sorted[i].text) && sorted[i - 1].y - sorted[i].y <= pitch * 1.6) inherited[i] = i - 1;
-      }
-      // Separators between adjacent tokens; y descends top-down.
       const sep = tokYs.slice(0, -1).map((y, b) => (y + tokYs[b + 1]) / 2);
       const assign = (y: number) => {
         let k = 0;
         while (k < sep.length && y < sep[k]) k++;
         return k;
       };
-      for (let iter = 0; iter < 2; iter++) {
-        const groups: number[][] = tokYs.map(() => []);
-        for (const [si, a] of sorted.entries()) {
-          if (inherited[si] == null) groups[assign(a.y)].push(a.y);
-        }
-        let moved = false;
-        for (let b = 0; b < sep.length; b++) {
-          const up = groups[b].filter((y) => y > sep[b]);
-          const dn = groups[b + 1].filter((y) => y <= sep[b]);
-          if (up.length && dn.length) {
-            const ns = (Math.min(...up) + Math.max(...dn)) / 2;
-            if (Math.abs(ns - sep[b]) > 0.5) {
-              sep[b] = ns;
-              moved = true;
-            }
-          }
-        }
-        if (!moved) break;
+      const tokLabel = (k: number) => (evs[tokAt[k]] as { label: string }).label;
+      type Run = { top: number; bot: number; texts: string[] };
+      const runs: Run[] = [];
+      let lastNum = 0;
+      for (const a of sorted) {
+        const m = a.text.match(NUM_ITEM);
+        const n = m ? Number(m[0]) : 0;
+        if (n === 1 && lastNum !== 0) runs.push({ top: a.y, bot: a.y, texts: [a.text] });
+        else if (runs.length) {
+          const r = runs[runs.length - 1];
+          r.top = Math.max(r.top, a.y);
+          r.bot = Math.min(r.bot, a.y);
+          r.texts.push(a.text);
+        } else runs.push({ top: a.y, bot: a.y, texts: [a.text] });
+        if (n) lastNum = n;
       }
-      // Resolve inherit chains, then group respecting encounter order.
-      const labels: string[] = sorted.map(() => "");
-      for (const [si] of sorted.entries()) {
-        let src = si;
-        let hop = 0;
-        while (inherited[src] != null && hop++ < 8) src = inherited[src]!;
-        labels[si] = (evs[tokAt[assign(sorted[src].y)]] as { label: string }).label;
-      }
-      for (const [si, a] of sorted.entries()) {
-        const arr = byTok.get(labels[si]) ?? [];
-        arr.push(a.text);
-        byTok.set(labels[si], arr);
+      for (const [ri, r] of runs.entries()) {
+        if (!r.texts.length) continue;
+        const mid = (r.top + r.bot) / 2;
+        const inside = tokYs.filter((y) => y <= r.top + 0.5 && y >= r.bot - 0.5);
+        let k: number;
+        if (inside.length === 1) k = tokYs.indexOf(inside[0]);
+        else if (inside.length > 1)
+          k = tokYs.indexOf(inside.reduce((b, y) => (Math.abs(y - mid) < Math.abs(b - mid) ? y : b)));
+        else k = assign(mid);
+        const lbl = tokLabel(k);
+        pcdoLastEvents.push({ kind: "act", label: lbl, y: mid, text: r.texts.join(" ¦ ") });
+        const arr = byTok.get(lbl) ?? [];
+        arr.push(...r.texts);
+        byTok.set(lbl, arr);
       }
     }
+    pcdoLastEvents.push(...evs.filter((e): e is { kind: "tok"; label: string; y: number } => e.kind === "tok").map((e) => ({ kind: "tok" as const, label: e.label, y: e.y })));
     for (const [label, acts] of byTok) {
       const items = itemsFromText(acts);
       if (items.length) res.stations.push({ label, items });
@@ -346,18 +346,23 @@ export function parsePcdoSegments(pages: PcdoSeg[][]): PcdoParseResult {
       const numberedSegs = line.segs.filter((s) => NUM_ITEM.test(s.str.trim()));
       if (boundary == null && numberedSegs.length) {
         boundary = Math.min(...numberedSegs.map((s) => s.x)) - 2;
+      } else if (numberedSegs.length && boundary != null) {
+        // Word wanders the activity column leftward block by block (sep-26
+        // rows sit at x103 after an x107 first block, so the fixed boundary
+        // swallowed PRDT/PNM whole). Follow it down, but only for genuinely
+        // item-bearing rows whose text stretches well right of the number and
+        // which stay right of the label gutter — otherwise the x10 "3.DIRECTED
+        // MAINTENANCE :" heading drags the boundary into the station column
+        // (oct-26 regression).
+        const nx = Math.min(...numberedSegs.map((s) => s.x));
+        if (nx < boundary && nx >= 25 && line.segs.some((s) => s.x + s.w > nx + 60)) boundary = nx - 2;
       }
       if (boundary == null) continue; // header rows before the first activity
       const bnd = boundary;
-      let left = line.segs.filter((s) => s.x < bnd - 0.5);
-      const right = line.segs.filter((s) => s.x >= bnd - 0.5);
+      const left: PcdoSeg[] = [];
+      const right: PcdoSeg[] = [];
+      for (const s of line.segs) (s.x < bnd - 0.5 && !NUM_ITEM.test(s.str.trim()) ? left : right).push(s);
       let act = joinSegs(right);
-      // A stranded lone item-number left of the boundary (PNM "1." at a
-      // narrower indent) is an activity lead, not a station cell.
-      if (!act && left.length === 1 && /^\d{1,2}[.)]$/.test(left[0].str.trim())) {
-        act = joinSegs(line.segs);
-        left = [];
-      }
       const startsItem = numberedSegs.length > 0 || (act.length > 0 && NUM_ITEM.test(act));
       // Continuations must sit at (or left of) the activity text indent —
       // wrapped dates hug the column edge, other-page debris hangs far right.
@@ -375,8 +380,10 @@ export function parsePcdoSegments(pages: PcdoSeg[][]): PcdoParseResult {
         if (startsItem) actTextX = right[0].x;
         // Ghost item leaders ("1." dangling on an otherwise empty row) never
         // start a block — drop them so they can't weigh the band assignment.
+        // Two-letter lowercase debris ("nd"/"th" of split superscripts) would
+        // glue onto a random item: junk-sized unless caps/digit-bearing.
         const body = act.replace(NUM_LEAD, "").replace(/^[-–—]+\s*/, "").trim();
-        if (body) evs.push({ kind: "act", text: act, y: line.y });
+        if (body && (body.length > 2 || /[A-Z0-9]/.test(body))) evs.push({ kind: "act", text: act, y: line.y });
       }
     }
   }

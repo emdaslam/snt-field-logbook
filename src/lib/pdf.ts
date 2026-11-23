@@ -907,7 +907,7 @@ export function buildPdf(
       const right = cls.includes("right");
       const rightPad = right ? Number(el.getAttribute("data-right-pad")) || 0 : 0;
       const bold = el.querySelector("strong") ? "bold" : "normal";
-      y += Number(el.getAttribute("data-space-top")) || 0;
+      const spaceTop = Number(el.getAttribute("data-space-top")) || 0;
       const availW = right ? maxW - rightPad : maxW - left;
       // In the fit-on-one-page TA Journal the certification line spans the
       // whole table width on one line: use the largest size (at most the
@@ -938,6 +938,14 @@ export function buildPdf(
       if (meta) doc.setTextColor(plain ? 15 : GREY[0], 23, 42);
       else doc.setTextColor(15, 23, 42);
       const lines = doc.splitTextToSize(paraText, availW) as string[];
+      // Keep-together: plain paragraphs have no guard of their own, so a
+      // Repairs-Required list walked past the bottom margin and the space-top
+      // bump threw the signature block fully off-page (sep-26 report). Hop to
+      // a fresh page when the paragraph as drawn would not fit — unless it
+      // couldn't fit a fresh page either (then draw in place, as before).
+      const estH = spaceTop + lines.length * (12 * (paraSize / 9)) + 8;
+      if (estH < (doc.internal.pageSize.getHeight() - margin) * 0.9) pageBreak(estH);
+      y += spaceTop;
       doc.text(
         lines,
         right

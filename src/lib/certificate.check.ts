@@ -422,6 +422,41 @@ void (async () => {
     const rjmdg = real.stations.find((s) => s.label === "JMDG");
     ok(!!rjmdg && rjmdg.items.length >= 2, "real april pcdo: JMDG works");
     ok(real.stations.some((s) => s.items.some((i) => /manual packing/i.test(i.text))), "real april pcdo: engineering works captured");
+
+    // SEPT-26: the whole PRDT / PNM / PNM-IB territory must survive the
+    // leftward x-drift (boundary learner) and centred-label blocks (runs).
+    const sepBytes = new Uint8Array(readFileSync("Pdf samples/JMDG PCDO SEPT-26.pdf"));
+    const sep = await extractPcdoWorks(sepBytes);
+    const sprdt = sep.stations.find((s) => s.label === "PRDT");
+    ok(!!sprdt && sprdt.items.length === 10, "real sept pcdo: PRDT whole block recovered (9 sig + 1 eng)");
+    ok(sprdt?.items.some((i) => i.text.startsWith("11,12,13 point machines numbers painting")) === true, "real sept pcdo: PRDT signalling item 1 present");
+    ok(sprdt?.items.some((i) => i.text.includes("IPS room door broken hole repair")) === true, "real sept pcdo: PRDT engineering item present");
+    const spnm = sep.stations.find((s) => s.label === "PNM");
+    ok(!!spnm && spnm.items.length === 9, "real sept pcdo: PNM block recovered (5 sig + 4 eng)");
+    ok(spnm?.items.some((i) => i.text.includes("DHNE side all points")) === true, "real sept pcdo: lone-number rescue row stays in PNM");
+    ok(sep.stations.some((s) => s.label === "PNM IB" && s.items.length === 5), "real sept pcdo: PNM IB x103 block recovered");
+    const ssupp = sep.stations.find((s) => s.label === "SUPP");
+    ok(!!ssupp && ssupp.items.length === 16, "real sept pcdo: SUPP 13 sig + 3 eng, no strays away");
+    ok(ssupp?.items.some((i) => i.text.startsWith("18B,18A,19A,19B,20A,20B point machines")) === true, "real sept pcdo: SUPP keeps its first wrapped item");
+    const snosm = sep.stations.find((s) => s.label === "NOSM");
+    ok(!!snosm && snosm.items.length === 11 && !snosm.items.some((i) => i.text.includes("universal locks")), "real sept pcdo: NOSM without SUPP strays");
+    const sjmdg = sep.stations.find((s) => s.label === "JMDG");
+    ok(!!sjmdg && sjmdg.items.length === 6 && !sjmdg.items.some((i) => i.text.includes("UP distant")), "real sept pcdo: JMDG own six works only");
+    const sya = sep.stations.find((s) => /YA/.test(s.label));
+    ok(!!sya && sya.items.length === 1 && sya.items[0].text.includes("FDMS"), "real sept pcdo: YA-PRDT BPAC group keeps FDMS");
+    const smatcher = matchPcdoToStations(
+      sep,
+      [
+        { id: 1, name: "YERRAGUNTLA", code: "YA" },
+        { id: 2, name: "SANJAMALA", code: "SJMA" },
+        { id: 3, name: "JAMMALAMADUGU", code: "JMDG" },
+        { id: 4, name: "PRODDATUR", code: "PRDT" },
+        { id: 5, name: "NOSSAM", code: "NOSM" },
+        { id: 6, name: "S.UPPALAPADU", code: "SUPP" },
+      ]
+    );
+    ok(smatcher.matched.get("PRODDATUR")?.length === 10, "real sept matcher: PRODDATUR fed from PRDT block");
+
     console.log(`certificate.check: + real-sample assertions passed (${n} total)`);
   } catch (e) {
     console.error("certificate.check: real-sample part skipped:", String(e).slice(0, 160));

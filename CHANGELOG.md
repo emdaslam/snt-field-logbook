@@ -3,6 +3,14 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.38 — 2026-11-23
+
+**Minor: September-report repairs — Proddatur/PNM blocks parsed, future-month carry-over blocked, Repairs-Required overflow and vanished signature fixed**
+
+- The September PCDO return left PRODDATUR (10 works), PNM (9) and PNM-IB (5) unparsed and splashed SUPP items onto NOSSAM/JAMMALAMADUGU. Root causes fixed in the station-table reader: Word drifts the activity column leftward block by block (rows at x103 after an x107 first block swallowed everything downstream), so the boundary now follows item-numbered rows safely inside the label gutter; station blocks are banded by their restarting item numbers ("1." opens the next block) with the block's own centred token preferred, replacing the midpoint refinement that stalled; `nd`/`th` superscript fragments and long "3.DIRECTED MAINTENANCE : 1. …" lines no longer poison blocks (colon-anchored heading cut). Verified against all five sample returns — September reconstructs 84/84 works, one item per work, zero cross-station strays.
+- Carry-over into the "Repairs done" reviewer is now month-guarded: only a strictly earlier month's saved list prefills (exporting September after October used to resurrect October's rows — the "previous data" in PRODDATUR).
+- PDF layout: plain paragraphs gained a keep-together page-break guard. A long "Repairs Required" list no longer spills past the bottom margin, and the Forwarded/signature block no longer lands off-page (invisible) when it follows a tall list.
+
 ## 1.7.8.37 — 2026-11-23
 
 **Minor: PCDO parser hardening on the October return + editable "Repairs done" reviewer with last-month carry-over**

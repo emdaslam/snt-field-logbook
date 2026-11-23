@@ -72,13 +72,16 @@ export function CertificateExportModal({ open, onClose }: { open: boolean; onClo
         );
       } else {
         setPcdo({ name: f.name, matched: arr, unmatched });
+        // Carry-over only from a strictly EARLIER month: exporting September
+        // after October must never resurrect October's rows as "last month".
+        const cur = period.from.slice(0, 7);
         const mem = loadRepairsMemory();
-        const got = new Set([...matched.keys()]);
+        const memOk = !!mem?.month && mem.month < cur;
         setDraft(
           stations.map((st) => {
             const pdf = matched.get(st.name);
             if (pdf) return { station: st.name, items: pdf.map((i) => ({ text: i.text, date: isoToDmy(i.dateIso ?? "") })), carried: false };
-            const old = mem?.stations.find((m) => m.station === st.name);
+            const old = memOk ? mem?.stations.find((m) => m.station === st.name) : undefined;
             if (old?.items.length)
               return { station: st.name, items: old.items.map((i) => ({ text: i.text, date: isoToDmy(i.dateIso ?? "") })), carried: true };
             return { station: st.name, items: [{ text: "", date: "" }], carried: false };
@@ -89,7 +92,7 @@ export function CertificateExportModal({ open, onClose }: { open: boolean; onClo
             .filter((s) => unmatched.includes(s.label) && s.items.length)
             .map((s) => ({ label: s.label, items: s.items }))
         );
-        setCarriedFrom(mem && mem.month ? mem.month : "");
+        setCarriedFrom(memOk && mem?.month ? mem.month : "");
       }
     } catch (e) {
       setPcdoErr("Could not read this PDF: " + String(e));
