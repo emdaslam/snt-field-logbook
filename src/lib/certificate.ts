@@ -23,6 +23,31 @@ export type CertExtra = {
 export const DEFAULT_CERT_EXTRA: CertExtra = { addressedTo: "", throughLine: "", sectionCode: "" };
 
 const LS_CERT_META = "snt.certMeta";
+const LS_REPAIRS_MEMORY = "snt.certRepairsMemory.v1";
+
+/** Snapshot of the last exported "Repairs done" lists, offered as editable
+ *  pre-fill for stations the next month's PCDO return leaves silent. */
+export type RepairsSnapshot = { month: string; stations: { station: string; items: PcdoItem[] }[] };
+
+export function loadRepairsMemory(): RepairsSnapshot | null {
+  try {
+    const raw = localStorage.getItem(LS_REPAIRS_MEMORY);
+    if (!raw) return null;
+    const v = JSON.parse(raw) as RepairsSnapshot;
+    if (v && typeof v.month === "string" && Array.isArray(v.stations)) return v;
+  } catch {
+    /* malformed blob — treat as absent */
+  }
+  return null;
+}
+
+export function saveRepairsMemory(snap: RepairsSnapshot): void {
+  try {
+    localStorage.setItem(LS_REPAIRS_MEMORY, JSON.stringify(snap));
+  } catch {
+    /* storage unavailable — carry-over silently disabled */
+  }
+}
 
 export function loadCertExtra(): CertExtra {
   try {
@@ -317,7 +342,13 @@ export function certificateHtml(m: CertModel): string {
     h += `<td>${
       r.repairsDone.length
         ? r.repairsDone
-            .map((it, i) => `${i + 1}) ${hEsc(it.text)}${it.date ? ` (${ddmmyyyy(it.date)})` : ""}`)
+            .map((it, i) => {
+              // The work text usually already carries its completion date
+              // ("… done on 22-10-2026") — don't print it twice.
+              const d = it.date ? ddmmyyyy(it.date) : "";
+              const dupe = !!d && it.text.replace(/[.)\]]+$/, "").endsWith(d);
+              return `${i + 1}) ${hEsc(it.text)}${d && !dupe ? ` (${d})` : ""}`;
+            })
             .join("\n")
         : "----"
     }</td>`;

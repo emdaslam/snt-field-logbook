@@ -9,12 +9,25 @@ import {
   buildCertificateModel,
   footplateFormSpecs,
   loadCertExtra,
+  loadRepairsMemory,
   matrixTickCount,
   saveCertExtra,
+  saveRepairsMemory,
   type CertExtra,
 } from "@/lib/certificate";
 import { footplateRidesOf, fmtDate } from "@/lib/api";
-import { extractPcdoWorks, matchPcdoToStations, type PcdoItem } from "@/lib/pcdo-pdf";
+import { extractDateIso, extractPcdoWorks, matchPcdoToStations, type PcdoItem } from "@/lib/pcdo-pdf";
+
+/** One editable row of the repairs reviewer — date as printed (dd-mm-yyyy). */
+type DraftItem = { text: string; date: string };
+
+const isoToDmy = (iso: string) =>
+  /^\d{4}-\d{2}-\d{2}$/.test(iso) ? `${iso.slice(8)}-${iso.slice(5, 7)}-${iso.slice(0, 4)}` : "";
+
+const dmyToIso = (d: string): string | null => {
+  const m = d.trim().match(/^(\d{1,2})[-./](\d{1,2})[-./](\d{4})$/);
+  return m ? extractDateIso(`${m[1]}-${m[2]}-${m[3]}`) : null;
+};
 
 /** Export the two official monthly formats:
  *  - IC Certificate (Form S&T./IC.3.3) for the month's monthly inspections
@@ -36,10 +49,16 @@ export function CertificateExportModal({ open, onClose }: { open: boolean; onClo
   >(null);
   const [pcdoBusy, setPcdoBusy] = useState(false);
   const [pcdoErr, setPcdoErr] = useState("");
+  // Reviewer: every register station with its editable works list.
+  const [draft, setDraft] = useState<{ station: string; items: DraftItem[]; carried: boolean }[]>([]);
+  const [unGroups, setUnGroups] = useState<{ label: string; items: PcdoItem[] }[]>([]);
+  const [carriedFrom, setCarriedFrom] = useState("");
 
   const onPcdoFile = async (f: File | null) => {
     setPcdoErr("");
     setPcdo(null);
+    setDraft([]);
+    setUnGroups([]);
     if (!f) return;
     setPcdoBusy(true);
     try {
@@ -53,6 +72,24 @@ export function CertificateExportModal({ open, onClose }: { open: boolean; onClo
         );
       } else {
         setPcdo({ name: f.name, matched: arr, unmatched });
+        const mem = loadRepairsMemory();
+        const got = new Set([...matched.keys()]);
+        setDraft(
+          stations.map((st) => {
+            const pdf = matched.get(st.name);
+            if (pdf) return { station: st.name, items: pdf.map((i) => ({ text: i.text, date: isoToDmy(i.dateIso ?? "") })), carried: false };
+            const old = mem?.stations.find((m) => m.station === st.name);
+            if (old?.items.length)
+              return { station: st.name, items: old.items.map((i) => ({ text: i.text, date: isoToDmy(i.dateIso ?? "") })), carried: true };
+            return { station: st.name, items: [{ text: "", date: "" }], carried: false };
+          })
+        );
+        setUnGroups(
+          res.stations
+            .filter((s) => unmatched.includes(s.label) && s.items.length)
+            .map((s) => ({ label: s.label, items: s.items }))
+        );
+        setCarriedFrom(mem && mem.month ? mem.month : "");
       }
     } catch (e) {
       setPcdoErr("Could not read this PDF: " + String(e));
@@ -60,6 +97,42 @@ export function CertificateExportModal({ open, onClose }: { open: boolean; onClo
       setPcdoBusy(false);
     }
   };
+
+  const patchDraft = (di: number, ii: number, p: Partial<DraftItem>) =>
+    setDraft((ds) => ds.map((d, i) => (i !== di ? d : { ...d, items: d.items.map((it, j) => (j !== ii ? it : { ...it, ...p })) })));
+
+  const addDraftRow = (di: number) =>
+    setDraft((ds) => ds.map((d, i) => (i !== di ? d : { ...d, items: [...d.items, { text: "", date: "" }] })));
+
+  const delDraftRow = (di: number, ii: number) =>
+    setDraft((ds) => ds.map((d, i) => (i !== di ? d : { ...d, items: d.items.filter((_, j) => j !== ii) })));
+
+  const moveGroupTo = (label: string, station: string) => {
+    const g = unGroups.find((u) => u.label === label);
+    if (!g) return;
+    setUnGroups((gs) => gs.filter((u) => u.label !== label));
+    setDraft((ds) => {
+      const at = ds.findIndex((d) => d.station === station);
+      const add = g.items.map((i) => ({ text: i.text, date: isoToDmy(i.dateIso ?? "") }));
+      if (at < 0) return [...ds, { station, items: add, carried: false }];
+      return ds.map((d, i) => (i === at ? { ...d, items: [...d.items.filter((it) => it.text.trim()), ...add] } : d));
+    });
+  };
+
+  // Final "Repairs done" source: edited lists when present, parsed map otherwise.
+  const finalRepairs = useMemo(
+    () =>
+      draft.length
+        ? draft.map((d) => ({
+            station: d.station,
+            items: d.items
+              .filter((i) => i.text.trim())
+              .map((i) => ({ text: i.text.trim(), dateIso: dmyToIso(i.date) }))
+              .sort((a, b) => (a.dateIso || "9999").localeCompare(b.dateIso || "9999")),
+          }))
+        : pcdo?.matched,
+    [draft, pcdo]
+  );
 
   const monthLogs = useMemo(
     () =>
@@ -90,7 +163,7 @@ export function CertificateExportModal({ open, onClose }: { open: boolean; onClo
         staff: currentUser,
         extra,
         yearMonth: period.from.slice(0, 7),
-        pcdoRepairs: pcdo?.matched,
+        pcdoRepairs: finalRepairs,
       });
       return {
         ok: model.rows.length > 0,
@@ -117,7 +190,7 @@ export function CertificateExportModal({ open, onClose }: { open: boolean; onClo
           } · ${matrixTickCount(s.form)} lamp tick${matrixTickCount(s.form) !== 1 ? "s" : ""}`
       ),
     };
-  }, [mode, included, monthLogs, stations, deficiencies, currentUser, extra, selectedTrips, period.from, pcdo]);
+  }, [mode, included, monthLogs, stations, deficiencies, currentUser, extra, selectedTrips, period.from, finalRepairs]);
 
   const missingMeta = !extra.addressedTo.trim() || !extra.throughLine.trim();
 
@@ -229,7 +302,11 @@ export function CertificateExportModal({ open, onClose }: { open: boolean; onClo
             {pcdo && (
               <button
                 type="button"
-                onClick={() => setPcdo(null)}
+                onClick={() => {
+                  setPcdo(null);
+                  setDraft([]);
+                  setUnGroups([]);
+                }}
                 className="text-xs font-medium text-red-600 underline"
               >
                 Remove
@@ -268,13 +345,97 @@ export function CertificateExportModal({ open, onClose }: { open: boolean; onClo
                   </span>
                 ))}
               </div>
-              {pcdo.unmatched.length > 0 && (
-                <p className="mt-1.5 rounded-md bg-amber-50 p-1.5 text-[11px] leading-snug text-amber-800">
-                  Works listed under labels that match no station of yours are
-                  left off: {pcdo.unmatched.join(", ")}. Add the station (or
-                  check its code spelling) to include them.
+              <p className="mt-1.5 text-[11px] leading-snug text-slate-500">
+                Review below — fix a work placed under the wrong station, correct
+                its date, add anything the PDF missed, or leave a station blank.
+              </p>
+              {carriedFrom && (
+                <p className="mt-1 text-[10px] text-slate-400">
+                  Entries tagged “from last month” were carried over from your
+                  {carriedFrom.replace("-", " ")} export — edit or clear freely.
                 </p>
               )}
+              <div className="mt-1.5 max-h-72 space-y-1 overflow-y-auto pr-0.5">
+                {draft.map((d, di) => {
+                  const filled = d.items.filter((i) => i.text.trim()).length;
+                  return (
+                    <details key={d.station} open={filled > 0} className="rounded-md border border-slate-200">
+                      <summary className="cursor-pointer select-none px-2 py-1.5 text-[12px] font-semibold text-slate-700">
+                        {d.station}
+                        <span className="ml-1 font-normal text-slate-400">
+                          {filled} work{filled !== 1 ? "s" : ""}
+                          {d.carried && filled > 0 ? " · from last month" : filled === 0 && !d.carried ? " · blank" : ""}
+                        </span>
+                      </summary>
+                      <div className="px-2 pb-2">
+                        {d.items.map((it, ii) => (
+                          <div key={ii} className="mt-1 flex items-center gap-1">
+                            <input
+                              value={it.text}
+                              placeholder="Work done"
+                              onChange={(e) => patchDraft(di, ii, { text: e.target.value })}
+                              className="min-w-0 flex-1 rounded border border-slate-200 bg-surface px-2 py-1 text-[12px]"
+                            />
+                            <input
+                              value={it.date}
+                              placeholder="dd-mm-yyyy"
+                              inputMode="numeric"
+                              onChange={(e) => patchDraft(di, ii, { date: e.target.value })}
+                              className="w-24 flex-shrink-0 rounded border border-slate-200 bg-surface px-1.5 py-1 text-[11px]"
+                            />
+                            <button
+                              type="button"
+                              aria-label={`Remove work from ${d.station}`}
+                              onClick={() => delDraftRow(di, ii)}
+                              className="px-1 text-base leading-none text-slate-400 hover:text-red-600"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => addDraftRow(di)}
+                          className="mt-1 text-[11px] font-semibold text-sky-700"
+                        >
+                          + Add work
+                        </button>
+                      </div>
+                    </details>
+                  );
+                })}
+                {unGroups.length > 0 && (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 p-2">
+                    <p className="text-[11px] font-semibold text-amber-800">
+                      PDF labels that matched no station of yours — pick where their works go:
+                    </p>
+                    {unGroups.map((g) => (
+                      <div key={g.label} className="mt-1.5 flex items-center gap-1.5">
+                        <span className="w-28 flex-shrink-0 truncate text-[11px] font-medium text-amber-900" title={g.label}>
+                          {g.label}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-[10px] text-amber-700">
+                          {g.items.map((i) => i.text).join(" · ")}
+                        </span>
+                        <select
+                          value=""
+                          onChange={(e) => {
+                            if (e.target.value) moveGroupTo(g.label, e.target.value);
+                          }}
+                          className="flex-shrink-0 rounded border border-amber-300 bg-white px-1 py-0.5 text-[11px]"
+                        >
+                          <option value="">Move to…</option>
+                          {stations.map((s) => (
+                            <option key={s.id} value={s.name}>
+                              {s.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
           {pcdoErr && <p className="mt-2 text-[11px] leading-snug text-red-600">{pcdoErr}</p>}
@@ -362,6 +523,12 @@ export function CertificateExportModal({ open, onClose }: { open: boolean; onClo
         <PrimaryButton
           onClick={() => {
             if (mode === "ic") {
+              if (finalRepairs?.length) {
+                saveRepairsMemory({
+                  month: period.from.slice(0, 7),
+                  stations: finalRepairs.filter((g) => g.items.length > 0),
+                });
+              }
               exportCertificate(
                 period,
                 included,
@@ -371,7 +538,7 @@ export function CertificateExportModal({ open, onClose }: { open: boolean; onClo
                 currentUser,
                 extra,
                 onClose,
-                pcdo?.matched
+                finalRepairs
               );
             } else {
               exportFootplateForms(period, selectedTrips, currentUser, extra, stations, onClose);

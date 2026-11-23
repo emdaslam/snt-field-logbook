@@ -3,6 +3,15 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.37 — 2026-11-23
+
+**Minor: PCDO parser hardening on the October return + editable "Repairs done" reviewer with last-month carry-over**
+
+- Fixed the three October-PCDO defects: works slipping into the neighbouring station (e.g. SUPP's "LC 02 EOLB cables laying" landing under JAMMALAMADUGU), highlight rows going missing when serial/station cells share the bullet's line, and the completion date printing twice ("… done on 22-10-2026 (22-10-2026)"). Station attribution now balances whole blocks (midpoint boundaries refined between adjacent stations, wrapped lines inherit their parent item), rows are read with a number-aware grammar, and the parenthesis is suppressed when the text already ends with that date.
+- The IC Certificate PCDO panel now opens a reviewer listing EVERY station of the register: works harvested from the PDF are editable in place (text + dd-mm-yyyy date), misfiled rows can be fixed, anything can be added ("+ Add work") or removed (×) before the PDF is generated.
+- Stations the PDF says nothing about start blank ("· blank") so they print "----" unless filled once; if the previous export had entries for them, those are pre-filled ("· from last month") and equally editable. PDF labels that match no registered station (e.g. heading fragments) become one-line movers — pick the station and their works merge there.
+- Exported "Repairs done" lists are remembered per month; the next month's reviewer carries them forward automatically.
+
 ## 1.7.8.36 — 2026-11-23
 
 **Minor: PCDO PDF upload feeds the IC certificate's "Repairs done" column; unconditional Forwarded/SSE closing**

@@ -150,6 +150,7 @@ export function parsePcdoSegments(pages: PcdoSeg[][]): PcdoParseResult {
   let hlLastBucket: string[] | null = null;
   let hlBaseX: number | null = null; // outermost (parent) bullet number x
   let hlTextX = 0; // text-start x of the last accepted highlight line
+  let hlSawTokRow = false; // stream carries serial+station rows (oct-26 style)
 
   // Station-table state (shared machinery for signalling/engineering).
   let evs: Ev[] = [];
@@ -170,29 +171,64 @@ export function parsePcdoSegments(pages: PcdoSeg[][]): PcdoParseResult {
 
   const finalizeTable = () => {
     flushTok();
-    // Nearest-token assignment by GEOMETRIC y (not event order): Word row-span
-    // cells centre the station token amid its activity lines, sometimes
-    // sharing a line with the first/last one. Ties favour the earlier token.
-    // ponytail: blocks whose token hugs one end can shed their outermost item
-    // to a neighbour — bounded to a one-line slip, tolerated.
+    // Band assignment: initial nearest-token by y, then refine each boundary
+    // between adjacent tokens to the midpoint of the innermost activities on
+    // either side (Word row-span cells centre the token, so distance alone
+    // mis-slips border items to a tall neighbouring block — oct-26 SUPP→JMDG).
     const tokAt = evs.map((e, i) => (e.kind === "tok" ? i : -1)).filter((i) => i >= 0);
+    const acts = evs.filter((e): e is { kind: "act"; text: string; y: number } => e.kind === "act");
     const byTok = new Map<string, string[]>();
-    for (const [, e] of evs.entries()) {
-      if (e.kind !== "act" || !e.text) continue;
-      let best = -1;
-      let bd = Infinity;
-      for (const k of tokAt) {
-        const d = Math.abs(evs[k].y - e.y);
-        if (d < bd) {
-          bd = d;
-          best = k;
-        }
+    if (tokAt.length && acts.length) {
+      const tokYs = tokAt.map((i) => (evs[i] as { y: number }).y);
+      // Wrapped-line continuation rows inherit the preceding item's station:
+      // they hug their parent within ~1.6 row pitches, while block-distance to
+      // a short neighbouring block can be far smaller (oct-26 SJMA wrap → NOSM).
+      const sorted = [...acts].sort((a, b) => b.y - a.y);
+      const diffs = sorted.slice(1).map((a, i) => sorted[i].y - a.y).filter((d) => d > 0).sort((a, b) => a - b);
+      const pitch = diffs[Math.floor(diffs.length / 2)] ?? 12;
+      const inherited: (number | null)[] = sorted.map(() => null);
+      for (let i = 1; i < sorted.length; i++) {
+        if (!NUM_ITEM.test(sorted[i].text) && sorted[i - 1].y - sorted[i].y <= pitch * 1.6) inherited[i] = i - 1;
       }
-      if (best < 0) continue;
-      const tok = (evs[best] as { kind: "tok"; label: string }).label;
-      const arr = byTok.get(tok) ?? [];
-      arr.push(e.text);
-      byTok.set(tok, arr);
+      // Separators between adjacent tokens; y descends top-down.
+      const sep = tokYs.slice(0, -1).map((y, b) => (y + tokYs[b + 1]) / 2);
+      const assign = (y: number) => {
+        let k = 0;
+        while (k < sep.length && y < sep[k]) k++;
+        return k;
+      };
+      for (let iter = 0; iter < 2; iter++) {
+        const groups: number[][] = tokYs.map(() => []);
+        for (const [si, a] of sorted.entries()) {
+          if (inherited[si] == null) groups[assign(a.y)].push(a.y);
+        }
+        let moved = false;
+        for (let b = 0; b < sep.length; b++) {
+          const up = groups[b].filter((y) => y > sep[b]);
+          const dn = groups[b + 1].filter((y) => y <= sep[b]);
+          if (up.length && dn.length) {
+            const ns = (Math.min(...up) + Math.max(...dn)) / 2;
+            if (Math.abs(ns - sep[b]) > 0.5) {
+              sep[b] = ns;
+              moved = true;
+            }
+          }
+        }
+        if (!moved) break;
+      }
+      // Resolve inherit chains, then group respecting encounter order.
+      const labels: string[] = sorted.map(() => "");
+      for (const [si] of sorted.entries()) {
+        let src = si;
+        let hop = 0;
+        while (inherited[src] != null && hop++ < 8) src = inherited[src]!;
+        labels[si] = (evs[tokAt[assign(sorted[src].y)]] as { label: string }).label;
+      }
+      for (const [si, a] of sorted.entries()) {
+        const arr = byTok.get(labels[si]) ?? [];
+        arr.push(a.text);
+        byTok.set(labels[si], arr);
+      }
     }
     for (const [label, acts] of byTok) {
       const items = itemsFromText(acts);
@@ -234,31 +270,54 @@ export function parsePcdoSegments(pages: PcdoSeg[][]): PcdoParseResult {
           boundary = null;
           continue;
         }
-        const numLead = text.match(/^\s*(\d{1,2}\s*[.)]\s*)(.+)$/);
-        if (numLead) {
+        // Row grammar: serial(-dot) rows "3. text" / "7 TOKEN 1. text"; the
+        // station token may ride the same cluster (serial+token centred rows,
+        // oct-26) or appear dash-separated (apr-26 "PNM- text").
+        let nl = text.match(/^\s*(\d{1,2}\s*[.)]\s*)(.+)$/);
+        let serialForm = false;
+        if (!nl) {
+          const ms = text.match(/^\s*(\d{1,2})\s+([A-Z].+)$/);
+          if (ms && NUM_ITEM.test(ms[2].slice(0, 26))) {
+            nl = [ms[0], ms[1] + " ", ms[2]] as unknown as RegExpMatchArray;
+            serialForm = true;
+          }
+        }
+        if (nl) {
           if (hlBaseX == null || lineX < hlBaseX) hlBaseX = lineX;
-          let rest = numLead[2];
+          let rest = nl[2];
           // Nested item numbers after a "PNM - 1." station prefix.
           const nest = rest.match(/^\d{1,2}\s*[.)]\s*(.+)$/);
           if (nest) rest = nest[1];
-          const pref = rest.match(/^([A-Z][A-Z0-9 '\-&/.]{1,17}[A-Z0-9])[ \t]*-[ \t]*(.+)$/);
-          if (pref) {
-            hlStation = pref[1].replace(/[\s\-&/.]+$/, "").trim();
-            rest = pref[2];
-          } else if (hlBaseX != null && lineX <= hlBaseX + 8) {
-            // A station-less numbered bullet at parent indent — its own item,
-            // never fused onto the previous station's work.
-            hlStation = null;
+          // Leading caps token directly followed by an item number — the
+          // station rides this row (serial+token centred rows).
+          const tk = rest.match(/^([A-Z][A-Z0-9 '&\-/.]{1,17}?[A-Z0-9])\s+(?=\d{1,2}\s*[.)]\s)/);
+          if (tk) {
+            hlStation = tk[1];
+            rest = rest.slice(tk[0].length);
+          } else {
+            const pref = rest.match(/^([A-Z][A-Z0-9 '&\-/.]{1,17}[A-Z0-9])[ \t]*-[ \t]*(.+)$/);
+            if (pref) {
+              hlStation = pref[1].replace(/[\s\-&/.]+$/, "").trim();
+              rest = pref[2];
+            } else if (hlBaseX != null && lineX <= hlBaseX + 8 && !serialForm) {
+              // Station-less numbered bullet at parent indent (apr-26 style)
+              // — its own item, never fused onto the previous station.
+              hlStation = null;
+            }
           }
           const bucket = hlStation ? (hlBuckets.get(hlStation) ?? []) : hlUnattr;
           if (hlStation) hlBuckets.set(hlStation, bucket);
-          bucket.push(rest);
+          // Keep the item number when the string itself lost it (nested /
+          // token-riding rows keep theirs; pref rows re-attach nl[1]) — the
+          // number is what separates this bullet from the next inside
+          // itemsFromText (a number-less string would read as continuation).
+          bucket.push(/\s*\d{1,2}\s*[.)]\s*/.test(rest) ? rest : nl[1] + rest);
           hlLastBucket = bucket;
           // Text of the numbered line starts after the number itself (pdf.js
           // delivers "1." and the sentence as separate segments).
           const txSeg = line.segs.find((s) => s !== line.segs[0] && NUM_ITEM.test(s.str.trim())) ?? line.segs[line.segs.length - 1];
           hlTextX = txSeg.x;
-        } else if (hlLastBucket && lineX >= hlTextX - 10) {
+        } else if (hlLastBucket && lineX >= hlTextX - 10 && !/^[.\s*-]+$/.test(text)) {
           // Continuation of the previous bullet — only when indented like the
           // item text, so the interleaved letter column never bleeds in.
           hlLastBucket.push(text);
@@ -290,9 +349,15 @@ export function parsePcdoSegments(pages: PcdoSeg[][]): PcdoParseResult {
       }
       if (boundary == null) continue; // header rows before the first activity
       const bnd = boundary;
-      const left = line.segs.filter((s) => s.x < bnd - 0.5);
+      let left = line.segs.filter((s) => s.x < bnd - 0.5);
       const right = line.segs.filter((s) => s.x >= bnd - 0.5);
-      const act = joinSegs(right);
+      let act = joinSegs(right);
+      // A stranded lone item-number left of the boundary (PNM "1." at a
+      // narrower indent) is an activity lead, not a station cell.
+      if (!act && left.length === 1 && /^\d{1,2}[.)]$/.test(left[0].str.trim())) {
+        act = joinSegs(line.segs);
+        left = [];
+      }
       const startsItem = numberedSegs.length > 0 || (act.length > 0 && NUM_ITEM.test(act));
       // Continuations must sit at (or left of) the activity text indent —
       // wrapped dates hug the column edge, other-page debris hangs far right.
@@ -308,7 +373,10 @@ export function parsePcdoSegments(pages: PcdoSeg[][]): PcdoParseResult {
       if (act) {
         flushTok(); // emit a staged token (possibly this line's)
         if (startsItem) actTextX = right[0].x;
-        evs.push({ kind: "act", text: act, y: line.y });
+        // Ghost item leaders ("1." dangling on an otherwise empty row) never
+        // start a block — drop them so they can't weigh the band assignment.
+        const body = act.replace(NUM_LEAD, "").replace(/^[-–—]+\s*/, "").trim();
+        if (body) evs.push({ kind: "act", text: act, y: line.y });
       }
     }
   }
