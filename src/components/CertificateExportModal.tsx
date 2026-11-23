@@ -75,14 +75,14 @@ export function CertificateExportModal({ open, onClose }: { open: boolean; onClo
         ],
       };
     }
-    const specs = selectedTrips.flatMap((l) => footplateFormSpecs(l, currentUser, extra));
+    const specs = selectedTrips.flatMap((l) => footplateFormSpecs(l, currentUser, extra, stations));
     return {
       ok: specs.length > 0,
       lines: specs.map(
         (s) =>
-          `${fmtDate(s.dateIso)} ${s.shift} · ${s.trainNo || "no train no."} · ${
-            matrixTickCount(s.form)
-          } lamp tick${matrixTickCount(s.form) !== 1 ? "s" : ""}`
+          `${fmtDate(s.dateIso)} ${s.shift} · ${s.trainNo || "no train no."} · ${s.form.matrix.length} station${
+            s.form.matrix.length !== 1 ? "s" : ""
+          } · ${matrixTickCount(s.form)} lamp tick${matrixTickCount(s.form) !== 1 ? "s" : ""}`
       ),
     };
   }, [mode, included, monthLogs, stations, deficiencies, currentUser, extra, selectedTrips, period.from]);
@@ -249,6 +249,20 @@ export function CertificateExportModal({ open, onClose }: { open: boolean; onClo
         {preview.lines.length > 8 && (
           <p className="text-xs text-sky-700">…and {preview.lines.length - 8} more</p>
         )}
+        {mode === "footplate" &&
+          preview.ok &&
+          !selectedTrips.some((l) => {
+            const o = l.footplateObs;
+            return o && (o.day || o.night ? matrixTickCount((o.day ?? o.night)!) > 0 : false);
+          }) && (
+            <p className="mt-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-[11px] leading-snug text-amber-800">
+              Lamp tick rows are blank. Ticks come from the trip entry: open it →
+              Footplate observation → Station visibility matrix → tap the YY/G/Y/R
+              buttons under Distant / Home / Starter / Adv. Starter; they print as
+              √. Stations are pre-listed automatically — or leave blank and tick
+              with a pen on the printed sheet.
+            </p>
+          )}
       </div>
 
       <div className="flex justify-end">

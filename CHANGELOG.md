@@ -3,6 +3,15 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.32 — 2026-11-23
+
+**Minor: foot plate visibility grid now lists every section station and explains lamp ticking**
+
+- The visibility grid previously seeded only the journey's boarding and destination stations when a trip had no matrix; it now seeds **all stations in your register** (list order, banks of five) — matching the sample, which lists every station of the section. Trim unwanted rows in the entry's matrix editor (Remove).
+- The export modal now warns when lamp ticks are blank and explains where they come from: open the trip entry → Footplate observation → Station visibility matrix → tap the YY/G/Y/R buttons under Distant / Home / Starter / Adv. Starter. Tapped lamps print as √.
+- The preview line per trip now shows "N stations · M lamp ticks" (counts included the seeded stations), so 0-tick exports are visible before generating.
+- Station visibility editor hint updated — stations pre-fill the PDF automatically; lamps are tapped there to record what each aspect showed.
+
 ## 1.7.8.31 — 2026-11-23
 
 **Minor: Foot Plate form now matches the office sample layout**

@@ -504,9 +504,10 @@ export type FootPlateFormSpec = {
 
 /** Expand a footplate log into per-shift form specs (skips shifts the trip
  *  did not run and shifts with neither train nor answers). When the stored
- *  observation has no visibility matrix yet, rows for the journey's endpoint
- *  stations are seeded from `stations` so the printed form always carries the
- *  station-wise grid. */
+ *  observation has no visibility matrix yet, rows for every station in
+ *  `stations` (the section's station register, in list order) are seeded so
+ *  the printed form always carries the full station-wise grid — remove
+ *  unwanted rows in the entry's matrix editor. */
 export function footplateFormSpecs(
   l: DailyLog,
   staff?: Staff | null,
@@ -526,27 +527,16 @@ export function footplateFormSpecs(
   };
   const section = [staff?.railwayDivision, extra?.sectionCode].filter(Boolean).join(", ");
 
-  // Endpoint stations of every ride in the entry — the seed rows for a form
-  // whose visibility matrix was never filled in.
-  const seededMatrix: ObsMatrixStation[] = (() => {
-    if (!stations?.length) return [];
-    const ids: number[] = [];
-    for (const r of rides) {
-      for (const id of [r.boardingStationId, r.otherEndStationId]) {
-        if (typeof id === "number" && !ids.includes(id)) ids.push(id);
-      }
-    }
-    return ids
-      .map((id) => ({
-        stationId: id,
-        stationName: stations.find((s) => s.id === id)?.name ?? "",
-        lamps: {},
-        visibility: "Good",
-        led: "Very Good",
-        interference: false,
-      }))
-      .filter((r) => r.stationName);
-  })();
+  // Full station register as seed rows (list order) — the printed matrix
+  // mirrors the office sample, which lists every station of the section.
+  const seededMatrix: ObsMatrixStation[] = (stations ?? []).map((s) => ({
+    stationId: s.id,
+    stationName: s.name,
+    lamps: {},
+    visibility: "Good",
+    led: "Very Good",
+    interference: false,
+  }));
   const withMatrix = (form: ObsShiftForm): ObsShiftForm =>
     form.matrix.length > 0 ? form : { ...form, matrix: seededMatrix };
 

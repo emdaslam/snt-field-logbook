@@ -4046,7 +4046,9 @@ function ObsMatrixEditor({
       </div>
       {value.length === 0 && (
         <p className="text-[11px] text-slate-400">
-          Optional — tick the lamps seen at each station for the printed matrix.
+          Stations pre-fill the printed PDF automatically. Add them here and tap the
+          lamp buttons (YY/G/Y/R) to record which aspects showed each colour —
+          they print as √ ticks in the visibility grid.
         </p>
       )}
       {value.map((st, i) => (

@@ -219,12 +219,12 @@ ok(fh.includes("(n) Loco pilot feedback"), "fp signalling (n) present");
 const chkRows = fh.match(/<tr><td>/g)?.length ?? 0;
 ok(chkRows >= 12 + 7 + 4, "two-column items keep row counts");
 
-// matrix auto-seeds from the journey endpoints when the sheet has none
+// matrix auto-seeds from the full station register when the sheet has none
 const seeded = footplateFormSpecs(trip, staff, extra, [
   { id: 1, name: "KLKA" }, { id: 2, name: "YA" }, { id: 3, name: "JMDG" },
 ]);
-ok(seeded[0].form.matrix.length === 2, "empty matrix seeded from ride endpoints");
-ok(seeded[0].form.matrix[0].stationName === "KLKA" && seeded[0].form.matrix[1].stationName === "YA", "seed rows carry names");
+ok(seeded[0].form.matrix.length === 3, "empty matrix seeded with all section stations");
+ok(seeded[0].form.matrix[0].stationName === "KLKA" && seeded[0].form.matrix[2].stationName === "JMDG", "seed rows in register order");
 const sh = footplateFormHtml(seeded[0], staff.railwayZone ?? "", "2026-07", extra.addressedTo, extra.throughLine);
 // visibility grid mirrors the sample: stub groups, option rows, √ ticks
 ok(sh.includes(">Station wise signal visibility Details<"), "grid heading matches sample casing");
