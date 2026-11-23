@@ -4041,7 +4041,7 @@ function ObsMatrixEditor({
           Station visibility matrix
         </p>
         <select
-          className={`${inputClass} w-36 py-1 text-xs`}
+          className={`${inputClass} w-40 py-1 text-xs`}
           value=""
           onChange={(e) => addStation(e.target.value, false)}
         >
@@ -4050,24 +4050,12 @@ function ObsMatrixEditor({
             <option key={s.id} value={s.id}>{s.name}</option>
           ))}
         </select>
-        <select
-          className={`${inputClass} w-40 py-1 text-xs`}
-          value=""
-          onChange={(e) => addStation(e.target.value, true)}
-        >
-          <option value="">+ Add via station</option>
-          {remaining.map((s) => (
-            <option key={`v-${s.id}`} value={s.id}>{s.name}</option>
-          ))}
-        </select>
       </div>
       {value.length === 0 && (
         <p className="text-[11px] text-slate-400">
           Add the stations of the run in order — they print left to right
-          exactly as listed here. Regular stations get visibility / LED grades
-          too; via stations ask only for the discs. Tap the lamp buttons
-          (YY/G/Y/R) to record which aspects showed each colour — they print
-          as √ ticks.
+          exactly as listed here. Tap the lamp buttons (YY/G/Y/R) to record
+          which aspects showed each colour — they print as √ ticks.
         </p>
       )}
       {value.map((st, i) => (

@@ -3,6 +3,15 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.34 — 2026-11-23
+
+**Minor: foot plate form polishes — heading line, rule, bold stubs, one unbroken grid, two pages**
+
+- Para reference and annexure number now share one heading line (para left, annexure right), a rule closes the heading block, and the whole heading sits flush at the top of page 1.
+- The visibility grid's stub groups (Signal Lamp / Visibility / LED brightness) print as bold merged cells like the sample — the rotated letter columns (which overlapped) are gone.
+- The grid is a single continuous table again for any number of stations, and the form follows the sample's two-page rhythm: page 1 header + General + Signalling, page 2 Train running + grid + observations, chosen automatically at the largest text size where both pages hold (three pages only for very dense station registers).
+- The separate "+ Add via station" picker is removed — "+ Add station" covers everything (added order = printed left-to-right).
+
 ## 1.7.8.33 — 2026-11-23
 
 **Minor: via stations in the footplate grid — added-order printing, discs-only rows**

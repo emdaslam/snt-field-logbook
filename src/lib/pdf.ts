@@ -740,8 +740,18 @@ export function buildPdf(
         ? (lines.length - 1) * (1.15 * size) + 0.21 * size + 4
         : lines.length * (1.15 * size);
     } else if (tag === "p") {
-      if (!text) continue;
       const cls = el.className;
+      // A "rule" paragraph draws a horizontal line across the content width
+      // (the rule under the foot plate form's heading block).
+      if (cls.includes("rule")) {
+        pageBreak(10);
+        doc.setDrawColor(...(plain ? INK : exportPal.line)).setLineWidth(plain ? 1 : 0.8);
+        doc.line(margin, y, pageW - margin, y);
+        doc.setLineWidth(GRID_LINE_WIDTH);
+        y += 10;
+        continue;
+      }
+      if (!text) continue;
       // A "cols" paragraph renders its <span> children at fixed column offsets
       // (from data-cols="40,200,...") — used by the TA Journal header info
       // block and the days summary, where the reference sheet aligns columns.
@@ -1541,6 +1551,10 @@ export function exportDocument(
     /** Starting content size for the fit-on-one-page loop (default: the
      *  remembered per-type size; the fit loop only shrinks from there). */
     fitStart?: number;
+    /** Force a page layout, skipping the Fit / Two / Earlier chooser (used
+     *  when an export must always follow one layout, e.g. the foot plate
+     *  form's two-page rhythm). */
+    pageMode?: ExportPageMode;
     /** Fit-mode page margin in pt (default 24) — a large margin centres a
      *  pinned-width table instead of stretching it edge to edge. */
     fitMargin?: number;
@@ -1698,6 +1712,7 @@ export function exportDocument(
   } catch {
     pageMode = resolveExportPageMode(onePage, null, null, Boolean(twoBody));
   }
+  if (opts?.pageMode) pageMode = opts.pageMode;
   const fitNote = document.createElement("p");
   fitNote.style.cssText =
     "margin:0 0 14px;font-size:12px;color:var(--n-500);text-align:center";

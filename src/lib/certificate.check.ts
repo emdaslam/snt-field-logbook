@@ -203,13 +203,15 @@ ok(specs[0].officialName === "E MAHAMMAD ASLAM" && specs[0].divisionSection === 
 
 const fh = footplateFormHtml(specs[0], staff.railwayZone ?? "", "2026-07", extra.addressedTo, extra.throughLine);
 ok(fh.includes("FOOT PLATE INSPECTION OF SIGNALS"), "fp title");
+ok(fh.includes('class="cols" data-cols="0,600"'), "para + annexure share one line");
+ok(fh.includes('<p class="rule"></p>'), "rule under heading block");
 ok(fh.includes("77211, 8 COACHES"), "fp train+load");
 ok(fh.includes("(RECORD OF OBSERVATION)"), "fp subtitle");
 ok(fh.includes("DAY"), "fp shift");
 ok(fh.includes("Marker shiny"), "fp observation text");
 ok(fh.includes("AVAILABLE"), "fp default answers survive");
 ok(!fh.includes("&amp;#" ), "no stray entities");
-ok(!fh.includes("<div"), "fp html walker-flat (no wrapper divs)");
+ok(!fh.replace('<div class="page-break"></div>', "").includes("<div"), "fp html walker-flat (only the page-break div)");
 
 // checklist sections print as the sample's two-column grid: (a) faces (m)
 ok(fh.includes("(a) Date"), "fp general (a) present");
@@ -227,11 +229,12 @@ const seeded = footplateFormSpecs(trip, staff, extra, [
 ok(seeded[0].form.matrix.length === 3, "empty matrix seeded with all section stations");
 ok(seeded[0].form.matrix[0].stationName === "KLKA" && seeded[0].form.matrix[2].stationName === "JMDG", "seed rows in register order");
 const sh = footplateFormHtml(seeded[0], staff.railwayZone ?? "", "2026-07", extra.addressedTo, extra.throughLine);
-// visibility grid mirrors the sample: stub groups, option rows, √ ticks
+// visibility grid mirrors the sample: bold merged stubs, option rows, √ ticks
 ok(sh.includes(">Station wise signal visibility Details<"), "grid heading matches sample casing");
-ok(sh.includes('class="vtext" rowspan="4">Signal Lamp'), "lamp stub group");
-ok(sh.includes('class="vtext" rowspan="4">Visibility'), "visibility stub group");
-ok(sh.includes('class="vtext" rowspan="4">LED brightness'), "led stub group");
+ok(sh.includes('<td rowspan="4"><strong>Signal Lamp</strong></td>'), "lamp stub group bold, real merged cell");
+ok(sh.includes('<td rowspan="4"><strong>Visibility</strong></td>'), "visibility stub group bold");
+ok(sh.includes('<td rowspan="4"><strong>LED brightness</strong></td>'), "led stub group bold");
+ok(!sh.includes('class="vtext"'), "no rotated stubs (letter overlap fixed)");
 ok(sh.includes("Reason (Code)"), "reason row present");
 ok(sh.includes("<td data-font=\"rupee\" data-align=\"center\">\u221A</td>"), "ticked cells routed through TTF font");
 ok(!sh.includes("•"), "old bullet rows gone");
@@ -250,7 +253,7 @@ const oh = footplateFormHtml({ ...specs[0], form: viaForm }, "", "2026-07", "", 
 ok(oh.indexOf(">ZZB<") < oh.indexOf(">AAB<"), "grid order = added order, left to right");
 ok(oh.includes('data-align="center"></td>'), "via station leaves interference cell blank");
 ok(oh.includes(">AAB<") , "regular station intact beside via");
-// banks cap at five stations and continue on the next table
+// any number of stations prints as ONE continuous grid table
 const many = Array.from({ length: 12 }, (_, i) => ({
   stationId: i + 100, stationName: `ST${i}`, lamps: { D: ["YY"] } as never,
   visibility: "Adequate", led: "Excellent", interference: true,
@@ -259,9 +262,9 @@ const bankedHtml = footplateFormHtml(
   { ...specs[0], form: { ...specs[0].form, matrix: many } },
   "", "2026-07", "", ""
 );
-ok((bankedHtml.match(/matrix-table/g) ?? []).length === 3, "12 stations bank into three tables of 5/5/2");
-ok(bankedHtml.includes("(contd.)"), "later banks marked contd.");
-ok((bankedHtml.match(/\u221A/g) ?? []).length > 40, "banked grid carries ticks");
+ok((bankedHtml.match(/matrix-table/g) ?? []).length === 1, "all stations in one continuous grid table");
+ok(!bankedHtml.includes("(contd.)"), "no bank continuation headings");
+ok((bankedHtml.match(/\u221A/g) ?? []).length > 40, "grid carries ticks for every station");
 
 // a night-only-answered log with no night train still prints the sheet
 const nightTrip = log({

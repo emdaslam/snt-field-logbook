@@ -347,9 +347,6 @@ export const SLOT_LABEL: Record<MatrixSlot, string> = {
 };
 export const MATRIX_LAMPS = ["YY", "G", "Y", "R"] as const;
 
-/** Stations per printed bank of the visibility grid (the sample prints five
- *  station groups per table and repeats the grid for further stations). */
-export const MATRIX_BANK = 5;
 /** Option rows of the Visibility / LED brightness groups — a station's
  *  stored grade is ticked across its four signal columns like the sample. */
 export const OBS_VIS_OPTIONS = ["Good", "Adequate", "Insufficient"] as const;
@@ -595,10 +592,12 @@ function obsHasContent(f: ObsShiftForm): boolean {
 export function footplateFormHtml(spec: FootPlateFormSpec, railway: string, yearMonth: string, forwardedTo: string, sseLine: string): string {
   const f = spec.form;
   let h = "";
-  h += `<p>Para No. 3.3.1(c), 3.2.2(c)</p>`;
-  h += `<p class="right">Annexure: 3-A2</p>`;
+  // Para reference and annexure number share one line (para left, annexure
+  // right-ish) like the office sample; a rule closes the heading block.
+  h += `<p class="cols" data-cols="0,600"><span>Para No. 3.3.1(c), 3.2.2(c)</span><span>Annexure: 3-A2</span></p>`;
   h += `<h1 class="centered">FOOT PLATE INSPECTION OF SIGNALS</h1>`;
   h += `<p class="centered">${hEsc(railway)}<br/>MONTH OF &lsquo;${hEsc(monthName(yearMonth))}&rsquo; ${hEsc(yearMonth.split("-")[0] ?? "")}<br/>(RECORD OF OBSERVATION)</p>`;
+  h += `<p class="rule"></p>`;
   h += `<table class="hdr-table"><tbody>` +
     `<tr><td>Name of Official conducting inspection</td><td>${hEsc(spec.officialName)}</td></tr>` +
     `<tr><td>Designation</td><td>${hEsc(spec.designation)}</td></tr>` +
@@ -642,59 +641,59 @@ export function footplateFormHtml(spec: FootPlateFormSpec, railway: string, year
     SIGNALLING_ITEMS.map((it) => pv(`${it.code} ${it.label}`, f.signalling[it.key] ?? ""))
   );
 
-  // Station-wise visibility grid, laid out like the sample: a rotated stub
-  // column groups the option rows (Signal Lamp / Visibility / LED), each
-  // station gets four sub-columns (D/H/S/AD), and the stored answer shows as
-  // a √ in every sub-cell of that station. More stations than one bank holds
-  // repeat the grid beneath.
-  // data-font routes the √ through the embedded TTF — the standard Helvetica
-  // the walker falls back to has no radical glyph (• happens to survive via
-  // WinAnsi; √ does not).
+  // Station-wise visibility grid, laid out like the sample: one continuous
+  // table, a bold stub column grouping the option rows (Signal Lamp /
+  // Visibility / LED brightness as real merged cells — autoTable wraps the
+  // label inside the rowspan, no rotated-letter overlay), each station a
+  // four-column block (D/H/S/AD), stored answers as a √ in every sub-cell.
+  // Stations print in added order, left to right.
   const tick = (cond: boolean) => `<td data-font="rupee" data-align="center">${cond ? "\u221A" : ""}</td>`;
-  const optionRow = (bank: ObsMatrixStation[], label: string, opts: readonly string[], hit: (s: ObsMatrixStation, opt: string) => boolean): string => {
+  const optionRow = (label: string, opts: readonly string[], hit: (s: ObsMatrixStation, opt: string) => boolean): string => {
     let t = "";
     opts.forEach((opt, oi) => {
-      t += `<tr>${oi === 0 ? `<td class="vtext" rowspan="${opts.length}">${hEsc(label)}</td>` : ""}<td>${hEsc(opt)}</td>`;
-      for (const s of bank) {
+      t += `<tr>${oi === 0 ? `<td rowspan="${opts.length}"><strong>${hEsc(label)}</strong></td>` : ""}<td>${hEsc(opt)}</td>`;
+      for (const s of f.matrix) {
         for (let c = 0; c < MATRIX_SLOTS.length; c++) t += tick(hit(s, opt));
       }
       t += `</tr>`;
     });
     return t;
   };
+  // Two-page rhythm like the office sample: page 1 carries the header and the
+  // General / Signalling checklists; page 2 the Train-running items, the
+  // visibility grid, the closing observations and signatures — the grid thus
+  // never straddles a page boundary.
+  h += `<div class="page-break"></div>`;
+
   h += twoColTable(
     "TRAIN RUNNING ITEMS",
     RUNNING_ITEMS.map((it) => pv(`${it.code} ${it.label}`, f.running[it.key] ?? ""))
   );
 
-  for (let b = 0; b < f.matrix.length; b += MATRIX_BANK) {
-    const bank = f.matrix.slice(b, b + MATRIX_BANK);
-    const contd = b > 0 ? " (contd.)" : "";
-    h += `<h3>Station wise signal visibility Details${contd}</h3>`;
-    h += `<table class="matrix-table"><thead><tr><th data-width="46"></th><th></th>`;
-    for (const s of bank) h += `<th colspan="${MATRIX_SLOTS.length}" data-align="center">${hEsc(s.stationName)}</th>`;
-    h += `</tr><tr><th data-width="46"></th><th data-width="58"></th>`;
-    for (const _s of bank) {
-      for (const sl of MATRIX_SLOTS) h += `<th data-align="center">${sl}</th>`;
-    }
-    h += `</tr></thead><tbody>`;
-    MATRIX_LAMPS.forEach((lamp, li) => {
-      h += `<tr>${li === 0 ? `<td class="vtext" rowspan="${MATRIX_LAMPS.length}">Signal Lamp</td>` : ""}<td>${hEsc(lamp)}</td>`;
-      for (const s of bank) {
-        for (const sl of MATRIX_SLOTS) h += tick(Boolean(s.lamps[sl]?.includes(lamp)));
-      }
-      h += `</tr>`;
-    });
-    h += optionRow(bank, "Visibility", [...OBS_VIS_OPTIONS, "Reason (Code)"], (s, opt) => s.visibility === opt);
-    h += optionRow(bank, "LED brightness", OBS_LED_OPTIONS, (s, opt) => s.led === opt);
-    h += `<tr><td colspan="2">Interference from fixed light / Tree branches / other structures</td>`;
-    for (const s of bank) {
-      h += `<td colspan="${MATRIX_SLOTS.length}" data-align="center">${
-        s.via ? "" : s.interference ? "YES" : "NO"
-      }</td>`;
-    }
-    h += `</tr></tbody></table>`;
+  h += `<h3>Station wise signal visibility Details</h3>`;
+  h += `<table class="matrix-table"><thead><tr><th></th><th></th>`;
+  for (const s of f.matrix) h += `<th colspan="${MATRIX_SLOTS.length}" data-align="center">${hEsc(s.stationName)}</th>`;
+  h += `</tr><tr><th></th><th></th>`;
+  for (const _s of f.matrix) {
+    for (const sl of MATRIX_SLOTS) h += `<th data-align="center">${sl}</th>`;
   }
+  h += `</tr></thead><tbody>`;
+  MATRIX_LAMPS.forEach((lamp, li) => {
+    h += `<tr>${li === 0 ? `<td rowspan="${MATRIX_LAMPS.length}"><strong>Signal Lamp</strong></td>` : ""}<td>${hEsc(lamp)}</td>`;
+    for (const s of f.matrix) {
+      for (const sl of MATRIX_SLOTS) h += tick(Boolean(s.lamps[sl]?.includes(lamp)));
+    }
+    h += `</tr>`;
+  });
+  h += optionRow("Visibility", [...OBS_VIS_OPTIONS, "Reason (Code)"], (s, opt) => s.visibility === opt);
+  h += optionRow("LED brightness", OBS_LED_OPTIONS, (s, opt) => s.led === opt);
+  h += `<tr><td colspan="2">Interference from fixed light / Tree branches / other structures</td>`;
+  for (const s of f.matrix) {
+    h += `<td colspan="${MATRIX_SLOTS.length}" data-align="center">${
+      s.via ? "" : s.interference ? "YES" : "NO"
+    }</td>`;
+  }
+  h += `</tr></tbody></table>`;
 
   h += `<table class="obs-table"><tbody>` +
     `<tr><td>1. Important item of observation on signalling &amp; action proposed (within own competency &amp; time frame)</td><td>${hLines(f.observation, "______")}</td></tr>` +

@@ -2299,6 +2299,15 @@ export function exportFootplateForms(
     .join(`<div class="page-break"></div>`);
   exportDocument(`Foot Plate Observation ${period.label}`, body, "footplate", undefined, {
     orientation: "landscape",
+    // Tighter cells keep page 1 (header + two checklist tables) on one page,
+    // preserving the sample's two-page-per-form rhythm.
+    cellPad: 2,
+    // Always lay the form out in the sample's two-page rhythm — the fit loop
+    // picks the largest size where both pages hold; three pages only when
+    // even the smallest size cannot (dense station registers).
+    onePage: false,
+    pageMode: "two",
+    twoPageBody: body,
     onComplete,
   });
 }
