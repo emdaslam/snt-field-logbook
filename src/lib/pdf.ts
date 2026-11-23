@@ -145,7 +145,7 @@ function parseTableBody(trs: Element[]): { body: PdfCell[][]; notes: VtextNote[]
       const isV = (el.getAttribute("class") || "").split(/\s+/).includes("vtext");
       const text = isV
         ? (el.textContent ?? "").replace(/ +/g, "\n")
-        : tidy(el.textContent ?? "");
+        : cellLines(el).join("\n");
       const styles: PdfCellStyle = {};
       const font = el.getAttribute("data-font");
       if (font) styles.font = font;
@@ -299,6 +299,44 @@ function liText(el: HTMLElement): string {
     .trim();
 }
 
+/**
+ * Top-level drawable elements for the walker: wrapper divs (cert-head, fp-form,
+ * sections…) melt away so their children walk like siblings — only the explicit
+ * div.page-break marker survives as an element. Without this, any builder that
+ * groups blocks inside a plain <div> renders nothing at all.
+ */
+function flatKids(parent: Element): Element[] {
+  const out: Element[] = [];
+  for (const c of Array.from(parent.children)) {
+    const tag = c.tagName.toLowerCase();
+    const isBreak =
+      tag === "div" && (c.className || "").split(/\s+/).includes("page-break");
+    if (tag === "div" && !isBreak) out.push(...flatKids(c));
+    else out.push(c);
+  }
+  return out;
+}
+
+/**
+ * Lines of a cell/paragraph with <br/> honoured as line breaks (nested inline
+ * tags contribute their text). Trailing blank lines are dropped; interior
+ * blanks survive as intentional spacing.
+ */
+function cellLines(el: Element): string[] {
+  let raw = "";
+  const walk = (n: Node): void => {
+    if (n.nodeType === Node.TEXT_NODE) raw += n.textContent ?? "";
+    else if (n instanceof Element) {
+      if (n.tagName === "BR") raw += "\n";
+      else Array.from(n.childNodes).forEach(walk);
+    }
+  };
+  Array.from(el.childNodes).forEach(walk);
+  const lines = raw.split("\n").map((l) => tidy(l));
+  while (lines.length > 1 && lines[lines.length - 1] === "") lines.pop();
+  return lines;
+}
+
 /** Smallest side margin the PDF will use when a table needs more room than the
  *  default margins allow. */
 const MIN_MARGIN = 20;
@@ -342,8 +380,11 @@ function measureBodyColumns(table: Element, doc: jsPDF, fs: number, cellPad: num
         const bold = el.querySelector("strong") ? "bold" : "normal";
         doc.setFont(font, bold).setFontSize(8 * fs);
         const raw = el.textContent ?? "";
-        // vtext cells render one token per line; other cells render the full text.
-        const lines = isV ? raw.split(/\s+/).filter(Boolean) : [tidy(raw)].filter(Boolean);
+        // vtext cells render one token per line; other cells keep their <br/>
+        // line structure (widest line drives the column width).
+        const lines = isV
+          ? raw.split(/\s+/).filter(Boolean)
+          : cellLines(el).filter(Boolean);
         let fullW = 0;
         let wordW = 0;
         for (const line of lines) {
@@ -399,15 +440,19 @@ function measureHeadColumns(table: Element, doc: jsPDF, fs: number, cellPad: num
       if (colSpan === 1) {
         const font = c.getAttribute("data-font") === "rupee" ? "rupee" : "helvetica";
         doc.setFont(font, "bold").setFontSize(8 * fs);
-        const text = tidy(c.textContent ?? "");
+        const lines = cellLines(c).filter(Boolean);
         let fullW = 0;
         let wordW = 0;
-        if (text) {
-          fullW = doc.getTextWidth(text) + pad2;
-          for (const tok of text.split(/[^\S\u00A0]+/)) {
+        for (const line of lines) {
+          const lw = doc.getTextWidth(line);
+          if (lw > fullW) fullW = lw;
+          for (const tok of line.split(/[^\S\u00A0]+/)) {
             const tw = doc.getTextWidth(tok);
             if (tw > wordW) wordW = tw;
           }
+        }
+        if (lines.length) {
+          fullW += pad2;
           wordW += pad2 + HEAD_WORD_BUFFER;
         }
         const m = out[col] ?? { full: 0, word: 0 };
@@ -603,7 +648,7 @@ export function buildPdf(
     }
   };
 
-  const els = Array.from(root.children);
+  const els = flatKids(root);
   for (let i = 0; i < els.length; i++) {
     const el = els[i];
     const next = els[i + 1];
@@ -842,6 +887,11 @@ export function buildPdf(
         });
         continue;
       }
+      // <br/> inside a paragraph starts a new line (our builders use it for
+      // multi-line blocks like the TO/Through address); a "centered" class
+      // centres the paragraph like a centered heading.
+      const paraText = el.querySelector("br") ? cellLines(el).join("\n") : text;
+      const centeredP = cls.includes("centered");
       const left = Number(el.getAttribute("data-left")) || 0;
       const meta = cls.includes("meta") || cls.includes("empty");
       const right = cls.includes("right");
@@ -861,7 +911,7 @@ export function buildPdf(
         doc.setFont("helvetica", "italic");
         const oneLine = (size: number) => {
           doc.setFontSize(size);
-          return (doc.splitTextToSize(text, availW) as string[]).length === 1;
+          return (doc.splitTextToSize(paraText, availW) as string[]).length === 1;
         };
         let lo = 1;
         let hi = 9;
@@ -877,8 +927,17 @@ export function buildPdf(
       doc.setFont("helvetica", meta ? "italic" : bold).setFontSize(paraSize);
       if (meta) doc.setTextColor(plain ? 15 : GREY[0], 23, 42);
       else doc.setTextColor(15, 23, 42);
-      const lines = doc.splitTextToSize(text, availW) as string[];
-      doc.text(lines, right ? pageW - margin - rightPad : margin + left, y, right ? { align: "right" } : undefined);
+      const lines = doc.splitTextToSize(paraText, availW) as string[];
+      doc.text(
+        lines,
+        right
+          ? pageW - margin - rightPad
+          : centeredP
+            ? pageW / 2
+            : margin + left,
+        y,
+        right ? { align: "right" } : centeredP ? { align: "center" } : undefined
+      );
       // Underline support for a single <u>word</u> inside a paragraph (the TA
       // certification line): locate the word on its wrapped line and draw a
       // short rule beneath it, tracking jsPDF's per-line baseline spacing.
@@ -945,7 +1004,7 @@ export function buildPdf(
           }
           const rowSpan = Math.max(1, parseInt(c.getAttribute("rowspan") || "1", 10) || 1);
           const colSpan = Math.max(1, parseInt(c.getAttribute("colspan") || "1", 10) || 1);
-          row.push({ content: tidy(c.textContent ?? ""), rowSpan, colSpan, colIndex: col, el: c });
+          row.push({ content: cellLines(c).filter(Boolean).join("\n"), rowSpan, colSpan, colIndex: col, el: c });
           if (rowSpan > 1) activeSpan.set(col, rowSpan - 1);
           col += colSpan;
         }

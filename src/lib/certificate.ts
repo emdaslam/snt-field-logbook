@@ -266,43 +266,48 @@ export function pendingDeficiencyTitles(
   return out;
 }
 
-/** Full certificate HTML (landscape A4). */
+/** Full certificate HTML (landscape A4). Blocks stay TOP-LEVEL — the pdf
+ *  walker melts plain wrapper divs, but grouping here once hid the entire
+ *  heading; keep children directly on the root. */
 export function certificateHtml(m: CertModel): string {
-  let h = `<div class="cert-head">`;
-  h += `<p class="tiny-row"><span>${hEsc(m.para)}</span><span>${hEsc(m.annexure)} · ${hEsc(m.formNo)}</span></p>`;
-  h += `<h1>INSPECTION AND TESTING CERTIFICATE</h1>`;
-  h += `<p class="sub">${hEsc(m.railway)}<br/>SIGNAL &amp; TELECOMMUNICATION DEPARTMENT</p>`;
-  h += `<p class="meta-row"><span>MONTH OF &lsquo;${hEsc(m.monthName)}&rsquo; ${hEsc(m.monthYear)}</span>`;
-  if (m.division) h += `<span>Division: ${hEsc(m.division)}</span>`;
-  h += `</p>`;
-  if (m.addressedTo || m.throughLine || m.station) {
-    h += `<p class="addr">`;
-    if (m.addressedTo) h += `TO,<br/>The ${hEsc(m.addressedTo)}<br/>`;
-    if (m.throughLine) h += `Through ${hEsc(m.throughLine)}`;
-    h += `</p>`;
-    if (m.station) h += `<p class="meta-row"><span></span><span>Station: ${hEsc(m.station)}</span></p>`;
+  let h = "";
+  h += `<p>Para No. 3.3.1(a)</p>`;
+  h += `<p class="right">${hEsc(m.annexure)} &middot; ${hEsc(m.formNo)}</p>`;
+  h += `<h1 class="centered">INSPECTION AND TESTING CERTIFICATE</h1>`;
+  h += `<p class="centered">${hEsc(m.railway)}<br/>SIGNAL &amp; TELECOMMUNICATION DEPARTMENT</p>`;
+  h += `<p class="centered">MONTH OF &lsquo;${hEsc(m.monthName)}&rsquo; ${hEsc(m.monthYear)}</p>`;
+  if (m.division) h += `<p class="right">Division: ${hEsc(m.division)}</p>`;
+  if (m.station) h += `<p class="right">Station: ${hEsc(m.station)}</p>`;
+  if (m.addressedTo || m.throughLine) {
+    let addr = "";
+    if (m.addressedTo) addr += `TO,<br/>The ${hEsc(m.addressedTo)}`;
+    if (m.throughLine) addr += `${addr ? "<br/>" : ""}Through ${hEsc(m.throughLine)}`;
+    h += `<p>${addr}</p>`;
   }
-  h += `</div>`;
   h += `<p class="certify">This is to certify that I have personally inspected and tested all the signal gears at the following stations/sections on my jurisdiction. The details of inspection carried out are shown below:</p>`;
 
   h += `<table class="cert-table"><thead><tr>` +
-    `<th>Date of<br/>inspection</th><th>Station<br/>visited</th><th>Nature of<br/>inspection &amp;<br/>time spent</th><th>Gear<br/>Type</th>` +
-    `<th>Condition</th><th>Repairs done during the Month</th><th>Repairs<br/>Required</th></tr></thead><tbody>`;
+    `<th data-align="center">Date of<br/>inspection</th><th data-align="center">Station<br/>visited</th><th data-align="center">Nature of<br/>inspection &amp;<br/>time spent</th><th data-align="center">Gear<br/>Type</th>` +
+    `<th data-align="center">Condition</th><th>Repairs done during the Month</th><th data-align="center">Repairs<br/>Required</th></tr></thead><tbody>`;
   for (const r of m.rows) {
+    // Paper layout: visit day(s) on the first line, "MMM YYYY" underneath.
+    const days = r.dates.map((d) => d.slice(8));
+    const first = r.dates[0] ?? "";
+    const mmmyy = first ? `${monthShort(first).toUpperCase()} ${first.slice(0, 4)}` : "";
     h += `<tr>`;
-    h += `<td>${r.dates.map((d) => `${Number(d.slice(8))}<br/>${monthShort(d)}`).join("<br/>")}</td>`;
-    h += `<td class="center">${hEsc(r.station)}</td>`;
-    h += `<td>${hEsc(r.nature)}<br/><br/>${hEsc(r.hours)}</td>`;
-    h += `<td class="small center">${hEsc(r.gear)}</td>`;
-    h += `<td class="center">${hEsc(r.condition)}</td>`;
+    h += `<td data-align="center">${hEsc(days.join(","))}\n${hEsc(mmmyy)}</td>`;
+    h += `<td data-align="center">${hEsc(r.station)}</td>`;
+    h += `<td data-align="center">${hEsc(r.nature)}\n${hEsc(r.hours || "-")}</td>`;
+    h += `<td data-align="center">${hEsc(r.gear)}</td>`;
+    h += `<td data-align="center">${hEsc(r.condition)}</td>`;
     h += `<td>${
       r.repairsDone.length
         ? r.repairsDone
-            .map((it, i) => `${i + 1}) ${hEsc(it.text)} <em>(${ddmmyyyy(it.date)})</em>`)
-            .join("<br/>")
+            .map((it, i) => `${i + 1}) ${hEsc(it.text)} (${ddmmyyyy(it.date)})`)
+            .join("\n")
         : "----"
     }</td>`;
-    h += `<td class="small center">${hLines(r.repairsRequired)}</td>`;
+    h += `<td data-align="center">${hLines(r.repairsRequired)}</td>`;
     h += `</tr>`;
   }
   h += `</tbody></table>`;
@@ -529,6 +534,25 @@ export function footplateFormSpecs(
       form,
     });
   }
+  // A selected trip whose sheets were never filled still prints one DAY form
+  // with the checklist defaults — exporting a selection must never yield a
+  // blank page.
+  if (specs.length === 0) {
+    const det = trainOf("day");
+    specs.push({
+      shift: "DAY",
+      dateIso: l.logDate,
+      officialName: staff?.name ?? "",
+      designation: staff?.designation ?? "",
+      divisionSection: section,
+      trainNo: det?.trainNo ?? "",
+      engineNo: det?.engineNo ?? "",
+      lpName: det?.lpName ?? "",
+      alpName: det?.alpName ?? "",
+      guardName: det?.tmrName ?? "",
+      form: emptyShiftForm(),
+    });
+  }
   return specs;
 }
 
@@ -536,13 +560,15 @@ function obsHasContent(f: ObsShiftForm): boolean {
   return Boolean(f.observation.trim() || f.assistance.trim() || matrixTickCount(f) > 0);
 }
 
-/** One printed Annexure 3-A2 form. */
+/** One printed Annexure 3-A2 form. Blocks stay TOP-LEVEL — the pdf walker
+ *  melts plain wrapper divs, but grouping here once rendered blank pages. */
 export function footplateFormHtml(spec: FootPlateFormSpec, railway: string, yearMonth: string, forwardedTo: string, sseLine: string): string {
   const f = spec.form;
-  let h = `<div class="fp-form">`;
-  h += `<p class="tiny-row"><span>Para No. 3.3.1(c), 3.2.2(c)</span><span>Annexure: 3-A2</span></p>`;
-  h += `<h1>FOOT PLATE INSPECTION OF SIGNALS</h1>`;
-  h += `<p class="sub">${hEsc(railway)}<br/>MONTH OF &lsquo;${hEsc(monthName(yearMonth))}&rsquo; ${hEsc(yearMonth.split("-")[0] ?? "")}<br/>(RECORD OF OBSERVATION)</p>`;
+  let h = "";
+  h += `<p>Para No. 3.3.1(c), 3.2.2(c)</p>`;
+  h += `<p class="right">Annexure: 3-A2</p>`;
+  h += `<h1 class="centered">FOOT PLATE INSPECTION OF SIGNALS</h1>`;
+  h += `<p class="centered">${hEsc(railway)}<br/>MONTH OF &lsquo;${hEsc(monthName(yearMonth))}&rsquo; ${hEsc(yearMonth.split("-")[0] ?? "")}<br/>(RECORD OF OBSERVATION)</p>`;
   h += `<table class="hdr-table"><tbody>` +
     `<tr><td>Name of Official conducting inspection</td><td>${hEsc(spec.officialName)}</td></tr>` +
     `<tr><td>Designation</td><td>${hEsc(spec.designation)}</td></tr>` +
@@ -617,9 +643,8 @@ export function footplateFormHtml(spec: FootPlateFormSpec, railway: string, year
     `<tr><td>1. Important item of observation on signalling &amp; action proposed (within own competency &amp; time frame)</td><td>${hLines(f.observation, "______")}</td></tr>` +
     `<tr><td>2. Assistance required (if any) and by whom and purpose</td><td>${hLines(f.assistance, "______")}</td></tr></tbody></table>`;
 
-  if (spec.designation) h += `<p class="sig"><strong>${hEsc(spec.designation)}</strong></p>`;
+  h += `<p class="sig"><strong>${hEsc(spec.designation)}</strong></p>`;
   if (forwardedTo) h += `<p class="fwd">Forwarded to ${hEsc(forwardedTo)}</p>`;
   if (sseLine) h += `<p class="sig"><strong>${hEsc(sseLine)}</strong></p>`;
-  h += `</div>`;
   return h;
 }

@@ -3,6 +3,17 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.30 — 2026-11-23
+
+**Minor: fixes to the official monthly formats export (follow-up to 1.7.8.29)**
+
+- Foot Plate forms were printing blank pages — the PDF renderer skipped every block grouped inside a wrapper `<div>`; wrappers now melt away so all content draws.
+- The IC certificate had no heading for the same reason — title, railway/department, MONTH OF line and the TO / Through / Division / Station block now print again (title centred, para left, annexure/form-number right).
+- `<br/>` line breaks inside table cells and paragraphs were silently collapsed — the Date of inspection cell now prints `DD` on the first line and `MMM YYYY` beneath (e.g. `28` / `OCT 2026`, multi-visit days grouped `13,14`), and "Nature of inspection & time spent" shows the hours band on its own line.
+- Monthly-inspection entries recorded before 1.7.8.29 carry no time-spent band; the cell now prints `-` instead of an invisible blank — edit those entries once to set the band.
+- Visit day digits keep their leading zero, months print uppercase, and centred/right alignment attributes are honoured in the certificate tables.
+- Selecting a footplate trip whose observation sheet was never filled now still prints one default DAY sheet instead of nothing.
+
 ## 1.7.8.29 — 2026-11-21
 
 **Major: official monthly formats — IC certificate (Form S&T./IC.3.3) and Foot Plate observation (Annexure 3-A2)**

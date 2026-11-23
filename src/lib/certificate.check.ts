@@ -105,6 +105,22 @@ ok(html.includes("Form No. S&amp;T./IC.3.3") || html.includes("Form No."), "cert
 ok(html.includes("02-07-2026"), "cert dd-mm date");
 ok(html.includes("1) Track bond wires replaced"), "cert numbered item");
 ok(html.includes("Forwarded to Sr DSTE/M/GTL"), "cert fwd line");
+ok(!html.includes("<div"), "cert html walker-flat (no wrapper divs)");
+ok(html.includes("05,16\nJUL 2026"), "cert date cell is DD / MMM YYYY two-line");
+ok(html.includes('h1 class="centered"') || html.includes('<h1 class="centered">'), "cert title centered");
+
+// a pre-1.7.8.29 monthly log carries no hours band — prints a dash, not a blank
+const legacy = buildCertificateModel({
+  included: [log({ id: 14, logDate: "2026-07-20", stationMovement: "PRDT", inspectionKind: "monthly", inspectionStationId: 2 })],
+  allMonthLogs: [],
+  stations,
+  deficiencies: [],
+  staff,
+  extra,
+  yearMonth: "2026-07",
+});
+ok(legacy.rows.length === 1 && legacy.rows[0].hours === "", "legacy log without band");
+ok(certificateHtml(legacy).includes("MONTHLY\n-"), "missing band prints dash under nature");
 
 // ── footer from open deficiencies ──────────────────────────────────────────
 const defs: DeficiencyTask[] = [
@@ -192,6 +208,7 @@ ok(fh.includes("DAY"), "fp shift");
 ok(fh.includes("Marker shiny"), "fp observation text");
 ok(fh.includes("AVAILABLE"), "fp default answers survive");
 ok(!fh.includes("&amp;#" ), "no stray entities");
+ok(!fh.includes("<div"), "fp html walker-flat (no wrapper divs)");
 
 // a night-only-answered log with no night train still prints the sheet
 const nightTrip = log({
@@ -205,9 +222,10 @@ const nightTrip = log({
 });
 const ns = footplateFormSpecs(nightTrip, staff, extra);
 ok(ns.length === 1 && ns[0].shift === "NIGHT" && ns[0].trainNo === "", "content-only shift kept, no train");
-// day shift of same log prints nothing (no train, no content)
+// day shift of same log has no train and no answers — the fallback still
+// prints one default DAY sheet so exporting never yields a blank page
 const ds = footplateFormSpecs({ ...nightTrip, footplateObs: { day: emptyShiftForm(), night: null } } as DailyLog, staff, extra);
-ok(ds.length === 0, "default-empty shift skipped");
+ok(ds.length === 1 && ds[0].shift === "DAY" && matrixTickCount(ds[0].form) === 0, "untouched selection prints default DAY sheet");
 
 // ── certMeta storage round-trip (guarded localStorage absence) ─────────────
 try {
