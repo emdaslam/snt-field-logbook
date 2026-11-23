@@ -593,16 +593,18 @@ export function footplateFormHtml(spec: FootPlateFormSpec, railway: string, year
   const f = spec.form;
   let h = "";
   // Para reference and annexure number share one line (para left, annexure
-  // right-ish) like the office sample; a rule closes the heading block.
+  // right-ish) like the office sample. The title, zone, month and record
+  // lines are ONE bold heading block closed by a single rule — plain h1 is
+  // avoided because it stamps its own rule between title and the rest.
   h += `<p class="cols" data-cols="0,600"><span>Para No. 3.3.1(c), 3.2.2(c)</span><span>Annexure: 3-A2</span></p>`;
-  h += `<h1 class="centered">FOOT PLATE INSPECTION OF SIGNALS</h1>`;
-  h += `<p class="centered">${hEsc(railway)}<br/>MONTH OF &lsquo;${hEsc(monthName(yearMonth))}&rsquo; ${hEsc(yearMonth.split("-")[0] ?? "")}<br/>(RECORD OF OBSERVATION)</p>`;
+  h += `<p class="centered" data-size="13"><strong>FOOT PLATE INSPECTION OF SIGNALS</strong></p>`;
+  h += `<p class="centered" data-size="11"><strong>${hEsc(railway)}<br/>MONTH OF &lsquo;${hEsc(monthName(yearMonth))}&rsquo; ${hEsc(yearMonth.split("-")[0] ?? "")}<br/>(RECORD OF OBSERVATION)</strong></p>`;
   h += `<p class="rule"></p>`;
-  h += `<table class="hdr-table"><tbody>` +
-    `<tr><td>Name of Official conducting inspection</td><td>${hEsc(spec.officialName)}</td></tr>` +
-    `<tr><td>Designation</td><td>${hEsc(spec.designation)}</td></tr>` +
-    `<tr><td>Division &amp; Section</td><td>${hEsc(spec.divisionSection)}</td></tr>` +
-    `<tr><td>DAY/NIGHT</td><td>${spec.shift}</td></tr></tbody></table>`;
+  h += `<table class="hdr-table" data-valign="middle"><tbody>` +
+    `<tr><td>Name of Official conducting inspection</td><td><strong>${hEsc(spec.officialName)}</strong></td></tr>` +
+    `<tr><td>Designation</td><td><strong>${hEsc(spec.designation)}</strong></td></tr>` +
+    `<tr><td>Division &amp; Section</td><td><strong>${hEsc(spec.divisionSection)}</strong></td></tr>` +
+    `<tr><td>DAY/NIGHT</td><td><strong>${spec.shift}</strong></td></tr></tbody></table>`;
 
   // Checklist sections print in the sample's two-column arrangement: the
   // first half of the items down the left, the rest beside them on the right,
@@ -611,10 +613,10 @@ export function footplateFormHtml(spec: FootPlateFormSpec, railway: string, year
   const pv = (k: string, v: string): [string, string] => [hEsc(k), hEsc(v)];
   const twoColTable = (title: string, pairs: [string, string][]): string => {
     const half = Math.ceil(pairs.length / 2);
-    let t = `<h3>${title}</h3><table class="chk-table"><tbody>`;
+    let t = `<h3>${title}</h3><table class="chk-table" data-valign="middle"><tbody>`;
     for (let i = 0; i < half; i++) {
       const [rk, rv] = pairs[half + i] ?? ["", ""];
-      t += `<tr><td>${pairs[i][0]}</td><td>${pairs[i][1]}</td><td>${rk}</td><td>${rv}</td></tr>`;
+      t += `<tr><td>${pairs[i][0]}</td><td><strong>${pairs[i][1]}</strong></td><td>${rk}</td><td><strong>${rv}</strong></td></tr>`;
     }
     return t + `</tbody></table>`;
   };
@@ -671,7 +673,7 @@ export function footplateFormHtml(spec: FootPlateFormSpec, railway: string, year
   );
 
   h += `<h3>Station wise signal visibility Details</h3>`;
-  h += `<table class="matrix-table"><thead><tr><th></th><th></th>`;
+  h += `<table class="matrix-table" data-valign="middle"><thead><tr><th></th><th></th>`;
   for (const s of f.matrix) h += `<th colspan="${MATRIX_SLOTS.length}" data-align="center">${hEsc(s.stationName)}</th>`;
   h += `</tr><tr><th></th><th></th>`;
   for (const _s of f.matrix) {
@@ -695,12 +697,15 @@ export function footplateFormHtml(spec: FootPlateFormSpec, railway: string, year
   }
   h += `</tr></tbody></table>`;
 
-  h += `<table class="obs-table"><tbody>` +
+  h += `<table class="obs-table" data-valign="middle"><tbody>` +
     `<tr><td>1. Important item of observation on signalling &amp; action proposed (within own competency &amp; time frame)</td><td>${hLines(f.observation, "______")}</td></tr>` +
     `<tr><td>2. Assistance required (if any) and by whom and purpose</td><td>${hLines(f.assistance, "______")}</td></tr></tbody></table>`;
 
-  h += `<p class="sig"><strong>${hEsc(spec.designation)}</strong></p>`;
-  if (forwardedTo) h += `<p class="fwd">Forwarded to ${hEsc(forwardedTo)}</p>`;
-  if (sseLine) h += `<p class="sig"><strong>${hEsc(sseLine)}</strong></p>`;
+  // Closing block like the office sample: signing room above the right-hand
+  // designation, the forwarding endorsement at the left one line lower, and
+  // after a further gap the SSE's office designation to counter-sign over.
+  h += `<p class="right" data-space-top="34"><strong>${hEsc(spec.designation)}</strong></p>`;
+  if (forwardedTo) h += `<p data-left="24">Forwarded to ${hEsc(forwardedTo)}</p>`;
+  if (sseLine) h += `<p data-left="24" data-space-top="30"><strong>${hEsc(sseLine)}</strong></p>`;
   return h;
 }

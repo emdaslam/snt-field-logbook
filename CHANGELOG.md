@@ -3,6 +3,15 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.35 — 2026-11-23
+
+**Minor: foot plate form — one bold heading block, bold boxed answers, vertically centred cells, sample signature close**
+
+- The heading is a single bold block — FOOT PLATE INSPECTION OF SIGNALS, zone, month and (RECORD OF OBSERVATION) all bold beneath the title, with the rule moved to below the block (previously the title carried its own line under it, splitting the block in two).
+- Every boxed answer prints bold: the header table (official, designation, division & section, DAY/NIGHT) and both value columns of the General / Signalling / Train-running checklists, including the date answer.
+- Words sit vertically centred in their table boxes across all foot plate tables (header, checklists, visibility grid, observations).
+- Closing block matches the sample: signing space above the right-hand designation, "Forwarded to …" at the left one line below, and after a further gap the SSE/SIG/JMDG office designation to counter-sign over.
+
 ## 1.7.8.34 — 2026-11-23
 
 **Minor: foot plate form polishes — heading line, rule, bold stubs, one unbroken grid, two pages**

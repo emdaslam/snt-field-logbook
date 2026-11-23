@@ -913,7 +913,7 @@ export function buildPdf(
       // whole table width on one line: use the largest size (at most the
       // default) that fits it without wrapping. It is the only block that may
       // wrap at all, so this is a best-effort stretch, not a hard guarantee.
-      let paraSize = 9 * headFs;
+      let paraSize = (Number(el.getAttribute("data-size")) || 9) * headFs;
       if (opts.fitMode && meta && !right && cls.includes("nocaps")) {
         // Largest size (at most the default) that still keeps the line on a
         // single line across the full table width. splitTextToSize is the
@@ -1279,6 +1279,9 @@ export function buildPdf(
           overflow: "linebreak",
           textColor: [15, 23, 42],
           lineColor: plain ? INK : exportPal.line,
+          // data-valign="middle" on the table centres every cell's words in
+          // its box (the foot plate form's boxed answers, like the sample).
+          ...(el.getAttribute("data-valign") === "middle" ? { valign: "middle" as const } : {}),
           ...(opts.polish && opts.polish.borders === "none" ? {} : { lineWidth: GRID_LINE_WIDTH }),
         },
         headStyles: {

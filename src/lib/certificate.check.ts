@@ -205,6 +205,21 @@ const fh = footplateFormHtml(specs[0], staff.railwayZone ?? "", "2026-07", extra
 ok(fh.includes("FOOT PLATE INSPECTION OF SIGNALS"), "fp title");
 ok(fh.includes('class="cols" data-cols="0,600"'), "para + annexure share one line");
 ok(fh.includes('<p class="rule"></p>'), "rule under heading block");
+// heading is ONE bold block: title, zone, month, record — no h1 line inside
+ok(fh.includes('<p class="centered" data-size="13"><strong>FOOT PLATE INSPECTION OF SIGNALS</strong></p>'), "fp title bold");
+ok(/<p class="centered" data-size="11"><strong>[\s\S]*?Railway[\s\S]*?MONTH OF[\s\S]*?\(RECORD OF OBSERVATION\)<\/strong><\/p>/.test(fh), "fp zone/month/record bold below title");
+ok(!fh.includes("<h1"), "fp heading has no h1 (no line between title and block)");
+// boxed answers bold + every footplate table vertically centred
+ok(fh.includes("<td><strong>E MAHAMMAD ASLAM</strong></td>") && fh.includes("<td><strong>DAY</strong></td>"), "fp hdr answers bold");
+ok(/<td><strong>\d{2}-\d{2}-\d{4}<\/strong><\/td>/.test(fh), "fp date answer bold");
+ok(fh.includes('<table class="hdr-table" data-valign="middle">'), "fp hdr boxes valign middle");
+ok(fh.match(/<table class="chk-table" data-valign="middle">/g)?.length === 3, "fp chk boxes valign middle");
+ok(fh.includes("<td><strong>25-07-2026</strong></td>"), "fp general (a) date bold");
+// signature close like the sample: sign space over right designation,
+// forwarding at left, gap, then SSE office designation
+ok(fh.includes('<p class="right" data-space-top="34"><strong>JE/SIG/JMDG</strong></p>'), "fp right designation with sign space");
+ok(fh.includes('<p data-left="24">Forwarded to Sr DSTE/M/GTL</p>'), "fp forwarded-at-left under it");
+ok(fh.includes('<p data-left="24" data-space-top="30"><strong>SSE/SIG/JMDG</strong></p>'), "fp SSE office designation below gap");
 ok(fh.includes("77211, 8 COACHES"), "fp train+load");
 ok(fh.includes("(RECORD OF OBSERVATION)"), "fp subtitle");
 ok(fh.includes("DAY"), "fp shift");
@@ -231,6 +246,7 @@ ok(seeded[0].form.matrix[0].stationName === "KLKA" && seeded[0].form.matrix[2].s
 const sh = footplateFormHtml(seeded[0], staff.railwayZone ?? "", "2026-07", extra.addressedTo, extra.throughLine);
 // visibility grid mirrors the sample: bold merged stubs, option rows, √ ticks
 ok(sh.includes(">Station wise signal visibility Details<"), "grid heading matches sample casing");
+ok(sh.includes('<table class="matrix-table" data-valign="middle">') && sh.includes('<table class="obs-table" data-valign="middle">'), "grid/obs boxes valign middle");
 ok(sh.includes('<td rowspan="4"><strong>Signal Lamp</strong></td>'), "lamp stub group bold, real merged cell");
 ok(sh.includes('<td rowspan="4"><strong>Visibility</strong></td>'), "visibility stub group bold");
 ok(sh.includes('<td rowspan="4"><strong>LED brightness</strong></td>'), "led stub group bold");
