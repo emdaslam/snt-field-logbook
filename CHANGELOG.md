@@ -3,6 +3,18 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.39 — 2026-11-24
+
+**Minor: August-report reconciliation — highlights digest unified with station tables, YA-PRDT dash-row item recovered, NDL block-section label fixed**
+
+- Checked the August PCDO against its generated inspection certificate. PRODDATUR (11 works), SANJAMALA (17), S.UPPALAPADU (4) and JAMMALAMADUGU all reconciled correctly; four residual defects fixed:
+- Highlights-ghost labels: digest lines like "1.MADU - 1. MADU - BGNP both BPAC…" produced phantom station blocks ("MADU - 1. MADU", "BGNP -- 1. BGNP") that matched no app station, silently hiding MADU/BGNP/KLKA works and stray-highlighting others. Digest station capture is now laziest-cut ("MADU"), so digest items fold into their real station blocks — BGNP/KLKA/MADU BPAC card updates and JMDG data-logger/AI audits now travel with their stations.
+- Near-duplicate digest vs table texts (aug-26 "AMARJA"/"AMARAJA" IPS AMC) counted the same work twice under NOSSAM — dedup key now compares consonant skeletons, collapsing one-glyph variants.
+- The YA-PRDT BI&BPAC row's activity cell holds only a dash rule while its real item ("02 Nos of track relays replaced in 14T,10T circuits…") prints one row lower beside the PNM_IB label — the banding handed it to PNM IB, leaving YERRAGUNTLA's certificate row empty. Dash-only cells are now recorded and reclaim such orphan runs; YERRAGUNTLA gets its work.
+- The NDL-PNM/NDL-MADU BI&BPAC block-section label ("NDL -PNM,NDL -") was rejected by the station-token grammar (comma), dropping its "Broken BPAC 2 coils…" work into a garbled "MADUBI & BPAC" ghost. Commas accepted; item stays with its block.
+- Verified against August (92 works across 11 blocks, six registered stations fully matched incl. YERRAGUNTLA:1) and September (unchanged: 84/84) + April corpora; 148 assertions green.
+- Note: MADU, BGNP (Bengalipalem?), KLKA (Kalluru?) and PNM (Panyam?) blocks still show as unmatched in the reviewer — add those stations (with codes MADU/BGNP/KLKA/PNM) in Settings → Stations to pull their works into certificates.
+
 ## 1.7.8.38 — 2026-11-23
 
 **Minor: September-report repairs — Proddatur/PNM blocks parsed, future-month carry-over blocked, Repairs-Required overflow and vanished signature fixed**

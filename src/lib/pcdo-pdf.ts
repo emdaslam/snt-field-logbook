@@ -55,10 +55,11 @@ function isMajorHeading(text: string): boolean {
 }
 
 /** Station token validity: caps-dominant short label ("MADU", "NDL - PNM BI",
- *  "YA-PRDT BI&") — rejects letter prose caught left of the activity column. */
+ *  "NDL -PNM,NDL -") — rejects letter prose caught left of the activity
+ *  column. Commas ride along (aug-26 "NDL -PNM,NDL -MADU BI & BPAC" cells). */
 function isStationToken(label: string): boolean {
   const t = label.trim();
-  return /^[A-Z][A-Z0-9 '&\-/.]{0,20}$/.test(t) && !/[a-z]{3,}/.test(t);
+  return /^[A-Z][A-Z0-9 ,'&\-/.]{0,20}$/.test(t) && !/[a-z]{3,}/.test(t);
 }
 
 function joinSegs(segs: PcdoSeg[]): string {
@@ -103,7 +104,15 @@ export function extractDateIso(text: string): string | null {
   return best;
 }
 
-const normKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+// Dedup key = consonant skeleton: forgiving of one-off typos between the
+// Highlights digest and the station tables (aug-26 "AMARJA"/"AMARAJA" both
+// describing the same 16-08 AMC work) while keeping item/body distinctions
+// (digits and caps-consonants preserved).
+const normKey = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+    .replace(/[aeiou]/g, "");
 
 /** Split a run of activity text into numbered items; un-numbered text
  *  continues the previous item (wrapped lines, trailing dates). */
@@ -165,6 +174,11 @@ export function parsePcdoSegments(pages: PcdoSeg[][]): PcdoParseResult {
   let tokParts: string[] = []; // consecutive token lines (merged multi-line cells)
   let tokY = 0;
   let actTextX = 0; // text-start x of the last numbered activity line
+  // Label cells whose activity cell holds only a dash rule — Word prints the
+  // row's real item one row lower, sharing the NEXT block's label row (aug-26
+  // YA-PRDT "02 Nos of track relays…" on the PNM_IB label row). Anchors let
+  // finalizeTable hand those runs to the dash cell's station.
+  const dashAnchors: { y: number; label: string }[] = [];
 
   const flushTok = () => {
     const label = tokParts.join(" ").trim();
@@ -217,11 +231,24 @@ export function parsePcdoSegments(pages: PcdoSeg[][]): PcdoParseResult {
         if (!r.texts.length) continue;
         const mid = (r.top + r.bot) / 2;
         const inside = tokYs.filter((y) => y <= r.top + 0.5 && y >= r.bot - 0.5);
-        let k: number;
-        if (inside.length === 1) k = tokYs.indexOf(inside[0]);
-        else if (inside.length > 1)
-          k = tokYs.indexOf(inside.reduce((b, y) => (Math.abs(y - mid) < Math.abs(b - mid) ? y : b)));
-        else k = assign(mid);
+        let k = -1;
+        const dashHit =
+          inside.length === 1 &&
+          Math.abs(inside[0] - r.top) <= 0.5 &&
+          dashAnchors.find((d) => d.y - r.top >= -0.5 && d.y - r.top <= 30);
+        if (dashHit) {
+          // Sole occupant sits ON the run's top row (another block's label
+          // swept onto it) and a dash-only cell looms directly above — the
+          // item belongs to that dash cell's station.
+          const ti = evs.findIndex((e) => e.kind === "tok" && Math.abs(e.y - (dashHit as { y: number }).y) <= 1.2);
+          if (ti >= 0) k = tokAt.indexOf(ti);
+        }
+        if (k < 0) {
+          if (inside.length === 1) k = tokYs.indexOf(inside[0]);
+          else if (inside.length > 1)
+            k = tokYs.indexOf(inside.reduce((b, y) => (Math.abs(y - mid) < Math.abs(b - mid) ? y : b)));
+          else k = assign(mid);
+        }
         const lbl = tokLabel(k);
         pcdoLastEvents.push({ kind: "act", label: lbl, y: mid, text: r.texts.join(" ¦ ") });
         const arr = byTok.get(lbl) ?? [];
@@ -237,6 +264,7 @@ export function parsePcdoSegments(pages: PcdoSeg[][]): PcdoParseResult {
     evs = [];
     boundary = null;
     tokParts = [];
+    dashAnchors.length = 0;
   };
 
   for (const pageSegs of pages) {
@@ -295,8 +323,12 @@ export function parsePcdoSegments(pages: PcdoSeg[][]): PcdoParseResult {
             hlStation = tk[1];
             rest = rest.slice(tk[0].length);
           } else {
-            const pref = rest.match(/^([A-Z][A-Z0-9 '&\-/.]{1,17}[A-Z0-9])[ \t]*-[ \t]*(.+)$/);
+            const pref = rest.match(/^([A-Z][A-Z0-9 '&/.]{0,16}?[A-Z0-9])(?:\s*-{1,2}|\s+-)\s*(.+)$/);
             if (pref) {
+              // Laziest-cut prefix: "8.BGNP -- 1. BGNP - KLKA both BPAC…" must
+              // yield station "BGNP" and rest "1. BGNP - KLKA…" (the nested
+              // serial is peeled below); greedy matching used to swallow the
+              // nested item into the label ("BGNP -- 1. BGNP" ghost blocks).
               hlStation = pref[1].replace(/[\s\-&/.]+$/, "").trim();
               rest = pref[2];
             } else if (hlBaseX != null && lineX <= hlBaseX + 8 && !serialForm) {
@@ -384,6 +416,8 @@ export function parsePcdoSegments(pages: PcdoSeg[][]): PcdoParseResult {
         // glue onto a random item: junk-sized unless caps/digit-bearing.
         const body = act.replace(NUM_LEAD, "").replace(/^[-–—]+\s*/, "").trim();
         if (body && (body.length > 2 || /[A-Z0-9]/.test(body))) evs.push({ kind: "act", text: act, y: line.y });
+        else if (!body && !numberedSegs.length && left.length && /^[-–—.\s]+$/.test(act))
+          dashAnchors.push({ y: line.y, label: joinSegs(left) });
       }
     }
   }

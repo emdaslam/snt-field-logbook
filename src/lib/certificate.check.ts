@@ -457,6 +457,41 @@ void (async () => {
     );
     ok(smatcher.matched.get("PRODDATUR")?.length === 10, "real sept matcher: PRODDATUR fed from PRDT block");
 
+    // AUG-26: highlights no longer ghost ("MADU - 1. MADU" labels gone),
+    // near-dup digests collapse ("AMARJA"/"AMARAJA" one AMC), and the
+    // dash-row item flows back to YA-PRDT (was lost to the PNM_IB label).
+    const augBytes = new Uint8Array(readFileSync("Pdf samples/JMDG PCDO AUG-26.pdf"));
+    const aug = await extractPcdoWorks(augBytes);
+    ok(!aug.stations.some((s) => /- 1\. /.test(s.label)), "real aug pcdo: no ghost labels from highlights");
+    const amadu = aug.stations.find((s) => s.label === "MADU");
+    ok(!!amadu && amadu.items.length === 9 && amadu.items.some((i) => i.text.includes("PD1,PD2 cards")), "real aug pcdo: MADU 8 table works + highlight BPAC cards");
+    const agnp = aug.stations.find((s) => s.label === "BGNP");
+    ok(!!agnp && agnp.items.length === 7 && agnp.items.filter((i) => i.text.includes("PD1,PD2 cards")).length === 2, "real aug pcdo: BGNP 5 table works + 2 highlight card updates");
+    const aklka = aug.stations.find((s) => s.label === "KLKA");
+    ok(!!aklka && aklka.items.length === 13, "real aug pcdo: KLKA 12 table works + highlight cards");
+    const apnm = aug.stations.find((s) => s.label === "PNM");
+    ok(!!apnm && apnm.items.length === 13, "real aug pcdo: PNM 5 sig + 8 eng");
+    const anosm = aug.stations.find((s) => s.label === "NOSM");
+    ok(!!anosm && anosm.items.length === 8 && anosm.items.filter((i) => /IPS AMC/i.test(i.text)).length === 1, "real aug pcdo: NOSM 8, AMC digest dup collapsed");
+    const aprdt = aug.stations.find((s) => s.label === "PRDT");
+    ok(!!aprdt && aprdt.items.length === 11 && aprdt.items.some((i) => i.text.startsWith("24 TF track feed charger")), "real aug pcdo: PRDT 8 sig + 3 eng");
+    const aya = aug.stations.find((s) => s.label.startsWith("YA"));
+    ok(!!aya && aya.items.length === 1 && aya.items[0].text.includes("02 Nos of track relays"), "real aug pcdo: dash-row item returned to YA-PRDT");
+    ok(aug.stations.some((s) => s.label.includes("NDL") && s.items.some((i) => i.text.includes("Broken BPAC 2 coils"))), "real aug pcdo: NDL-PNM BI block keeps its item");
+    const amatcher = matchPcdoToStations(
+      aug,
+      [
+        { id: 1, name: "YERRAGUNTLA", code: "YA" },
+        { id: 2, name: "SANJAMALA", code: "SJMA" },
+        { id: 3, name: "JAMMALAMADUGU", code: "JMDG" },
+        { id: 4, name: "PRODDATUR", code: "PRDT" },
+        { id: 5, name: "NOSSAM", code: "NOSM" },
+        { id: 6, name: "S.UPPALAPADU", code: "SUPP" },
+      ]
+    );
+    ok(amatcher.matched.get("YERRAGUNTLA")?.length === 1, "real aug matcher: YERRAGUNTLA no longer an empty row");
+    ok(amatcher.matched.get("NOSSAM")?.length === 8, "real aug matcher: NOSSAM fed without the phantom ninth");
+
     console.log(`certificate.check: + real-sample assertions passed (${n} total)`);
   } catch (e) {
     console.error("certificate.check: real-sample part skipped:", String(e).slice(0, 160));
