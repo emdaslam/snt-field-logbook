@@ -3,6 +3,14 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.40 — 2026-11-24
+
+**Minor: IC certificate and foot-plate forms print as ONE report, a remembered "Repairs Required" footer, and the forwarding line uses the division code**
+
+- The Official Monthly Formats export now produces a single document: the IC certificate is followed (page-break separated) by every selected foot-plate observation form, so the office gets one file instead of two.
+- The IC certificate's "Repairs Required" footer is now typed by hand below the table and remembered month to month; the previous month's list is carried forward as editable pre-fill (only a strictly earlier month — exporting a past month never resurrects a later month's list).
+- The closing line prints the division's official short code ("Forwarded to Sr. DSTE/M/GTL") instead of the long name ("Guntakal"), with the SSE office designation ("SSE/SIG/JMDG") printed directly below it.
+
 ## 1.7.8.39 — 2026-11-24
 
 **Minor: August-report reconciliation — highlights digest unified with station tables, YA-PRDT dash-row item recovered, NDL block-section label fixed**

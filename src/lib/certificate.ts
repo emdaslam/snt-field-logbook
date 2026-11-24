@@ -7,6 +7,7 @@
 
 import type { DailyLog, DeficiencyTask, Station, Staff } from "@/db/schema";
 import { footplateRidesOf } from "@/lib/api";
+import { divisionCode } from "@/lib/railways";
 import type { PcdoItem } from "@/lib/pcdo-pdf";
 
 /** Extra header lines the official formats need that the staff profile does
@@ -24,6 +25,7 @@ export const DEFAULT_CERT_EXTRA: CertExtra = { addressedTo: "", throughLine: "",
 
 const LS_CERT_META = "snt.certMeta";
 const LS_REPAIRS_MEMORY = "snt.certRepairsMemory.v1";
+const LS_REPAIRS_REQ_MEMORY = "snt.certRepairsReqMemory.v1";
 
 /** Snapshot of the last exported "Repairs done" lists, offered as editable
  *  pre-fill for stations the next month's PCDO return leaves silent. */
@@ -44,6 +46,30 @@ export function loadRepairsMemory(): RepairsSnapshot | null {
 export function saveRepairsMemory(snap: RepairsSnapshot): void {
   try {
     localStorage.setItem(LS_REPAIRS_MEMORY, JSON.stringify(snap));
+  } catch {
+    /* storage unavailable — carry-over silently disabled */
+  }
+}
+
+/** Snapshot of the manually-entered "Repairs Required" footer, offered as
+ *  editable pre-fill for the next month's certificate. */
+export type RepairsReqSnapshot = { month: string; items: string[] };
+
+export function loadRepairsReqMemory(): RepairsReqSnapshot | null {
+  try {
+    const raw = localStorage.getItem(LS_REPAIRS_REQ_MEMORY);
+    if (!raw) return null;
+    const v = JSON.parse(raw) as RepairsReqSnapshot;
+    if (v && typeof v.month === "string" && Array.isArray(v.items)) return v;
+  } catch {
+    /* malformed blob — treat as absent */
+  }
+  return null;
+}
+
+export function saveRepairsReqMemory(snap: RepairsReqSnapshot): void {
+  try {
+    localStorage.setItem(LS_REPAIRS_REQ_MEMORY, JSON.stringify(snap));
   } catch {
     /* storage unavailable — carry-over silently disabled */
   }
@@ -143,6 +169,9 @@ export type CertModel = {
   rows: CertRow[];
   repairsRequiredFooter: string[];
   jeLine: string;
+  /** SSE office designation printed under the "Forwarded to" line (e.g.
+   *  "SSE/SIG/JMDG"). Falls back to the staff Office profile. */
+  sseLine: string;
 };
 
 /** Movement kinds that never carry repair narratives. */
@@ -173,8 +202,12 @@ export function buildCertificateModel(args: {
    *  column comes ONLY from here — the log-derived narratives are ignored
    *  entirely. Keyed by matched app-station name. */
   pcdoRepairs?: { station: string; items: PcdoItem[] }[];
+  /** Manually-entered "Repairs Required" footer lines. When provided (even
+   *  empty) these replace the deficiency-derived list; the export modal
+   *  remembers them month to month. */
+  repairsRequiredFooter?: string[];
 }): CertModel {
-  const { included, allMonthLogs, stations, deficiencies, staff, extra, yearMonth, pcdoRepairs } = args;
+  const { included, allMonthLogs, stations, deficiencies, staff, extra, yearMonth, pcdoRepairs, repairsRequiredFooter } = args;
   const nameOf = (id: number | null) => stations.find((s) => s.id === id)?.name ?? "";
 
   const orderedStations: string[] = [];
@@ -225,7 +258,9 @@ export function buildCertificateModel(args: {
   });
 
   const footerStations = new Set(orderedStations);
-  const foot = pendingDeficiencyTitles(footerStations, deficiencies, nameOf);
+  // Manual footer (typed in the reviewer) wins; otherwise fall back to the
+  // open Signalling deficiencies at the covered stations.
+  const foot = repairsRequiredFooter ?? pendingDeficiencyTitles(footerStations, deficiencies, nameOf);
   const jeLine = staff?.designation?.trim() || "";
   const officeStation =
     staff?.headquartersStationId != null
@@ -246,6 +281,7 @@ export function buildCertificateModel(args: {
     rows,
     repairsRequiredFooter: foot,
     jeLine,
+    sseLine: extra.throughLine.trim() || staff?.office?.trim() || "",
   };
 }
 
@@ -365,10 +401,12 @@ export function certificateHtml(m: CertModel): string {
   }
 
   // Closing block always prints — the countersign trio may not silently
-  // vanish when the Details fields were left empty.
+  // vanish when the Details fields were left empty. The forwarding line uses
+  // the division's official code ("Sr. DSTE/M/GTL"), never the long name.
   if (m.jeLine) h += `<p class="right" data-space-top="26"><strong>${hEsc(m.jeLine)}</strong></p>`;
-  h += `<p data-left="24">Forwarded to ${hEsc(m.addressedTo || `Sr. DSTE/M/${m.division || "Division"}`)}</p>`;
-  if (m.throughLine) h += `<p data-left="24" data-space-top="20"><strong>${hEsc(m.throughLine)}</strong></p>`;
+  const fwd = m.addressedTo.trim() || `Sr. DSTE/M/${divisionCode(m.division) || "Division"}`;
+  h += `<p data-left="24">Forwarded to ${hEsc(fwd)}</p>`;
+  if (m.sseLine) h += `<p data-left="24" data-space-top="20"><strong>${hEsc(m.sseLine)}</strong></p>`;
   return h;
 }
 

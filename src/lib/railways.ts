@@ -30,6 +30,84 @@ export function divisionsOf(zone: string | null | undefined): readonly string[] 
   return RAILWAY_ZONES.find((z) => z.name === zone)?.divisions ?? [];
 }
 
+/** Division name → its official short code, as printed on office forms
+ *  ("Sr. DSTE/M/GTL"). Unknown divisions fall back to the name itself. */
+const DIVISION_CODES: Record<string, string> = {
+  "Mumbai CSMT": "CSMT",
+  Bhusawal: "BSL",
+  Nagpur: "NGP",
+  Pune: "PUNE",
+  Solapur: "SUR",
+  Howrah: "HWH",
+  Sealdah: "SDAH",
+  Asansol: "ASN",
+  Malda: "MLDT",
+  Danapur: "DNR",
+  Dhanbad: "DHN",
+  "Pandit Deen Dayal Upadhyaya": "DDU",
+  Samastipur: "SPJ",
+  Sonpur: "SEE",
+  "Khurda Road": "KUR",
+  Sambalpur: "SBP",
+  Rayagada: "RGDA",
+  Delhi: "DLI",
+  Ambala: "UMB",
+  Firozpur: "FZR",
+  Jammu: "JAT",
+  Lucknow: "LKO",
+  Moradabad: "MB",
+  Prayagraj: "PRYJ",
+  Agra: "AGC",
+  Jhansi: "JHS",
+  Izzatnagar: "IZN",
+  Varanasi: "BSB",
+  Katihar: "KIR",
+  Alipurduar: "APDJ",
+  Rangiya: "RNY",
+  Lumding: "LMG",
+  Tinsukia: "TSK",
+  Jaipur: "JP",
+  Ajmer: "AII",
+  Bikaner: "BKN",
+  Jodhpur: "JU",
+  Chennai: "MAS",
+  Madurai: "MDU",
+  Palakkad: "PGT",
+  Salem: "SA",
+  Tiruchirappalli: "TPJ",
+  Thiruvananthapuram: "TVC",
+  Secunderabad: "SC",
+  Hyderabad: "HYB",
+  Nanded: "NED",
+  Guntakal: "GTL",
+  Guntur: "GNT",
+  Vijayawada: "BZA",
+  Visakhapatnam: "VSKP",
+  Adra: "ADRA",
+  Chakradharpur: "CKP",
+  Kharagpur: "KGP",
+  Ranchi: "RNC",
+  Bilaspur: "BSP",
+  Raipur: "R",
+  Hubballi: "UBL",
+  Bengaluru: "SBC",
+  Mysuru: "MYS",
+  "Mumbai Central": "BCT",
+  Vadodara: "BRC",
+  Ratlam: "RTM",
+  Ahmedabad: "ADI",
+  Rajkot: "RJT",
+  Bhavnagar: "BVC",
+  Jabalpur: "JBP",
+  Bhopal: "BPL",
+  Kota: "KOTA",
+};
+
+export function divisionCode(division?: string | null): string {
+  const d = division?.trim() || "";
+  return DIVISION_CODES[d] ?? d;
+}
+
 export function defaultDivisionFor(zone: string): string {
   const divs = divisionsOf(zone);
   if (zone === DEFAULT_RAILWAY_ZONE) return DEFAULT_RAILWAY_DIVISION;

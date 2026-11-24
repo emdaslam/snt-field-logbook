@@ -23,6 +23,7 @@ import {
   type FootplateObs,
   type ObsShiftForm,
 } from "./certificate";
+import { divisionCode } from "./railways";
 import type { DailyLog, DeficiencyTask, Station, Staff } from "@/db/schema";
 
 let n = 0;
@@ -94,6 +95,7 @@ ok(model.rows[1].repairsRequired === "Details furnished below", "repairs-require
 ok(model.station === "PRDT", "office station from HQ");
 ok(model.railway === "South Central Railway" && model.division === "GTL", "railway/division from profile");
 ok(model.addressedTo === "Sr DSTE/M/GTL" && model.throughLine === "SSE/SIG/JMDG", "extra lines passthrough");
+ok(model.sseLine === "SSE/SIG/JMDG", "sse line from through line");
 
 // repairs-done excludes rest/leave and cross-station noise
 ok(!model.rows.some((r) => r.repairsDone.some((i) => i.text === "rest day")), "rest-day log excluded");
@@ -407,6 +409,41 @@ const bareExtra = { ...extra, addressedTo: "", throughLine: "" };
 const bareModel = buildCertificateModel({ included, allMonthLogs: [], stations, deficiencies: [], staff, extra: bareExtra, yearMonth: "2026-07" });
 const bareHtml = certificateHtml(bareModel);
 ok(bareHtml.includes("Forwarded to Sr. DSTE/M/GTL"), "ic close: addressing fallback from division");
+
+// Division prints its official short code, never the long name ("Guntakal" → GTL)
+ok(divisionCode("Guntakal") === "GTL", "division code: Guntakal → GTL");
+const longDivStaff = { ...staff, railwayDivision: "Guntakal" } as Staff;
+const longDivHtml = certificateHtml(
+  buildCertificateModel({ included, allMonthLogs: [], stations, deficiencies: [], staff: longDivStaff, extra: bareExtra, yearMonth: "2026-07" })
+);
+ok(longDivHtml.includes("Forwarded to Sr. DSTE/M/GTL"), "ic close: long division name never printed in forwarding line");
+ok(!longDivHtml.includes("Forwarded to Sr. DSTE/M/Guntakal"), "ic close: forwarding line uses the code, not the long name");
+
+// SSE office designation prints under the forwarded line, from the Office profile
+// when the Through line is blank
+const officeStaff = { ...staff, office: "SSE/SIG/JMDG" } as Staff;
+const officeHtml = certificateHtml(
+  buildCertificateModel({ included, allMonthLogs: [], stations, deficiencies: [], staff: officeStaff, extra: bareExtra, yearMonth: "2026-07" })
+);
+ok(officeHtml.includes('<p data-left="24" data-space-top="20"><strong>SSE/SIG/JMDG</strong></p>'), "ic close: SSE office line under forwarded");
+
+// Manual "Repairs Required" footer overrides the deficiency-derived list
+const manualModel = buildCertificateModel({
+  included,
+  allMonthLogs: [],
+  stations,
+  deficiencies: defs,
+  staff,
+  extra,
+  yearMonth: "2026-07",
+  repairsRequiredFooter: ["Typed repair one", "Typed repair two"],
+});
+ok(
+  manualModel.repairsRequiredFooter.length === 2 && manualModel.repairsRequiredFooter[0] === "Typed repair one",
+  "manual repairs-required footer wins over deficiencies"
+);
+const manualHtml = certificateHtml(manualModel);
+ok(manualHtml.includes("1. Typed repair one") && manualHtml.includes("2. Typed repair two"), "manual footer prints numbered");
 
 console.log(`certificate.check: ${n} assertions passed`);
 

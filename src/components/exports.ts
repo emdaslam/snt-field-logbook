@@ -4,6 +4,7 @@ import { formatInspectionDates } from "@/lib/inspections";
 import { isSpecialMovement, printedWork, EQUIPMENT_DEFAULTS, variableKmText, type ExportStyle } from "@/lib/types";
 import { railwayHeading } from "@/lib/railways";
 import { resolvedRailway } from "@/lib/railways";
+import { divisionCode } from "@/lib/railways";
 import { buildMusterGrid, musterHeaderLines, musterMonthCode, musterSheetTopGap, MUSTER_CODE_ROW_MIN, MUSTER_CODE_ROW_WITH_STATIONS_MIN, MUSTER_ROW_MIN, MUSTER_STATION_ROW_MIN, type MusterHeader } from "@/lib/muster";
 import { AUTO_TIMINGS } from "@/lib/timingsMode";
 import { tripTimes, journeyTrainTimes, type TripTimes } from "@/lib/travel";
@@ -2254,7 +2255,11 @@ export function exportMuster(
  * `included` are the month's monthly-inspection logs driving the table rows;
  * `allMonthLogs` feeds the per-station "repairs done" roll-up.
  */
-export function exportCertificate(
+/** Official monthly formats — ONE report: the Form S&T./IC.3.3 inspection &
+ *  testing certificate followed by the Annexure 3-A2 foot plate observation
+ *  forms for the selected trips. `stations` seeds the visibility grid for
+ *  trips whose sheet has none. */
+export function exportMonthlyFormats(
   period: { from: string; label: string },
   included: DailyLog[],
   allMonthLogs: DailyLog[],
@@ -2262,8 +2267,10 @@ export function exportCertificate(
   deficiencies: DeficiencyTask[],
   staff: Staff | null,
   extra: CertExtra,
+  selectedTrips: DailyLog[],
   onComplete?: () => void,
-  pcdoRepairs?: { station: string; items: PcdoItem[] }[]
+  pcdoRepairs?: { station: string; items: PcdoItem[] }[],
+  repairsRequiredFooter?: string[]
 ) {
   const yearMonth = period.from.slice(0, 7);
   const model = buildCertificateModel({
@@ -2275,44 +2282,26 @@ export function exportCertificate(
     extra,
     yearMonth,
     pcdoRepairs,
+    repairsRequiredFooter,
   });
-  exportDocument(`IC Certificate ${period.label}`, certificateHtml(model), "certificate", undefined, {
-    orientation: "landscape",
-    onComplete,
-  });
-}
-
-/** Annexure 3-A2 — one foot plate observation form per shift per trip.
- *  `stations` seeds the visibility grid for trips whose sheet has none. */
-export function exportFootplateForms(
-  period: { from: string; label: string },
-  selected: DailyLog[],
-  staff: Staff | null,
-  extra: CertExtra,
-  stations: { id: number; name: string }[],
-  onComplete?: () => void
-) {
-  const yearMonth = period.from.slice(0, 7);
   const railway = staff?.railwayZone || "South Coast Railway";
   // The Forwarded line always prints; when no Details were entered fall back
-  // to the standard addressing ("Sr. DSTE/M/" + division).
-  const forwarded = extra.addressedTo || `Sr. DSTE/M/${staff?.railwayDivision || "Division"}`;
-  const sse = extra.throughLine;
-  const body = selected
-    .flatMap((l) => footplateFormSpecs(l, staff, extra, stations))
-    .map((spec) => footplateFormHtml(spec, railway, yearMonth, forwarded, sse))
-    .join(`<div class="page-break"></div>`);
-  exportDocument(`Foot Plate Observation ${period.label}`, body, "footplate", undefined, {
+  // to the standard addressing with the division's official code.
+  const forwarded =
+    extra.addressedTo.trim() || `Sr. DSTE/M/${divisionCode(staff?.railwayDivision) || "Division"}`;
+  const sse = extra.throughLine.trim() || staff?.office?.trim() || "";
+  const specs = selectedTrips.flatMap((l) => footplateFormSpecs(l, staff, extra, stations));
+  let body = certificateHtml(model);
+  if (specs.length > 0) {
+    body += `<div class="page-break"></div>`;
+    body += specs
+      .map((spec) => footplateFormHtml(spec, railway, yearMonth, forwarded, sse))
+      .join(`<div class="page-break"></div>`);
+  }
+  exportDocument(`IC Certificate ${period.label}`, body, "certificate", undefined, {
     orientation: "landscape",
-    // Tighter cells keep page 1 (header + two checklist tables) on one page,
-    // preserving the sample's two-page-per-form rhythm.
+    // Tighter cells keep each foot plate form's checklists on one page.
     cellPad: 2,
-    // Always lay the form out in the sample's two-page rhythm — the fit loop
-    // picks the largest size where both pages hold; three pages only when
-    // even the smallest size cannot (dense station registers).
-    onePage: false,
-    pageMode: "two",
-    twoPageBody: body,
     onComplete,
   });
 }
