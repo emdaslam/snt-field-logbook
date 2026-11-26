@@ -120,8 +120,15 @@ ok(!html.includes("<div"), "cert html walker-flat (no wrapper divs)");
 ok(html.includes("05,16\nJUL 2026"), "cert date cell is DD / MMM YYYY two-line");
 // Para + annexure share one line; heading block uses centered + size classes.
 ok(html.includes('class="cols" data-cols="0,600"'), "cert para+annexure on same line");
-ok(html.includes('<p class="centered" data-size="13"><strong>INSPECTION AND TESTING CERTIFICATE</strong></p>'), "cert title bold centered");
+ok(html.includes('<p class="centered" data-size="11"><strong>INSPECTION AND TESTING CERTIFICATE<br/>'), "cert title+zone+dept one bold block, same size");
+ok(html.includes("SIGNAL &amp; TELECOMMUNICATION DEPARTMENT</strong></p>"), "cert dept in same heading block");
 ok(html.includes('<p class="rule"></p>'), "cert has rule after heading block");
+ok(html.includes("<span>TO,</span>"), "cert TO on left");
+ok(html.includes("<span>The Sr DSTE/M/GTL</span>"), "cert addressed-to on left");
+ok(html.includes("<span>Through SSE/SIG/JMDG</span>"), "cert through on left");
+ok(html.includes("<span>Division: GTL</span>"), "cert division on right, own line");
+ok(html.includes("<span>Station: PRDT</span>"), "cert station on right, own line");
+ok(!html.includes(">----</span>"), "cert never prints a lone dash for empty TO");
 // Rowspan on Repairs Required when footer present.
 const footerModel = buildCertificateModel({
   included, allMonthLogs: [], stations, deficiencies: defs, staff, extra, yearMonth: "2026-07",

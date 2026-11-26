@@ -348,31 +348,27 @@ export function certificateHtml(m: CertModel): string {
   let h = "";
   // Para + annexure/formNo share one line (left / right) like the footplate form.
   h += `<p class="cols" data-cols="0,600"><span>Para No. 3.3.1(a)</span><span>${hEsc(m.annexure)} &middot; ${hEsc(m.formNo)}</span></p>`;
-  // Bold heading block below the para line, then a ruled separator.
-  h += `<p class="centered" data-size="13"><strong>INSPECTION AND TESTING CERTIFICATE</strong></p>`;
-  h += `<p class="centered" data-size="11"><strong>${hEsc(m.railway)}<br/>SIGNAL &amp; TELECOMMUNICATION DEPARTMENT</strong></p>`;
+  // Title, zone and department are ONE bold block so no extra paragraph gap
+  // sits between the heading and the zone; zone and department share a size.
+  h += `<p class="centered" data-size="11"><strong>INSPECTION AND TESTING CERTIFICATE<br/>${hEsc(m.railway)}<br/>SIGNAL &amp; TELECOMMUNICATION DEPARTMENT</strong></p>`;
   h += `<p class="centered">MONTH OF &lsquo;${hEsc(m.monthName)}&rsquo; ${hEsc(m.monthYear)}</p>`;
   h += `<p class="rule"></p>`;
-  // Left-aligned TO / Through; right-aligned Division / Station.
-  if (m.division || m.station) {
-    const leftLines: string[] = [];
-    if (m.addressedTo || m.throughLine) {
-      if (m.addressedTo) leftLines.push(`TO,<br/>The ${hEsc(m.addressedTo)}`);
-      if (m.throughLine) leftLines.push(`Through ${hEsc(m.throughLine)}`);
-    } else {
-      leftLines.push("----");
+  // Consecutive cols rows (same data-cols) — inner <br/> is stripped by the
+  // walker, so each visual line is its own paragraph. TO/Through on the left,
+  // Division/Station on the right. Empty extra still prints the division-code
+  // TO fallback; never a lone dash.
+  const toWhom = m.addressedTo.trim() || `Sr. DSTE/M/${divisionCode(m.division) || "Division"}`;
+  const leftAddr = ["TO,", `The ${toWhom}`, m.throughLine.trim() ? `Through ${m.throughLine.trim()}` : ""];
+  const divLabel = divisionCode(m.division) || m.division;
+  const rightAddr = [divLabel ? `Division: ${divLabel}` : "", m.station ? `Station: ${m.station}` : ""];
+  const addrRows = Math.max(leftAddr.filter(Boolean).length, rightAddr.filter(Boolean).length);
+  if (addrRows > 0) {
+    for (let i = 0; i < addrRows; i++) {
+      const L = leftAddr[i] ?? "";
+      const R = rightAddr[i] ?? "";
+      if (!L && !R) continue;
+      h += `<p class="cols" data-cols="0,600"><span>${hEsc(L)}</span><span>${hEsc(R)}</span></p>`;
     }
-    const leftHtml = leftLines.join("<br/>");
-    const rightParts: string[] = [];
-    if (m.division) rightParts.push(`Division: ${hEsc(m.division)}`);
-    if (m.station) rightParts.push(`Station: ${hEsc(m.station)}`);
-    const rightHtml = rightParts.length ? rightParts.join("<br/>") : "----";
-    h += `<p class="cols" data-cols="0,600"><span>${leftHtml}</span><span>${rightHtml}</span></p>`;
-  } else if (m.addressedTo || m.throughLine) {
-    let addr = "";
-    if (m.addressedTo) addr += `TO,<br/>The ${hEsc(m.addressedTo)}`;
-    if (m.throughLine) addr += `${addr ? "<br/>" : ""}Through ${hEsc(m.throughLine)}`;
-    h += `<p>${addr}</p>`;
   }
   h += `<p class="certify">This is to certify that I have personally inspected and tested all the signal gears at the following stations/sections on my jurisdiction. The details of inspection carried out are shown below:</p>`;
 

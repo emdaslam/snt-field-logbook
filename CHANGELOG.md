@@ -3,6 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.42 — 2026-11-26
+
+**Minor: IC certificate heading gap, matching zone/department size, TO/Through + Division/Station on separate lines**
+
+- Title, zone and department now print as one bold block at the same size, so the extra line-gap between the inspection heading and the zone is gone.
+- TO / Through sit on the left and Division / Station on the right as consecutive `cols` rows (one visual line each). Inner `<br/>` is no longer used — the PDF walker strips those, which had glued Division+Station onto one line and printed `----` instead of the TO block.
+
 ## 1.7.8.41 — 2026-11-26
 
 **Minor: IC certificate heading layout and Repairs Required column restructured to match office samples**
