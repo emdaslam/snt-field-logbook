@@ -3,6 +3,13 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.44 — 2026-11-26
+
+**Minor: IC certificate + footplate table vertical centering; footplate name table narrowed and centred**
+
+- The monthly inspection certificate table now vertically centres all its cell contents.
+- The footplate name/designation/division/DAY-NIGHT header table is narrowed (no longer full-width) and centred on the page.
+
 ## 1.7.8.43 — 2026-11-26
 
 **Minor: IC certificate zone in capitals, Through under TO, Repairs Required list below the table**

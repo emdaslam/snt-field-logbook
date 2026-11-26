@@ -375,7 +375,7 @@ export function certificateHtml(m: CertModel): string {
 
   const nRows = m.rows.length;
   const hasFooter = m.repairsRequiredFooter.length > 0;
-  h += `<table class="cert-table"><thead><tr>` +
+  h += `<table class="cert-table" data-valign="middle"><thead><tr>` +
     `<th data-align="center">Date of<br/>inspection</th><th data-align="center">Station<br/>visited</th><th data-align="center">Nature of<br/>inspection &amp;<br/>time spent</th><th data-align="center">Gear<br/>Type</th>` +
     `<th data-align="center">Condition</th><th>Repairs done during the Month</th><th data-align="center">Repairs<br/>Required</th></tr></thead><tbody>`;
   for (let ri = 0; ri < nRows; ri++) {
@@ -704,11 +704,11 @@ export function footplateFormHtml(spec: FootPlateFormSpec, railway: string, year
   h += `<p class="centered" data-size="13"><strong>FOOT PLATE INSPECTION OF SIGNALS</strong></p>`;
   h += `<p class="centered" data-size="11"><strong>${hEsc(railway.toUpperCase())}<br/>MONTH OF &lsquo;${hEsc(monthName(yearMonth))}&rsquo; ${hEsc(yearMonth.split("-")[0] ?? "")}<br/>(RECORD OF OBSERVATION)</strong></p>`;
   h += `<p class="rule"></p>`;
-  h += `<table class="hdr-table" data-valign="middle"><tbody>` +
-    `<tr><td>Name of Official conducting inspection</td><td><strong>${hEsc(spec.officialName)}</strong></td></tr>` +
-    `<tr><td>Designation</td><td><strong>${hEsc(spec.designation)}</strong></td></tr>` +
-    `<tr><td>Division &amp; Section</td><td><strong>${hEsc(spec.divisionSection)}</strong></td></tr>` +
-    `<tr><td>DAY/NIGHT</td><td><strong>${spec.shift}</strong></td></tr></tbody></table>`;
+  h += `<table class="hdr-table" data-valign="middle" data-center><tbody>` +
+    `<tr><td data-width="180">Name of Official conducting inspection</td><td data-width="260"><strong>${hEsc(spec.officialName)}</strong></td></tr>` +
+    `<tr><td data-width="180">Designation</td><td data-width="260"><strong>${hEsc(spec.designation)}</strong></td></tr>` +
+    `<tr><td data-width="180">Division &amp; Section</td><td data-width="260"><strong>${hEsc(spec.divisionSection)}</strong></td></tr>` +
+    `<tr><td data-width="180">DAY/NIGHT</td><td data-width="260"><strong>${spec.shift}</strong></td></tr></tbody></table>`;
 
   // Checklist sections print in the sample's two-column arrangement: the
   // first half of the items down the left, the rest beside them on the right,

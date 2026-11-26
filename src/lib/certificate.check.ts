@@ -235,9 +235,9 @@ ok(fh.includes('<p class="centered" data-size="13"><strong>FOOT PLATE INSPECTION
 ok(/<p class="centered" data-size="11"><strong>[\s\S]*?RAILWAY[\s\S]*?MONTH OF[\s\S]*?\(RECORD OF OBSERVATION\)<\/strong><\/p>/.test(fh), "fp zone/month/record bold below title");
 ok(!fh.includes("<h1"), "fp heading has no h1 (no line between title and block)");
 // boxed answers bold + every footplate table vertically centred
-ok(fh.includes("<td><strong>E MAHAMMAD ASLAM</strong></td>") && fh.includes("<td><strong>DAY</strong></td>"), "fp hdr answers bold");
+ok(fh.includes('<td data-width="260"><strong>E MAHAMMAD ASLAM</strong></td>') && fh.includes('<td data-width="260"><strong>DAY</strong></td>'), "fp hdr answers bold");
 ok(/<td><strong>\d{2}-\d{2}-\d{4}<\/strong><\/td>/.test(fh), "fp date answer bold");
-ok(fh.includes('<table class="hdr-table" data-valign="middle">'), "fp hdr boxes valign middle");
+ok(fh.includes('<table class="hdr-table" data-valign="middle" data-center>'), "fp hdr boxes valign middle + centered");
 ok(fh.match(/<table class="chk-table" data-valign="middle">/g)?.length === 3, "fp chk boxes valign middle");
 ok(fh.includes("<td><strong>25-07-2026</strong></td>"), "fp general (a) date bold");
 // signature close like the sample: sign space over right designation,

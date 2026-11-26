@@ -1160,7 +1160,8 @@ export function buildPdf(
         }
         const wrapCol = wrapCols.length === 1 ? wrapCols[0] : undefined;
         const allPinned = colCount > 0 && wrapCol == null && Object.keys(pinned).length >= colCount;
-        if (Object.keys(pinned).length > 0 && (allPinned || (opts.fitMode && wrapCol != null))) {
+        const centered = el.hasAttribute("data-center");
+        if (!centered && Object.keys(pinned).length > 0 && (allPinned || (opts.fitMode && wrapCol != null))) {
           const next = fitLeftoverWidths(pinned, allPinned ? undefined : wrapCol, avail);
           for (const [col, w] of Object.entries(next)) {
             const i = Number(col);
@@ -1278,11 +1279,25 @@ export function buildPdf(
             });
           }
         : undefined;
+      const isCentered = el.hasAttribute("data-center");
+      let tMarginL = margin;
+      let tMarginR = margin;
+      if (isCentered) {
+        let totalW = 0;
+        for (const st of Object.values(columnStyles)) {
+          if (typeof st.cellWidth === "number") totalW += st.cellWidth;
+        }
+        if (totalW > 0 && totalW < maxW) {
+          const offset = (maxW - totalW) / 2;
+          tMarginL = margin + offset;
+          tMarginR = margin + offset;
+        }
+      }
       autoTable(doc, {
         head,
         body,
         startY: y,
-        margin: { left: margin, right: margin },
+        margin: { left: tMarginL, right: tMarginR },
         styles: {
           fontSize: 8 * fs,
           cellPadding: cellPad,
