@@ -97,7 +97,15 @@ ok(model.railway === "South Central Railway" && model.division === "GTL", "railw
 ok(model.addressedTo === "Sr DSTE/M/GTL" && model.throughLine === "SSE/SIG/JMDG", "extra lines passthrough");
 ok(model.sseLine === "SSE/SIG/JMDG", "sse line from through line");
 
-// repairs-done excludes rest/leave and cross-station noise
+// ── footer from open deficiencies ──────────────────────────────────────────
+const defs: DeficiencyTask[] = [
+  { id: 1, department: "Signalling", stationId: 1, title: "IPS battery bank weak", status: "Pending", repeatCount: 3, completedAt: null },
+  { id: 2, department: "Signalling", stationId: 1, title: "Closed item", status: "Completed", repeatCount: 0, completedAt: null },
+  { id: 3, department: "Engg", stationId: 1, title: "Non-signal item", status: "Pending", repeatCount: 0, completedAt: null },
+  { id: 4, department: "Signalling", stationId: 3, title: "Other station item", status: "Pending", repeatCount: 0, completedAt: null },
+] as unknown as DeficiencyTask[];
+
+// HTML includes the essentials
 ok(!model.rows.some((r) => r.repairsDone.some((i) => i.text === "rest day")), "rest-day log excluded");
 
 // HTML includes the essentials
@@ -110,7 +118,18 @@ ok(html.includes("1) Track bond wires replaced"), "cert numbered item");
 ok(html.includes("Forwarded to Sr DSTE/M/GTL"), "cert fwd line");
 ok(!html.includes("<div"), "cert html walker-flat (no wrapper divs)");
 ok(html.includes("05,16\nJUL 2026"), "cert date cell is DD / MMM YYYY two-line");
-ok(html.includes('h1 class="centered"') || html.includes('<h1 class="centered">'), "cert title centered");
+// Para + annexure share one line; heading block uses centered + size classes.
+ok(html.includes('class="cols" data-cols="0,600"'), "cert para+annexure on same line");
+ok(html.includes('<p class="centered" data-size="13"><strong>INSPECTION AND TESTING CERTIFICATE</strong></p>'), "cert title bold centered");
+ok(html.includes('<p class="rule"></p>'), "cert has rule after heading block");
+// Rowspan on Repairs Required when footer present.
+const footerModel = buildCertificateModel({
+  included, allMonthLogs: [], stations, deficiencies: defs, staff, extra, yearMonth: "2026-07",
+});
+const footerHtml = certificateHtml(footerModel);
+ok(footerHtml.includes(`rowspan="${model.rows.length}"`), "cert repairs col merged with rowspan");
+ok(footerHtml.includes("Details furnished below"), "cert repairs col shows furnished note");
+ok(footerHtml.includes("IPS battery bank weak"), "cert repairs col carries deficiency text");
 
 // a pre-1.7.8.29 monthly log carries no hours band — prints a dash, not a blank
 const legacy = buildCertificateModel({
@@ -126,12 +145,6 @@ ok(legacy.rows.length === 1 && legacy.rows[0].hours === "", "legacy log without 
 ok(certificateHtml(legacy).includes("MONTHLY\n-"), "missing band prints dash under nature");
 
 // ── footer from open deficiencies ──────────────────────────────────────────
-const defs: DeficiencyTask[] = [
-  { id: 1, department: "Signalling", stationId: 1, title: "IPS battery bank weak", status: "Pending", repeatCount: 3, completedAt: null },
-  { id: 2, department: "Signalling", stationId: 1, title: "Closed item", status: "Completed", repeatCount: 0, completedAt: null },
-  { id: 3, department: "Engg", stationId: 1, title: "Non-signal item", status: "Pending", repeatCount: 0, completedAt: null },
-  { id: 4, department: "Signalling", stationId: 3, title: "Other station item", status: "Pending", repeatCount: 0, completedAt: null },
-] as unknown as DeficiencyTask[];
 const nameOf = (id: number | null) => stations.find((s) => s.id === id)?.name ?? "";
 const footer = buildCertificateModel({
   included,

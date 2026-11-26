@@ -3,6 +3,17 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.41 — 2026-11-26
+
+**Minor: IC certificate heading layout and Repairs Required column restructured to match office samples**
+
+- Para reference and Annexure/Form No now share one line (left / right) via `data-cols="0,600"`, matching the footplate form pattern.
+- The inspection heading ("INSPECTION AND TESTING CERTIFICATE"), zone name and department, and month lines are now a bold centered block followed by a horizontal rule, with content flowing below rather than above.
+- The TO/Through address and Division/Station lines now sit side-by-side in a single `cols` paragraph (TO left, Division right), mirroring sample PDFs.
+- The "Repairs Required" column is vertically merged across all station rows when a footer list exists; the merged cell carries "Details furnished below" plus every numbered item, so the table never spills past its bottom edge.
+- If the table breaks across two pages the same "details furnished below" text appears on the continuation page as part of the merged rowspan cell.
+- The forwarded closing uses the division code ("Forwarded to Sr. DSTE/M/GTL"); SSE/SIG/JMDG prints directly below it with no "/O" suffix.
+
 ## 1.7.8.40 — 2026-11-24
 
 **Minor: IC certificate and foot-plate forms print as ONE report, a remembered "Repairs Required" footer, and the forwarding line uses the division code**

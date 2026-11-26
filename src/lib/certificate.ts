@@ -346,14 +346,29 @@ export function pendingDeficiencyTitles(
  *  heading; keep children directly on the root. */
 export function certificateHtml(m: CertModel): string {
   let h = "";
-  h += `<p>Para No. 3.3.1(a)</p>`;
-  h += `<p class="right">${hEsc(m.annexure)} &middot; ${hEsc(m.formNo)}</p>`;
-  h += `<h1 class="centered">INSPECTION AND TESTING CERTIFICATE</h1>`;
-  h += `<p class="centered">${hEsc(m.railway)}<br/>SIGNAL &amp; TELECOMMUNICATION DEPARTMENT</p>`;
+  // Para + annexure/formNo share one line (left / right) like the footplate form.
+  h += `<p class="cols" data-cols="0,600"><span>Para No. 3.3.1(a)</span><span>${hEsc(m.annexure)} &middot; ${hEsc(m.formNo)}</span></p>`;
+  // Bold heading block below the para line, then a ruled separator.
+  h += `<p class="centered" data-size="13"><strong>INSPECTION AND TESTING CERTIFICATE</strong></p>`;
+  h += `<p class="centered" data-size="11"><strong>${hEsc(m.railway)}<br/>SIGNAL &amp; TELECOMMUNICATION DEPARTMENT</strong></p>`;
   h += `<p class="centered">MONTH OF &lsquo;${hEsc(m.monthName)}&rsquo; ${hEsc(m.monthYear)}</p>`;
-  if (m.division) h += `<p class="right">Division: ${hEsc(m.division)}</p>`;
-  if (m.station) h += `<p class="right">Station: ${hEsc(m.station)}</p>`;
-  if (m.addressedTo || m.throughLine) {
+  h += `<p class="rule"></p>`;
+  // Left-aligned TO / Through; right-aligned Division / Station.
+  if (m.division || m.station) {
+    const leftLines: string[] = [];
+    if (m.addressedTo || m.throughLine) {
+      if (m.addressedTo) leftLines.push(`TO,<br/>The ${hEsc(m.addressedTo)}`);
+      if (m.throughLine) leftLines.push(`Through ${hEsc(m.throughLine)}`);
+    } else {
+      leftLines.push("----");
+    }
+    const leftHtml = leftLines.join("<br/>");
+    const rightParts: string[] = [];
+    if (m.division) rightParts.push(`Division: ${hEsc(m.division)}`);
+    if (m.station) rightParts.push(`Station: ${hEsc(m.station)}`);
+    const rightHtml = rightParts.length ? rightParts.join("<br/>") : "----";
+    h += `<p class="cols" data-cols="0,600"><span>${leftHtml}</span><span>${rightHtml}</span></p>`;
+  } else if (m.addressedTo || m.throughLine) {
     let addr = "";
     if (m.addressedTo) addr += `TO,<br/>The ${hEsc(m.addressedTo)}`;
     if (m.throughLine) addr += `${addr ? "<br/>" : ""}Through ${hEsc(m.throughLine)}`;
@@ -361,11 +376,13 @@ export function certificateHtml(m: CertModel): string {
   }
   h += `<p class="certify">This is to certify that I have personally inspected and tested all the signal gears at the following stations/sections on my jurisdiction. The details of inspection carried out are shown below:</p>`;
 
+  const nRows = m.rows.length;
+  const hasFooter = m.repairsRequiredFooter.length > 0;
   h += `<table class="cert-table"><thead><tr>` +
     `<th data-align="center">Date of<br/>inspection</th><th data-align="center">Station<br/>visited</th><th data-align="center">Nature of<br/>inspection &amp;<br/>time spent</th><th data-align="center">Gear<br/>Type</th>` +
     `<th data-align="center">Condition</th><th>Repairs done during the Month</th><th data-align="center">Repairs<br/>Required</th></tr></thead><tbody>`;
-  for (const r of m.rows) {
-    // Paper layout: visit day(s) on the first line, "MMM YYYY" underneath.
+  for (let ri = 0; ri < nRows; ri++) {
+    const r = m.rows[ri];
     const days = r.dates.map((d) => d.slice(8));
     const first = r.dates[0] ?? "";
     const mmmyy = first ? `${monthShort(first).toUpperCase()} ${first.slice(0, 4)}` : "";
@@ -375,12 +392,11 @@ export function certificateHtml(m: CertModel): string {
     h += `<td data-align="center">${hEsc(r.nature)}\n${hEsc(r.hours || "-")}</td>`;
     h += `<td data-align="center">${hEsc(r.gear)}</td>`;
     h += `<td data-align="center">${hEsc(r.condition)}</td>`;
+    // Repairs done column: numbered items or dash.
     h += `<td>${
       r.repairsDone.length
         ? r.repairsDone
             .map((it, i) => {
-              // The work text usually already carries its completion date
-              // ("… done on 22-10-2026") — don't print it twice.
               const d = it.date ? ddmmyyyy(it.date) : "";
               const dupe = !!d && it.text.replace(/[.)\]]+$/, "").endsWith(d);
               return `${i + 1}) ${hEsc(it.text)}${d && !dupe ? ` (${d})` : ""}`;
@@ -388,21 +404,25 @@ export function certificateHtml(m: CertModel): string {
             .join("\n")
         : "----"
     }</td>`;
-    h += `<td data-align="center">${hLines(r.repairsRequired)}</td>`;
+    // Repairs Required column: vertically merged across all station rows when
+    // there is a footer list; otherwise each cell shows its per-station value.
+    if (hasFooter) {
+      if (ri === 0) {
+        // First cell spans every row and carries the details.
+        const detailLines = m.repairsRequiredFooter.map((line, i) => `${i + 1}. ${hEsc(line)}`).join("\n");
+        h += `<td rowspan="${nRows}" data-align="center">${hEsc("Details furnished below")}<br/><br/>${detailLines}</td>`;
+      }
+      // Subsequent rows: an empty placeholder keeps column alignment intact.
+    } else {
+      h += `<td data-align="center">${hLines(r.repairsRequired)}</td>`;
+    }
     h += `</tr>`;
   }
   h += `</tbody></table>`;
 
-  if (m.repairsRequiredFooter.length > 0) {
-    h += `<p class="meta"><strong>Repairs Required:</strong></p>`;
-    m.repairsRequiredFooter.forEach((line, i) => {
-      h += `<p>${i + 1}. ${hEsc(line)}</p>`;
-    });
-  }
-
-  // Closing block always prints — the countersign trio may not silently
-  // vanish when the Details fields were left empty. The forwarding line uses
-  // the division's official code ("Sr. DSTE/M/GTL"), never the long name.
+  // Closing block always prints — the countersign trio may not silently vanish
+  // when the Details fields were left empty. The forwarding line uses the
+  // division's official code ("Sr. DSTE/M/GTL"), never the long name.
   if (m.jeLine) h += `<p class="right" data-space-top="26"><strong>${hEsc(m.jeLine)}</strong></p>`;
   const fwd = m.addressedTo.trim() || `Sr. DSTE/M/${divisionCode(m.division) || "Division"}`;
   h += `<p data-left="24">Forwarded to ${hEsc(fwd)}</p>`;
