@@ -121,6 +121,7 @@ ok(html.includes("05,16\nJUL 2026"), "cert date cell is DD / MMM YYYY two-line")
 // Para + annexure share one line; heading block uses centered + size classes.
 ok(html.includes('class="cols" data-cols="0,600"'), "cert para+annexure on same line");
 ok(html.includes('<p class="centered" data-size="11"><strong>INSPECTION AND TESTING CERTIFICATE<br/>'), "cert title+zone+dept one bold block, same size");
+ok(html.includes("SOUTH CENTRAL RAILWAY"), "cert zone in capitals");
 ok(html.includes("SIGNAL &amp; TELECOMMUNICATION DEPARTMENT</strong></p>"), "cert dept in same heading block");
 ok(html.includes('<p class="rule"></p>'), "cert has rule after heading block");
 ok(html.includes("<span>TO,</span>"), "cert TO on left");
@@ -135,8 +136,10 @@ const footerModel = buildCertificateModel({
 });
 const footerHtml = certificateHtml(footerModel);
 ok(footerHtml.includes(`rowspan="${model.rows.length}"`), "cert repairs col merged with rowspan");
-ok(footerHtml.includes("Details furnished below"), "cert repairs col shows furnished note");
-ok(footerHtml.includes("IPS battery bank weak"), "cert repairs col carries deficiency text");
+ok(footerHtml.includes('class="vmerge"'), "merged cell uses overlay so the table can still split");
+ok(footerHtml.includes("Details<br/>furnished<br/>below"), "merged cell is only the furnished note");
+ok(!footerHtml.includes("IPS battery bank weak</td>") && footerHtml.includes("<u>Repairs Required:</u>"), "repairs list heading below table");
+ok(footerHtml.includes("IPS battery bank weak"), "repairs list below table carries deficiency text");
 
 // a pre-1.7.8.29 monthly log carries no hours band — prints a dash, not a blank
 const legacy = buildCertificateModel({
@@ -229,7 +232,7 @@ ok(fh.includes('class="cols" data-cols="0,600"'), "para + annexure share one lin
 ok(fh.includes('<p class="rule"></p>'), "rule under heading block");
 // heading is ONE bold block: title, zone, month, record — no h1 line inside
 ok(fh.includes('<p class="centered" data-size="13"><strong>FOOT PLATE INSPECTION OF SIGNALS</strong></p>'), "fp title bold");
-ok(/<p class="centered" data-size="11"><strong>[\s\S]*?Railway[\s\S]*?MONTH OF[\s\S]*?\(RECORD OF OBSERVATION\)<\/strong><\/p>/.test(fh), "fp zone/month/record bold below title");
+ok(/<p class="centered" data-size="11"><strong>[\s\S]*?RAILWAY[\s\S]*?MONTH OF[\s\S]*?\(RECORD OF OBSERVATION\)<\/strong><\/p>/.test(fh), "fp zone/month/record bold below title");
 ok(!fh.includes("<h1"), "fp heading has no h1 (no line between title and block)");
 // boxed answers bold + every footplate table vertically centred
 ok(fh.includes("<td><strong>E MAHAMMAD ASLAM</strong></td>") && fh.includes("<td><strong>DAY</strong></td>"), "fp hdr answers bold");
@@ -441,11 +444,13 @@ ok(!longDivHtml.includes("Forwarded to Sr. DSTE/M/Guntakal"), "ic close: forward
 
 // SSE office designation prints under the forwarded line, from the Office profile
 // when the Through line is blank
-const officeStaff = { ...staff, office: "SSE/SIG/JMDG" } as Staff;
+const officeStaff = { ...staff, office: "SSE/SIG/O/JMDG" } as Staff;
 const officeHtml = certificateHtml(
   buildCertificateModel({ included, allMonthLogs: [], stations, deficiencies: [], staff: officeStaff, extra: bareExtra, yearMonth: "2026-07" })
 );
+ok(officeHtml.includes("<span>Through SSE/SIG/JMDG</span>"), "through falls back to office under TO");
 ok(officeHtml.includes('<p data-left="24" data-space-top="20"><strong>SSE/SIG/JMDG</strong></p>'), "ic close: SSE office line under forwarded");
+ok(!officeHtml.includes("SSE/SIG/O/"), "office /O/ stripped on IC");
 
 // Manual "Repairs Required" footer overrides the deficiency-derived list
 const manualModel = buildCertificateModel({
@@ -464,6 +469,8 @@ ok(
 );
 const manualHtml = certificateHtml(manualModel);
 ok(manualHtml.includes("1. Typed repair one") && manualHtml.includes("2. Typed repair two"), "manual footer prints numbered");
+ok(manualHtml.includes("Details<br/>furnished<br/>below"), "manual footer stays out of the merged cell");
+ok(manualHtml.includes("<u>Repairs Required:</u>"), "manual footer list sits below the table");
 
 console.log(`certificate.check: ${n} assertions passed`);
 

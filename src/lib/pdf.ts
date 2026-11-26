@@ -142,7 +142,9 @@ function parseTableBody(trs: Element[]): { body: PdfCell[][]; notes: VtextNote[]
       // Cells marked class="vtext" render vertically, one character per line
       // (the TA journal's KMS note, which already carries per-word blank lines);
       // other cells are tidied normally.
-      const isV = (el.getAttribute("class") || "").split(/\s+/).includes("vtext");
+      const cellCls = (el.getAttribute("class") || "").split(/\s+/);
+      const isV = cellCls.includes("vtext");
+      const isMerge = cellCls.includes("vmerge");
       const text = isV
         ? (el.textContent ?? "").replace(/ +/g, "\n")
         : cellLines(el).join("\n");
@@ -165,7 +167,7 @@ function parseTableBody(trs: Element[]): { body: PdfCell[][]; notes: VtextNote[]
       // Only the TA journal's full-column KMS note (many rows) is drawn as an
       // overlay. A 2-row muster merge (REST / NH spanning P/OL + station) is
       // a real autoTable rowspan so the stacked letters sit in one cell.
-      const isVSpan = isV && rowSpan > 2;
+      const isVSpan = (isV && rowSpan > 2) || (isMerge && rowSpan > 1);
       // A full-column vtext note (the TA journal's KMS note) spans many rows
       // but is emitted as separate empty cells; removing their horizontal
       // borders makes the column render as one merged cell without stray

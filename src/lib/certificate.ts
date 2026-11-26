@@ -281,7 +281,7 @@ export function buildCertificateModel(args: {
     rows,
     repairsRequiredFooter: foot,
     jeLine,
-    sseLine: extra.throughLine.trim() || staff?.office?.trim() || "",
+    sseLine: (extra.throughLine.trim() || staff?.office?.trim() || "").replace(/\/O\//g, "/"),
   };
 }
 
@@ -350,7 +350,7 @@ export function certificateHtml(m: CertModel): string {
   h += `<p class="cols" data-cols="0,600"><span>Para No. 3.3.1(a)</span><span>${hEsc(m.annexure)} &middot; ${hEsc(m.formNo)}</span></p>`;
   // Title, zone and department are ONE bold block so no extra paragraph gap
   // sits between the heading and the zone; zone and department share a size.
-  h += `<p class="centered" data-size="11"><strong>INSPECTION AND TESTING CERTIFICATE<br/>${hEsc(m.railway)}<br/>SIGNAL &amp; TELECOMMUNICATION DEPARTMENT</strong></p>`;
+  h += `<p class="centered" data-size="11"><strong>INSPECTION AND TESTING CERTIFICATE<br/>${hEsc(m.railway.toUpperCase())}<br/>SIGNAL &amp; TELECOMMUNICATION DEPARTMENT</strong></p>`;
   h += `<p class="centered">MONTH OF &lsquo;${hEsc(m.monthName)}&rsquo; ${hEsc(m.monthYear)}</p>`;
   h += `<p class="rule"></p>`;
   // Consecutive cols rows (same data-cols) — inner <br/> is stripped by the
@@ -358,7 +358,8 @@ export function certificateHtml(m: CertModel): string {
   // Division/Station on the right. Empty extra still prints the division-code
   // TO fallback; never a lone dash.
   const toWhom = m.addressedTo.trim() || `Sr. DSTE/M/${divisionCode(m.division) || "Division"}`;
-  const leftAddr = ["TO,", `The ${toWhom}`, m.throughLine.trim() ? `Through ${m.throughLine.trim()}` : ""];
+  const through = (m.throughLine.trim() || m.sseLine).replace(/\/O\//g, "/");
+  const leftAddr = ["TO,", `The ${toWhom}`, through ? `Through ${through}` : ""];
   const divLabel = divisionCode(m.division) || m.division;
   const rightAddr = [divLabel ? `Division: ${divLabel}` : "", m.station ? `Station: ${m.station}` : ""];
   const addrRows = Math.max(leftAddr.filter(Boolean).length, rightAddr.filter(Boolean).length);
@@ -404,9 +405,7 @@ export function certificateHtml(m: CertModel): string {
     // there is a footer list; otherwise each cell shows its per-station value.
     if (hasFooter) {
       if (ri === 0) {
-        // First cell spans every row and carries the details.
-        const detailLines = m.repairsRequiredFooter.map((line, i) => `${i + 1}. ${hEsc(line)}`).join("\n");
-        h += `<td rowspan="${nRows}" data-align="center">${hEsc("Details furnished below")}<br/><br/>${detailLines}</td>`;
+        h += `<td class="vmerge" rowspan="${nRows}" data-align="center">Details<br/>furnished<br/>below</td>`;
       }
       // Subsequent rows: an empty placeholder keeps column alignment intact.
     } else {
@@ -415,6 +414,10 @@ export function certificateHtml(m: CertModel): string {
     h += `</tr>`;
   }
   h += `</tbody></table>`;
+  if (hasFooter) {
+    h += `<p data-space-top="10"><u>Repairs Required:</u></p>`;
+    h += `<p>${m.repairsRequiredFooter.map((line, i) => `${i + 1}. ${hEsc(line)}`).join("<br/>")}</p>`;
+  }
 
   // Closing block always prints — the countersign trio may not silently vanish
   // when the Details fields were left empty. The forwarding line uses the
@@ -699,7 +702,7 @@ export function footplateFormHtml(spec: FootPlateFormSpec, railway: string, year
   // avoided because it stamps its own rule between title and the rest.
   h += `<p class="cols" data-cols="0,600"><span>Para No. 3.3.1(c), 3.2.2(c)</span><span>Annexure: 3-A2</span></p>`;
   h += `<p class="centered" data-size="13"><strong>FOOT PLATE INSPECTION OF SIGNALS</strong></p>`;
-  h += `<p class="centered" data-size="11"><strong>${hEsc(railway)}<br/>MONTH OF &lsquo;${hEsc(monthName(yearMonth))}&rsquo; ${hEsc(yearMonth.split("-")[0] ?? "")}<br/>(RECORD OF OBSERVATION)</strong></p>`;
+  h += `<p class="centered" data-size="11"><strong>${hEsc(railway.toUpperCase())}<br/>MONTH OF &lsquo;${hEsc(monthName(yearMonth))}&rsquo; ${hEsc(yearMonth.split("-")[0] ?? "")}<br/>(RECORD OF OBSERVATION)</strong></p>`;
   h += `<p class="rule"></p>`;
   h += `<table class="hdr-table" data-valign="middle"><tbody>` +
     `<tr><td>Name of Official conducting inspection</td><td><strong>${hEsc(spec.officialName)}</strong></td></tr>` +

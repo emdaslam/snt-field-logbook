@@ -3,6 +3,14 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.43 — 2026-11-26
+
+**Minor: IC certificate zone in capitals, Through under TO, Repairs Required list below the table**
+
+- The railway zone on the IC certificate (and the foot-plate heading) prints in capital letters, matching the office samples ("SOUTH COAST RAILWAY").
+- The Through line always sits under "The Sr. DSTE/M/…" — it falls back to the Office profile when Details were left empty, and the muster `/O/` infix is stripped so it prints `SSE/SIG/JMDG`.
+- The merged "Repairs Required" column now holds only "Details furnished below". The numbered list prints under the table as "Repairs Required:" (the old sample layout). Stuffing the list into the rowspan had pushed the whole table onto the next page.
+
 ## 1.7.8.42 — 2026-11-26
 
 **Minor: IC certificate heading gap, matching zone/department size, TO/Through + Division/Station on separate lines**

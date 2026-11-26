@@ -2289,7 +2289,7 @@ export function exportMonthlyFormats(
   // to the standard addressing with the division's official code.
   const forwarded =
     extra.addressedTo.trim() || `Sr. DSTE/M/${divisionCode(staff?.railwayDivision) || "Division"}`;
-  const sse = extra.throughLine.trim() || staff?.office?.trim() || "";
+  const sse = (extra.throughLine.trim() || staff?.office?.trim() || "").replace(/\/O\//g, "/");
   const specs = selectedTrips.flatMap((l) => footplateFormSpecs(l, staff, extra, stations));
   let body = certificateHtml(model);
   if (specs.length > 0) {
