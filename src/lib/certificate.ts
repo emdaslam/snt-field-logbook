@@ -591,6 +591,53 @@ export function prefillFromLast(obs: FootplateObs): FootplateObs {
   return JSON.parse(JSON.stringify(obs)) as FootplateObs;
 }
 
+/** One saved per-journey sheet, flattened out of a log's rides. */
+export type PastJourneySheet = {
+  shift: string;
+  dir: "Up" | "Down" | "";
+  trainNo: string;
+  form: ObsShiftForm;
+};
+
+/** Every per-journey observation sheet stored on `logs` (newest log first,
+ *  the order `api.logs.list` returns), flattened across all rides. Logs are
+ *  scanned in that order so a later `find` is the most recent entry. */
+export function pastJourneySheets(logs: DailyLog[]): PastJourneySheet[] {
+  const out: PastJourneySheet[] = [];
+  for (const log of logs) {
+    const obs = normalizeObs(log.footplateObs);
+    const journeys = obs.journeys;
+    if (!journeys) continue;
+    footplateRidesOf(log).forEach((ride, i) => {
+      for (const tr of footplateTrainsInRideOrder(ride)) {
+        const form = journeys[footplateJourneyKey(i, tr.shift, tr.dir)];
+        if (form) out.push({ shift: tr.shift, dir: tr.dir, trainNo: tr.train.trainNo.trim(), form });
+      }
+    });
+  }
+  return out;
+}
+
+/** Prefill for one journey's sheet: the last-entered sheet of that train
+ *  number (same shift + direction preferred); when the train number is new,
+ *  the last-entered sheet of the same shift + direction combination. */
+export function prefillJourneyObs(
+  past: PastJourneySheet[],
+  shift: string,
+  dir: "Up" | "Down" | "",
+  trainNo: string
+): ObsShiftForm | null {
+  const combo = (p: PastJourneySheet) => p.shift.toLowerCase() === shift.toLowerCase() && p.dir === dir;
+  const t = trainNo.trim().toUpperCase();
+  if (t) {
+    const hit =
+      past.find((p) => p.trainNo.toUpperCase() === t && combo(p)) ??
+      past.find((p) => p.trainNo.toUpperCase() === t);
+    if (hit) return hit.form;
+  }
+  return past.find(combo)?.form ?? null;
+}
+
 /** Normalise a stored obs so every checklist key exists with a sane value. */
 export function normalizeObs(o: FootplateObs | null | undefined): FootplateObs {
   const base = emptyShiftForm();

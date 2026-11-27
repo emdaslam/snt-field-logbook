@@ -12,7 +12,9 @@ import {
   emptyFootplateObs,
   latestFootplateObs,
   normalizeObs,
+  pastJourneySheets,
   prefillFromLast,
+  prefillJourneyObs,
   matrixTickCount,
   monthUpper,
   monthName,
@@ -361,6 +363,40 @@ const oldBoth = footplateFormSpecs(
   extra
 );
 ok(oldBoth.length === 2 && oldBoth[0].form.observation === "Up leg observation" && oldBoth[1].form.observation === "Up leg observation", "legacy sheet reused per journey");
+
+// ── per-journey prefill: by train number, else by shift + direction ─────────
+const jTrip = (id: number, date: string, key: string, trainNo: string, obs: string, dir: "Up" | "Down" = "Up") =>
+  log({
+    id,
+    logDate: date,
+    inspectionKind: "footplate",
+    footplateObs: { day: null, night: null, journeys: { [key]: { ...emptyShiftForm(), observation: obs } } },
+    footplateJourneys: [
+      {
+        boardingStationId: 1,
+        otherEndStationId: 2,
+        shift: "Day",
+        day: {
+          direction: dir,
+          up: dir === "Up" ? { trainNo, engineNo: "", lpName: "", alpName: "", tmrName: "", remarks: "", depTime: "", arrTime: "" } : null,
+          down: dir === "Down" ? { trainNo, engineNo: "", lpName: "", alpName: "", tmrName: "", remarks: "", depTime: "", arrTime: "" } : null,
+        },
+        night: null,
+      },
+    ] as unknown as DailyLog["footplateJourneys"],
+  });
+const pastLogs = [
+  jTrip(71, "2026-07-28", "0-dayUp", "77211", "newest 77211"),
+  jTrip(72, "2026-07-20", "0-dayUp", "77211", "older 77211"),
+  jTrip(73, "2026-07-10", "0-dayDn", "77212", "last day down", "Down"),
+];
+const past = pastJourneySheets(pastLogs);
+ok(past.length === 3 && past[0].form.observation === "newest 77211", "past sheets newest first");
+ok(prefillJourneyObs(past, "Day", "Up", "77211")?.observation === "newest 77211", "same train number prefills from its latest sheet");
+ok(prefillJourneyObs(past, "Day", "Up", "77211")?.observation !== "last day down", "train number beats the shift combo");
+ok(prefillJourneyObs(past, "Night", "Down", "77211")?.observation === "newest 77211", "train number wins even in another shift");
+ok(prefillJourneyObs(past, "Day", "Down", "55001")?.observation === "last day down", "new train falls back to Day Down's last sheet");
+ok(prefillJourneyObs(past, "Night", "Up", "55002") === null, "no masked combo and new train → nothing to prefill");
 
 // ── certMeta storage round-trip (guarded localStorage absence) ─────────────
 try {

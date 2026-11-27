@@ -3,6 +3,16 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.47 — 2026-11-27
+
+**Minor: foot plate observation sheet follows the footplate movement, sits under its own train details, and remembers last-entered answers per train**
+
+- The Annexure 3-A2 observation sheet is no longer tied to the monthly inspection tag. Any entry with a footplate movement — a single Footplate movement or a Footplate stop in a multi-movement chain — now shows the sheet, exactly like a tagged footplate inspection did.
+- The sheet sits directly under the Footplate Journey details (boarding / other end, Day / Night, direction, train No / engine No / LP / ALP) instead of at the bottom of the entry. A station entry that records a footplate inspection tag still shows it under its own Day / Night shift details.
+- Each journey's sheet knows its own footplate details: the journey tab shows the train number and the opened sheet prints that journey's Train / Engine / LP / ALP line above the checklist.
+- The checklist answers are remembered per journey: a journey whose train number was used before prefills from that train's last-entered sheet; a new train number falls back to the last-entered sheet of the same Day / Night + Up / Down combination. Edited answers are never overwritten.
+- Fixed: a footplate that is one stop among several movements (a station entry with an "also footplate" ride) now saves its observation sheets with the log, so they print in the Annexure export.
+
 ## 1.7.8.46 — 2026-11-27
 
 **Minor: one foot plate observation sheet per journey; signatures sit above the designation**

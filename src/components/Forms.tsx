@@ -77,7 +77,9 @@ import {
   footplateJourneyKey,
   latestFootplateObs,
   normalizeObs,
+  pastJourneySheets,
   prefillFromLast,
+  prefillJourneyObs,
   type GearCondition,
   type MatrixSlot,
   type ObsMatrixStation,
@@ -1277,17 +1279,39 @@ export function DailyLogForm({
   const [obsJourneyForms, setObsJourneyForms] = useState<Record<string, ObsShiftForm>>(
     () => normalizeObs(existing?.footplateObs).journeys ?? {}
   );
-  // The train legs the current rides produce — one observation tab each.
+  // Past entries' journey sheets (newest first) — prefill source for the
+  // current journeys' observation tabs.
+  const pastJourneyObs = useMemo(
+    () => pastJourneySheets(logs.filter((l) => l.id !== existing?.id)),
+    [logs, existing?.id]
+  );
+  // The train legs the current rides produce — one observation tab each,
+  // labelled with its own footplate details.
   const obsJourneys = fpRides.flatMap((d, i) =>
     footplateTrainsInRideOrder({
       upFromBoarding: d.upFromBoarding,
       day: d.fpDay ? { direction: d.fpDayDir, up: d.fpDayUp, down: d.fpDayDn } : null,
       night: d.fpNight ? { direction: d.fpNightDir, up: d.fpNightUp, down: d.fpNightDn } : null,
-    }).map((tr) => ({
-      key: footplateJourneyKey(i, tr.shift, tr.dir),
-      shift: (tr.shift.toLowerCase() === "night" ? "night" : "day") as "day" | "night",
-      label: `${tr.shift}${tr.dir ? ` ${tr.dir}` : ""}${fpRides.length > 1 ? ` · ride ${i + 1}` : ""}`,
-    }))
+    }).map((tr) => {
+      const shift = (tr.shift.toLowerCase() === "night" ? "night" : "day") as "day" | "night";
+      const trainNo = (tr.train.trainNo ?? "").trim();
+      const details =
+        [
+          trainNo ? `Train ${trainNo}` : "",
+          tr.train.engineNo?.trim() ? `Engine ${tr.train.engineNo.trim()}` : "",
+          tr.train.lpName?.trim() ? `LP ${tr.train.lpName.trim()}` : "",
+          tr.train.alpName?.trim() ? `ALP ${tr.train.alpName.trim()}` : "",
+        ]
+          .filter(Boolean)
+          .join("  ·  ");
+      return {
+        key: footplateJourneyKey(i, tr.shift, tr.dir),
+        shift,
+        label: `${tr.shift}${tr.dir ? ` ${tr.dir}` : ""}${fpRides.length > 1 ? ` · ride ${i + 1}` : ""}${trainNo ? ` · ${trainNo}` : ""}`,
+        details,
+        prefill: prefillJourneyObs(pastJourneyObs, tr.shift, tr.dir, trainNo) ?? undefined,
+      };
+    })
   );
 
   const emptyFp: FootplateJourneyTrain = {
@@ -1976,12 +2000,13 @@ export function DailyLogForm({
       // Journey-mode footplate rides carry shift sheets whatever the entry's
       // inspection kind — a monthly day with an "also footplate" ride is
       // printed by the Annexure export, so its sheets must save too
-      // (spec-skipping keeps unworked shifts out of the print).
+      // (spec-skipping keeps unworked shifts out of the print). A footplate
+      // among several movements (station entry) saves them just the same.
       footplateObs:
-        movementKind === "footplate" || fpDay || fpNight
+        fpInChain || fpDay || fpNight
           ? {
-              day: (movementKind === "footplate" || fpDay) ? obsDay : null,
-              night: (movementKind === "footplate" || fpNight) ? obsNight : null,
+              day: fpInChain || fpDay ? obsDay : null,
+              night: fpInChain || fpNight ? obsNight : null,
               ...(Object.keys(obsJourneyForms).length > 0 ? { journeys: obsJourneyForms } : {}),
             }
           : null,
@@ -2398,6 +2423,22 @@ export function DailyLogForm({
             );
           })}
         </div>
+      )}
+      {hasFootplateInChain && (
+        <ObsSheetsEditor
+          dayActive
+          nightActive
+          day={obsDay}
+          setDay={setObsDay}
+          night={obsNight}
+          setNight={setObsNight}
+          stations={stations}
+          journeys={obsJourneys}
+          journeyForms={obsJourneyForms}
+          setJourneyForm={(key, form) =>
+            setObsJourneyForms((prev) => ({ ...prev, [key]: form }))
+          }
+        />
       )}
       {!isSpecial && !isHeadquarters && movementKind === "footplate" && !editExportRows && (
         <>
@@ -3232,13 +3273,13 @@ export function DailyLogForm({
             </>
           )}
 
-          {/* Sheet mounts on ride presence, not on the entry kind — a monthly
-              day that also ran a footplate ride prints in the Annexure export
-              and must expose its tick UI here. */}
-          {(movementKind === "footplate" || fpDay || fpNight) && (
+          {/* Below the footplate journey details when a footplate ride is in
+              the movement chain; here only for station entries that record a
+              footplate inspection tag with Day / Night shifts above. */}
+          {!hasFootplateInChain && (fpDay || fpNight) && (
               <ObsSheetsEditor
-                dayActive={movementKind === "footplate" || fpDay}
-                nightActive={movementKind === "footplate" || fpNight}
+                dayActive={fpDay}
+                nightActive={fpNight}
                 day={obsDay}
                 setDay={setObsDay}
                 night={obsNight}
@@ -4172,15 +4213,35 @@ function ObsSheetsEditor({
   night: ObsShiftForm;
   setNight: (v: ObsShiftForm) => void;
   stations: Station[];
-  journeys?: { key: string; shift: "day" | "night"; label: string }[];
+  journeys?: {
+    key: string;
+    shift: "day" | "night";
+    label: string;
+    /** The journey's own footplate details (train / engine / LP / ALP). */
+    details?: string;
+    /** Prefill from that train's (or shift + direction's) last-entered sheet. */
+    prefill?: ObsShiftForm;
+  }[];
   journeyForms?: Record<string, ObsShiftForm>;
   setJourneyForm?: (key: string, form: ObsShiftForm) => void;
 }) {
-  // With train legs present we show one tab per journey (Day Up / Day Down …);
+  // With train legs present we show one tab per journey (Day Up / Day Down ...);
   // otherwise fall back to the day/night shift tabs of older entries.
   const perJourney = journeys.length > 0 && Boolean(setJourneyForm);
-  const tabs = perJourney
-    ? journeys.map((j) => ({ key: j.key, label: j.label, shift: j.shift }))
+  const tabs: {
+    key: string;
+    label: string;
+    shift: "day" | "night";
+    details?: string;
+    prefill?: ObsShiftForm;
+  }[] = perJourney
+    ? journeys.map((j) => ({
+        key: j.key,
+        label: j.label,
+        shift: j.shift,
+        details: j.details,
+        prefill: j.prefill,
+      }))
     : [
         ...(dayActive ? [{ key: "day", label: "☀ Day sheet", shift: "day" as const }] : []),
         ...(nightActive ? [{ key: "night", label: "🌙 Night sheet", shift: "night" as const }] : []),
@@ -4191,7 +4252,7 @@ function ObsSheetsEditor({
   const current = tabs.find((t) => t.key === activeKey) ?? tabs[0];
   const active: ObsShiftForm =
     perJourney && current
-      ? journeyForms[current.key] ?? (current.shift === "night" ? night : day)
+      ? journeyForms[current.key] ?? current.prefill ?? (current.shift === "night" ? night : day)
       : current?.shift === "night"
         ? night
         : day;
@@ -4217,7 +4278,7 @@ function ObsSheetsEditor({
           Observation sheet (Annexure 3-A2){open ? " ▲" : " ▼"}
         </span>
         <span className="text-[10px] text-indigo-500">
-          {open ? "hide" : "defaults prefilled from last trip"}
+          {open ? "hide" : perJourney ? "prefilled from this train's last trip" : "defaults prefilled from last trip"}
         </span>
       </button>
       {open && (
@@ -4237,6 +4298,11 @@ function ObsSheetsEditor({
                 </button>
               ))}
             </div>
+          )}
+          {perJourney && current?.details && (
+            <p className="rounded-md bg-white/80 px-2 py-1 text-xs font-medium text-slate-700">
+              {current.details}
+            </p>
           )}
           <label className="block">
             <span className="mb-1 block text-[11px] font-medium text-slate-600">
