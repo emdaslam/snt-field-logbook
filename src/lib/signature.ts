@@ -27,15 +27,32 @@ export function encodeSignature(img: SignatureImage): string {
  * line stays as before.
  *
  * `anchor` picks the horizontal centre: "center" (default) puts it on the page
- * centre for the bottom-line reports; "col" with `col` centres it over the
- * Nth column of the preceding TA signature-lines block (the claiming-TA slot).
+ * centre; "col" with `col` centres it over the Nth column of the preceding TA
+ * signature-lines block (the claiming-TA slot); "right" centres it over the
+ * right-hand designation line rendered just below it (give its text in
+ * `alignText` and the same `alignPad` the paragraph uses).
  */
 export function signatureImgHtml(
   raw: string | null | undefined,
-  opts: { sign: "plain" | "ta"; anchor?: "center" | "col"; col?: number } = { sign: "plain" }
+  opts: {
+    sign: "plain" | "ta";
+    anchor?: "center" | "col" | "right";
+    col?: number;
+    alignText?: string;
+    alignPad?: number;
+  } = { sign: "plain" }
 ): string {
   const img = parseSignature(raw);
   if (!img || !img.dataUrl) return "";
-  const anchor = opts.anchor === "col" ? `col:${opts.col ?? 0}` : "center";
-  return `<img class="sigimg" data-sign="${opts.sign}" data-anchor="${anchor}" data-w="${img.w}" data-h="${img.h}" src="${img.dataUrl}"/>`;
+  const anchor =
+    opts.anchor === "col" ? `col:${opts.col ?? 0}` : opts.anchor === "right" ? "right" : "center";
+  const align =
+    opts.anchor === "right"
+      ? ` data-anchor-text="${attrEsc(opts.alignText ?? "")}" data-anchor-pad="${opts.alignPad ?? 0}"`
+      : "";
+  return `<img class="sigimg" data-sign="${opts.sign}" data-anchor="${anchor}" data-w="${img.w}" data-h="${img.h}"${align} src="${img.dataUrl}"/>`;
+}
+
+function attrEsc(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 }

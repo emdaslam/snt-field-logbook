@@ -1015,7 +1015,12 @@ export function exportDiary(
     const headerRow = `<tr><th class="date" data-width="56" data-align="center">DATE</th><th data-width="34" data-align="center">TRAIN NO</th><th data-width="32" data-align="center">TIME DEP</th><th data-width="32" data-align="center">TIME ARR</th><th data-width="34" data-align="center">FROM</th><th data-width="34" data-align="center">TO</th><th data-align="center">NATURE OF WORK</th></tr>`;
     const diaryTable = (g: (string | number)[][], m: XlsxMerge[]) =>
       `<table>${headerRow}${gridHtml(g, m, { dateCol: 0, centerCols: new Set([0, 1, 2, 3, 4, 5]), leftCols: new Set([6]), valignCols: new Set([6]) })}</table>`;
-    const sigBlock = signatureImgHtml(me?.sigPlain, { sign: "plain" });
+    const sigBlock = signatureImgHtml(me?.sigPlain, {
+      sign: "plain",
+      anchor: "right",
+      alignText: me?.designation?.toUpperCase() ?? "",
+      alignPad: 36,
+    });
     const signature =
       sigBlock +
       (me?.designation
@@ -2225,7 +2230,12 @@ export function exportMuster(
     // the one-page fit math live in muster.ts / muster.check.ts).
     minRowHeights,
   })}</table>`;
-  const musterSigBlock = signatureImgHtml(me?.sigPlain, { sign: "plain" });
+  const musterSigBlock = signatureImgHtml(me?.sigPlain, {
+    sign: "plain",
+    anchor: "right",
+    alignText: lines.signature,
+    alignPad: 24,
+  });
   if (musterSigBlock || lines.signature) {
     body += musterSigBlock;
     if (lines.signature) {

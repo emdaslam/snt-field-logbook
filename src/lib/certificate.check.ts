@@ -236,7 +236,7 @@ ok(fh.includes('<p class="centered" data-size="13"><strong>FOOT PLATE INSPECTION
 ok(/<p class="centered" data-size="11"><strong>[\s\S]*?RAILWAY[\s\S]*?MONTH OF[\s\S]*?\(RECORD OF OBSERVATION\)<\/strong><\/p>/.test(fh), "fp zone/month/record bold below title");
 ok(!fh.includes("<h1"), "fp heading has no h1 (no line between title and block)");
 // boxed answers bold + every footplate table vertically centred
-ok(fh.includes('<td data-width="260"><strong>E MAHAMMAD ASLAM</strong></td>') && fh.includes('<td data-width="260"><strong>DAY</strong></td>'), "fp hdr answers bold");
+ok(fh.includes('<td data-width="260"><strong>E MAHAMMAD ASLAM</strong></td>') && fh.includes('<td data-width="260"><strong>DAY — UP</strong></td>'), "fp hdr answers bold + direction");
 ok(/<td><strong>\d{2}-\d{2}-\d{4}<\/strong><\/td>/.test(fh), "fp date answer bold");
 ok(fh.includes('<table class="hdr-table" data-valign="middle" data-center>'), "fp hdr boxes valign middle + centered");
 ok(fh.match(/<table class="chk-table" data-valign="middle">/g)?.length === 3, "fp chk boxes valign middle");
@@ -324,6 +324,43 @@ ok(ns.length === 1 && ns[0].shift === "NIGHT" && ns[0].trainNo === "", "content-
 // prints one default DAY sheet so exporting never yields a blank page
 const ds = footplateFormSpecs({ ...nightTrip, footplateObs: { day: emptyShiftForm(), night: null } } as DailyLog, staff, extra);
 ok(ds.length === 1 && ds[0].shift === "DAY" && matrixTickCount(ds[0].form) === 0, "untouched selection prints default DAY sheet");
+
+// ── one sheet per journey: a "Both" day prints an Up and a Down form ────────
+const upForm: ObsShiftForm = { ...emptyShiftForm(), observation: "Up leg observation" };
+const downForm: ObsShiftForm = { ...emptyShiftForm(), observation: "Down leg observation" };
+const bothTrip = log({
+  id: 62,
+  logDate: "2026-07-27",
+  inspectionKind: "footplate",
+  footplateObs: { day: null, night: null, journeys: { "0-dayUp": upForm, "0-dayDn": downForm } },
+  footplateJourneys: [
+    {
+      boardingStationId: 1,
+      otherEndStationId: 2,
+      shift: "Day",
+      day: {
+        direction: "Both",
+        up: { trainNo: "77211", engineNo: "128257", lpName: "S.K.SINGH", alpName: "", tmrName: "J RAVI", remarks: "", depTime: "", arrTime: "" },
+        down: { trainNo: "77212", engineNo: "128258", lpName: "A.KUMAR", alpName: "", tmrName: "M DAS", remarks: "", depTime: "", arrTime: "" },
+      },
+      night: null,
+    },
+  ] as unknown as DailyLog["footplateJourneys"],
+});
+const bothSpecs = footplateFormSpecs(bothTrip, staff, extra);
+ok(bothSpecs.length === 2, "both-direction day yields one sheet per journey");
+ok(bothSpecs[0].shift === "DAY" && bothSpecs[0].direction === "Up" && bothSpecs[0].trainNo === "77211", "up journey sheet carries its own train");
+ok(bothSpecs[1].shift === "DAY" && bothSpecs[1].direction === "Down" && bothSpecs[1].trainNo === "77212", "down journey sheet carries its own train");
+ok(bothSpecs[0].form.observation === "Up leg observation" && bothSpecs[1].form.observation === "Down leg observation", "each journey keeps its own observation list");
+const bothHtml = footplateFormHtml(bothSpecs[0], "", "2026-07", "", "");
+ok(bothHtml.includes("DAY — UP"), "journey header shows direction");
+// a log saved before per-journey sheets falls back to the shared shift sheet
+const oldBoth = footplateFormSpecs(
+  { ...bothTrip, footplateObs: { day: upForm, night: null } } as DailyLog,
+  staff,
+  extra
+);
+ok(oldBoth.length === 2 && oldBoth[0].form.observation === "Up leg observation" && oldBoth[1].form.observation === "Up leg observation", "legacy sheet reused per journey");
 
 // ── certMeta storage round-trip (guarded localStorage absence) ─────────────
 try {

@@ -3,6 +3,14 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.46 — 2026-11-27
+
+**Minor: one foot plate observation sheet per journey; signatures sit above the designation**
+
+- A foot plate day with both Up and Down trains (and Day + Night) now prints a **separate Annexure 3-A2 observation sheet for every journey** (Day Up, Day Down, Night Up, Night Down), each with its own train No / engine No / LP details and its own observation list. Previously only one sheet per shift was printed.
+- Each journey has its own fillable checklist in the entry form (one Day Up / Day Down / Night Up / Night Down tab), backed up with the log. Previously saved logs keep working — their shared Day/Night sheet is shown on each journey until edited.
+- The uploaded profile signature is now placed **exactly above the right-hand designation line** (e.g. JE/SIG/JMDG) in the Foot plate, Diary, Muster and Monthly certificate PDFs, instead of being centred on the page. The TA Journal signature stays over the claiming-TA column. PDF only; Word/Excel unchanged.
+
 ## 1.7.8.45 — 2026-11-27
 
 **Major: profile signatures embedded in PDF exports (Diary, TA, Muster, Monthly certificate, Foot plate)**

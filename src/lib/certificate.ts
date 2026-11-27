@@ -6,7 +6,7 @@
  */
 
 import type { DailyLog, DeficiencyTask, Station, Staff } from "@/db/schema";
-import { footplateRidesOf } from "@/lib/api";
+import { footplateRidesOf, footplateTrainsInRideOrder } from "@/lib/api";
 import { divisionCode } from "@/lib/railways";
 import type { PcdoItem } from "@/lib/pcdo-pdf";
 import { signatureImgHtml } from "@/lib/signature";
@@ -427,7 +427,12 @@ export function certificateHtml(m: CertModel): string {
   // Closing block always prints — the countersign trio may not silently vanish
   // when the Details fields were left empty. The forwarding line uses the
   // division's official code ("Sr. DSTE/M/GTL"), never the long name.
-  const certSigBlock = signatureImgHtml(m.sigPlain, { sign: "plain" });
+  const certSigBlock = signatureImgHtml(m.sigPlain, {
+    sign: "plain",
+    anchor: "right",
+    alignText: m.jeLine,
+    alignPad: 0,
+  });
   if (certSigBlock) h += certSigBlock;
   if (m.jeLine) h += `<p class="right" data-space-top="${certSigBlock ? 6 : 26}"><strong>${hEsc(m.jeLine)}</strong></p>`;
   const fwd = m.addressedTo.trim() || `Sr. DSTE/M/${divisionCode(m.division) || "Division"}`;
@@ -486,7 +491,21 @@ export type ObsShiftForm = {
   matrix: ObsMatrixStation[];
 };
 
-export type FootplateObs = { day: ObsShiftForm | null; night: ObsShiftForm | null };
+/** Observations keyed per journey. `day`/`night` stay as the shared fallback
+ *  (older saved logs and trainless shifts); `journeys` holds a separate
+ *  checklist per train leg, keyed by {@link footplateJourneyKey}. */
+export type FootplateObs = {
+  day: ObsShiftForm | null;
+  night: ObsShiftForm | null;
+  journeys?: Record<string, ObsShiftForm>;
+};
+
+/** Stable key for one train leg's observation sheet — mirrors the rider index
+ *  + shift + direction keying the entry form uses for journey timings. */
+export function footplateJourneyKey(rideIndex: number, shift: string, dir: string): string {
+  const d = dir === "Up" ? "Up" : dir === "Down" ? "Dn" : "";
+  return `${rideIndex}-${shift.toLowerCase()}${d}`;
+}
 
 /** (a)–(w) general items minus the ride-derived lines (a date / b section /
  *  c train / d engine / e LP / g guard come straight off the trip). */
@@ -562,7 +581,7 @@ export function emptyFootplateObs(): FootplateObs {
 export function latestFootplateObs(logs: DailyLog[]): FootplateObs | null {
   for (const l of logs) {
     const o = l.footplateObs;
-    if (o && (o.day || o.night)) return o;
+    if (o && (o.day || o.night || (o.journeys && Object.keys(o.journeys).length > 0))) return o;
   }
   return null;
 }
@@ -588,7 +607,18 @@ export function normalizeObs(o: FootplateObs | null | undefined): FootplateObs {
     };
   };
   if (!o) return { day: null, night: null };
-  return { day: fixShift(o.day), night: fixShift(o.night) };
+  const journeys: Record<string, ObsShiftForm> = {};
+  if (o.journeys && typeof o.journeys === "object") {
+    for (const [key, form] of Object.entries(o.journeys)) {
+      const fixed = fixShift(form);
+      if (fixed) journeys[key] = fixed;
+    }
+  }
+  return {
+    day: fixShift(o.day),
+    night: fixShift(o.night),
+    ...(Object.keys(journeys).length > 0 ? { journeys } : {}),
+  };
 }
 
 /** Tick count across the matrix — smoke-test hook. */
@@ -602,6 +632,9 @@ export function matrixTickCount(f: ObsShiftForm): number {
 /** One foot plate form section per shift, mapped from one trip log. */
 export type FootPlateFormSpec = {
   shift: "DAY" | "NIGHT";
+  /** Travel direction of this train leg ("Up" / "Down" / "" for legacy), so
+   *  the DAY/NIGHT header distinguishes the two journeys of a "Both" shift. */
+  direction: "Up" | "Down" | "";
   dateIso: string;
   officialName: string;
   designation: string;
@@ -617,12 +650,16 @@ export type FootPlateFormSpec = {
   form: ObsShiftForm;
 };
 
-/** Expand a footplate log into per-shift form specs (skips shifts the trip
- *  did not run and shifts with neither train nor answers). When the stored
- *  observation has no visibility matrix yet, rows for every station in
- *  `stations` (the section's station register, in list order) are seeded so
- *  the printed form always carries the full station-wise grid — remove
- *  unwanted rows in the entry's matrix editor. */
+/** Expand a footplate log into ONE form spec PER JOURNEY (train leg). A Day
+ *  block with direction "Both" therefore prints a Day-Up and a Day-Down sheet,
+ *  each with its own train details and its own observation checklist — falling
+ *  back to the shift's shared sheet for logs saved before per-journey sheets.
+ *  Shifts with answers but no train still print one sheet, and an untouched
+ *  selection still prints a default DAY sheet so exporting never yields a
+ *  blank page. When a sheet has no visibility matrix yet, rows for every
+ *  station in `stations` (list order) are seeded so the printed form always
+ *  carries the full station-wise grid — remove unwanted rows in the matrix
+ *  editor. */
 export function footplateFormSpecs(
   l: DailyLog,
   staff?: Staff | null,
@@ -632,14 +669,6 @@ export function footplateFormSpecs(
   const obs = normalizeObs(l.footplateObs);
   const rides = footplateRidesOf(l);
   const primary = rides[0] ?? null;
-  const blockOf = (shift: "day" | "night") =>
-    primary
-      ? primary[shift]
-      : l[shift === "day" ? "footplateDay" : "footplateNight"];
-  const trainOf = (shift: "day" | "night") => {
-    const block = blockOf(shift);
-    return block?.up ?? block?.down ?? null;
-  };
   const section = [staff?.railwayDivision, extra?.sectionCode].filter(Boolean).join(", ");
 
   // Full station register as seed rows (list order) — the printed matrix
@@ -655,46 +684,64 @@ export function footplateFormSpecs(
   const withMatrix = (form: ObsShiftForm): ObsShiftForm =>
     form.matrix.length > 0 ? form : { ...form, matrix: seededMatrix };
 
+  const make = (
+    shift: "DAY" | "NIGHT",
+    direction: "Up" | "Down" | "",
+    form: ObsShiftForm,
+    det: { trainNo?: string; engineNo?: string; lpName?: string; alpName?: string; tmrName?: string } | null
+  ): FootPlateFormSpec => ({
+    shift,
+    direction,
+    dateIso: l.logDate,
+    officialName: staff?.name ?? "",
+    designation: staff?.designation ?? "",
+    sigPlain: staff?.sigPlain ?? "",
+    divisionSection: section,
+    trainNo: det?.trainNo ?? "",
+    engineNo: det?.engineNo ?? "",
+    lpName: det?.lpName ?? "",
+    alpName: det?.alpName ?? "",
+    guardName: det?.tmrName ?? "",
+    form: withMatrix(form),
+  });
+
   const specs: FootPlateFormSpec[] = [];
+  // One sheet per train leg, in ride order. The journey's own checklist wins;
+  // older logs (and unedited journeys) fall back to the shift's shared sheet,
+  // then to the pristine defaults.
+  rides.forEach((ride, i) => {
+    for (const tr of footplateTrainsInRideOrder(ride)) {
+      const shift: "day" | "night" = tr.shift.toLowerCase() === "night" ? "night" : "day";
+      const form =
+        obs.journeys?.[footplateJourneyKey(i, tr.shift, tr.dir)] ??
+        obs[shift] ??
+        emptyShiftForm();
+      specs.push(make(shift === "day" ? "DAY" : "NIGHT", tr.dir, form, tr.train));
+    }
+  });
+
+  // A shift that has answers but no train (or a trainless legacy log) still
+  // prints its sheet; skip shifts already covered by a journey above.
   for (const shift of ["day", "night"] as const) {
     const form = obs[shift];
-    if (!form) continue;
-    const det = trainOf(shift);
-    if (!det && !obsHasContent(form)) continue;
-    specs.push({
-      shift: shift === "day" ? "DAY" : "NIGHT",
-      dateIso: l.logDate,
-      officialName: staff?.name ?? "",
-      designation: staff?.designation ?? "",
-      sigPlain: staff?.sigPlain ?? "",
-      divisionSection: section,
-      trainNo: det?.trainNo ?? "",
-      engineNo: det?.engineNo ?? "",
-      lpName: det?.lpName ?? "",
-      alpName: det?.alpName ?? "",
-      guardName: det?.tmrName ?? "",
-      form: withMatrix(form),
-    });
+    if (!form || !obsHasContent(form)) continue;
+    if (specs.some((s) => s.shift === (shift === "day" ? "DAY" : "NIGHT"))) continue;
+    specs.push(make(shift === "day" ? "DAY" : "NIGHT", "", form, null));
   }
+
   // A selected trip whose sheets were never filled still prints one DAY form
   // with the checklist defaults — exporting a selection must never yield a
   // blank page.
   if (specs.length === 0) {
-    const det = trainOf("day");
-    specs.push({
-      shift: "DAY",
-      dateIso: l.logDate,
-      officialName: staff?.name ?? "",
-      designation: staff?.designation ?? "",
-      sigPlain: staff?.sigPlain ?? "",
-      divisionSection: section,
-      trainNo: det?.trainNo ?? "",
-      engineNo: det?.engineNo ?? "",
-      lpName: det?.lpName ?? "",
-      alpName: det?.alpName ?? "",
-      guardName: det?.tmrName ?? "",
-      form: { ...emptyShiftForm(), matrix: seededMatrix },
-    });
+    const legacy = l.footplateDay;
+    const det = primary
+      ? primary.day?.up ?? primary.day?.down ?? null
+      : legacy
+        ? "direction" in legacy
+          ? legacy.up ?? legacy.down
+          : legacy
+        : null;
+    specs.push(make("DAY", "", emptyShiftForm(), det));
   }
   return specs;
 }
@@ -720,7 +767,7 @@ export function footplateFormHtml(spec: FootPlateFormSpec, railway: string, year
     `<tr><td data-width="180">Name of Official conducting inspection</td><td data-width="260"><strong>${hEsc(spec.officialName)}</strong></td></tr>` +
     `<tr><td data-width="180">Designation</td><td data-width="260"><strong>${hEsc(spec.designation)}</strong></td></tr>` +
     `<tr><td data-width="180">Division &amp; Section</td><td data-width="260"><strong>${hEsc(spec.divisionSection)}</strong></td></tr>` +
-    `<tr><td data-width="180">DAY/NIGHT</td><td data-width="260"><strong>${spec.shift}</strong></td></tr></tbody></table>`;
+    `<tr><td data-width="180">DAY/NIGHT</td><td data-width="260"><strong>${spec.shift}${spec.direction ? ` — ${spec.direction.toUpperCase()}` : ""}</strong></td></tr></tbody></table>`;
 
   // Checklist sections print in the sample's two-column arrangement: the
   // first half of the items down the left, the rest beside them on the right,
@@ -822,7 +869,12 @@ export function footplateFormHtml(spec: FootPlateFormSpec, railway: string, year
   // after a further gap the SSE's office designation to counter-sign over.
   // The forwarding line always prints (falls back to the addressing default)
   // so the countersign block can never silently disappear.
-  const fpSigBlock = signatureImgHtml(spec.sigPlain, { sign: "plain" });
+  const fpSigBlock = signatureImgHtml(spec.sigPlain, {
+    sign: "plain",
+    anchor: "right",
+    alignText: spec.designation,
+    alignPad: 0,
+  });
   if (fpSigBlock) h += fpSigBlock;
   h += `<p class="right" data-space-top="${fpSigBlock ? 6 : 34}"><strong>${hEsc(spec.designation)}</strong></p>`;
   h += `<p data-left="24">Forwarded to ${hEsc(forwardedTo || "Sr. DSTE/M/Division")}</p>`;

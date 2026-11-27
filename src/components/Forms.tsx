@@ -74,6 +74,7 @@ import {
   RUNNING_ITEMS,
   SLOT_LABEL,
   emptyShiftForm,
+  footplateJourneyKey,
   latestFootplateObs,
   normalizeObs,
   prefillFromLast,
@@ -1271,6 +1272,23 @@ export function DailyLogForm({
   };
   const [obsDay, setObsDay] = useState<ObsShiftForm>(() => initObsShift("day"));
   const [obsNight, setObsNight] = useState<ObsShiftForm>(() => initObsShift("night"));
+  // Per-journey sheets (one per train leg). Older entries only have day/night;
+  // missing journeys fall back to the shift sheet until edited.
+  const [obsJourneyForms, setObsJourneyForms] = useState<Record<string, ObsShiftForm>>(
+    () => normalizeObs(existing?.footplateObs).journeys ?? {}
+  );
+  // The train legs the current rides produce — one observation tab each.
+  const obsJourneys = fpRides.flatMap((d, i) =>
+    footplateTrainsInRideOrder({
+      upFromBoarding: d.upFromBoarding,
+      day: d.fpDay ? { direction: d.fpDayDir, up: d.fpDayUp, down: d.fpDayDn } : null,
+      night: d.fpNight ? { direction: d.fpNightDir, up: d.fpNightUp, down: d.fpNightDn } : null,
+    }).map((tr) => ({
+      key: footplateJourneyKey(i, tr.shift, tr.dir),
+      shift: (tr.shift.toLowerCase() === "night" ? "night" : "day") as "day" | "night",
+      label: `${tr.shift}${tr.dir ? ` ${tr.dir}` : ""}${fpRides.length > 1 ? ` · ride ${i + 1}` : ""}`,
+    }))
+  );
 
   const emptyFp: FootplateJourneyTrain = {
     trainNo: "",
@@ -1964,6 +1982,7 @@ export function DailyLogForm({
           ? {
               day: (movementKind === "footplate" || fpDay) ? obsDay : null,
               night: (movementKind === "footplate" || fpNight) ? obsNight : null,
+              ...(Object.keys(obsJourneyForms).length > 0 ? { journeys: obsJourneyForms } : {}),
             }
           : null,
       inspectionJointDept: inspectionKind === "joint" ? jointDept || null : null,
@@ -3225,6 +3244,11 @@ export function DailyLogForm({
                 night={obsNight}
                 setNight={setObsNight}
                 stations={stations}
+                journeys={obsJourneys}
+                journeyForms={obsJourneyForms}
+                setJourneyForm={(key, form) =>
+                  setObsJourneyForms((prev) => ({ ...prev, [key]: form }))
+                }
               />
             )}
 
@@ -4137,6 +4161,9 @@ function ObsSheetsEditor({
   night,
   setNight,
   stations,
+  journeys = [],
+  journeyForms = {},
+  setJourneyForm,
 }: {
   dayActive: boolean;
   nightActive: boolean;
@@ -4145,15 +4172,34 @@ function ObsSheetsEditor({
   night: ObsShiftForm;
   setNight: (v: ObsShiftForm) => void;
   stations: Station[];
+  journeys?: { key: string; shift: "day" | "night"; label: string }[];
+  journeyForms?: Record<string, ObsShiftForm>;
+  setJourneyForm?: (key: string, form: ObsShiftForm) => void;
 }) {
-  const tabs = [
-    ...(dayActive ? (["day"] as const) : []),
-    ...(nightActive ? (["night"] as const) : []),
-  ];
-  const [tab, setTab] = useState<"day" | "night">(tabs[0] ?? "day");
+  // With train legs present we show one tab per journey (Day Up / Day Down …);
+  // otherwise fall back to the day/night shift tabs of older entries.
+  const perJourney = journeys.length > 0 && Boolean(setJourneyForm);
+  const tabs = perJourney
+    ? journeys.map((j) => ({ key: j.key, label: j.label, shift: j.shift }))
+    : [
+        ...(dayActive ? [{ key: "day", label: "☀ Day sheet", shift: "day" as const }] : []),
+        ...(nightActive ? [{ key: "night", label: "🌙 Night sheet", shift: "night" as const }] : []),
+      ];
+  const [tab, setTab] = useState<string>(tabs[0]?.key ?? "day");
   const [open, setOpen] = useState(false);
-  const active = tab === "day" ? day : night;
-  const setActive = tab === "day" ? setDay : setNight;
+  const activeKey = tabs.some((t) => t.key === tab) ? tab : tabs[0]?.key ?? "day";
+  const current = tabs.find((t) => t.key === activeKey) ?? tabs[0];
+  const active: ObsShiftForm =
+    perJourney && current
+      ? journeyForms[current.key] ?? (current.shift === "night" ? night : day)
+      : current?.shift === "night"
+        ? night
+        : day;
+  const setActive = (v: ObsShiftForm) => {
+    if (perJourney && current) setJourneyForm!(current.key, v);
+    else if (current?.shift === "night") setNight(v);
+    else setDay(v);
+  };
   const ans = (patch: Partial<Record<"general" | "signalling" | "running", Record<string, string>>>) =>
     setActive({
       ...active,
@@ -4177,17 +4223,17 @@ function ObsSheetsEditor({
       {open && (
         <div className="mt-2 space-y-3">
           {tabs.length > 1 && (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {tabs.map((t) => (
                 <button
-                  key={t}
+                  key={t.key}
                   type="button"
-                  onClick={() => setTab(t)}
-                  className={`flex-1 rounded-lg border px-2 py-1.5 text-xs font-medium capitalize ${
-                    tab === t ? "border-indigo-500 bg-indigo-50 text-indigo-800" : "border-slate-300 text-slate-500"
+                  onClick={() => setTab(t.key)}
+                  className={`flex-1 whitespace-nowrap rounded-lg border px-2 py-1.5 text-xs font-medium capitalize ${
+                    activeKey === t.key ? "border-indigo-500 bg-indigo-50 text-indigo-800" : "border-slate-300 text-slate-500"
                   }`}
                 >
-                  {t === "day" ? "☀ Day sheet" : "🌙 Night sheet"}
+                  {t.label}
                 </button>
               ))}
             </div>

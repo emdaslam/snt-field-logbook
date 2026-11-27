@@ -1013,10 +1013,24 @@ export function buildPdf(
         if (anchor.startsWith("col:")) {
           const seg = lastColsSegs?.[Number(anchor.slice(4))];
           if (seg) centerX = seg.x + seg.w / 2;
+        } else if (anchor === "right") {
+          // Centre over the right-hand designation line drawn just below. The
+          // label text and pad mirror that paragraph, so measuring it here
+          // (bold, default size) puts the signature exactly over the label.
+          const label = el.getAttribute("data-anchor-text") || "";
+          const pad = Number(el.getAttribute("data-anchor-pad")) || 0;
+          if (label) {
+            doc.setFont("helvetica", "bold").setFontSize(9 * headFs);
+            centerX = pageW - margin - pad - doc.getTextWidth(label) / 2;
+          } else {
+            centerX = pageW - margin - pad - boxW / 2;
+          }
         }
         centerX = Math.max(margin + dw / 2, Math.min(pageW - margin - dw / 2, centerX));
         const spaceTop = Number(el.getAttribute("data-space-top")) || 0;
-        pageBreak(spaceTop + dh + 12);
+        // "right" keeps the designation line under the signature; reserve a
+        // little more so the pair never splits across a page boundary.
+        pageBreak(spaceTop + dh + (anchor === "right" ? 26 : 12));
         y += spaceTop;
         const fmt = /image\/(jpeg|jpg)/.test(dataUrl) ? "JPEG" : "PNG";
         doc.addImage(b64, fmt, centerX - dw / 2, y, dw, dh);
