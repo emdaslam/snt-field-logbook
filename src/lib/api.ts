@@ -99,11 +99,17 @@ export const api = {
         headquartersStationId: b.headquartersStationId ?? null,
         railwayZone: b.railwayZone ?? null,
         railwayDivision: b.railwayDivision ?? null,
+        sigPlain: b.sigPlain ?? null,
+        sigDesignation: b.sigDesignation ?? null,
         isCurrentUser: b.isCurrentUser ?? false,
       }) as unknown as Promise<Staff>;
     },
-    update: (b: Partial<Staff>) => {
+    update: async (b: Partial<Staff>) => {
       markDataDirty();
+      // Signature fields are preserved from the existing row when a caller
+      // omits them (the profile editor doesn't carry them), so saving one
+      // signature never wipes the other.
+      const cur = (await ldb.readTable<Staff>("staff")).find((s) => s.id === b.id);
       return ldb.update("staff", b.id as number, {
         name: b.name,
         designation: b.designation ?? null,
@@ -120,6 +126,8 @@ export const api = {
         headquartersStationId: b.headquartersStationId ?? null,
         railwayZone: b.railwayZone ?? null,
         railwayDivision: b.railwayDivision ?? null,
+        sigPlain: b.sigPlain !== undefined ? b.sigPlain : (cur?.sigPlain ?? null),
+        sigDesignation: b.sigDesignation !== undefined ? b.sigDesignation : (cur?.sigDesignation ?? null),
         isCurrentUser: b.isCurrentUser ?? false,
       }) as unknown as Promise<Staff>;
     },

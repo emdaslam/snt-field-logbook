@@ -9,6 +9,7 @@ import type { DailyLog, DeficiencyTask, Station, Staff } from "@/db/schema";
 import { footplateRidesOf } from "@/lib/api";
 import { divisionCode } from "@/lib/railways";
 import type { PcdoItem } from "@/lib/pcdo-pdf";
+import { signatureImgHtml } from "@/lib/signature";
 
 /** Extra header lines the official formats need that the staff profile does
  *  not carry. Persisted as one JSON blob under "snt.certMeta". */
@@ -169,6 +170,9 @@ export type CertModel = {
   rows: CertRow[];
   repairsRequiredFooter: string[];
   jeLine: string;
+  /** Stored signature (no designation) embedded above the jeLine designation
+   *  in the PDF (JSON blob; "" when unset). */
+  sigPlain: string;
   /** SSE office designation printed under the "Forwarded to" line (e.g.
    *  "SSE/SIG/JMDG"). Falls back to the staff Office profile. */
   sseLine: string;
@@ -281,6 +285,7 @@ export function buildCertificateModel(args: {
     rows,
     repairsRequiredFooter: foot,
     jeLine,
+    sigPlain: staff?.sigPlain ?? "",
     sseLine: (extra.throughLine.trim() || staff?.office?.trim() || "").replace(/\/O\//g, "/"),
   };
 }
@@ -422,7 +427,9 @@ export function certificateHtml(m: CertModel): string {
   // Closing block always prints — the countersign trio may not silently vanish
   // when the Details fields were left empty. The forwarding line uses the
   // division's official code ("Sr. DSTE/M/GTL"), never the long name.
-  if (m.jeLine) h += `<p class="right" data-space-top="26"><strong>${hEsc(m.jeLine)}</strong></p>`;
+  const certSigBlock = signatureImgHtml(m.sigPlain, { sign: "plain" });
+  if (certSigBlock) h += certSigBlock;
+  if (m.jeLine) h += `<p class="right" data-space-top="${certSigBlock ? 6 : 26}"><strong>${hEsc(m.jeLine)}</strong></p>`;
   const fwd = m.addressedTo.trim() || `Sr. DSTE/M/${divisionCode(m.division) || "Division"}`;
   h += `<p data-left="24">Forwarded to ${hEsc(fwd)}</p>`;
   if (m.sseLine) h += `<p data-left="24" data-space-top="20"><strong>${hEsc(m.sseLine)}</strong></p>`;
@@ -598,6 +605,9 @@ export type FootPlateFormSpec = {
   dateIso: string;
   officialName: string;
   designation: string;
+  /** Stored signature (no designation) embedded above the designation in the
+   *  PDF (JSON blob; "" when unset). */
+  sigPlain: string;
   divisionSection: string;
   trainNo: string;
   engineNo: string;
@@ -656,6 +666,7 @@ export function footplateFormSpecs(
       dateIso: l.logDate,
       officialName: staff?.name ?? "",
       designation: staff?.designation ?? "",
+      sigPlain: staff?.sigPlain ?? "",
       divisionSection: section,
       trainNo: det?.trainNo ?? "",
       engineNo: det?.engineNo ?? "",
@@ -675,6 +686,7 @@ export function footplateFormSpecs(
       dateIso: l.logDate,
       officialName: staff?.name ?? "",
       designation: staff?.designation ?? "",
+      sigPlain: staff?.sigPlain ?? "",
       divisionSection: section,
       trainNo: det?.trainNo ?? "",
       engineNo: det?.engineNo ?? "",
@@ -810,7 +822,9 @@ export function footplateFormHtml(spec: FootPlateFormSpec, railway: string, year
   // after a further gap the SSE's office designation to counter-sign over.
   // The forwarding line always prints (falls back to the addressing default)
   // so the countersign block can never silently disappear.
-  h += `<p class="right" data-space-top="34"><strong>${hEsc(spec.designation)}</strong></p>`;
+  const fpSigBlock = signatureImgHtml(spec.sigPlain, { sign: "plain" });
+  if (fpSigBlock) h += fpSigBlock;
+  h += `<p class="right" data-space-top="${fpSigBlock ? 6 : 34}"><strong>${hEsc(spec.designation)}</strong></p>`;
   h += `<p data-left="24">Forwarded to ${hEsc(forwardedTo || "Sr. DSTE/M/Division")}</p>`;
   if (sseLine) h += `<p data-left="24" data-space-top="30"><strong>${hEsc(sseLine)}</strong></p>`;
   return h;

@@ -3,6 +3,15 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.45 — 2026-11-27
+
+**Major: profile signatures embedded in PDF exports (Diary, TA, Muster, Monthly certificate, Foot plate)**
+
+- Upload two signature images in Settings → My Profile → Signatures: one **without designation** (used by Diary, Muster, Monthly certificate and Foot plate) and one **with designation** (used by the TA Journal). Both are stored on your profile and backed up with it to Google Drive and the JSON backup.
+- The signatures are printed in the **PDF export only** — Word (.docx) and Excel (.xlsx) exports are unchanged.
+- Each signature sits centred directly above the designation/signature line it belongs to: above the bottom designation for Diary, Muster, Monthly certificate and Foot plate; above the "SIGNATURE OF OFFICER / CLAIMING TA" column for the TA Journal.
+- When no signature is uploaded the existing blank signature line is kept as before — nothing breaks.
+
 ## 1.7.8.44 — 2026-11-26
 
 **Minor: IC certificate + footplate table vertical centering; footplate name table narrowed and centred**

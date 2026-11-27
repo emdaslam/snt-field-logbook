@@ -43,6 +43,7 @@ import {
   type DriveProgress,
 } from "@/lib/drive";
 import { formatBytes } from "@/lib/backup";
+import { parseSignature, encodeSignature } from "@/lib/signature";
 import type { Staff, Station, Tag } from "@/db/schema";
 
 const GROUPS = [
@@ -113,6 +114,19 @@ export function Settings() {
   const visibleGroups = AUTO_TIMINGS ? GROUPS : GROUPS.filter((g) => g.id !== "ai");
   const groupIndex = visibleGroups.findIndex((g) => g.id === group);
   const modalOpen = !!(editStaff || addStaff || editStation || editingTag || backupOpen || restoreOpen || aiEnableOpen);
+
+  // Save one signature image (or null to clear) on the current user. The whole
+  // record is spread so an unrelated profile edit can never wipe the other
+  // signature; only the target field is overridden.
+  async function saveSig(field: "sigPlain" | "sigDesignation", encoded: string | null) {
+    if (!currentUser) return;
+    if (field === "sigPlain") {
+      await api.staff.update({ ...currentUser, sigPlain: encoded });
+    } else {
+      await api.staff.update({ ...currentUser, sigDesignation: encoded });
+    }
+    await refresh();
+  }
 
   // The native back key closes the open settings modal first
   useBackClose(modalOpen || tutorialOpen, () => {
@@ -314,6 +328,27 @@ export function Settings() {
           <p className="text-sm text-slate-400">No current user set. Add staff and mark one as “current user”.</p>
         )}
       </Section>
+
+      {currentUser && (
+        <Section title="Signatures" accent="#7c3aed">
+          <p className="mb-3 text-xs text-slate-500">
+            Stored with your profile and backed up with it. Printed above the signature line in PDF
+            exports only — Word and Excel leave them out.
+          </p>
+          <SignatureField
+            label="Signature (no designation)"
+            hint="Diary, Muster, Monthly certificate and Foot plate"
+            value={currentUser.sigPlain ?? ""}
+            onSet={(v) => saveSig("sigPlain", v)}
+          />
+          <SignatureField
+            label="Signature (with designation)"
+            hint="TA Journal"
+            value={currentUser.sigDesignation ?? ""}
+            onSet={(v) => saveSig("sigDesignation", v)}
+          />
+        </Section>
+      )}
 
       {/* Stations */}
       <Section title="Manage Stations" accent="#0e7490">
@@ -1839,6 +1874,99 @@ function Section({ title, children, accent = "#1e3a8a" }: { title: string; child
       <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: accent }} aria-hidden />
       <h3 className="mb-3 pl-1 text-[11px] font-bold uppercase tracking-wider text-blue-900">{title}</h3>
       <div className="pl-1">{children}</div>
+    </div>
+  );
+}
+
+/** Upload / preview / remove one profile signature image. Stores the encoded
+ *  blob (base64 data URL + pixel size) so the PDF renderer can lay it out. */
+function SignatureField({
+  label,
+  hint,
+  value,
+  onSet,
+}: {
+  label: string;
+  hint: string;
+  value: string;
+  onSet: (encoded: string | null) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+  const img = parseSignature(value);
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    setNote("");
+    if (!f || !f.type.startsWith("image/")) {
+      setNote("Choose an image file (PNG or JPEG).");
+      return;
+    }
+    if (f.size > 2_000_000) {
+      setNote("Image is over 2 MB — use a smaller file.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const dataUrl = await new Promise<string>((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result as string);
+        r.onerror = () => rej(new Error("Could not read the file."));
+        r.readAsDataURL(f);
+      });
+      const dims = await new Promise<{ w: number; h: number }>((res) => {
+        const im = new Image();
+        im.onload = () => res({ w: im.naturalWidth, h: im.naturalHeight });
+        im.onerror = () => res({ w: 0, h: 0 });
+        im.src = dataUrl;
+      });
+      onSet(encodeSignature({ dataUrl, w: dims.w, h: dims.h }));
+    } catch (err) {
+      setNote(err instanceof Error ? err.message : "Could not load the image.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mb-3 last:mb-0">
+      <div className="mb-1.5">
+        <p className="text-xs font-semibold text-slate-700">{label}</p>
+        <p className="text-[11px] text-slate-400">{hint}</p>
+      </div>
+      <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+        <div className="flex h-16 w-40 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-slate-300 bg-white">
+          {img ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={img.dataUrl} alt={label} className="max-h-16 max-w-40 object-contain" />
+          ) : (
+            <span className="text-[11px] text-slate-400">No signature</span>
+          )}
+        </div>
+        <div className="flex flex-1 flex-col gap-1.5">
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+          <div className="flex gap-2">
+            <button
+              onClick={() => fileRef.current?.click()}
+              disabled={busy}
+              className="rounded-lg bg-gradient-to-b from-violet-600 to-violet-700 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:from-violet-500 hover:to-violet-600 active:scale-[0.98] disabled:opacity-50"
+            >
+              {busy ? "Saving…" : img ? "Replace" : "Upload"}
+            </button>
+            {img && (
+              <button
+                onClick={() => onSet(null)}
+                className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 active:scale-[0.98]"
+              >
+                Remove
+              </button>
+            )}
+          </div>
+          {note && <p className="text-[11px] text-red-600">{note}</p>}
+        </div>
+      </div>
     </div>
   );
 }

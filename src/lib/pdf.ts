@@ -993,6 +993,35 @@ export function buildPdf(
         }
       }
       y += 16;
+    } else if (tag === "img" && (el.className || "").split(/\s+/).includes("sigimg")) {
+      // A signature image embedded above the matching signature / designation
+      // line (PDF only — Word/Excel drop <img>). Centre comes from data-anchor:
+      // "center" for the bottom-line reports, "col:<n>" to sit over the Nth
+      // column of the preceding TA signature-lines block (the claiming-TA slot).
+      const dataUrl = el.getAttribute("src") || "";
+      const w0 = Number(el.getAttribute("data-w")) || 0;
+      const h0 = Number(el.getAttribute("data-h")) || 0;
+      const b64 = dataUrl.split(",")[1];
+      if (b64 && w0 > 0 && h0 > 0) {
+        const boxW = 132;
+        const boxH = 46;
+        const s = Math.min(boxW / w0, boxH / h0);
+        const dw = w0 * s;
+        const dh = h0 * s;
+        const anchor = el.getAttribute("data-anchor") || "center";
+        let centerX = pageW / 2;
+        if (anchor.startsWith("col:")) {
+          const seg = lastColsSegs?.[Number(anchor.slice(4))];
+          if (seg) centerX = seg.x + seg.w / 2;
+        }
+        centerX = Math.max(margin + dw / 2, Math.min(pageW - margin - dw / 2, centerX));
+        const spaceTop = Number(el.getAttribute("data-space-top")) || 0;
+        pageBreak(spaceTop + dh + 12);
+        y += spaceTop;
+        const fmt = /image\/(jpeg|jpg)/.test(dataUrl) ? "JPEG" : "PNG";
+        doc.addImage(b64, fmt, centerX - dw / 2, y, dw, dh);
+        y += dh + 10;
+      }
     } else if (tag === "table") {
       // A table can open with extra blank space above it (the muster sheet
       // sits a third of the page down like the office sample, leaving room

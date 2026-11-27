@@ -11,6 +11,7 @@ import { tripTimes, journeyTrainTimes, type TripTimes } from "@/lib/travel";
 import { loadTaGenConfig, type TaGenWindow, type TaRateKey } from "@/lib/taGenConfig";
 import { effectiveRequirement } from "@/lib/stock";
 import { repeatBadge } from "@/lib/repeatPriority";
+import { signatureImgHtml } from "@/lib/signature";
 import {
   buildCertificateModel,
   certificateHtml,
@@ -1014,9 +1015,12 @@ export function exportDiary(
     const headerRow = `<tr><th class="date" data-width="56" data-align="center">DATE</th><th data-width="34" data-align="center">TRAIN NO</th><th data-width="32" data-align="center">TIME DEP</th><th data-width="32" data-align="center">TIME ARR</th><th data-width="34" data-align="center">FROM</th><th data-width="34" data-align="center">TO</th><th data-align="center">NATURE OF WORK</th></tr>`;
     const diaryTable = (g: (string | number)[][], m: XlsxMerge[]) =>
       `<table>${headerRow}${gridHtml(g, m, { dateCol: 0, centerCols: new Set([0, 1, 2, 3, 4, 5]), leftCols: new Set([6]), valignCols: new Set([6]) })}</table>`;
-    const signature = me?.designation
-      ? `<p class="right" data-right-pad="36" data-space-top="16"><strong>${esc(me.designation.toUpperCase())}</strong></p>`
-      : "";
+    const sigBlock = signatureImgHtml(me?.sigPlain, { sign: "plain" });
+    const signature =
+      sigBlock +
+      (me?.designation
+        ? `<p class="right" data-right-pad="36" data-space-top="${sigBlock ? 6 : 16}"><strong>${esc(me.designation.toUpperCase())}</strong></p>`
+        : "");
 
     body += diaryTable(grid, merges) + signature;
     // Two-page body: one continuous table (all day rows) followed by the
@@ -1332,6 +1336,9 @@ export function exportTaJournal(
     `<table>${taHead}${taGridHtml(g, m)}${withTotal ? taTotalRow : ""}</table>`;
   // The summary by rate, the signing lines and the certification follow the
   // table. With the native two-page flow they appear at the end of page 2.
+  // The with-designation signature image sits over the claiming-TA column,
+  // centred above its label (PDF only; Word/Excel drop <img>).
+  const taSigBlock = signatureImgHtml(me?.sigDesignation, { sign: "ta", anchor: "col", col: 2 });
   const taFooter =
     `<p class="cols" data-cols="46,83,115"><span>100%</span><span>X ${n100}</span><span>= ${daysLabel(days100)} DAYS</span></p>` +
     `<p class="cols" data-cols="46,83,115"><span>70%</span><span>X ${n70}</span><span>= ${daysLabel(days70)} DAYS</span></p>` +
@@ -1340,6 +1347,7 @@ export function exportTaJournal(
     `<p class="cols" data-cols="46,83,115"><span><strong>TOTAL</strong></span><span></span><span>= ${daysLabel(totalDays)} DAYS</span></p>` +
     `<p class="meta nocaps">I here certify that the above mentioned <u>employee</u> was absent on duty from his headquarters station during the period charged for in the bill on Railway Business.</p>` +
     `<p class="cols" data-cols="0,190,390" data-space-top="24"><span>${"".padEnd(20, "_")}</span><span>${"".padEnd(19, "_")}</span><span>${"".padEnd(22, "_")}</span></p>` +
+    taSigBlock +
     `<p class="cols sigs" data-cols="0,190,390"><span>CONTROLLING OFFICER</span><span>HEAD OF OFFICE</span><span>SIGNATURE OF OFFICER/ CLAIMING TA</span></p>`;
 
   let body = `<h1 class="centered tight" data-right-note="IN LIEU OF G.A.31">${esc(zoneLine)}</h1>`;
@@ -2217,8 +2225,12 @@ export function exportMuster(
     // the one-page fit math live in muster.ts / muster.check.ts).
     minRowHeights,
   })}</table>`;
-  if (lines.signature) {
-    body += `<p class="right" data-right-pad="24" data-space-top="30"><strong>${esc(lines.signature)}</strong></p>`;
+  const musterSigBlock = signatureImgHtml(me?.sigPlain, { sign: "plain" });
+  if (musterSigBlock || lines.signature) {
+    body += musterSigBlock;
+    if (lines.signature) {
+      body += `<p class="right" data-right-pad="24" data-space-top="${musterSigBlock ? 6 : 30}"><strong>${esc(lines.signature)}</strong></p>`;
+    }
   }
 
   const dayWidths = Array.from({ length: grid[0].length - 2 }, () => 4.6);

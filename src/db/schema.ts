@@ -55,6 +55,13 @@ export const staff = pgTable("staff", {
   // official forms). Empty values fall back to South Coast Railway / Guntakal.
   railwayZone: varchar("railway_zone", { length: 80 }),
   railwayDivision: varchar("railway_division", { length: 80 }),
+  // Signature images uploaded in the profile and embedded above the signature /
+  // designation line of PDF exports only (Word/Excel ignore them). Each stores a
+  // JSON blob {"dataUrl","w","h"} — a base64 image plus its pixel dimensions.
+  // sigPlain (no designation) is used by diary / muster / monthly / foot plate;
+  // sigDesignation (with designation) is used by the TA Journal.
+  sigPlain: text("sig_plain"),
+  sigDesignation: text("sig_designation"),
   isCurrentUser: boolean("is_current_user").default(false).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });

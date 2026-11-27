@@ -892,6 +892,33 @@ export const TUTORIAL_CATALOG: VersionTutorial[] = [
       },
     ],
   },
+  {
+    version: "1.7.8.45",
+    tag: "Signatures on PDF exports",
+    subtitle: "Upload your signature once and it prints on every official report.",
+    slides: [
+      {
+        glyph: "✍",
+        title: "Upload two signatures",
+        body: "Settings → My Profile → Signatures holds two images: one plain signature (no designation) and one with your designation written under it. Upload or replace each from a PNG/JPEG file on your device.",
+      },
+      {
+        glyph: "◈",
+        title: "Which report uses which",
+        body: "The plain signature prints on the Diary, Muster, Monthly IC certificate and Foot plate forms. The signature-with-designation prints on the TA Journal, over the “SIGNATURE OF OFFICER / CLAIMING TA” column.",
+      },
+      {
+        glyph: "⬇",
+        title: "PDF only, centred over the line",
+        body: "The signature appears in the PDF export only — Word and Excel are unchanged. It sits centred directly above the designation line it belongs to. Leave it unset and the blank signature line stays exactly as before.",
+      },
+      {
+        glyph: "☁",
+        title: "Backed up with your profile",
+        body: "Signatures are stored on your profile, so they travel with your Google Drive backup and the JSON backup/restore — set them once on a new phone.",
+      },
+    ],
+  },
 ];
 
 function compareVersion(a: string, b: string): number {

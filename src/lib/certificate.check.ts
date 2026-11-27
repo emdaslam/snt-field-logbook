@@ -24,6 +24,7 @@ import {
   type ObsShiftForm,
 } from "./certificate";
 import { divisionCode } from "./railways";
+import { parseSignature, encodeSignature, signatureImgHtml } from "./signature";
 import type { DailyLog, DeficiencyTask, Station, Staff } from "@/db/schema";
 
 let n = 0;
@@ -471,6 +472,26 @@ const manualHtml = certificateHtml(manualModel);
 ok(manualHtml.includes("1. Typed repair one") && manualHtml.includes("2. Typed repair two"), "manual footer prints numbered");
 ok(manualHtml.includes("Details<br/>furnished<br/>below"), "manual footer stays out of the merged cell");
 ok(manualHtml.includes("<u>Repairs Required:</u>"), "manual footer list sits below the table");
+
+// ── profile signatures (PDF-only <img> above the designation) ────────────────
+const sigEnc = encodeSignature({ dataUrl: "data:image/png;base64,QUJD", w: 200, h: 80 });
+const sigParsed = parseSignature(sigEnc);
+ok(!!sigParsed && sigParsed.w === 200 && sigParsed.h === 80 && sigParsed.dataUrl.startsWith("data:image/png"), "signature encode/parse round-trips");
+ok(parseSignature("") === null && parseSignature("not-json") === null, "signature parse tolerates empty/garbage");
+ok(signatureImgHtml("", { sign: "plain" }) === "", "no signature → no <img> emitted");
+ok(signatureImgHtml(sigEnc, { sign: "plain" }).includes('class="sigimg"'), "stored signature emits a sigimg block");
+ok(signatureImgHtml(sigEnc, { sign: "ta", anchor: "col", col: 2 }).includes('data-anchor="col:2"'), "TA signature anchors to its column");
+
+// The monthly certificate carries the no-designation image above jeLine when set.
+const sigModel = buildCertificateModel({
+  included, allMonthLogs: [], stations, deficiencies: [], staff: { ...staff, sigPlain: sigEnc } as Staff, extra, yearMonth: "2026-07",
+});
+ok(certificateHtml(sigModel).includes('<img class="sigimg" data-sign="plain"'), "monthly cert embeds the signature image");
+ok(!certificateHtml(model).includes("sigimg"), "monthly cert without a signature stays unchanged");
+
+// The foot plate form embeds it too, from the spec.
+const sigSpec = footplateFormSpecs(trip, { ...staff, sigPlain: sigEnc } as Staff, extra)[0];
+ok(footplateFormHtml(sigSpec, "", "2026-07", "", "").includes('<img class="sigimg"'), "foot plate form embeds the signature image");
 
 console.log(`certificate.check: ${n} assertions passed`);
 
