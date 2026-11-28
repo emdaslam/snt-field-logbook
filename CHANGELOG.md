@@ -8,7 +8,8 @@ For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK
 **Minor: cleaner foot plate export — no phantom sheet, one-line forwarding, optional signature, per-journey sheet picker**
 
 - Fixed: a foot plate day that only has journey (Day Up / Day Down / Night Up / Night Down) sheets no longer prints a phantom "DAY" observation sheet that was prefilled but never used.
-- The "Forwarded to …" endorsement and the SSE countersign now print side by side on one line in the foot plate form, instead of stacked with a large gap.
+- The "Forwarded to …" endorsement and the SSE countersign now print on separate lines on the LEFT side of the foot plate form (matching the IC certificate), with a gap for signing above the SSE line.
+- The "Division & Section" row now shows the boarding-destination stations for each journey leg (e.g., "GTL, KLKA-YA") instead of a global section code.
 - Diary, TA Journal, Muster and Monthly certificate exports now have an **Attach profile signature image** checkbox (ticked by default), so a PDF can be generated without the signature when needed.
 - The monthly certificate export lists one row per printed foot plate sheet ("Day Up · 77211") so individual journeys can be unticked before generating the PDF.
 

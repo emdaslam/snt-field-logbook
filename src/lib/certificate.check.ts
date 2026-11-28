@@ -225,10 +225,10 @@ const trip = log({
     },
   ] as unknown as DailyLog["footplateJourneys"],
 });
-const specs = footplateFormSpecs(trip, staff, extra);
+const specs = footplateFormSpecs(trip, staff, extra, stations);
 ok(specs.length === 1 && specs[0].shift === "DAY", "one spec for the day trip");
 ok(specs[0].trainNo === "77211" && specs[0].lpName === "S.K.SINGH" && specs[0].guardName === "J RAVI", "ride details into header");
-ok(specs[0].officialName === "E MAHAMMAD ASLAM" && specs[0].divisionSection === "GTL, KLKA-YA", "staff+section header");
+ok(specs[0].officialName === "E MAHAMMAD ASLAM" && specs[0].division === "GTL" && specs[0].boardingStation === "JMDG" && specs[0].destinationStation === "PRDT", "staff+section header per leg");
 
 const fh = footplateFormHtml(specs[0], staff.railwayZone ?? "", "2026-07", extra.addressedTo, extra.throughLine);
 ok(fh.includes("FOOT PLATE INSPECTION OF SIGNALS"), "fp title");
@@ -245,10 +245,10 @@ ok(fh.includes('<table class="hdr-table" data-valign="middle" data-center>'), "f
 ok(fh.match(/<table class="chk-table" data-valign="middle">/g)?.length === 3, "fp chk boxes valign middle");
 ok(fh.includes("<td><strong>25-07-2026</strong></td>"), "fp general (a) date bold");
 // signature close like the sample: sign space over right designation, then
-// forwarding at the left and the SSE countersign at the right on ONE line
-ok(fh.includes('<p class="right" data-space-top="34"><strong>JE/SIG/JMDG</strong></p>'), "fp right designation with sign space");
-ok(fh.includes('<td data-width="320">Forwarded to Sr DSTE/M/GTL</td>'), "fp forwarded-at-left");
-ok(fh.includes('data-align="right"><strong>SSE/SIG/JMDG</strong>'), "fp SSE countersign on the same line, right");
+  // forwarding at the left and the SSE countersign below it on the LEFT side
+  ok(fh.includes('<p class="right" data-space-top="34"><strong>JE/SIG/JMDG</strong></p>'), "fp right designation with sign space");
+  ok(fh.includes('<p data-left="24">Forwarded to Sr DSTE/M/GTL</p>'), "fp forwarded at left");
+  ok(fh.includes('<p data-left="24" data-space-top="20"><strong>SSE/SIG/JMDG</strong></p>'), "fp SSE countersign below forwarded on left");
 ok(fh.includes("77211, 8 COACHES"), "fp train+load");
 ok(fh.includes("(RECORD OF OBSERVATION)"), "fp subtitle");
 ok(fh.includes("DAY"), "fp shift");
@@ -390,10 +390,10 @@ ok(nightOnlySpecs.every((s) => s.shift === "NIGHT"), "both printed sheets are NI
 ok(nightOnlySpecs.map((s) => s.direction).join(",") === "Down,Up", "journeys print in ride order (Down out, Up back)");
 ok(footplateSheetKey(63, 1) === "63:1", "sheet key is log id + spec index");
 
-// forward endorsement and SSE countersign share one line
+// forward endorsement on the left, SSE countersign below it on the left (like IC cert)
 const ftrHtml = footplateFormHtml(bothSpecs[0], "", "2026-07", "Sr DSTE/M/GTL", "SSE/SIG/JMDG");
-ok(ftrHtml.includes('<td data-width="320">Forwarded to Sr DSTE/M/GTL</td>'), "forwarded endorsement on the left");
-ok(ftrHtml.includes('data-align="right"><strong>SSE/SIG/JMDG</strong>'), "SSE countersign on the same line, right");
+ok(ftrHtml.includes('<p data-left="24">Forwarded to Sr DSTE/M/GTL</p>'), "forwarded endorsement on the left");
+ok(ftrHtml.includes('<p data-left="24" data-space-top="20"><strong>SSE/SIG/JMDG</strong></p>'), "SSE countersign below forwarded on left");
 // a log saved before per-journey sheets falls back to the shared shift sheet
 const oldBoth = footplateFormSpecs(
   { ...bothTrip, footplateObs: { day: upForm, night: null } } as DailyLog,

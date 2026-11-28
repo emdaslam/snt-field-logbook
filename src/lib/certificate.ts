@@ -6,7 +6,7 @@
  */
 
 import type { DailyLog, DeficiencyTask, Station, Staff } from "@/db/schema";
-import { footplateRidesOf, footplateTrainsInRideOrder } from "@/lib/api";
+import { footplateRidesOf, footplateTrainsInRideOrder, footplateTrainHops } from "@/lib/api";
 import { divisionCode } from "@/lib/railways";
 import type { PcdoItem } from "@/lib/pcdo-pdf";
 import { signatureImgHtml } from "@/lib/signature";
@@ -694,7 +694,12 @@ export type FootPlateFormSpec = {
   /** Stored signature (no designation) embedded above the designation in the
    *  PDF (JSON blob; "" when unset). */
   sigPlain: string;
-  divisionSection: string;
+  /** Railway division (e.g. "GTL"). */
+  division: string;
+  /** Boarding station name for this leg. */
+  boardingStation: string;
+  /** Destination station name for this leg. */
+  destinationStation: string;
   trainNo: string;
   engineNo: string;
   lpName: string;
@@ -722,7 +727,7 @@ export function footplateFormSpecs(
   const obs = normalizeObs(l.footplateObs);
   const rides = footplateRidesOf(l);
   const primary = rides[0] ?? null;
-  const section = [staff?.railwayDivision, extra?.sectionCode].filter(Boolean).join(", ");
+  const nameOf = (id: number | null) => stations?.find((s) => s.id === id)?.name ?? "";
 
   // Full station register as seed rows (list order) — the printed matrix
   // mirrors the office sample, which lists every station of the section.
@@ -741,7 +746,9 @@ export function footplateFormSpecs(
     shift: "DAY" | "NIGHT",
     direction: "Up" | "Down" | "",
     form: ObsShiftForm,
-    det: { trainNo?: string; engineNo?: string; lpName?: string; alpName?: string; tmrName?: string } | null
+    det: { trainNo?: string; engineNo?: string; lpName?: string; alpName?: string; tmrName?: string } | null,
+    boardingStation: string,
+    destinationStation: string
   ): FootPlateFormSpec => ({
     shift,
     direction,
@@ -749,7 +756,9 @@ export function footplateFormSpecs(
     officialName: staff?.name ?? "",
     designation: staff?.designation ?? "",
     sigPlain: staff?.sigPlain ?? "",
-    divisionSection: section,
+    division: staff?.railwayDivision ?? "",
+    boardingStation,
+    destinationStation,
     trainNo: det?.trainNo ?? "",
     engineNo: det?.engineNo ?? "",
     lpName: det?.lpName ?? "",
@@ -763,13 +772,22 @@ export function footplateFormSpecs(
   // older logs (and unedited journeys) fall back to the shift's shared sheet,
   // then to the pristine defaults.
   rides.forEach((ride, i) => {
+    const hops = footplateTrainHops(ride, nameOf(ride.boardingStationId), nameOf(ride.otherEndStationId));
     for (const tr of footplateTrainsInRideOrder(ride)) {
       const shift: "day" | "night" = tr.shift.toLowerCase() === "night" ? "night" : "day";
       const form =
         obs.journeys?.[footplateJourneyKey(i, tr.shift, tr.dir)] ??
         obs[shift] ??
         emptyShiftForm();
-      specs.push(make(shift === "day" ? "DAY" : "NIGHT", tr.dir, form, tr.train));
+      const hop = hops.find((h) => h.shift === tr.shift && h.dir === tr.dir && h.train.trainNo === tr.train.trainNo);
+      specs.push(make(
+        shift === "day" ? "DAY" : "NIGHT",
+        tr.dir,
+        form,
+        tr.train,
+        hop?.from ?? nameOf(ride.boardingStationId),
+        hop?.to ?? nameOf(ride.otherEndStationId)
+      ));
     }
   });
 
@@ -781,7 +799,7 @@ export function footplateFormSpecs(
     for (const shift of ["day", "night"] as const) {
       const form = obs[shift];
       if (!form || !obsHasContent(form)) continue;
-      specs.push(make(shift === "day" ? "DAY" : "NIGHT", "", form, null));
+      specs.push(make(shift === "day" ? "DAY" : "NIGHT", "", form, null, nameOf(primary?.boardingStationId ?? null), nameOf(primary?.otherEndStationId ?? null)));
     }
   }
 
@@ -797,7 +815,7 @@ export function footplateFormSpecs(
           ? legacy.up ?? legacy.down
           : legacy
         : null;
-    specs.push(make("DAY", "", emptyShiftForm(), det));
+    specs.push(make("DAY", "", emptyShiftForm(), det, nameOf(primary?.boardingStationId ?? null), nameOf(primary?.otherEndStationId ?? null)));
   }
   return specs;
 }
@@ -819,10 +837,17 @@ export function footplateFormHtml(spec: FootPlateFormSpec, railway: string, year
   h += `<p class="centered" data-size="13"><strong>FOOT PLATE INSPECTION OF SIGNALS</strong></p>`;
   h += `<p class="centered" data-size="11"><strong>${hEsc(railway.toUpperCase())}<br/>MONTH OF &lsquo;${hEsc(monthName(yearMonth))}&rsquo; ${hEsc(yearMonth.split("-")[0] ?? "")}<br/>(RECORD OF OBSERVATION)</strong></p>`;
   h += `<p class="rule"></p>`;
+const divisionSection = spec.division
+    ? (spec.boardingStation || spec.destinationStation
+      ? `${spec.division}, ${spec.boardingStation}-${spec.destinationStation}`
+      : spec.division)
+    : (spec.boardingStation || spec.destinationStation
+      ? `${spec.boardingStation}-${spec.destinationStation}`
+      : "");
   h += `<table class="hdr-table" data-valign="middle" data-center><tbody>` +
     `<tr><td data-width="180">Name of Official conducting inspection</td><td data-width="260"><strong>${hEsc(spec.officialName)}</strong></td></tr>` +
     `<tr><td data-width="180">Designation</td><td data-width="260"><strong>${hEsc(spec.designation)}</strong></td></tr>` +
-    `<tr><td data-width="180">Division &amp; Section</td><td data-width="260"><strong>${hEsc(spec.divisionSection)}</strong></td></tr>` +
+    `<tr><td data-width="180">Division & Section</td><td data-width="260"><strong>${hEsc(divisionSection)}</strong></td></tr>` +
     `<tr><td data-width="180">DAY/NIGHT</td><td data-width="260"><strong>${spec.shift}${spec.direction ? ` — ${spec.direction.toUpperCase()}` : ""}</strong></td></tr></tbody></table>`;
 
   // Checklist sections print in the sample's two-column arrangement: the
@@ -842,7 +867,7 @@ export function footplateFormHtml(spec: FootPlateFormSpec, railway: string, year
   const gv = (k: string): string => f.general[k] ?? "";
   const generalPairs: [string, string][] = [
     pv("(a) Date", ddmmyyyy(spec.dateIso)),
-    pv("(b) Division, Section", gv("g_b") || spec.divisionSection),
+    pv("(b) Division, Section", gv("g_b") || divisionSection),
     pv("(c) Train No, Load", [spec.trainNo, f.trainLoad].filter(Boolean).join(", ")),
     pv("(d) Engine No, Parent Shed/Depot", spec.engineNo),
     pv("(e) Loco pilot Name", spec.lpName),
@@ -921,9 +946,8 @@ export function footplateFormHtml(spec: FootPlateFormSpec, railway: string, year
     `<tr><td>2. Assistance required (if any) and by whom and purpose</td><td>${hLines(f.assistance, "______")}</td></tr></tbody></table>`;
 
   // Closing block like the office sample: signing room above the right-hand
-  // designation, then the forwarding endorsement and the SSE's countersign
-  // designation SIDE BY SIDE on one line — stacking them pushed the SSE line
-  // (and the uploaded signature) onto a fresh page.
+  // designation, then the forwarding endorsement on the left, and the SSE's
+  // countersign designation below it with a gap for signing.
   const fpSigBlock = signatureImgHtml(spec.sigPlain, {
     sign: "plain",
     anchor: "right",
@@ -932,9 +956,8 @@ export function footplateFormHtml(spec: FootPlateFormSpec, railway: string, year
   });
   if (fpSigBlock) h += fpSigBlock;
   h += `<p class="right" data-space-top="${fpSigBlock ? 6 : 34}"><strong>${hEsc(spec.designation)}</strong></p>`;
-  h += `<table data-valign="middle"><tbody><tr>` +
-    `<td data-width="320">Forwarded to ${hEsc(forwardedTo || "Sr. DSTE/M/Division")}</td>` +
-    (sseLine ? `<td data-width="320" data-align="right"><strong>${hEsc(sseLine)}</strong></td>` : "") +
-    `</tr></tbody></table>`;
+  const fwd = forwardedTo || "Sr. DSTE/M/Division";
+  h += `<p data-left="24">Forwarded to ${hEsc(fwd)}</p>`;
+  if (sseLine) h += `<p data-left="24" data-space-top="20"><strong>${hEsc(sseLine)}</strong></p>`;
   return h;
 }
