@@ -16,6 +16,7 @@ import {
   prefillFromLast,
   prefillJourneyObs,
   matrixTickCount,
+  footplateSheetKey,
   monthUpper,
   monthName,
   ddmmyyyy,
@@ -243,11 +244,11 @@ ok(/<td><strong>\d{2}-\d{2}-\d{4}<\/strong><\/td>/.test(fh), "fp date answer bol
 ok(fh.includes('<table class="hdr-table" data-valign="middle" data-center>'), "fp hdr boxes valign middle + centered");
 ok(fh.match(/<table class="chk-table" data-valign="middle">/g)?.length === 3, "fp chk boxes valign middle");
 ok(fh.includes("<td><strong>25-07-2026</strong></td>"), "fp general (a) date bold");
-// signature close like the sample: sign space over right designation,
-// forwarding at left, gap, then SSE office designation
+// signature close like the sample: sign space over right designation, then
+// forwarding at the left and the SSE countersign at the right on ONE line
 ok(fh.includes('<p class="right" data-space-top="34"><strong>JE/SIG/JMDG</strong></p>'), "fp right designation with sign space");
-ok(fh.includes('<p data-left="24">Forwarded to Sr DSTE/M/GTL</p>'), "fp forwarded-at-left under it");
-ok(fh.includes('<p data-left="24" data-space-top="30"><strong>SSE/SIG/JMDG</strong></p>'), "fp SSE office designation below gap");
+ok(fh.includes('<td data-width="320">Forwarded to Sr DSTE/M/GTL</td>'), "fp forwarded-at-left");
+ok(fh.includes('data-align="right"><strong>SSE/SIG/JMDG</strong>'), "fp SSE countersign on the same line, right");
 ok(fh.includes("77211, 8 COACHES"), "fp train+load");
 ok(fh.includes("(RECORD OF OBSERVATION)"), "fp subtitle");
 ok(fh.includes("DAY"), "fp shift");
@@ -356,6 +357,43 @@ ok(bothSpecs[1].shift === "DAY" && bothSpecs[1].direction === "Down" && bothSpec
 ok(bothSpecs[0].form.observation === "Up leg observation" && bothSpecs[1].form.observation === "Down leg observation", "each journey keeps its own observation list");
 const bothHtml = footplateFormHtml(bothSpecs[0], "", "2026-07", "", "");
 ok(bothHtml.includes("DAY — UP"), "journey header shows direction");
+
+// A night-only trip prefills and saves the shared DAY sheet too. Only the
+// rides' sheets may print: the phantom DAY form the 27-11 report carried.
+const nightOnlyTrip = log({
+  id: 63,
+  logDate: "2026-11-27",
+  inspectionKind: "footplate",
+  footplateObs: {
+    day: { ...emptyShiftForm(), observation: "prefilled day sheet" },
+    night: { ...emptyShiftForm(), observation: "night sheet" },
+    journeys: { "0-nightUp": { ...emptyShiftForm(), observation: "night up" } },
+  },
+  footplateJourneys: [
+    {
+      boardingStationId: 1,
+      otherEndStationId: 2,
+      shift: "Night",
+      day: null,
+      upFromBoarding: false,
+      night: {
+        direction: "Both",
+        up: { trainNo: "17261", engineNo: "22596", lpName: "G JAGADEESHWAR", alpName: "", tmrName: "Venkataramana", remarks: "", depTime: "", arrTime: "" },
+        down: { trainNo: "77212", engineNo: "158579", lpName: "K SHEKAR", alpName: "", tmrName: "RAVI TEJA REDDY", remarks: "", depTime: "", arrTime: "" },
+      },
+    },
+  ] as unknown as DailyLog["footplateJourneys"],
+});
+const nightOnlySpecs = footplateFormSpecs(nightOnlyTrip, staff, extra);
+ok(nightOnlySpecs.length === 2, "night-only Both trip prints two sheets, no phantom DAY");
+ok(nightOnlySpecs.every((s) => s.shift === "NIGHT"), "both printed sheets are NIGHT");
+ok(nightOnlySpecs.map((s) => s.direction).join(",") === "Down,Up", "journeys print in ride order (Down out, Up back)");
+ok(footplateSheetKey(63, 1) === "63:1", "sheet key is log id + spec index");
+
+// forward endorsement and SSE countersign share one line
+const ftrHtml = footplateFormHtml(bothSpecs[0], "", "2026-07", "Sr DSTE/M/GTL", "SSE/SIG/JMDG");
+ok(ftrHtml.includes('<td data-width="320">Forwarded to Sr DSTE/M/GTL</td>'), "forwarded endorsement on the left");
+ok(ftrHtml.includes('data-align="right"><strong>SSE/SIG/JMDG</strong>'), "SSE countersign on the same line, right");
 // a log saved before per-journey sheets falls back to the shared shift sheet
 const oldBoth = footplateFormSpecs(
   { ...bothTrip, footplateObs: { day: upForm, night: null } } as DailyLog,

@@ -3,6 +3,15 @@
 Version history of the offline Android app. Newest first.
 For build / signing / Drive-setup details see [ANDROID_APK_GUIDE.md](ANDROID_APK_GUIDE.md).
 
+## 1.7.8.48 — 2026-11-28
+
+**Minor: cleaner foot plate export — no phantom sheet, one-line forwarding, optional signature, per-journey sheet picker**
+
+- Fixed: a foot plate day that only has journey (Day Up / Day Down / Night Up / Night Down) sheets no longer prints a phantom "DAY" observation sheet that was prefilled but never used.
+- The "Forwarded to …" endorsement and the SSE countersign now print side by side on one line in the foot plate form, instead of stacked with a large gap.
+- Diary, TA Journal, Muster and Monthly certificate exports now have an **Attach profile signature image** checkbox (ticked by default), so a PDF can be generated without the signature when needed.
+- The monthly certificate export lists one row per printed foot plate sheet ("Day Up · 77211") so individual journeys can be unticked before generating the PDF.
+
 ## 1.7.8.47 — 2026-11-27
 
 **Minor: foot plate observation sheet follows the footplate movement, sits under its own train details, and remembers last-entered answers per train**

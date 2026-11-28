@@ -160,6 +160,8 @@ function parseTableBody(trs: Element[]): { body: PdfCell[][]; notes: VtextNote[]
         styles.valign = "middle";
       } else if (align === "left") {
         styles.halign = "left";
+      } else if (align === "right") {
+        styles.halign = "right";
       }
       const valign = el.getAttribute("data-valign");
       if (valign === "middle") styles.valign = "middle";

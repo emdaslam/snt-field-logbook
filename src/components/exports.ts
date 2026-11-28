@@ -17,6 +17,7 @@ import {
   certificateHtml,
   footplateFormHtml,
   footplateFormSpecs,
+  footplateSheetKey,
   type CertExtra,
 } from "@/lib/certificate";
 import type { PcdoItem } from "@/lib/pcdo-pdf";
@@ -856,7 +857,8 @@ export function exportDiary(
   logs: DailyLog[],
   stations: Station[],
   me: Staff | undefined,
-  onComplete?: () => void
+  onComplete?: () => void,
+  includeSignature = true
 ) {
   const hq = stations.find((s) => s.id === me?.headquartersStationId);
   const hqCode = hqLabel(hq);
@@ -1015,12 +1017,14 @@ export function exportDiary(
     const headerRow = `<tr><th class="date" data-width="56" data-align="center">DATE</th><th data-width="34" data-align="center">TRAIN NO</th><th data-width="32" data-align="center">TIME DEP</th><th data-width="32" data-align="center">TIME ARR</th><th data-width="34" data-align="center">FROM</th><th data-width="34" data-align="center">TO</th><th data-align="center">NATURE OF WORK</th></tr>`;
     const diaryTable = (g: (string | number)[][], m: XlsxMerge[]) =>
       `<table>${headerRow}${gridHtml(g, m, { dateCol: 0, centerCols: new Set([0, 1, 2, 3, 4, 5]), leftCols: new Set([6]), valignCols: new Set([6]) })}</table>`;
-    const sigBlock = signatureImgHtml(me?.sigPlain, {
-      sign: "plain",
-      anchor: "right",
-      alignText: me?.designation?.toUpperCase() ?? "",
-      alignPad: 36,
-    });
+    const sigBlock = includeSignature
+      ? signatureImgHtml(me?.sigPlain, {
+          sign: "plain",
+          anchor: "right",
+          alignText: me?.designation?.toUpperCase() ?? "",
+          alignPad: 36,
+        })
+      : "";
     const signature =
       sigBlock +
       (me?.designation
@@ -1080,7 +1084,8 @@ export function exportTaJournal(
   logs: DailyLog[],
   stations: Station[],
   me: Staff | undefined,
-  onComplete?: () => void
+  onComplete?: () => void,
+  includeSignature = true
 ) {
   const hq = stations.find((s) => s.id === me?.headquartersStationId);
   const hqCode = hqLabel(hq);
@@ -1343,7 +1348,9 @@ export function exportTaJournal(
   // table. With the native two-page flow they appear at the end of page 2.
   // The with-designation signature image sits over the claiming-TA column,
   // centred above its label (PDF only; Word/Excel drop <img>).
-  const taSigBlock = signatureImgHtml(me?.sigDesignation, { sign: "ta", anchor: "col", col: 2 });
+  const taSigBlock = includeSignature
+    ? signatureImgHtml(me?.sigDesignation, { sign: "ta", anchor: "col", col: 2 })
+    : "";
   const taFooter =
     `<p class="cols" data-cols="46,83,115"><span>100%</span><span>X ${n100}</span><span>= ${daysLabel(days100)} DAYS</span></p>` +
     `<p class="cols" data-cols="46,83,115"><span>70%</span><span>X ${n70}</span><span>= ${daysLabel(days70)} DAYS</span></p>` +
@@ -2174,7 +2181,8 @@ export function exportMuster(
   stations: Station[],
   me: Staff | undefined,
   onComplete?: () => void,
-  includeStations = false
+  includeStations = false,
+  includeSignature = true
 ) {
   const hq = stations.find((s) => s.id === me?.headquartersStationId);
   const hqCode = hqLabel(hq);
@@ -2230,12 +2238,14 @@ export function exportMuster(
     // the one-page fit math live in muster.ts / muster.check.ts).
     minRowHeights,
   })}</table>`;
-  const musterSigBlock = signatureImgHtml(me?.sigPlain, {
-    sign: "plain",
-    anchor: "right",
-    alignText: lines.signature,
-    alignPad: 24,
-  });
+  const musterSigBlock = includeSignature
+    ? signatureImgHtml(me?.sigPlain, {
+        sign: "plain",
+        anchor: "right",
+        alignText: lines.signature,
+        alignPad: 24,
+      })
+    : "";
   if (musterSigBlock || lines.signature) {
     body += musterSigBlock;
     if (lines.signature) {
@@ -2292,15 +2302,20 @@ export function exportMonthlyFormats(
   selectedTrips: DailyLog[],
   onComplete?: () => void,
   pcdoRepairs?: { station: string; items: PcdoItem[] }[],
-  repairsRequiredFooter?: string[]
+  repairsRequiredFooter?: string[],
+  opts: { includeSignature?: boolean; sheetKeys?: Set<string> } = {}
 ) {
   const yearMonth = period.from.slice(0, 7);
+  // The signature toggle blanks the stored image on both the certificate and
+  // the foot plate forms; every other profile field stays intact.
+  const sigStaff =
+    opts.includeSignature === false && staff ? { ...staff, sigPlain: "" } : staff;
   const model = buildCertificateModel({
     included,
     allMonthLogs,
     stations,
     deficiencies,
-    staff,
+    staff: sigStaff,
     extra,
     yearMonth,
     pcdoRepairs,
@@ -2312,7 +2327,12 @@ export function exportMonthlyFormats(
   const forwarded =
     extra.addressedTo.trim() || `Sr. DSTE/M/${divisionCode(staff?.railwayDivision) || "Division"}`;
   const sse = (extra.throughLine.trim() || staff?.office?.trim() || "").replace(/\/O\//g, "/");
-  const specs = selectedTrips.flatMap((l) => footplateFormSpecs(l, staff, extra, stations));
+  const specs = selectedTrips.flatMap((l) => {
+    const all = footplateFormSpecs(l, sigStaff, extra, stations);
+    return opts.sheetKeys
+      ? all.filter((_, i) => opts.sheetKeys!.has(footplateSheetKey(l.id, i)))
+      : all;
+  });
   let body = certificateHtml(model);
   if (specs.length > 0) {
     body += `<div class="page-break"></div>`;

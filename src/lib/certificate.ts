@@ -507,6 +507,12 @@ export function footplateJourneyKey(rideIndex: number, shift: string, dir: strin
   return `${rideIndex}-${shift.toLowerCase()}${d}`;
 }
 
+/** Stable key for one printed foot plate sheet (log id + spec index) — the
+ *  monthly export lists and selects sheets by this key. */
+export function footplateSheetKey(logId: number, specIndex: number): string {
+  return `${logId}:${specIndex}`;
+}
+
 /** (a)–(w) general items minus the ride-derived lines (a date / b section /
  *  c train / d engine / e LP / g guard come straight off the trip). */
 export const GENERAL_ITEMS: { key: string; code: string; label: string; def: string }[] = [
@@ -768,12 +774,15 @@ export function footplateFormSpecs(
   });
 
   // A shift that has answers but no train (or a trainless legacy log) still
-  // prints its sheet; skip shifts already covered by a journey above.
-  for (const shift of ["day", "night"] as const) {
-    const form = obs[shift];
-    if (!form || !obsHasContent(form)) continue;
-    if (specs.some((s) => s.shift === (shift === "day" ? "DAY" : "NIGHT"))) continue;
-    specs.push(make(shift === "day" ? "DAY" : "NIGHT", "", form, null));
+  // prints its sheet — but only when no ride produced a train leg. A night
+  // trip prefills and saves the shared Day sheet too; printing that as a
+  // second sheet was the phantom "DAY" form the 27-11 report carried.
+  if (specs.length === 0) {
+    for (const shift of ["day", "night"] as const) {
+      const form = obs[shift];
+      if (!form || !obsHasContent(form)) continue;
+      specs.push(make(shift === "day" ? "DAY" : "NIGHT", "", form, null));
+    }
   }
 
   // A selected trip whose sheets were never filled still prints one DAY form
@@ -912,10 +921,9 @@ export function footplateFormHtml(spec: FootPlateFormSpec, railway: string, year
     `<tr><td>2. Assistance required (if any) and by whom and purpose</td><td>${hLines(f.assistance, "______")}</td></tr></tbody></table>`;
 
   // Closing block like the office sample: signing room above the right-hand
-  // designation, the forwarding endorsement at the left one line lower, and
-  // after a further gap the SSE's office designation to counter-sign over.
-  // The forwarding line always prints (falls back to the addressing default)
-  // so the countersign block can never silently disappear.
+  // designation, then the forwarding endorsement and the SSE's countersign
+  // designation SIDE BY SIDE on one line — stacking them pushed the SSE line
+  // (and the uploaded signature) onto a fresh page.
   const fpSigBlock = signatureImgHtml(spec.sigPlain, {
     sign: "plain",
     anchor: "right",
@@ -924,7 +932,9 @@ export function footplateFormHtml(spec: FootPlateFormSpec, railway: string, year
   });
   if (fpSigBlock) h += fpSigBlock;
   h += `<p class="right" data-space-top="${fpSigBlock ? 6 : 34}"><strong>${hEsc(spec.designation)}</strong></p>`;
-  h += `<p data-left="24">Forwarded to ${hEsc(forwardedTo || "Sr. DSTE/M/Division")}</p>`;
-  if (sseLine) h += `<p data-left="24" data-space-top="30"><strong>${hEsc(sseLine)}</strong></p>`;
+  h += `<table data-valign="middle"><tbody><tr>` +
+    `<td data-width="320">Forwarded to ${hEsc(forwardedTo || "Sr. DSTE/M/Division")}</td>` +
+    (sseLine ? `<td data-width="320" data-align="right"><strong>${hEsc(sseLine)}</strong></td>` : "") +
+    `</tr></tbody></table>`;
   return h;
 }

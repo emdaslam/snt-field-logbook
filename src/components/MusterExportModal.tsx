@@ -21,6 +21,7 @@ export function MusterExportModal({ open, onClose }: { open: boolean; onClose: (
   const { logs, stations, currentUser } = useData();
   const [monthIdx, setMonthIdx] = useState(0);
   const [includeStations, setIncludeStations] = useState(false);
+  const [attachSig, setAttachSig] = useState(true);
 
   const months = recentMonths(12);
   const period: Period = musterPeriodOf(months[monthIdx].from);
@@ -126,9 +127,19 @@ export function MusterExportModal({ open, onClose }: { open: boolean; onClose: (
         Include movement station under P / OL
       </label>
 
+      <label className="mb-3 flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+        <input
+          type="checkbox"
+          checked={attachSig}
+          onChange={(e) => setAttachSig(e.target.checked)}
+          className="h-4 w-4 accent-emerald-600"
+        />
+        Attach profile signature image to the PDF
+      </label>
+
       <PrimaryButton
         onClick={() => {
-          exportMuster(period, own, stations, currentUser, onClose, includeStations);
+          exportMuster(period, own, stations, currentUser, onClose, includeStations, attachSig);
         }}
       >
         Generate Muster

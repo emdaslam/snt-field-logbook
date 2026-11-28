@@ -25,6 +25,7 @@ export function DiaryExportModal({
   const [mode, setMode] = useState<Mode>(initialMode);
   const [period, setPeriod] = useState<Period>(() => monthPeriod(0));
   const [custom, setCustom] = useState(false);
+  const [attachSig, setAttachSig] = useState(true);
 
   const hq = stations.find((s) => s.id === currentUser?.headquartersStationId);
   const hqName = hq?.name ?? null;
@@ -238,11 +239,21 @@ export function DiaryExportModal({
         )}
       </div>
 
+      <label className="mb-3 flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+        <input
+          type="checkbox"
+          checked={attachSig}
+          onChange={(e) => setAttachSig(e.target.checked)}
+          className="h-4 w-4 accent-sky-600"
+        />
+        Attach profile signature image to the PDF
+      </label>
+
       <div className="flex justify-end">
         <PrimaryButton
           onClick={() => {
-            if (isTa) exportTaJournal(period, own, stations, currentUser, onClose);
-            else exportDiary(period, own, stations, currentUser, onClose);
+            if (isTa) exportTaJournal(period, own, stations, currentUser, onClose, attachSig);
+            else exportDiary(period, own, stations, currentUser, onClose, attachSig);
           }}
         >
           {isTa ? "Generate TA Journal" : "Generate Diary"}

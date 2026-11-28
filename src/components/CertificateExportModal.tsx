@@ -8,6 +8,7 @@ import { PeriodPicker, monthPeriod, type Period } from "./PeriodPicker";
 import {
   buildCertificateModel,
   footplateFormSpecs,
+  footplateSheetKey,
   loadCertExtra,
   loadRepairsMemory,
   loadRepairsReqMemory,
@@ -41,8 +42,11 @@ export function CertificateExportModal({ open, onClose }: { open: boolean; onClo
   const [custom, setCustom] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [extra, setExtra] = useState<CertExtra>(() => loadCertExtra());
-  // Footplate trips start all-selected; unchecked ids land here.
-  const [deselected, setDeselected] = useState<Set<number>>(new Set());
+  // Attach the profile signature image to the PDF (yes by default; the
+  // report can be generated without it).
+  const [attachSig, setAttachSig] = useState(true);
+  // Foot plate sheets start all-selected; unchecked sheet keys land here.
+  const [deselected, setDeselected] = useState<Set<string>>(new Set());
   // Attached PCDO PDF (parsed): works feed the "Repairs done" column.
   const [pcdo, setPcdo] = useState<
     { name: string; matched: { station: string; items: PcdoItem[] }[]; unmatched: string[] } | null
@@ -188,7 +192,24 @@ export function CertificateExportModal({ open, onClose }: { open: boolean; onClo
     () => monthLogs.filter((l) => l.inspectionKind === "footplate" || footplateRidesOf(l).length > 0),
     [monthLogs]
   );
-  const selectedTrips = footTrips.filter((l) => !deselected.has(l.id));
+  // One row per PRINTED sheet (Day Up / Day Down / Night Up / ...), so a trip
+  // with two journeys can be exported partly or wholly.
+  const tripSheets = useMemo(
+    () =>
+      footTrips.flatMap((l) =>
+        footplateFormSpecs(l, currentUser, extra, stations).map((spec, i) => ({
+          key: footplateSheetKey(l.id, i),
+          logId: l.id,
+          logDate: l.logDate,
+          label: `${spec.shift === "DAY" ? "Day" : "Night"}${
+            spec.direction ? ` ${spec.direction}` : ""
+          }${spec.trainNo ? ` · ${spec.trainNo}` : ""}`,
+        }))
+      ),
+    [footTrips, currentUser, extra, stations]
+  );
+  const selectedKeys = new Set(tripSheets.filter((s) => !deselected.has(s.key)).map((s) => s.key));
+  const selectedTrips = footTrips.filter((l) => tripSheets.some((s) => s.logId === l.id && selectedKeys.has(s.key)));
 
   const preview = useMemo(() => {
     const model = buildCertificateModel({
@@ -202,7 +223,11 @@ export function CertificateExportModal({ open, onClose }: { open: boolean; onClo
       pcdoRepairs: finalRepairs,
       repairsRequiredFooter: repairsReqLines,
     });
-    const specs = selectedTrips.flatMap((l) => footplateFormSpecs(l, currentUser, extra, stations));
+    const specs = selectedTrips.flatMap((l) =>
+      footplateFormSpecs(l, currentUser, extra, stations).filter(
+        (_, i) => !deselected.has(footplateSheetKey(l.id, i))
+      )
+    );
     const lines = [
       ...model.rows.map(
         (r) =>
@@ -218,7 +243,7 @@ export function CertificateExportModal({ open, onClose }: { open: boolean; onClo
         : []),
     ];
     return { ok: model.rows.length > 0 || specs.length > 0, lines };
-  }, [included, monthLogs, stations, deficiencies, currentUser, extra, selectedTrips, period.from, finalRepairs, repairsReqLines]);
+  }, [included, monthLogs, stations, deficiencies, currentUser, extra, selectedTrips, deselected, period.from, finalRepairs, repairsReqLines]);
 
   const missingMeta = !extra.addressedTo.trim() || !extra.throughLine.trim();
 
@@ -237,49 +262,47 @@ export function CertificateExportModal({ open, onClose }: { open: boolean; onClo
       <div className="mb-3">
         <div className="mb-1 flex items-center justify-between">
           <p className="text-sm font-medium text-slate-700">
-            Foot plate trips ({selectedTrips.length}/{footTrips.length})
+            Foot plate sheets ({selectedKeys.size}/{tripSheets.length})
           </p>
-          {footTrips.length > 0 && (
+          {tripSheets.length > 0 && (
             <button
               onClick={() =>
                 setDeselected(
-                  selectedTrips.length === footTrips.length
-                    ? new Set(footTrips.map((r) => r.id))
+                  selectedKeys.size === tripSheets.length
+                    ? new Set(tripSheets.map((s) => s.key))
                     : new Set()
                 )
               }
               className="text-xs font-medium text-blue-600 underline"
             >
-              {selectedTrips.length === footTrips.length ? "Clear all" : "Select all"}
+              {selectedKeys.size === tripSheets.length ? "Clear all" : "Select all"}
             </button>
           )}
         </div>
         <div className="max-h-40 overflow-y-auto rounded-lg border border-slate-200">
-          {footTrips.length === 0 ? (
+          {tripSheets.length === 0 ? (
             <p className="p-3 text-center text-sm text-slate-400">No footplate trips this month.</p>
           ) : (
-            footTrips.map((t) => (
+            tripSheets.map((s) => (
               <label
-                key={t.id}
+                key={s.key}
                 className={`flex cursor-pointer items-center gap-2 border-b border-slate-100 px-3 py-2 last:border-0 ${
-                  !deselected.has(t.id) ? "bg-sky-50" : ""
+                  !deselected.has(s.key) ? "bg-sky-50" : ""
                 }`}
               >
                 <input
                   type="checkbox"
-                  checked={!deselected.has(t.id)}
+                  checked={!deselected.has(s.key)}
                   onChange={() => {
                     const n = new Set(deselected);
-                    if (n.has(t.id)) n.delete(t.id);
-                    else n.add(t.id);
+                    if (n.has(s.key)) n.delete(s.key);
+                    else n.add(s.key);
                     setDeselected(n);
                   }}
                   className="h-4 w-4 accent-sky-600"
                 />
-                <span className="w-24 flex-shrink-0 text-xs text-slate-500">{fmtDate(t.logDate)}</span>
-                <span className="min-w-0 flex-1 truncate text-sm text-slate-800">
-                  {(t.footplateShift ?? "").split(",").filter(Boolean).join(" + ") || "footplate"}
-                </span>
+                <span className="w-24 flex-shrink-0 text-xs text-slate-500">{fmtDate(s.logDate)}</span>
+                <span className="min-w-0 flex-1 truncate text-sm text-slate-800">{s.label}</span>
               </label>
             ))
           )}
@@ -559,6 +582,16 @@ export function CertificateExportModal({ open, onClose }: { open: boolean; onClo
           )}
       </div>
 
+      <label className="mb-3 flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+        <input
+          type="checkbox"
+          checked={attachSig}
+          onChange={(e) => setAttachSig(e.target.checked)}
+          className="h-4 w-4 accent-sky-600"
+        />
+        Attach profile signature image to the PDF
+      </label>
+
       <div className="flex justify-end">
         <PrimaryButton
           onClick={() => {
@@ -580,7 +613,8 @@ export function CertificateExportModal({ open, onClose }: { open: boolean; onClo
               selectedTrips,
               onClose,
               finalRepairs,
-              repairsReqLines
+              repairsReqLines,
+              { includeSignature: attachSig, sheetKeys: selectedKeys }
             );
           }}
         >
